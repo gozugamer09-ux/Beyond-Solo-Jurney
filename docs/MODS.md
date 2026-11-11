@@ -27,8 +27,13 @@ repositories {
         filter { includeGroup "maven.modrinth" }
     }
 }
-// usage: implementation "maven.modrinth:<slug>:<version number>"
+// usage: implementation "maven.modrinth:<slug>:<version number or version id>"
 ```
+
+Pin by **Modrinth version id** (not version number) when a mod reuses the same version number
+for its Fabric and NeoForge files, or Gradle may pull the Fabric jar. Checked examples for 1.21.1:
+AttributeFix 21.1.3 = `TyNITLDY`, Bookshelf 21.1.81 = `1sdJl7J1`, Prickle 21.1.11 = `EE1FHDyD`
+(all NeoForge files).
 
 ### A1. Required (the core mod needs these at runtime)
 
@@ -70,7 +75,7 @@ Note: the old Modrinth slug `attributeslib` no longer exists. Use `apothic-attri
 
 ### B1. Combat feel and animation
 
-**Recommendation: Better Combat + Combat Roll, with Photon/Lodestone effects.** See Part C for the reasoning.
+**Decision (2026-11-09): Better Combat + Combat Roll, with Photon/Lodestone effects.** See Part C for the reasoning.
 
 | Mod | Latest | License | Purpose |
 |---|---|---|---|
@@ -192,10 +197,10 @@ Both replace attack animations, so **they cannot be used together**.
 | Mod compatibility | Works with Iron's Spells, GeckoLib weapons, most mob mods | Many mods need Epic Fight patches/addons |
 | License | ARR (fine in packs) | GPL-3.0 |
 
-**Recommendation: Better Combat + Combat Roll**, made "epic" with our own skill VFX (Photon or
-Lodestone), Veil screen effects, Camera Overhaul and screen shake on big hits. It is far less
-work for custom weapons and keeps our damage types simple. Epic Fight stays a later option if
-we want a full action-game feel and accept the extra work.
+**Decision (chosen 2026-11-09): Better Combat + Combat Roll**, made "epic" with our own skill
+VFX (Photon or Lodestone), Veil screen effects, Camera Overhaul and screen shake on big hits. It
+is far less work for custom weapons and keeps our damage types simple. Epic Fight stays a later
+option if we want a full action-game feel and accept the extra work.
 
 ### C2. How we make swords, armor and other items
 
