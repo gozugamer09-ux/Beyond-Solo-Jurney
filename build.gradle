@@ -22,7 +22,7 @@ neoForge {
             gameDirectory = project.file('runs/client')
             if (project.hasProperty('uiTest')) {
                 systemProperty 'beyondsolo.uiTest', 'true'
-                programArguments.addAll '--quickPlayMultiplayer', 'localhost:25565', '--username', 'Dev'
+                programArguments.addAll '--quickPlayMultiplayer', 'localhost:25565', '--username', 'Dev', '--width', '1280', '--height', '720'
             }
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }

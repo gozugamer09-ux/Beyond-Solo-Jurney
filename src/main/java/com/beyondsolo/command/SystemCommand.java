@@ -1,7 +1,9 @@
 package com.beyondsolo.command;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.evaluation.EvaluationManager;
 import com.beyondsolo.notify.Notifications;
+import com.beyondsolo.registry.ModBlocks;
 import com.beyondsolo.notify.SystemNotification;
 import com.beyondsolo.system.Exhaustion;
 import com.beyondsolo.system.PlayerClass;
@@ -18,12 +20,14 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 
 /** /system ... admin and testing commands (permission level 2). They act on the player running them. */
@@ -31,6 +35,8 @@ import java.util.Arrays;
 public final class SystemCommand {
     private static final SimpleCommandExceptionType BAD_VALUE =
             new SimpleCommandExceptionType(Component.translatable("command.beyondsolo.bad_value"));
+    private static final SimpleCommandExceptionType BUSY =
+            new SimpleCommandExceptionType(Component.translatable("command.beyondsolo.evaluate.busy"));
 
     @SubscribeEvent
     static void register(RegisterCommandsEvent event) {
@@ -43,6 +49,12 @@ public final class SystemCommand {
                         .then(Commands.argument("rank", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerRank.values()), b))
                                 .then(Commands.argument("class", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerClass.values()), b))
                                         .executes(ctx -> awaken(ctx, rank(ctx), playerClass(ctx))))))
+                .then(Commands.literal("evaluate")
+                        .executes(ctx -> evaluate(ctx, null, null))
+                        .then(Commands.argument("rank", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerRank.values()), b))
+                                .executes(ctx -> evaluate(ctx, rank(ctx), null))
+                                .then(Commands.argument("class", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerClass.values()), b))
+                                        .executes(ctx -> evaluate(ctx, rank(ctx), playerClass(ctx))))))
                 .then(Commands.literal("reset").executes(ctx -> {
                     SystemAPI.reset(ctx.getSource().getPlayerOrException());
                     return ok(ctx, "reset");
@@ -85,6 +97,27 @@ public final class SystemCommand {
     private static int awaken(CommandContext<CommandSourceStack> ctx, PlayerRank rank, PlayerClass playerClass) throws CommandSyntaxException {
         SystemAPI.awaken(ctx.getSource().getPlayerOrException(), rank, playerClass);
         return ok(ctx, "awaken");
+    }
+
+    /**
+     * Plays the whole evaluation again, with a forced result if given. Uses the nearest crystal,
+     * or a spot in front of the player when there is none around.
+     */
+    private static int evaluate(CommandContext<CommandSourceStack> ctx, @Nullable PlayerRank rank, @Nullable PlayerClass playerClass) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (EvaluationManager.isBeingEvaluated(player)) throw BUSY.create();
+        BlockPos origin = player.blockPosition();
+        BlockPos crystal = null;
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-8, -4, -8), origin.offset(8, 4, 8))) {
+            if (player.level().getBlockState(pos).is(ModBlocks.EVALUATION_CRYSTAL.get())
+                    && (crystal == null || pos.distSqr(origin) < crystal.distSqr(origin))) {
+                crystal = pos.immutable();
+            }
+        }
+        if (crystal == null) crystal = origin.relative(player.getDirection(), 2);
+        SystemAPI.reset(player);
+        EvaluationManager.begin(player, crystal, rank, playerClass);
+        return ok(ctx, "evaluate");
     }
 
     private static PlayerRank rank(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

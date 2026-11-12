@@ -20,6 +20,8 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSync(payload)));
         registrar.playToClient(NotificationPayload.TYPE, NotificationPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onNotification(payload)));
+        registrar.playToClient(EvaluationPayload.TYPE, EvaluationPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onEvaluation(payload)));
 
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {

@@ -21,6 +21,9 @@ public final class Config {
     public static final ModConfigSpec.IntValue EVALUATION_ZONE_WEIGHT = B
             .comment("How often the Evaluation Zone is picked when a village places a building. Vanilla houses use 1-10. In testing, 3 gives most villages one or two zones.")
             .defineInRange("world.evaluationZoneWeight", 3, 0, 200);
+    public static final ModConfigSpec.BooleanValue ANNOUNCE_AWAKENINGS = B
+            .comment("Tell everyone on the server in chat when a player finishes their evaluation, with the rank and class they got.")
+            .define("evaluation.announceInChat", true);
 
     // --- Progression ---
     public static final ModConfigSpec.IntValue STAT_POINTS_PER_LEVEL = B

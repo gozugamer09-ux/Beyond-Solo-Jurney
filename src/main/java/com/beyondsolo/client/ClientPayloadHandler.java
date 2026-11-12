@@ -1,6 +1,8 @@
 package com.beyondsolo.client;
 
+import com.beyondsolo.client.evaluation.EvaluationOverlay;
 import com.beyondsolo.client.notify.NotificationManager;
+import com.beyondsolo.network.EvaluationPayload;
 import com.beyondsolo.network.NotificationPayload;
 import com.beyondsolo.network.SyncSystemDataPayload;
 
@@ -12,6 +14,10 @@ public final class ClientPayloadHandler {
 
     public static void onNotification(NotificationPayload payload) {
         NotificationManager.push(payload.notification());
+    }
+
+    public static void onEvaluation(EvaluationPayload payload) {
+        EvaluationOverlay.handle(payload);
     }
 
     private ClientPayloadHandler() {}

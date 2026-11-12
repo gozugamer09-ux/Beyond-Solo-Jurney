@@ -1,6 +1,7 @@
 package com.beyondsolo;
 
 import com.beyondsolo.registry.ModAttachments;
+import com.beyondsolo.registry.ModBlockEntities;
 import com.beyondsolo.registry.ModBlocks;
 import com.beyondsolo.registry.ModItems;
 import com.mojang.logging.LogUtils;
@@ -19,6 +20,7 @@ public final class BeyondSolo {
     public BeyondSolo(IEventBus modBus, ModContainer container) {
         ModBlocks.BLOCKS.register(modBus);
         ModItems.ITEMS.register(modBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modBus);
         ModAttachments.ATTACHMENT_TYPES.register(modBus);
         container.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);

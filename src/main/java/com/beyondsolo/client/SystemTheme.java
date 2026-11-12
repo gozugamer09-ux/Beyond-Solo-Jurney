@@ -1,52 +1,50 @@
 package com.beyondsolo.client;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.beyondsolo.system.PlayerClass;
+import com.beyondsolo.system.PlayerRank;
 
-/** Colours and frame drawing shared by the System window and pop-ups (blue holographic look). */
+/** The System colour palette (deep navy glass with cyan light). All values are ARGB. */
 public final class SystemTheme {
-    public static final int BACKGROUND = 0xE0071322;
-    public static final int BACKGROUND_SOFT = 0xB0102438;
-    public static final int BORDER = 0xFF4FC3F7;
-    public static final int BORDER_DIM = 0x804FC3F7;
-    public static final int GLOW = 0x304FC3F7;
-    public static final int TEXT = 0xFFE3F2FD;
-    public static final int TEXT_DIM = 0xFF90A4AE;
-    public static final int ACCENT = 0xFF81D4FA;
-    public static final int HP = 0xFFE53935;
-    public static final int MP = 0xFF1E88E5;
-    public static final int XP = 0xFF26C6DA;
-    public static final int FATIGUE = 0xFFFFA726;
+    // window glass
+    public static final int GLASS_TOP = 0xF20C1A33;
+    public static final int GLASS_BOTTOM = 0xF2060E1E;
+    public static final int CARD_TOP = 0x70183052;
+    public static final int CARD_BOTTOM = 0x700D1C36;
+    public static final int CARD_BORDER = 0x405FC8FF;
+    public static final int TRACK = 0x8C050B18;
+    public static final int TRACK_BORDER = 0x30A8DCFF;
 
-    /** Window with a glowing border and corner brackets. */
-    public static void frame(GuiGraphics g, int x, int y, int w, int h, int border, int alpha) {
-        g.fill(x, y, x + w, y + h, withAlpha(BACKGROUND, alpha));
-        int glow = withAlpha(border, (int) (alpha * 0.19f));
-        g.fill(x - 1, y - 1, x + w + 1, y, glow);
-        g.fill(x - 1, y + h, x + w + 1, y + h + 1, glow);
-        g.renderOutline(x, y, w, h, withAlpha(border, (int) (alpha * 0.5f)));
-        int c = withAlpha(border, alpha);
-        int len = Math.min(10, Math.min(w, h) / 3);
-        // corner brackets
-        g.fill(x - 1, y - 1, x + len, y + 1, c);
-        g.fill(x - 1, y - 1, x + 1, y + len, c);
-        g.fill(x + w - len, y - 1, x + w + 1, y + 1, c);
-        g.fill(x + w - 1, y - 1, x + w + 1, y + len, c);
-        g.fill(x - 1, y + h - 1, x + len, y + h + 1, c);
-        g.fill(x - 1, y + h - len, x + 1, y + h + 1, c);
-        g.fill(x + w - len, y + h - 1, x + w + 1, y + h + 1, c);
-        g.fill(x + w - 1, y + h - len, x + w + 1, y + h + 1, c);
+    // light
+    public static final int ACCENT = 0xFF5FD0FF;
+    public static final int ACCENT_BRIGHT = 0xFFB9EDFF;
+    public static final int ACCENT_DEEP = 0xFF2F7BFF;
+
+    // text
+    public static final int TEXT = 0xFFEAF6FF;
+    public static final int TEXT_SOFT = 0xFFA9BED2;
+    public static final int TEXT_DIM = 0xFF6F859C;
+
+    // meaning
+    public static final int GOLD = 0xFFFFD166;
+    public static final int DANGER = 0xFFFF5D6C;
+    public static final int GOOD = 0xFF8BE28B;
+
+    // bars (start, end of the gradient)
+    public static final int HP_A = 0xFFE23D50;
+    public static final int HP_B = 0xFFFF7E6B;
+    public static final int MP_A = 0xFF2F7BFF;
+    public static final int MP_B = 0xFF62D4FF;
+    public static final int XP_A = 0xFF18B8A0;
+    public static final int XP_B = 0xFF86F2C6;
+    public static final int FATIGUE_A = 0xFFF08A24;
+    public static final int FATIGUE_B = 0xFFFFC857;
+
+    public static int rank(PlayerRank rank) {
+        return 0xFF000000 | rank.color();
     }
 
-    public static void bar(GuiGraphics g, int x, int y, int w, int h, float fraction, int color) {
-        fraction = Math.max(0, Math.min(1, fraction));
-        g.fill(x, y, x + w, y + h, 0xA0000000);
-        g.fill(x, y, x + Math.round(w * fraction), y + h, color);
-        g.renderOutline(x - 1, y - 1, w + 2, h + 2, BORDER_DIM);
-    }
-
-    public static int withAlpha(int color, int alpha) {
-        int a = Math.max(0, Math.min(255, ((color >>> 24) * alpha) / 255));
-        return (a << 24) | (color & 0xFFFFFF);
+    public static int playerClass(PlayerClass playerClass) {
+        return 0xFF000000 | playerClass.color();
     }
 
     private SystemTheme() {}
