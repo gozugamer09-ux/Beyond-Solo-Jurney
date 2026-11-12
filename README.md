@@ -6,9 +6,13 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 
 - **Random first spawn.** New players wake up 800-3000 blocks from world spawn with one objective: find a village.
 - **Evaluation Zone.** Villages (plains, desert, savanna, snowy, taiga) can generate a small stone pavilion with an
-  Evaluation Crystal. Touch it, stay close for 4 seconds, and the System assigns a **rank (E to S)** and a **class**
-  (Warrior, Assassin, Mage, Guardian, Healer, Ranger). Higher ranks start with more bonus stats.
-- **System window** (default key **V**): Status, Quests and Log tabs, styled like a holographic window.
+  Evaluation Crystal: a shard of light floating over a magic circle. Touch it and stay close while it scans you
+  (5 seconds), then the reveal plays on your screen: the **rank (E to S)** is rolled and stamped in, then the
+  **class** (Warrior, Assassin, Mage, Guardian, Healer, Ranger), then your starting stats. The crystal itself puts
+  on a show for everyone nearby and takes the colour of your rank. Higher ranks start with more bonus stats and get
+  a bigger moment (an S rank calls down lightning). The reveal takes about 14 seconds; **B** skips it.
+- **System window** (default key **V**): Status, Quests and Log tabs, drawn as a smooth glowing glass panel with its
+  own typeface and icons.
 - **Stats that do something:**
   - STR: melee damage, crit damage, knockback resistance
   - AGI: move speed, attack speed, dodge chance, bow draw speed
@@ -16,8 +20,9 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
   - INT: max mana, mana regen, cooldown reduction
   - SENSE: crit chance, luck, reach
 - **Levels and XP** from kills. Each level gives 3 stat points and fully restores you.
-- **Pop-up notifications** in three modes (key **N** to cycle, **B** to dismiss):
-  floating in the world next to you, pinned to the top of the screen, or hidden with an unread badge.
+- **Pop-up notifications** in three modes (key **N** to cycle): floating in the world next to you, pinned to the
+  top of the screen, or hidden with an unread badge. **B** hides whatever is on screen, and pressed again brings the
+  latest messages back. They fade out on their own unless you turn on "stay open" in the Log tab.
 - **Exhaustion.** Sprinting and fighting fill a fatigue meter, resting drains it. At 100% you collapse and can't
   move, attack, mine or use items for 30-45 seconds, until you sleep, or until you die.
 - **Buildup framework** for elemental status (ships with Blood: 100 buildup pops for 10% of max health, both ways).
@@ -33,12 +38,17 @@ Needs Java 21.
 ./gradlew runGameTestServer  # automated in-game tests
 ```
 
-Admin commands for testing (op level 2): `/system awaken [rank] [class]`, `/system reset`, `/system xp <n>`,
-`/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`, `/system exhaustion <percent>`,
-`/system notify <text>`.
+Admin commands for testing (op level 2): `/system evaluate [rank] [class]` (plays the whole evaluation, on the
+nearest crystal if there is one), `/system awaken [rank] [class]` (same result, no show), `/system reset`,
+`/system xp <n>`, `/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`,
+`/system exhaustion <percent>`, `/system notify <text>`.
 
-Config: `config/beyondsolo-common.toml` (spawn distance, Evaluation Zone weight, XP, exhaustion rates) and
-`config/beyondsolo-client.toml` (pop-up mode, HUD, sounds).
+Config: `config/beyondsolo-common.toml` (spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,
+exhaustion rates) and `config/beyondsolo-client.toml` (pop-up mode, stay-open pop-ups, HUD, sounds, System typeface
+on or off).
+
+If the dev client stops on a red error screen that names Prickle ("... not a subtype"), start it again. That
+library sometimes loses a start-up race when it runs from Gradle. It does not happen in a normal installation.
 
 ## Library mods
 
@@ -54,3 +64,11 @@ Versions live in `gradle.properties`, repositories and dependency lines in `buil
 | JEI, Jade | compile-only for now; recipe and tooltip plugins later |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out and where future systems plug in.
+
+## Credits
+
+- Typeface: [Exo 2](https://github.com/NDISCOVER/Exo-2.0) by the Exo 2 Project Authors, SIL Open Font License 1.1.
+- Icons: [Phosphor Icons](https://phosphoricons.com), MIT License.
+
+Both licence texts ship inside the jar in `licenses/`. Everything else (the crystal, the magic circle, the rank
+emblems, the effects) is drawn by code in this repository.
