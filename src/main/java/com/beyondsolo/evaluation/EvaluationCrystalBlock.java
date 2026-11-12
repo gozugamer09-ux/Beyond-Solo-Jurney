@@ -3,9 +3,7 @@ package com.beyondsolo.evaluation;
 import com.beyondsolo.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
@@ -18,6 +16,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
@@ -25,7 +24,11 @@ import javax.annotation.Nullable;
 /** The appraiser: a crystal floating over a stone dais. Touch it to be evaluated (or to see your result again). */
 public class EvaluationCrystalBlock extends Block implements EntityBlock {
     public static final MapCodec<EvaluationCrystalBlock> CODEC = simpleCodec(EvaluationCrystalBlock::new);
-    private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 16, 14);
+    private static final VoxelShape DAIS = Shapes.or(Block.box(1, 0, 1, 15, 3, 15), Block.box(3, 3, 3, 13, 5, 13));
+    /** What you can aim at: the dais and the part of the crystal inside this block. */
+    private static final VoxelShape SHAPE = Shapes.or(DAIS, Block.box(5, 5, 5, 11, 16, 11));
+    /** What you bump into: the dais and the whole crystal, which reaches into the block above. */
+    private static final VoxelShape COLLISION = Shapes.or(DAIS, Block.box(5, 5, 5, 11, 24, 11));
 
     public EvaluationCrystalBlock(Properties properties) {
         super(properties);
@@ -39,6 +42,11 @@ public class EvaluationCrystalBlock extends Block implements EntityBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return COLLISION;
     }
 
     @Override
@@ -67,16 +75,5 @@ public class EvaluationCrystalBlock extends Block implements EntityBlock {
         super.triggerEvent(state, level, pos, id, param);
         BlockEntity be = level.getBlockEntity(pos);
         return be != null && be.triggerEvent(id, param);
-    }
-
-    @Override
-    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        if (random.nextInt(4) == 0) {
-            double angle = random.nextDouble() * Math.PI * 2;
-            double radius = 0.25 + random.nextDouble() * 0.35;
-            level.addParticle(ParticleTypes.END_ROD,
-                    pos.getX() + 0.5 + Math.cos(angle) * radius, pos.getY() + 0.5 + random.nextDouble() * 0.9, pos.getZ() + 0.5 + Math.sin(angle) * radius,
-                    0, 0.012 + random.nextDouble() * 0.02, 0);
-        }
     }
 }

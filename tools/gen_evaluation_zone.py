@@ -63,11 +63,11 @@ for x in range(W):
     for z in range(D):
         edge = x in (0, W - 1) or z in (0, D - 1)
         put(x, 0, z, "minecraft:stone_bricks" if edge else "minecraft:polished_andesite")
-# rug around the crystal
+# dark inlay around the crystal, so its magic circle stands out on the floor
 for x in range(2, 5):
     for z in range(2, 5):
-        put(x, 1, z, "minecraft:light_blue_carpet")
-put(3, 0, 3, "minecraft:chiseled_stone_bricks")
+        put(x, 0, z, "minecraft:polished_deepslate")
+put(3, 0, 3, "minecraft:chiseled_deepslate")
 put(3, 1, 3, "beyondsolo:evaluation_crystal")
 # corner pillars
 for (x, z) in [(0, 0), (W - 1, 0), (0, D - 1), (W - 1, D - 1)]:

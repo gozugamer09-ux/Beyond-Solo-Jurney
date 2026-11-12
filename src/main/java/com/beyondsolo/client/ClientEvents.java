@@ -6,8 +6,10 @@ import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.hud.StatusHud;
 import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.client.notify.NotificationRenderer;
+import com.beyondsolo.client.render.EvaluationCrystalRenderer;
 import com.beyondsolo.client.screen.DefaultTabs;
 import com.beyondsolo.client.screen.SystemScreen;
+import com.beyondsolo.registry.ModBlockEntities;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -18,6 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
@@ -46,6 +49,11 @@ public final class ClientEvents {
             event.register(OPEN_SYSTEM);
             event.register(NOTIFICATION_MODE);
             event.register(DISMISS);
+        }
+
+        @SubscribeEvent
+        static void renderers(EntityRenderersEvent.RegisterRenderers event) {
+            event.registerBlockEntityRenderer(ModBlockEntities.EVALUATION_CRYSTAL.get(), EvaluationCrystalRenderer::new);
         }
 
         @SubscribeEvent

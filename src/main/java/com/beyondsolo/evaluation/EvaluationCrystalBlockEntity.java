@@ -23,6 +23,8 @@ public class EvaluationCrystalBlockEntity extends BlockEntity {
     public static final int LOCKED = 3;
 
     public static final int IDLE_COLOR = 0x5FD0FF;
+    /** How high the middle of the floating crystal sits above the bottom of its block. */
+    public static final float GEM_HEIGHT = 0.90f;
 
     private int state = IDLE;
     private int rank;

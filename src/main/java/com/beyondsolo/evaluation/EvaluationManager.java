@@ -337,7 +337,7 @@ public final class EvaluationManager {
 
     /** Where the crystal itself floats above its block. */
     private static Vec3 gem(BlockPos crystal) {
-        return Vec3.atBottomCenterOf(crystal).add(0, 1.15, 0);
+        return Vec3.atBottomCenterOf(crystal).add(0, EvaluationCrystalBlockEntity.GEM_HEIGHT, 0);
     }
 
     private static DustParticleOptions dust(int rgb, float scale) {
