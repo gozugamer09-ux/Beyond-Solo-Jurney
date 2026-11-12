@@ -51,6 +51,8 @@ import java.util.UUID;
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class EvaluationManager {
     private static final double MAX_DISTANCE_SQ = 6 * 6;
+    /** How long the show in the world still runs after the player skipped the reveal on their screen, in ticks. */
+    private static final int SKIP_TAIL = 24;
     private static final double TAU = Math.PI * 2;
 
     private static final class Session {
@@ -103,6 +105,27 @@ public final class EvaluationManager {
 
     public static boolean isBeingEvaluated(ServerPlayer player) {
         return SESSIONS.containsKey(player.getUUID());
+    }
+
+    /**
+     * The player skipped the reveal on their screen. Their rank and class are already theirs (that happens when
+     * the reveal starts), so the show in the world wraps up in about a second instead of running to its end.
+     */
+    public static void skip(ServerPlayer player) {
+        Session s = SESSIONS.get(player.getUUID());
+        if (s == null || s.rank == null || s.revealTick < 1 || s.revealTick >= EvaluationTimeline.FINISH - SKIP_TAIL) return;
+        ServerLevel level = player.serverLevel();
+        boolean rankShown = s.revealTick > EvaluationTimeline.RANK_LOCK;
+        boolean decidingClass = s.revealTick > EvaluationTimeline.CLASS_START && s.revealTick <= EvaluationTimeline.CLASS_LOCK;
+        if (!rankShown || decidingClass) {
+            // the crystal still shows the result to everyone nearby
+            crystalState(level, s.crystal, EvaluationCrystalBlockEntity.LOCKED, s.rank.ordinal());
+            sound(level, s.crystal, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.2f, 0.8f);
+        }
+        s.revealTick = EvaluationTimeline.FINISH - SKIP_TAIL;
+        // the protection given for the length of the reveal ends with it
+        player.removeEffect(MobEffects.DAMAGE_RESISTANCE);
+        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, SKIP_TAIL + 20, 4, false, false, false));
     }
 
     @SubscribeEvent

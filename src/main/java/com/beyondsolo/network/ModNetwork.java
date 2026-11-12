@@ -2,6 +2,7 @@ package com.beyondsolo.network;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.ClientPayloadHandler;
+import com.beyondsolo.evaluation.EvaluationManager;
 import com.beyondsolo.system.Stat;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,6 +30,10 @@ public final class ModNetwork {
                     if (stat != null && ctx.player() instanceof ServerPlayer player) {
                         SystemAPI.allocateStat(player, stat);
                     }
+                }));
+        registrar.playToServer(SkipEvaluationPayload.TYPE, SkipEvaluationPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer player) EvaluationManager.skip(player);
                 }));
     }
 

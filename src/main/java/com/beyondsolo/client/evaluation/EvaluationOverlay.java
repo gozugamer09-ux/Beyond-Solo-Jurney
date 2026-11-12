@@ -12,6 +12,7 @@ import com.beyondsolo.client.hud.StatusHud;
 import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.evaluation.EvaluationTimeline;
 import com.beyondsolo.network.EvaluationPayload;
+import com.beyondsolo.network.SkipEvaluationPayload;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.Stat;
@@ -24,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -201,6 +203,7 @@ public final class EvaluationOverlay {
             offset += FINISH - FADE_OUT - time;
             skipped = true;
             SPARKS.clear();
+            PacketDistributor.sendToServer(SkipEvaluationPayload.INSTANCE);
         }
         return true;
     }
@@ -333,7 +336,7 @@ public final class EvaluationOverlay {
         if (stage != Stage.REVEAL && scanShown <= 0.01f) return;
         int w = g.guiWidth();
         int h = g.guiHeight();
-        float s = Mth.clamp(Math.min(w / 460f, h / 250f), 1f, 2.2f);
+        float s = Mth.clamp(Math.min(w / 460f, h / 250f), 0.6f, 2.2f);
         if (stage == Stage.REVEAL) drawReveal(g, w, h, s);
         if (scanShown > 0.01f) drawScan(g, w, h, s);
     }
@@ -670,8 +673,9 @@ public final class EvaluationOverlay {
         Gfx.setAlpha(old);
 
         // the five stats pop in one after another and count up from the base value
+        // the class's signature stat is picked out in its colour, even at the lowest rank, which adds no points to it yet
         int best = 0;
-        for (int value : STATS_SHOWN) best = Math.max(best, value - Stat.BASE);
+        for (Stat stat : Stat.values()) best = Math.max(best, playerClass.statWeight(stat));
         float chipW = 58;
         float chipH = 50;
         float gap = 7;
@@ -684,7 +688,7 @@ public final class EvaluationOverlay {
             int bonus = STATS_SHOWN[i] - Stat.BASE;
             float count = Anim.outCubic(Anim.window(t, chipAt(i) + 0.15f, chipAt(i) + 0.95f));
             int value = Stat.BASE + Math.round(bonus * count);
-            boolean main = bonus > 0 && bonus == best;
+            boolean main = playerClass.statWeight(stat) == best;
             int tint = main ? classColor : SystemTheme.ACCENT;
             float scale = Anim.lerp(0.7f, 1f, Anim.outBack(pop));
 
