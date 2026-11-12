@@ -14,11 +14,11 @@ public final class EvaluationTimeline {
     /** The class emblem starts to draw itself. */
     public static final int CLASS_START = 124;
     /** The class is shown. */
-    public static final int CLASS_LOCK = 138;
+    public static final int CLASS_LOCK = 150;
     /** The summary with the starting stats appears. */
-    public static final int STATS_START = 184;
+    public static final int STATS_START = 204;
     /** The reveal is over and normal play resumes. */
-    public static final int FINISH = 250;
+    public static final int FINISH = 280;
 
     private EvaluationTimeline() {}
 }

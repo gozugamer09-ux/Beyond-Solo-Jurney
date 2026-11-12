@@ -14,6 +14,7 @@ import com.beyondsolo.system.SystemData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
@@ -22,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
@@ -153,38 +155,29 @@ public final class EvaluationManager {
                 Component.translatable("notify.beyondsolo.scan_interrupted.body")));
     }
 
+    // The player being evaluated watches all of this in first person, so the light show plays on the
+    // crystal and on the ground around them, never in their face. The big moments on their own
+    // screen are drawn by the client overlay.
+
     private static void scanEffects(ServerLevel level, Session s) {
         ServerPlayer player = s.player;
         int t = s.tick;
         float progress = t / (float) EvaluationTimeline.SCAN_TICKS;
-        double px = player.getX();
-        double py = player.getY();
-        double pz = player.getZ();
         Vec3 gem = gem(s.crystal);
-        DustParticleOptions cyan = dust(EvaluationCrystalBlockEntity.IDLE_COLOR, 0.8f);
+        Vec3 feet = player.position();
+        DustParticleOptions cyan = dust(EvaluationCrystalBlockEntity.IDLE_COLOR, 0.6f);
 
+        // two strands of light winding up around the crystal
+        helix(level, gem, cyan, t, 2);
         if (t % 2 == 0) {
-            // two strands of light climbing around the player
+            // a thread of light running from the crystal down to the circle at the player's feet
             for (int k = 0; k < 2; k++) {
-                double a = t * 0.42 + k * Math.PI;
-                double h = (t % 40) / 40.0 * 2.0;
-                level.sendParticles(ParticleTypes.END_ROD, px + Math.cos(a) * 0.85, py + 0.1 + h, pz + Math.sin(a) * 0.85, 1, 0, 0, 0, 0);
-            }
-            // a thread of light from the crystal to the player's chest
-            Vec3 chest = player.position().add(0, 1.0, 0);
-            for (int k = 0; k < 3; k++) {
-                Vec3 q = gem.lerp(chest, player.getRandom().nextDouble());
-                level.sendParticles(cyan, q.x, q.y, q.z, 1, 0.03, 0.03, 0.03, 0);
+                Vec3 q = gem.lerp(feet.add(0, 0.1, 0), player.getRandom().nextDouble() * 0.85);
+                level.sendParticles(cyan, q.x, q.y, q.z, 1, 0.02, 0.02, 0.02, 0);
             }
         }
-        if (t % 5 == 0) {
-            // a turning circle on the ground
-            for (int k = 0; k < 10; k++) {
-                double a = k / 10.0 * TAU + t * 0.1;
-                level.sendParticles(cyan, px + Math.cos(a) * 1.3, py + 0.08, pz + Math.sin(a) * 1.3, 1, 0, 0, 0, 0);
-            }
-        }
-        if (t % 3 == 0) level.sendParticles(ParticleTypes.ENCHANT, gem.x, gem.y + 0.3, gem.z, 5, 0.5, 0.5, 0.5, 0.6);
+        if (t % 4 == 0) groundRing(level, feet, cyan, 1.5, 12, t * 0.08);
+        if (t % 3 == 0) level.sendParticles(ParticleTypes.ENCHANT, gem.x, gem.y + 0.2, gem.z, 4, 0.4, 0.4, 0.4, 0.6);
 
         // a chime that climbs and speeds up as the scan fills
         int interval = Math.max(3, Math.round(12 - 9 * progress));
@@ -198,9 +191,6 @@ public final class EvaluationManager {
     private static void revealStep(ServerLevel level, Session s) {
         ServerPlayer player = s.player;
         int r = s.revealTick;
-        double px = player.getX();
-        double py = player.getY();
-        double pz = player.getZ();
 
         if (r == 0) {
             if (s.rank == null) s.rank = PlayerRank.roll(player.getRandom());
@@ -210,7 +200,7 @@ public final class EvaluationManager {
             List<Integer> stats = new ArrayList<>();
             for (Stat stat : Stat.values()) stats.add(data.stat(stat));
             PacketDistributor.sendToPlayer(player, EvaluationPayload.reveal(s.rank.ordinal(), s.playerClass.ordinal(), stats));
-            // The overlay covers part of the screen, so nothing can hurt the player until it is over.
+            // The overlay covers the screen, so nothing can hurt the player until it is over.
             player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, EvaluationTimeline.FINISH + 20, 4, false, false, false));
             crystalState(level, s.crystal, EvaluationCrystalBlockEntity.REVEALING, 0);
             level.playSound(null, s.crystal, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 1f, 0.8f);
@@ -218,75 +208,71 @@ public final class EvaluationManager {
         PlayerRank rank = s.rank;
         PlayerClass playerClass = s.playerClass;
         if (rank == null || playerClass == null) return;
+        Vec3 gem = gem(s.crystal);
+        Vec3 feet = player.position();
 
         if (r < EvaluationTimeline.RANK_LOCK && r % 2 == 0) {
-            // light gathers on the player from all around while the rank is decided
-            for (int k = 0; k < 6; k++) {
-                double a = k / 6.0 * TAU + r * 0.3;
-                level.sendParticles(ParticleTypes.END_ROD, px + Math.cos(a) * 3.0, py + 0.6 + (k % 3) * 0.5, pz + Math.sin(a) * 3.0,
-                        0, -Math.cos(a), 0.02, -Math.sin(a), 0.16);
+            // light gathers on the crystal while the rank is decided
+            for (int k = 0; k < 4; k++) {
+                double a = k / 4.0 * TAU + r * 0.37;
+                double up = 0.3 + ((r / 2 + k) % 4) * 0.45;
+                level.sendParticles(ParticleTypes.END_ROD, gem.x + Math.cos(a) * 1.6, gem.y + up, gem.z + Math.sin(a) * 1.6,
+                        0, -Math.cos(a) * 1.6, -up, -Math.sin(a) * 1.6, 0.09);
             }
         }
         if (r == EvaluationTimeline.RANK_LOCK) rankBurst(level, s, rank);
         int wave = r - EvaluationTimeline.RANK_LOCK;
         if (wave >= 1 && wave <= 8) {
             // a ring of the rank's colour racing outwards along the ground
-            DustParticleOptions color = dust(rank.color(), 1.5f);
-            double radius = 0.6 + wave * 0.55;
-            int count = 14 + wave * 3;
-            for (int k = 0; k < count; k++) {
-                double a = k / (double) count * TAU;
-                level.sendParticles(color, px + Math.cos(a) * radius, py + 0.15, pz + Math.sin(a) * radius, 1, 0, 0, 0, 0);
-            }
+            groundRing(level, feet, dust(rank.color(), 1.1f), 0.6 + wave * 0.55, 14 + wave * 3, 0);
         }
-        if (r >= EvaluationTimeline.CLASS_START && r < EvaluationTimeline.CLASS_LOCK + 12) {
-            // the class's colour winding up around the player
-            DustParticleOptions color = dust(playerClass.color(), 1.1f);
-            int n = r - EvaluationTimeline.CLASS_START;
-            for (int k = 0; k < 3; k++) {
-                double a = n * 0.5 + k * TAU / 3;
-                double h = (n % 26) / 26.0 * 2.2;
-                level.sendParticles(color, px + Math.cos(a) * 1.0, py + 0.1 + h, pz + Math.sin(a) * 1.0, 1, 0, 0, 0, 0);
-            }
+        if (r >= EvaluationTimeline.CLASS_START && r < EvaluationTimeline.CLASS_LOCK) {
+            // the class's colour winding up around the crystal and circling the player
+            DustParticleOptions color = dust(playerClass.color(), 0.7f);
+            helix(level, gem, color, r, 3);
+            if (r % 4 == 0) groundRing(level, feet, color, 1.5, 12, r * 0.08);
         }
         if (r == EvaluationTimeline.CLASS_START) {
-            level.playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.8f, 1.3f);
+            level.playSound(null, s.crystal, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 0.8f, 1.3f);
         }
         if (r == EvaluationTimeline.CLASS_LOCK) {
-            level.sendParticles(dust(playerClass.color(), 1.6f), px, py + 1.0, pz, 40, 0.55, 0.8, 0.55, 0);
-            level.sendParticles(ParticleTypes.ENCHANT, px, py + 1.4, pz, 40, 0.6, 0.6, 0.6, 1.0);
-            level.playSound(null, player.blockPosition(), SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 1f, 1.0f);
-            level.playSound(null, player.blockPosition(), SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.PLAYERS, 1f, 0.8f);
+            DustParticleOptions color = dust(playerClass.color(), 1.2f);
+            level.sendParticles(color, gem.x, gem.y + 0.9, gem.z, 45, 0.3, 0.8, 0.3, 0);
+            level.sendParticles(ParticleTypes.ENCHANT, gem.x, gem.y + 0.4, gem.z, 60, 0.6, 0.6, 0.6, 1.0);
+            groundRing(level, feet, color, 1.2, 16, 0);
+            groundRing(level, feet, color, 2.0, 24, 0);
+            level.playSound(null, s.crystal, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.BLOCKS, 1f, 1.0f);
+            level.playSound(null, s.crystal, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.BLOCKS, 1f, 0.8f);
         }
     }
 
     private static void rankBurst(ServerLevel level, Session s, PlayerRank rank) {
-        ServerPlayer player = s.player;
-        double px = player.getX();
-        double py = player.getY();
-        double pz = player.getZ();
+        Vec3 gem = gem(s.crystal);
+        RandomSource random = s.player.getRandom();
         int tier = rank.tier();
-        BlockPos at = player.blockPosition();
+        BlockPos at = s.crystal;
 
         crystalState(level, s.crystal, EvaluationCrystalBlockEntity.LOCKED, rank.ordinal());
-        // a pillar of the rank's colour and a ring of light thrown outwards
-        level.sendParticles(dust(rank.color(), 1.8f), px, py + 1.6, pz, 30 + tier * 10, 0.25, 1.4, 0.25, 0);
-        int rods = 20 + tier * 6;
+        level.sendParticles(ParticleTypes.FLASH, gem.x, gem.y, gem.z, 1, 0, 0, 0, 0);
+        // a pillar of the rank's colour above the crystal, and a fountain of light thrown up from it
+        level.sendParticles(dust(rank.color(), 1.4f), gem.x, gem.y + 2.6, gem.z, 40 + tier * 12, 0.12, 1.5, 0.12, 0);
+        int rods = 14 + tier * 6;
         for (int k = 0; k < rods; k++) {
-            double a = k / (double) rods * TAU;
-            level.sendParticles(ParticleTypes.END_ROD, px, py + 1.0, pz, 0, Math.cos(a), 0.05, Math.sin(a), 0.22 + tier * 0.03);
+            double a = random.nextDouble() * TAU;
+            double out = 0.2 + random.nextDouble() * 0.5;
+            level.sendParticles(ParticleTypes.END_ROD, gem.x, gem.y + 0.3, gem.z,
+                    0, Math.cos(a) * out, 1.0 + random.nextDouble() * 0.8, Math.sin(a) * out, 0.16 + tier * 0.02);
         }
-        level.sendParticles(ParticleTypes.FLASH, px, py + 1.2, pz, 1, 0, 0, 0, 0);
 
         sound(level, at, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.2f, 0.8f);
         sound(level, at, SoundEvents.PLAYER_LEVELUP, 0.9f, 0.7f + tier * 0.08f);
         if (tier >= 2) sound(level, at, SoundEvents.BEACON_POWER_SELECT, 1f, 1.2f);
         if (tier >= 3) {
-            level.sendParticles(ParticleTypes.FIREWORK, px, py + 1.2, pz, 40 + tier * 10, 0.3, 0.5, 0.3, 0.18);
+            level.sendParticles(ParticleTypes.FIREWORK, gem.x, gem.y + 1.0, gem.z, 30 + tier * 10, 0.2, 0.3, 0.2, 0.14);
             sound(level, at, SoundEvents.FIREWORK_ROCKET_TWINKLE, 1f, 1f);
         }
         if (tier >= 4) {
-            level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, px, py + 1.0, pz, 70, 0.4, 0.6, 0.4, 0.45);
+            level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, gem.x, gem.y + 0.5, gem.z, 60, 0.25, 0.4, 0.25, 0.3);
             sound(level, at, SoundEvents.TOTEM_USE, 0.7f, 1f);
         }
         if (tier >= 5) {
@@ -297,8 +283,28 @@ public final class EvaluationManager {
                 bolt.setVisualOnly(true);
                 level.addFreshEntity(bolt);
             }
-            level.sendParticles(dust(rank.color(), 2.4f), px, py + 1.0, pz, 80, 1.6, 1.0, 1.6, 0);
+            Vec3 base = Vec3.atBottomCenterOf(s.crystal);
+            DustParticleOptions heavy = dust(rank.color(), 1.6f);
+            groundRing(level, base, heavy, 2.6, 30, 0);
+            groundRing(level, base, heavy, 3.6, 40, 0.07);
             sound(level, at, SoundEvents.ENDER_DRAGON_GROWL, 0.5f, 0.7f);
+        }
+    }
+
+    /** One step of strands of particles winding up around the crystal. Call every tick. */
+    private static void helix(ServerLevel level, Vec3 gem, ParticleOptions particle, int tick, int strands) {
+        double height = (tick % 32) / 32.0 * 1.7 - 0.7;
+        for (int k = 0; k < strands; k++) {
+            double a = tick * 0.38 + k * TAU / strands;
+            level.sendParticles(particle, gem.x + Math.cos(a) * 0.7, gem.y + height, gem.z + Math.sin(a) * 0.7, 1, 0, 0, 0, 0);
+        }
+    }
+
+    /** A circle of particles lying on the ground. */
+    private static void groundRing(ServerLevel level, Vec3 center, ParticleOptions particle, double radius, int count, double turn) {
+        for (int k = 0; k < count; k++) {
+            double a = k / (double) count * TAU + turn;
+            level.sendParticles(particle, center.x + Math.cos(a) * radius, center.y + 0.12, center.z + Math.sin(a) * radius, 1, 0, 0, 0, 0);
         }
     }
 
@@ -339,7 +345,7 @@ public final class EvaluationManager {
     }
 
     private static void sound(ServerLevel level, BlockPos at, SoundEvent sound, float volume, float pitch) {
-        level.playSound(null, at, sound, SoundSource.PLAYERS, volume, pitch);
+        level.playSound(null, at, sound, SoundSource.BLOCKS, volume, pitch);
     }
 
     private static void crystalState(ServerLevel level, BlockPos crystal, int state, int param) {

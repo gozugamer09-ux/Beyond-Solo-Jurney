@@ -36,6 +36,7 @@ public final class SysFont {
             54, 56, 60, 64, 72, 80, 84, 88, 96, 112, 128};
     private static final Style[] TEXT = new Style[SIZES.length];
     private static final Style[] TITLE = new Style[SIZES.length];
+    private static float contentScale = 1f;
 
     static {
         for (int i = 0; i < SIZES.length; i++) {
@@ -46,6 +47,16 @@ public final class SysFont {
 
     /** A measured piece of text, ready to draw. */
     public record Line(FormattedCharSequence text, float width, float size, float scale, boolean vanilla) {}
+
+    /**
+     * Call before drawing inside a pose that is scaled by {@code scale} (and again with the returned
+     * value afterwards), so the font file that matches the real on-screen size gets picked.
+     */
+    public static float setContentScale(float scale) {
+        float previous = contentScale;
+        contentScale = scale;
+        return previous;
+    }
 
     // ---------------------------------------------------------------- drawing
 
@@ -218,7 +229,7 @@ public final class SysFont {
     // ---------------------------------------------------------------- internals
 
     private static int variant(float size) {
-        double target = size * Minecraft.getInstance().getWindow().getGuiScale();
+        double target = size * contentScale * Minecraft.getInstance().getWindow().getGuiScale();
         int best = 0;
         double bestDiff = Double.MAX_VALUE;
         for (int i = 0; i < SIZES.length; i++) {

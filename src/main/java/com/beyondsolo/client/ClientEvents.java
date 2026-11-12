@@ -1,6 +1,7 @@
 package com.beyondsolo.client;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.evaluation.EvaluationOverlay;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.hud.StatusHud;
 import com.beyondsolo.client.notify.NotificationManager;
@@ -51,6 +52,7 @@ public final class ClientEvents {
         static void layers(RegisterGuiLayersEvent event) {
             event.registerAboveAll(BeyondSolo.id("status_hud"), StatusHud::render);
             event.registerAboveAll(BeyondSolo.id("notifications"), NotificationRenderer::renderHud);
+            event.registerAboveAll(BeyondSolo.id("evaluation"), EvaluationOverlay::render);
         }
     }
 
@@ -59,6 +61,7 @@ public final class ClientEvents {
         @SubscribeEvent
         static void frame(RenderFrameEvent.Pre event) {
             Anim.frame();
+            EvaluationOverlay.frame(event.getPartialTick());
             NotificationManager.frame();
         }
 
@@ -66,6 +69,7 @@ public final class ClientEvents {
         static void tick(ClientTickEvent.Post event) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+            EvaluationOverlay.tick();
             while (OPEN_SYSTEM.consumeClick()) {
                 if (mc.screen == null) mc.setScreen(new SystemScreen());
             }
@@ -85,11 +89,13 @@ public final class ClientEvents {
             NotificationManager.clearAll();
             NotificationRenderer.reset();
             StatusHud.reset();
+            EvaluationOverlay.reset();
         }
     }
 
-    /** What the hide key does right now. */
+    /** What the hide key does right now: skips the evaluation reveal if it is playing, otherwise hides or recalls pop-ups. */
     public static void hideKeyPressed() {
+        if (EvaluationOverlay.skip()) return;
         NotificationManager.toggleHidden();
     }
 
