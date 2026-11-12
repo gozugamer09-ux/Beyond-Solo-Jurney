@@ -26,8 +26,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -165,19 +163,12 @@ public final class EvaluationManager {
         float progress = t / (float) EvaluationTimeline.SCAN_TICKS;
         Vec3 gem = gem(s.crystal);
         Vec3 feet = player.position();
-        DustParticleOptions cyan = dust(EvaluationCrystalBlockEntity.IDLE_COLOR, 0.6f);
+        DustParticleOptions cyan = dust(EvaluationCrystalBlockEntity.IDLE_COLOR, 0.5f);
 
-        // two strands of light winding up around the crystal
-        helix(level, gem, cyan, t, 2);
-        if (t % 2 == 0) {
-            // a thread of light running from the crystal down to the circle at the player's feet
-            for (int k = 0; k < 2; k++) {
-                Vec3 q = gem.lerp(feet.add(0, 0.1, 0), player.getRandom().nextDouble() * 0.85);
-                level.sendParticles(cyan, q.x, q.y, q.z, 1, 0.02, 0.02, 0.02, 0);
-            }
-        }
+        // (the trails of light winding around the crystal are drawn by its renderer)
+        // the crystal reads the player: glyphs lift off them and stream into it
+        if (t % 2 == 0) glyph(level, player.getRandom(), feet.add(0, 0.9, 0), gem);
         if (t % 4 == 0) groundRing(level, feet, cyan, 1.5, 12, t * 0.08);
-        if (t % 3 == 0) level.sendParticles(ParticleTypes.ENCHANT, gem.x, gem.y + 0.2, gem.z, 4, 0.4, 0.4, 0.4, 0.6);
 
         // a chime that climbs and speeds up as the scan fills
         int interval = Math.max(3, Math.round(12 - 9 * progress));
@@ -211,36 +202,30 @@ public final class EvaluationManager {
         Vec3 gem = gem(s.crystal);
         Vec3 feet = player.position();
 
-        if (r < EvaluationTimeline.RANK_LOCK && r % 2 == 0) {
-            // light gathers on the crystal while the rank is decided
-            for (int k = 0; k < 4; k++) {
-                double a = k / 4.0 * TAU + r * 0.37;
-                double up = 0.3 + ((r / 2 + k) % 4) * 0.45;
-                level.sendParticles(ParticleTypes.END_ROD, gem.x + Math.cos(a) * 1.6, gem.y + up, gem.z + Math.sin(a) * 1.6,
-                        0, -Math.cos(a) * 1.6, -up, -Math.sin(a) * 1.6, 0.09);
-            }
-        }
+        // (while the rank is decided the crystal draws light in from all around: its renderer does that)
         if (r == EvaluationTimeline.RANK_LOCK) rankBurst(level, s, rank);
         int wave = r - EvaluationTimeline.RANK_LOCK;
         if (wave >= 1 && wave <= 8) {
             // a ring of the rank's colour racing outwards along the ground
-            groundRing(level, feet, dust(rank.color(), 1.1f), 0.6 + wave * 0.55, 14 + wave * 3, 0);
+            groundRing(level, feet, dust(rank.color(), 0.8f), 1.4 + wave * 0.5, 16 + wave * 3, 0);
         }
         if (r >= EvaluationTimeline.CLASS_START && r < EvaluationTimeline.CLASS_LOCK) {
-            // the class's colour winding up around the crystal and circling the player
-            DustParticleOptions color = dust(playerClass.color(), 0.7f);
-            helix(level, gem, color, r, 3);
-            if (r % 4 == 0) groundRing(level, feet, color, 1.5, 12, r * 0.08);
+            // the class's colour circling the player (and winding around the crystal, which its renderer draws)
+            if (r % 4 == 0) groundRing(level, feet, dust(playerClass.color(), 0.6f), 1.5, 12, r * 0.08);
+            // the crystal answers: glyphs stream back from it into the player
+            if (r % 2 == 0) glyph(level, player.getRandom(), gem, feet.add(0, 0.9, 0));
         }
         if (r == EvaluationTimeline.CLASS_START) {
+            crystalState(level, s.crystal, EvaluationCrystalBlockEntity.CHANNELING, playerClass.ordinal());
             level.playSound(null, s.crystal, SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.BLOCKS, 0.8f, 1.3f);
         }
         if (r == EvaluationTimeline.CLASS_LOCK) {
-            DustParticleOptions color = dust(playerClass.color(), 1.2f);
-            level.sendParticles(color, gem.x, gem.y + 0.9, gem.z, 45, 0.3, 0.8, 0.3, 0);
+            DustParticleOptions color = dust(playerClass.color(), 0.9f);
+            crystalState(level, s.crystal, EvaluationCrystalBlockEntity.LOCKED, rank.ordinal());
+            level.sendParticles(color, gem.x, gem.y + 0.9, gem.z, 30, 0.3, 0.8, 0.3, 0);
             level.sendParticles(ParticleTypes.ENCHANT, gem.x, gem.y + 0.4, gem.z, 60, 0.6, 0.6, 0.6, 1.0);
-            groundRing(level, feet, color, 1.2, 16, 0);
-            groundRing(level, feet, color, 2.0, 24, 0);
+            groundRing(level, feet, color, 1.4, 16, 0);
+            groundRing(level, feet, color, 2.2, 24, 0);
             level.playSound(null, s.crystal, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.BLOCKS, 1f, 1.0f);
             level.playSound(null, s.crystal, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.BLOCKS, 1f, 0.8f);
         }
@@ -254,8 +239,8 @@ public final class EvaluationManager {
 
         crystalState(level, s.crystal, EvaluationCrystalBlockEntity.LOCKED, rank.ordinal());
         level.sendParticles(ParticleTypes.FLASH, gem.x, gem.y, gem.z, 1, 0, 0, 0, 0);
-        // a pillar of the rank's colour above the crystal, and a fountain of light thrown up from it
-        level.sendParticles(dust(rank.color(), 1.4f), gem.x, gem.y + 2.6, gem.z, 40 + tier * 12, 0.12, 1.5, 0.12, 0);
+        // a fountain of light thrown up from the crystal (the flash, the ring along the floor and the change of
+        // colour are drawn by its renderer)
         int rods = 14 + tier * 6;
         for (int k = 0; k < rods; k++) {
             double a = random.nextDouble() * TAU;
@@ -272,32 +257,31 @@ public final class EvaluationManager {
             sound(level, at, SoundEvents.FIREWORK_ROCKET_TWINKLE, 1f, 1f);
         }
         if (tier >= 4) {
-            level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, gem.x, gem.y + 0.5, gem.z, 60, 0.25, 0.4, 0.25, 0.3);
+            // a second, wider fountain
+            for (int k = 0; k < 24; k++) {
+                double a = k / 24.0 * TAU;
+                level.sendParticles(ParticleTypes.END_ROD, gem.x, gem.y, gem.z, 0, Math.cos(a), 0.35, Math.sin(a), 0.22);
+            }
             sound(level, at, SoundEvents.TOTEM_USE, 0.7f, 1f);
         }
         if (tier >= 5) {
-            // S rank: the sky answers. The bolt is for show only and harms nothing.
-            LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-            if (bolt != null) {
-                bolt.moveTo(Vec3.atBottomCenterOf(s.crystal.above()));
-                bolt.setVisualOnly(true);
-                level.addFreshEntity(bolt);
-            }
+            // S rank: the sky answers. Each client draws the bolt itself when the crystal locks
+            // (see EvaluationCrystalBlockEntity), so it is for show only and counts as nothing in the world.
             Vec3 base = Vec3.atBottomCenterOf(s.crystal);
-            DustParticleOptions heavy = dust(rank.color(), 1.6f);
+            DustParticleOptions heavy = dust(rank.color(), 1.0f);
             groundRing(level, base, heavy, 2.6, 30, 0);
             groundRing(level, base, heavy, 3.6, 40, 0.07);
             sound(level, at, SoundEvents.ENDER_DRAGON_GROWL, 0.5f, 0.7f);
         }
     }
 
-    /** One step of strands of particles winding up around the crystal. Call every tick. */
-    private static void helix(ServerLevel level, Vec3 gem, ParticleOptions particle, int tick, int strands) {
-        double height = (tick % 32) / 32.0 * 1.7 - 0.7;
-        for (int k = 0; k < strands; k++) {
-            double a = tick * 0.38 + k * TAU / strands;
-            level.sendParticles(particle, gem.x + Math.cos(a) * 0.7, gem.y + height, gem.z + Math.sin(a) * 0.7, 1, 0, 0, 0, 0);
-        }
+    /** An enchanting-table glyph that appears near {@code from} and flies into {@code to}. */
+    private static void glyph(ServerLevel level, RandomSource random, Vec3 from, Vec3 to) {
+        // This particle is given the point it heads for, and its "speed" is where it starts, measured from that point.
+        // It dips 1.2 blocks at the very end of its flight (into an enchanting table), so we aim that much higher.
+        double aimY = to.y + 1.2;
+        level.sendParticles(ParticleTypes.ENCHANT, to.x, aimY, to.z, 0,
+                from.x - to.x + (random.nextDouble() - 0.5) * 0.7, from.y - aimY + (random.nextDouble() - 0.5) * 0.9, from.z - to.z + (random.nextDouble() - 0.5) * 0.7, 1.0);
     }
 
     /** A circle of particles lying on the ground. */

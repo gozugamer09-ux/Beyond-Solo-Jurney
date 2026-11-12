@@ -23,18 +23,25 @@ import org.joml.Vector3f;
 /**
  * Draws the Evaluation Crystal: a faceted shard that floats and turns over its dais, small shards circling it,
  * a magic circle on the floor and a thin beam of light. Everything speeds up and brightens while a player is
- * being evaluated, and takes the colour of their rank when it is decided
+ * being evaluated: trails of light wind around it, light is drawn into it while the rank is decided, and when the
+ * rank locks in it flashes, throws a ring of light along the floor and takes the rank's colour
  * (the state comes from {@link EvaluationCrystalBlockEntity}).
  */
 public class EvaluationCrystalRenderer implements BlockEntityRenderer<EvaluationCrystalBlockEntity> {
     private static final ResourceLocation MAGIC_CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
     private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
+    private static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
 
     // Shapes are rings of {radius, height} from the top tip to the bottom tip, turned around the vertical axis.
     private static final float[][] GEM = {{0f, 0.44f}, {0.225f, 0.14f}, {0.225f, -0.11f}, {0f, -0.50f}};
     private static final float[][] SHARD = {{0f, 0.085f}, {0.042f, 0f}, {0f, -0.085f}};
     private static final int SHARDS = 3;
     private static final int MOTES = 7;
+    private static final int TRAILS = 3;
+    private static final int TRAIL_DOTS = 14;
+    private static final int GATHER_DOTS = 18;
+    /** How far the ring of light thrown out when a rank or class locks in travels. Stays inside the Evaluation Zone's floor. */
+    private static final float SHOCKWAVE_REACH = 3.6f;
     private static final Vector3f LIGHT = new Vector3f(0.35f, 0.85f, 0.4f).normalize();
     private static final float CIRCLE_Y = 0.09f;
 
@@ -50,6 +57,9 @@ public class EvaluationCrystalRenderer implements BlockEntityRenderer<Evaluation
         float flash = crystal.flash(partialTick);
         int rgb = crystal.color(partialTick);
         float spin = crystal.spin(partialTick) * Mth.DEG_TO_RAD;
+        float trails = crystal.trails(partialTick);
+        float gather = crystal.gather(partialTick);
+        int trailRgb = crystal.trailColor(partialTick);
         float energy = Math.min(1f, 0.45f * activity + flash);
         float bob = Mth.sin(time * 0.07f) * 0.035f * (1 - 0.6f * activity);
         float gemY = EvaluationCrystalBlockEntity.GEM_HEIGHT + bob;
@@ -63,8 +73,13 @@ public class EvaluationCrystalRenderer implements BlockEntityRenderer<Evaluation
 
         // the circle on the floor: faint while idle, bright and layered during an evaluation
         int pale = mix(rgb, 0xFFFFFF, 0.35f);
-        circle(pose, buffers, CIRCLE_Y, 1.45f + 0.1f * activity, time * 0.35f + spin * 3f, pale, 0.42f + 0.45f * activity + 0.3f * flash);
-        circle(pose, buffers, CIRCLE_Y + 0.004f, 0.78f, -time * 0.9f, pale, 0.75f * activity);
+        disc(pose, buffers, MAGIC_CIRCLE, CIRCLE_Y, 1.45f + 0.1f * activity, time * 0.35f + spin * 3f, pale, 0.42f + 0.45f * activity + 0.3f * flash);
+        disc(pose, buffers, MAGIC_CIRCLE, CIRCLE_Y + 0.004f, 0.78f, -time * 0.9f, mix(trailRgb, 0xFFFFFF, 0.35f), 0.75f * activity);
+        if (flash > 0.02f) {
+            // a ring of light racing outwards along the floor when a rank or class locks in: fast at first, then easing out
+            float out = (float) Math.pow(1 - flash, 0.8);
+            disc(pose, buffers, RING, CIRCLE_Y + 0.008f, 0.6f + (SHOCKWAVE_REACH - 0.6f) * out, 0f, mix(rgb, 0xFFFFFF, 0.5f * flash), Math.min(1f, flash * 1.1f));
+        }
 
         // the beam: a thread of light while idle, a pillar during an evaluation
         pose.pushPose();
@@ -112,6 +127,36 @@ public class EvaluationCrystalRenderer implements BlockEntityRenderer<Evaluation
             float radius = 0.36f + 0.12f * Mth.sin(i * 1.7f);
             dot(light, pose, camera, Mth.cos(angle) * radius, -0.5f + 1.3f * u, Mth.sin(angle) * radius,
                     0.035f + 0.012f * (i % 3), mix(rgb, 0xFFFFFF, 0.6f), Mth.sin(u * Mth.PI) * (0.75f + 0.25f * activity));
+        }
+        if (gather > 0.01f) {
+            // light drawn in from all around while the rank is decided: it drifts at first, then is pulled in fast
+            for (int i = 0; i < GATHER_DOTS; i++) {
+                float u = (time / 14f + i * 0.618f) % 1f;
+                float far = 1 - u * u;
+                float angle = i * 2.4f + u * 1.4f;
+                float radius = 0.1f + 1.75f * far;
+                float height = (-0.35f + (i * 7 % 5) * 0.36f) * far;
+                dot(light, pose, camera, Mth.cos(angle) * radius, height, Mth.sin(angle) * radius,
+                        0.03f + 0.035f * far, mix(rgb, 0xFFFFFF, 0.55f), gather * Math.min(1f, u * 5f) * (0.55f + 0.45f * u));
+            }
+        }
+        if (trails > 0.01f) {
+            // trails of light winding up around the crystal: each is a bright head with a fading tail behind it
+            for (int k = 0; k < TRAILS; k++) {
+                for (int j = 0; j < TRAIL_DOTS; j++) {
+                    float then = time - j * 0.5f;
+                    float u = (then / 34f + k / (float) TRAILS) % 1f;
+                    // where the head of this trail is; once it has finished its climb, its tail goes with it
+                    float head = u + j * 0.5f / 34f;
+                    if (head >= 1f) continue;
+                    float angle = then * 0.36f + k * Mth.TWO_PI / TRAILS;
+                    float radius = 0.56f - 0.22f * u;
+                    float age = 1 - j / (float) TRAIL_DOTS;
+                    dot(light, pose, camera, Mth.cos(angle) * radius, -0.62f + 1.5f * u, Mth.sin(angle) * radius,
+                            0.024f + 0.05f * age, mix(trailRgb, 0xFFFFFF, 0.15f + 0.5f * age * age),
+                            trails * age * Mth.sqrt(age) * Mth.sin(u * Mth.PI) * Math.min(1f, (1f - head) * 8f));
+                }
+            }
         }
         shell(buffers.getBuffer(ModRenderTypes.CRYSTAL_GLOW), m, triangles(GEM, 6, spin, 1.12f + 0.1f * flash), toCamera, rgb, 0.22f + 0.3f * activity + 0.5f * flash);
 
@@ -250,13 +295,14 @@ public class EvaluationCrystalRenderer implements BlockEntityRenderer<Evaluation
         out.addVertex(m, -half, half, 0).setUv(0, 0).setColor(red, green, blue, a);
     }
 
-    private static void circle(PoseStack pose, MultiBufferSource buffers, float y, float radius, float degrees, int rgb, float alpha) {
+    /** A texture lying flat on the floor around the crystal, drawn as light. */
+    private static void disc(PoseStack pose, MultiBufferSource buffers, ResourceLocation texture, float y, float radius, float degrees, int rgb, float alpha) {
         if (alpha <= 0.01f) return;
         pose.pushPose();
         pose.translate(0.5f, y, 0.5f);
         pose.mulPose(Axis.YP.rotationDegrees(degrees));
         pose.mulPose(Axis.XP.rotationDegrees(90));
-        sprite(buffers.getBuffer(ModRenderTypes.lightTexture(MAGIC_CIRCLE)), pose.last().pose(), radius, rgb, Math.min(1f, alpha));
+        sprite(buffers.getBuffer(ModRenderTypes.lightTexture(texture)), pose.last().pose(), radius, rgb, Math.min(1f, alpha));
         pose.popPose();
     }
 
@@ -281,6 +327,7 @@ public class EvaluationCrystalRenderer implements BlockEntityRenderer<Evaluation
     @Override
     public AABB getRenderBoundingBox(EvaluationCrystalBlockEntity crystal) {
         BlockPos pos = crystal.getBlockPos();
-        return new AABB(pos.getX() - 2, pos.getY(), pos.getZ() - 2, pos.getX() + 3, BeaconRenderer.MAX_RENDER_Y, pos.getZ() + 3);
+        int reach = Mth.ceil(SHOCKWAVE_REACH);
+        return new AABB(pos.getX() - reach, pos.getY(), pos.getZ() - reach, pos.getX() + 1 + reach, BeaconRenderer.MAX_RENDER_Y, pos.getZ() + 1 + reach);
     }
 }

@@ -563,10 +563,10 @@ public final class EvaluationOverlay {
         // words
         if (big > 0) {
             float oldBig = Gfx.fade(big);
-            float swap = Anim.window(t, LOCK, LOCK + 0.25f);
+            // the old words vanish inside the flash and the new ones come out of it, so the two never overlap
             float labelY = y - RANK_RADIUS - 30;
-            label(g, tr("evaluation.beyondsolo.rank.pending"), labelY, SystemTheme.ACCENT, 1 - swap);
-            label(g, tr("evaluation.beyondsolo.rank.assigned"), labelY, Gfx.mix(rankColor, 0xFFFFFFFF, 0.3f), swap);
+            if (t < LOCK) label(g, tr("evaluation.beyondsolo.rank.pending"), labelY, SystemTheme.ACCENT, 1f);
+            else label(g, tr("evaluation.beyondsolo.rank.assigned"), labelY, Gfx.mix(rankColor, 0xFFFFFFFF, 0.3f), Anim.window(t, LOCK + 0.05f, LOCK + 0.3f));
             if (t >= LOCK) {
                 float in = Anim.outCubic(Anim.window(t, LOCK + 0.08f, LOCK + 0.45f));
                 title(g, rankTitle, y + RANK_RADIUS + 24, 26, rankColor, in);
@@ -638,10 +638,9 @@ public final class EvaluationOverlay {
 
         if (big > 0) {
             float oldBig = Gfx.fade(big);
-            float swap = Anim.window(t, CLASS_LOCK, CLASS_LOCK + 0.25f);
             float labelY = y - CLASS_RADIUS * 1.5f - 20;
-            label(g, tr("evaluation.beyondsolo.class.pending"), labelY, SystemTheme.ACCENT, 1 - swap);
-            label(g, tr("evaluation.beyondsolo.class.assigned"), labelY, Gfx.mix(classColor, 0xFFFFFFFF, 0.3f), swap);
+            if (t < CLASS_LOCK) label(g, tr("evaluation.beyondsolo.class.pending"), labelY, SystemTheme.ACCENT, 1f);
+            else label(g, tr("evaluation.beyondsolo.class.assigned"), labelY, Gfx.mix(classColor, 0xFFFFFFFF, 0.3f), Anim.window(t, CLASS_LOCK + 0.05f, CLASS_LOCK + 0.3f));
             if (t >= CLASS_LOCK) {
                 float in = Anim.outCubic(Anim.window(t, CLASS_LOCK + 0.08f, CLASS_LOCK + 0.45f));
                 title(g, classTitle, y + CLASS_RADIUS * 1.5f + 14, 24, classColor, in);

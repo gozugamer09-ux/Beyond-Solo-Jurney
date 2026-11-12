@@ -206,6 +206,19 @@ def soft_glow(size=64) -> Image.Image:
     return Image.fromarray(rgba, "RGBA")
 
 
+def shock_ring(size=128) -> Image.Image:
+    """A ring of light with a crisp leading edge and a soft trail inside it: a shockwave seen from above."""
+    y, x = np.mgrid[0:size, 0:size]
+    r = np.hypot(x - (size - 1) / 2, y - (size - 1) / 2) / (size / 2)
+    edge = np.exp(-((r - 0.86) / 0.035) ** 2)
+    trail = np.clip((r - 0.35) / 0.51, 0, 1) ** 3 * (r < 0.86) * 0.45
+    alpha = np.clip(edge + trail, 0, 1)
+    rgba = np.zeros((size, size, 4), dtype=np.uint8)
+    rgba[..., :3] = 255
+    rgba[..., 3] = np.round(alpha * 255).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
 # ---------------------------------------------------------------- preview
 
 def preview(path):
@@ -241,7 +254,8 @@ def main():
 
     magic_circle().save(os.path.join(EFFECT_OUT, "magic_circle.png"), optimize=True)
     soft_glow().save(os.path.join(EFFECT_OUT, "glow.png"), optimize=True)
-    for name in ("magic_circle", "glow"):
+    shock_ring().save(os.path.join(EFFECT_OUT, "ring.png"), optimize=True)
+    for name in ("magic_circle", "glow", "ring"):
         with open(os.path.join(EFFECT_OUT, name + ".png.mcmeta"), "w") as f:
             json.dump({"texture": {"blur": True, "clamp": True}}, f)
 

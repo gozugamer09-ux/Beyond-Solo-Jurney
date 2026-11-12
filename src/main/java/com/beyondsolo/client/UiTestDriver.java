@@ -4,8 +4,12 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.screen.SystemScreen;
 import com.beyondsolo.client.screen.SystemTabs;
+import com.beyondsolo.evaluation.EvaluationCrystalBlockEntity;
+import com.beyondsolo.system.PlayerClass;
+import com.beyondsolo.system.PlayerRank;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.core.BlockPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -32,6 +36,10 @@ import java.util.Deque;
  * cmd &lt;command&gt;                        run a server command as the player (no leading slash)
  * look &lt;yaw&gt; &lt;pitch&gt;                   turn the camera
  * timescale &lt;x&gt;                        slow down / speed up UI animations
+ * hud on|off                           show or hide the vanilla HUD and the hand (like F1)
+ * crystal idle|scan|reveal            play a state on the Evaluation Crystals nearby (this client only)
+ * crystal lock &lt;rank&gt;                  ... the rank is decided (e, d, c, b, a, s)
+ * crystal channel &lt;class&gt;              ... the class is being decided
  * shot &lt;name&gt;                          save screenshots/&lt;name&gt;.png
  * wait &lt;ticks&gt;                         pause before the next command
  * </pre>
@@ -101,6 +109,23 @@ public final class UiTestDriver {
                 mc.player.setXRot(Float.parseFloat(a[1]));
             }
             case "timescale" -> Anim.setTimeScale(Double.parseDouble(arg));
+            case "hud" -> mc.options.hideGui = arg.equals("off");
+            case "crystal" -> {
+                String[] a = arg.split(" ");
+                int state = switch (a[0]) {
+                    case "scan" -> EvaluationCrystalBlockEntity.SCANNING;
+                    case "reveal" -> EvaluationCrystalBlockEntity.REVEALING;
+                    case "lock" -> EvaluationCrystalBlockEntity.LOCKED;
+                    case "channel" -> EvaluationCrystalBlockEntity.CHANNELING;
+                    default -> EvaluationCrystalBlockEntity.IDLE;
+                };
+                int param = a.length < 2 ? 0 : state == EvaluationCrystalBlockEntity.CHANNELING
+                        ? PlayerClass.valueOf(a[1].toUpperCase()).ordinal() : PlayerRank.valueOf(a[1].toUpperCase()).ordinal();
+                BlockPos at = mc.player.blockPosition();
+                for (BlockPos pos : BlockPos.betweenClosed(at.offset(-16, -8, -16), at.offset(16, 8, 16))) {
+                    if (mc.level.getBlockEntity(pos) instanceof EvaluationCrystalBlockEntity crystal) crystal.triggerEvent(state, param);
+                }
+            }
             case "shot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(), message -> {});
             case "wait" -> waitTicks = Integer.parseInt(arg);
             default -> BeyondSolo.LOGGER.warn("UITEST unknown command: {}", line);
