@@ -120,7 +120,7 @@ public final class Arsenal {
             .title(Component.translatable("itemGroup.beyondsolo.arsenal"))
             .icon(() -> new ItemStack(RUINBRINGER.get()))
             .withTabsBefore(ModItems.TAB.getId())
-            .displayItems((params, out) -> all().stream()
+            .displayItems((params, out) -> everything().stream()
                     .sorted(Comparator.comparingInt(Arsenal::tierOf))
                     .forEach(item -> out.accept(item.get())))
             .build());
@@ -130,10 +130,21 @@ public final class Arsenal {
 
     // ---------------------------------------------------------------- lookups
 
-    /** Every graded weapon: the original eight combat weapons and the whole arsenal. */
+    /**
+     * Every graded weapon that drops in the world: the original eight combat weapons and the whole arsenal. The
+     * awakening trial's own legendaries ({@link ModItems#LEGENDARIES}) are kept out of this pool: they only come
+     * from killing the Arbiter.
+     */
     public static List<DeferredItem<? extends Item>> all() {
         List<DeferredItem<? extends Item>> out = new ArrayList<>(ModItems.WEAPONS);
         out.addAll(ALL);
+        return out;
+    }
+
+    /** {@link #all()} plus the awakening trial's legendaries. */
+    public static List<DeferredItem<? extends Item>> everything() {
+        List<DeferredItem<? extends Item>> out = all();
+        out.addAll(ModItems.LEGENDARIES);
         return out;
     }
 
@@ -164,7 +175,7 @@ public final class Arsenal {
     /** Every System weapon and armor piece gets its grade as a default component. */
     @SubscribeEvent
     static void defaultGrades(ModifyDefaultComponentsEvent event) {
-        for (var item : all()) {
+        for (var item : everything()) {
             if (item.get() instanceof ArsenalWeapon w) event.modify(item.get(), b -> b.set(ModComponents.GRADE.get(), w.baseGrade()));
         }
         for (var item : ModItems.ARMOR) {

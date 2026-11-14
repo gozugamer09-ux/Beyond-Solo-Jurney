@@ -74,6 +74,8 @@ public final class ArsenalHits {
 
     public static @Nullable Hit hitOf(DamageSource source) {
         if (!(source.getEntity() instanceof LivingEntity attacker)) return null;
+        // spells (skills, signatures) are not weapon hits, even though the caster is also the direct source
+        if (source.is(DamageTypes.INDIRECT_MAGIC) || source.is(DamageTypes.MAGIC)) return null;
         Entity direct = source.getDirectEntity();
         if (direct == attacker && !source.is(DamageTypeTags.IS_PROJECTILE)) {
             ItemStack stack = attacker.getMainHandItem();
