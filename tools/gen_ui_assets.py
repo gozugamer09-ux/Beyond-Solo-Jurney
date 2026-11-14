@@ -73,6 +73,14 @@ ICONS = {
     "sparkle": "sparkle",
     "seal": "seal",
     "hexagon": "hexagon",
+    "flame": "flame",
+    "flask": "flask",
+    "spiral": "spiral",
+    "heart_break": "heart-break",
+    "snowflake": "snowflake",
+    "run": "person-simple-run",
+    "shield": "shield",
+    "weight": "barbell",
 }
 
 RANKS = "EDCBAS"

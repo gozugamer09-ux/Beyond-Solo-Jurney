@@ -46,3 +46,18 @@ file="META-INF/accesstransformer.cfg"
     versionRange="[2.0,)"
     ordering="NONE"
     side="BOTH"
+
+# Combat: attack animations and combos (weapons use its data files), and the dodge roll.
+[[dependencies.${mod_id}]]
+    modId="bettercombat"
+    type="required"
+    versionRange="[2.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="combat_roll"
+    type="required"
+    versionRange="[2.0,)"
+    ordering="NONE"
+    side="BOTH"

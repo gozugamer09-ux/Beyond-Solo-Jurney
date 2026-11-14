@@ -91,6 +91,12 @@ dependencies {
     // Lithostitched: datapack-driven worldgen/structure pool edits (handy for modded villages).
     runtimeOnly "maven.modrinth:lithostitched:${lithostitched_version}"
 
+    // Combat: Better Combat + Combat Roll, and the libraries they need.
+    runtimeOnly "maven.modrinth:better-combat:${better_combat_version}"
+    implementation "maven.modrinth:combat-roll:${combat_roll_version}"
+    runtimeOnly "maven.modrinth:playeranimator:${playeranimator_version}"
+    runtimeOnly "maven.modrinth:cloth-config:${cloth_config_version}"
+
     // JEI and Jade: compile against them now, plugins (recipes, mob rank tooltips) come later.
     compileOnly "maven.modrinth:jei:${jei_version}"
     compileOnly "maven.modrinth:jade:${jade_version}"
