@@ -3,6 +3,7 @@ package com.beyondsolo.quest;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -42,6 +43,8 @@ public final class QuestBuilder {
     private QuestPenalty penalty = QuestPenalty.NONE;
     private int timeLimit;
     private QuestArea area;
+    private QuestGiver giver;
+    private CompoundTag extra;
 
     private QuestBuilder(String template, QuestCategory category, int tier, int level) {
         this.template = template;
@@ -109,6 +112,14 @@ public final class QuestBuilder {
         return objective(ObjectiveType.COLLECT, target, n(count), false, null);
     }
 
+    /** Like {@link #collect}, but the items are taken when the quest is handed in (needs a {@link #giver}). */
+    public QuestBuilder deliver(String target, int count) {
+        objective(ObjectiveType.COLLECT, target, n(count), false, Component.translatable("quest_objective.beyondsolo.deliver",
+                Targets.name(ObjectiveType.COLLECT, target)));
+        objectives.get(objectives.size() - 1).consuming();
+        return this;
+    }
+
     public QuestBuilder travel(int blocks) {
         return objective(ObjectiveType.TRAVEL, "", n(blocks), false, null);
     }
@@ -173,9 +184,29 @@ public final class QuestBuilder {
         return this;
     }
 
+    public QuestBuilder area(QuestArea area) {
+        this.area = area;
+        return this;
+    }
+
+    /** Who gives the quest. With {@code turnIn}, finished objectives make it READY and it completes when handed in. */
+    public QuestBuilder giver(QuestGiver giver) {
+        this.giver = giver;
+        return this;
+    }
+
+    /** Module data stored on the quest (see {@link Quest#extra()}). */
+    public QuestBuilder extra(CompoundTag tag) {
+        this.extra = tag;
+        return this;
+    }
+
     public Quest build() {
         if (objectives.isEmpty()) throw new IllegalStateException("A quest needs at least one objective: " + template);
-        return new Quest(UUID.randomUUID(), template, category, title, description, objectives,
+        Quest q = new Quest(UUID.randomUUID(), template, category, title, description, objectives,
                 new QuestRewards(xp, statPoints, mana, items, rewardTitle), penalty, timeLimit, area, tier, Quest.Status.ACTIVE);
+        q.setGiver(giver);
+        if (extra != null) q.extra().merge(extra);
+        return q;
     }
 }

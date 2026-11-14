@@ -26,5 +26,9 @@ public final class ModAttachments {
     public static final Supplier<AttachmentType<QuestData>> QUESTS = ATTACHMENT_TYPES.register("quests",
             () -> AttachmentType.serializable(QuestData::new).copyOnDeath().build());
 
+    /** A villager's request board (NPC module). Kept on the villager. */
+    public static final Supplier<AttachmentType<com.beyondsolo.npc.NpcBoard>> NPC_BOARD = ATTACHMENT_TYPES.register("npc_board",
+            () -> AttachmentType.serializable(com.beyondsolo.npc.NpcBoard::new).build());
+
     private ModAttachments() {}
 }

@@ -48,6 +48,9 @@ import java.util.Deque;
  * press &lt;key&gt; [ticks]                  press a key binding (attack, use, roll, jump, sprint, forward...) and hold it
  * slot &lt;0-8&gt;                           select a hotbar slot
  * view first|third|front              camera mode
+ * respawn                              respawn after dying
+ * npc accept|turnin                    press the first Accept / Hand in button of the open villager window
+ * npc scroll &lt;amount&gt;                  scroll the villager window's list
  * </pre>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
@@ -174,6 +177,12 @@ public final class UiTestDriver {
                 case "front" -> CameraType.THIRD_PERSON_FRONT;
                 default -> CameraType.FIRST_PERSON;
             });
+            case "respawn" -> mc.player.respawn();
+            case "npc" -> {
+                String[] a = arg.split(" ");
+                if (a[0].equals("scroll")) com.beyondsolo.client.npc.NpcBoardScreen.scrollBy(Float.parseFloat(a[1]));
+                else com.beyondsolo.client.npc.NpcBoardScreen.press(a[0]);
+            }
             default -> BeyondSolo.LOGGER.warn("UITEST unknown command: {}", line);
         }
         BeyondSolo.LOGGER.info("UITEST ran: {}", line);

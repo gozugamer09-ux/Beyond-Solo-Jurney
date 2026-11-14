@@ -49,6 +49,10 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> EVALUATION_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.EVALUATION_CRYSTAL);
 
+    /** The sealed parcel of a villager's delivery request. */
+    public static final DeferredItem<com.beyondsolo.item.ParcelItem> SEALED_PARCEL = ITEMS.register("sealed_parcel",
+            () -> new com.beyondsolo.item.ParcelItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
+
     // ---- weapon tiers ----
     /** Hunter steel: iron-grade gear for E and D rank hunters. */
     public static final Tier HUNTER_STEEL = new SimpleTier(BlockTags.INCORRECT_FOR_IRON_TOOL, 450, 6.5f, 2.0f, 14, () -> Ingredient.of(Items.IRON_INGOT));

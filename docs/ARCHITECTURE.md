@@ -21,9 +21,11 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.combat` | Combat HUD (rail, enemy meters, damage numbers, screen tints) and world effects |
 | `quest` | Quest engine: quests, templates, rank scaling, progress hooks, triggers (`quest.trigger`) |
 | `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
-| `command` | `/system` admin commands (`/system quest ...` for quests) |
+| `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
+| `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
+| `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
-| `npc`, `gate` | Reserved for the next modules |
+| `gate` | Reserved for the next module |
 
 ## Rules for new modules
 
@@ -103,10 +105,7 @@ Rules that came out of building it, worth keeping for gates and bosses:
 
 ### Quest engine (built: see "Quests" below)
 
-### NPC quests
-- Build quests with `QuestBuilder.of(id, QuestCategory.NPC, player)` (counts and rewards scale by rank on their own),
-  register templates in `QuestTemplates.register`, hand them out with `QuestEngine.offer` / `start`. See "Quests".
-- Scale quest difficulty and rewards by `SystemAPI.get(player).rank().tier()` (0 = E ... 5 = S) and `level()`.
+### NPC quests (built: see "Villager requests" below)
 
 ### Gates and dungeons
 - Use rank tier for gate rank, `grantXp` for clear rewards, pop-ups for "gate opened / cleared".
@@ -208,6 +207,32 @@ wait while one plays, and the hide key skips it. `QuestTracker` is the HUD list 
 
 `/system quest list|start <id>|offer <id>|trigger <id>|accept|progress <n>|complete|fail|reset` for testing.
 
+## Villager requests
+
+Right-click any villager (or wandering trader) to open its request window; sneak + right-click trades as usual.
+Each villager keeps a board (`npc/NpcBoard`, attachment `NPC_BOARD`): 2 to 4 requests rolled from its UUID, the day
+and its profession, so every player sees the same board and it refreshes at dawn. A player holds at most 3 villager
+requests (`NpcQuests.MAX_HELD`). Everything scales with the player's rank through `QuestBuilder`.
+
+| Kind | What it asks | Ends |
+| --- | --- | --- |
+| `GATHER` | Bring items that fit the profession (librarian: books and feathers, farmer: crops...) | Hand in: items are taken |
+| `HUNT` | Kill monsters of the player's tier | Report back to the villager |
+| `CLEAR` | Clear a nest marked about 45 to 90 blocks out; the nest (helmeted mobs, a leader) spawns when the player nears | Report back |
+| `ESCORT` | A traveller (`TravelerEntity`) follows the player to a marked spot; monsters target it; it catches up when left behind and steps out of walls or water | On arrival |
+| `DELIVER` | A sealed parcel goes to the nearest other village (or a far spot); using it there delivers it | On delivery |
+
+Quests got two new engine pieces for this: a `QuestGiver` (who to return to) and the `READY` status, which waits for
+the hand-in (`QuestEngine.turnIn`). `COLLECT` objectives can consume their items. Finishing raises the villager's
+gossip (better trade prices) and the window's rapport bar; failing lowers it, and a villager that was failed refuses
+new requests until the next day. If the giver dies, its open requests are released.
+
+On the client, `NpcBoardScreen` shows the villager's portrait and cards that fold in, get an ACCEPTED stamp, or fly
+the handed-in items into the portrait with gold shockwaves. `NpcMarkers` draws the floating `!` (has a request), gold
+`?` (ready to hand in), name plates, waypoint labels and a light beam over marked spots.
+
+`/system npc open|reroll|spawn <profession> [level]|give <kind>|ready|nest` for testing.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -232,5 +257,8 @@ totems but the elixir cures it, venom stacking into heavy venom and which cures 
 blood pop through armor, buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
 exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
-timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives. Fake players can't take damage, so damage
+timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
+`test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
+hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
+death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
 checks use zombies.

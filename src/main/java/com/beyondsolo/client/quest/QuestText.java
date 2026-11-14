@@ -49,6 +49,7 @@ public final class QuestText {
             case DIED -> Icons.SKULL;
             case FLED -> Icons.RUN;
             case ABANDONED -> Icons.EYE_OFF;
+            case LOST -> Icons.HEART_BREAK;
         };
     }
 

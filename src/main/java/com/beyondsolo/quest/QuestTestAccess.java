@@ -16,12 +16,17 @@ public final class QuestTestAccess {
             left -= add;
         }
         QuestEngine.sync(player);
-        if (quest.isComplete()) QuestEngine.complete(player, quest);
+        if (quest.isComplete() && quest.status() == Quest.Status.ACTIVE) QuestEngine.finish(player, quest);
     }
 
     /** Moves a quest's clock so it runs out on the next check. */
     public static void expire(ServerPlayer player, Quest quest) {
         quest.setDeadline(QuestEngine.gameTime(player) - 1);
+    }
+
+    /** Makes an active quest READY (objectives done, waiting to be handed in). */
+    public static void markReady(ServerPlayer player, Quest quest) {
+        QuestEngine.markReady(player, quest);
     }
 
     /** Marks the quest line as handed out, so ticking doesn't start it (tests that set up their own quests). */

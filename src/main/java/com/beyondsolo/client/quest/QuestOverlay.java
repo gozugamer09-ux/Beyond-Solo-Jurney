@@ -82,7 +82,7 @@ public final class QuestOverlay {
             current = null;
             NotificationManager.setHeld(false);
         }
-        if (current == null && !QUEUE.isEmpty() && !EvaluationOverlay.active()) {
+        if (current == null && !QUEUE.isEmpty() && !EvaluationOverlay.active() && !com.beyondsolo.client.npc.NpcBoardScreen.isOpen()) {
             current = QUEUE.pollFirst();
             NotificationManager.setHeld(true);
             startedAt = Anim.now();

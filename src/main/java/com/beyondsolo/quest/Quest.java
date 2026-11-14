@@ -18,7 +18,8 @@ import java.util.UUID;
  * away. NPC and gate quests can be built the same way with {@link QuestBuilder}.
  */
 public final class Quest {
-    public enum Status { OFFERED, ACTIVE }
+    /** OFFERED: waiting to be accepted. ACTIVE: in progress. READY: every objective is done, but it has to be handed in to its giver. */
+    public enum Status { OFFERED, ACTIVE, READY }
 
     private final UUID id;
     private final String template;
@@ -31,6 +32,9 @@ public final class Quest {
     private final int timeLimit;
     @Nullable private final QuestArea area;
     private final int rankTier;
+    @Nullable private QuestGiver giver;
+    /** Data the module that made the quest keeps on it (an escort's traveller, whether a nest was spawned...). */
+    private final CompoundTag extra = new CompoundTag();
     private Status status;
     /** Game time the quest runs out, or -1. Set when it becomes active. */
     private long deadline = -1;
@@ -67,6 +71,13 @@ public final class Quest {
     @Nullable public QuestArea area() { return area; }
     public int rankTier() { return rankTier; }
     public Status status() { return status; }
+    /** Who gave the quest (NPC quests), or null. */
+    @Nullable public QuestGiver giver() { return giver; }
+    /** True if finishing the objectives isn't enough: the quest has to be handed in to its giver. */
+    public boolean needsTurnIn() { return giver != null && giver.turnIn(); }
+    public CompoundTag extra() { return extra; }
+    /** ACTIVE or READY: the player has it. */
+    public boolean isTaken() { return status != Status.OFFERED; }
     public long deadline() { return deadline; }
     public long offerExpires() { return offerExpires; }
     public boolean isForced() { return category == QuestCategory.EMERGENCY; }
@@ -86,6 +97,18 @@ public final class Quest {
         status = Status.ACTIVE;
         offerExpires = -1;
         deadline = timeLimit > 0 ? gameTime + timeLimit : -1;
+    }
+
+    void setGiver(@Nullable QuestGiver giver) {
+        this.giver = giver;
+    }
+
+    void markReady() {
+        status = Status.READY;
+    }
+
+    void unready() {
+        if (status == Status.READY) status = Status.ACTIVE;
     }
 
     void offer(long expires) {
@@ -115,13 +138,19 @@ public final class Quest {
         tag.putString("status", status.name());
         tag.putLong("deadline", deadline);
         tag.putLong("offerExpires", offerExpires);
+        if (giver != null) tag.put("giver", giver.save(provider));
+        if (!extra.isEmpty()) tag.put("extra", extra.copy());
         return tag;
     }
 
     public static Quest load(CompoundTag tag, HolderLookup.Provider provider) {
         List<QuestObjective> objectives = new ArrayList<>();
         for (Tag t : tag.getList("objectives", Tag.TAG_COMPOUND)) objectives.add(QuestObjective.load((CompoundTag) t, provider));
-        Status status = "OFFERED".equals(tag.getString("status")) ? Status.OFFERED : Status.ACTIVE;
+        Status status = switch (tag.getString("status")) {
+            case "OFFERED" -> Status.OFFERED;
+            case "READY" -> Status.READY;
+            default -> Status.ACTIVE;
+        };
         Quest q = new Quest(tag.hasUUID("id") ? tag.getUUID("id") : UUID.randomUUID(), tag.getString("template"),
                 QuestCategory.byName(tag.getString("category")),
                 readComponent(tag.getString("title"), provider), readComponent(tag.getString("desc"), provider), objectives,
@@ -130,6 +159,8 @@ public final class Quest {
                 tag.getInt("rank"), status);
         q.deadline = tag.getLong("deadline");
         q.offerExpires = tag.getLong("offerExpires");
+        if (tag.contains("giver")) q.giver = QuestGiver.load(tag.getCompound("giver"), provider);
+        q.extra.merge(tag.getCompound("extra"));
         return q;
     }
 
