@@ -7,7 +7,11 @@ import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
 
-/** Small drawing helpers shared by the gate, boss and cache renderers (all in the current pose's units: blocks). */
+/**
+ * Small drawing helpers shared by the gate, boss and cache renderers (all in the current pose's units: blocks).
+ * Callers fetch a buffer right before drawing into it: asking the buffer source for another render type ends the
+ * one before, so a consumer kept from earlier would crash with "Not building!".
+ */
 final class GateFx {
     /** A textured quad in the pose's XY plane, centred on the origin, half sizes hx, hy. */
     static void quad(VertexConsumer out, Matrix4f m, float hx, float hy, int rgb, float alpha) {

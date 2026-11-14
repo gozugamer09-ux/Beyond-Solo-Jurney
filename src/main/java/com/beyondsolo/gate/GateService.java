@@ -452,6 +452,8 @@ public final class GateService {
         for (ServerPlayer p : players) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_DEFEATED, g.rank().ordinal(), boss.getId(), 0,
                     g.theme().bossName(), Component.translatable("gate.beyondsolo.boss_defeated")));
+            // the boss is the clear: whatever monsters were left behind no longer count against it
+            QuestEngine.progress(p, MOB_KEY, Short.MAX_VALUE);
             QuestEngine.progress(p, BOSS_KEY, 1);
         }
         BlockPos center = boss.blockPosition();
@@ -513,7 +515,7 @@ public final class GateService {
         int mobs = Math.min(4 + 2 * theme.rank.tier(), (theme.rooms - 1) * theme.packSize);
         CompoundTag extra = new CompoundTag();
         extra.putString("gate", g.id().toString());
-        Quest q = QuestBuilder.of(QUEST_TEMPLATE, QuestCategory.GATE, player)
+        Quest q = QuestBuilder.of(QUEST_TEMPLATE, QuestCategory.GATE, g.rank().tier(), SystemAPI.get(player).level())
                 .title(Component.translatable("quest.beyondsolo.gate_clear", g.rank().displayName()))
                 .description(Component.translatable("quest.beyondsolo.gate_clear.desc", theme.dungeonName(), theme.bossName()))
                 .custom(MOB_KEY, mobs, Component.translatable("quest_objective.beyondsolo.gate_mobs"))

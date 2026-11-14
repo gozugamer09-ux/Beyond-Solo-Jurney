@@ -144,7 +144,7 @@ public final class GateGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = ARENA, timeoutTicks = 400)
+    @GameTest(template = ARENA, timeoutTicks = 600)
     public static void bossDefeatOpensExitAndCache(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.E);
         ServerLevel d = dungeon(helper);
@@ -155,22 +155,26 @@ public final class GateGameTests {
         helper.assertTrue(boss.isInvulnerableTo(d.damageSources().generic()), "can't be hurt while dormant");
         GateService.wakeBossNow(d, g);
         helper.assertTrue(g.bossAwake() && boss.isAwake(), "woken");
-        helper.runAfterDelay(GateBossEntity.INTRO_TICKS + 30, () -> {
-            helper.assertTrue(boss.introTicks() <= 0, "the intro is over: " + boss.introTicks() + " alive " + boss.isAlive() + " removed " + boss.isRemoved());
-            boss.hurt(d.damageSources().generic(), 10_000f);
-            helper.assertTrue(g.bossDefeated() && g.state() == GateInstance.State.CLEARED, "the gate is cleared: hp " + boss.getHealth());
-        });
-        helper.runAfterDelay(GateBossEntity.INTRO_TICKS + GateBossEntity.DEATH_TICKS + 100, () -> {
-            helper.assertTrue(g.exitPos() != null && d.getBlockEntity(g.exitPos()) instanceof GateBlockEntity exit && exit.isExit(), "the way out opened");
-            boolean cache = false;
-            BlockPos c = g.bossRoomCenter();
-            for (BlockPos p : BlockPos.betweenClosed(c.offset(-8, -3, -8), c.offset(8, 4, 8))) {
-                if (d.getBlockEntity(p) instanceof RewardCacheBlockEntity) cache = true;
-            }
-            helper.assertTrue(cache, "the reward cache came down");
-            for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) d.setChunkForced(chunk.x + x, chunk.z + z, false);
-            helper.succeed();
-        });
+        // the far-off chunks can take a while to start ticking under load, so wait on the boss rather than a clock
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(boss.introTicks() <= 0, "the intro is over: " + boss.introTicks()))
+                .thenExecute(() -> {
+                    boss.hurt(d.damageSources().generic(), 10_000f);
+                    helper.assertTrue(g.bossDefeated() && g.state() == GateInstance.State.CLEARED, "the gate is cleared: hp " + boss.getHealth());
+                })
+                .thenWaitUntil(() -> helper.assertTrue(g.exitPos() != null && d.getBlockEntity(g.exitPos()) instanceof GateBlockEntity exit && exit.isExit(), "the way out opened"))
+                .thenWaitUntil(() -> {
+                    boolean cache = false;
+                    BlockPos c = g.bossRoomCenter();
+                    for (BlockPos p : BlockPos.betweenClosed(c.offset(-8, -3, -8), c.offset(8, 4, 8))) {
+                        if (d.getBlockEntity(p) instanceof RewardCacheBlockEntity) cache = true;
+                    }
+                    helper.assertTrue(cache, "the reward cache came down");
+                })
+                .thenExecute(() -> {
+                    for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) d.setChunkForced(chunk.x + x, chunk.z + z, false);
+                })
+                .thenSucceed();
     }
 
     @GameTest(template = ARENA, timeoutTicks = 200)

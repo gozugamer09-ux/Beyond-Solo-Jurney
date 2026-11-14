@@ -1,5 +1,6 @@
 package com.beyondsolo.client.gate;
 
+import net.minecraft.world.phys.Vec3;
 import com.beyondsolo.client.SystemTheme;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.gfx.Gfx;
@@ -104,6 +105,23 @@ public final class GateOverlay {
         NotificationManager.setHeld(false);
     }
 
+    /** As the boss is named, the camera turns to it. */
+    private static void lookAtBoss(float dt) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || !(mc.level.getEntity(bossId) instanceof GateBossEntity boss)) return;
+        Vec3 eye = mc.player.getEyePosition();
+        Vec3 to = boss.position().add(0, boss.getBbHeight() * 0.6, 0).subtract(eye);
+        double flat = Math.sqrt(to.x * to.x + to.z * to.z);
+        if (flat < 0.5) return;
+        float yaw = (float) (Mth.atan2(to.z, to.x) * Mth.RAD_TO_DEG) - 90f;
+        float pitch = (float) -(Mth.atan2(to.y, flat) * Mth.RAD_TO_DEG);
+        float k = 1f - (float) Math.exp(-dt * 5f);
+        mc.player.setYRot(mc.player.getYRot() + Mth.wrapDegrees(yaw - mc.player.getYRot()) * k);
+        mc.player.setXRot(Mth.clamp(mc.player.getXRot() + (pitch - mc.player.getXRot()) * k, -90f, 90f));
+        mc.player.yRotO = mc.player.getYRot();
+        mc.player.xRotO = mc.player.getXRot();
+    }
+
     /** The hide key skips the moment on screen (not going through, which waits on the server). */
     public static boolean skip() {
         if (current == null) return false;
@@ -119,6 +137,7 @@ public final class GateOverlay {
         float dt = Anim.dt();
         trauma = Math.max(0f, trauma - dt * 1.1f);
         shakeTime += dt;
+        if (current != null && current.p.kind() == GatePayload.BOSS_INTRO && Anim.since(startedAt) < 1.8f) lookAtBoss(dt);
 
         if (current != null && Anim.since(startedAt) >= current.duration) {
             int k = current.p.kind();
@@ -258,6 +277,12 @@ public final class GateOverlay {
         float cx = w / 2f, y = h * 0.3f;
 
         Shapes.vignette(0, 0, w, h, 0.3f, 1.4f).fill(Gfx.alpha(color, 0.18f * live * (1 - Anim.window(t, 1.5f, 3f)))).draw(g);
+        // a soft dark band so the name reads on a bright sky or snow as well as in a cave
+        float band = Anim.outCubic(Anim.window(t, 0.3f, 1.0f)) * live;
+        if (band > 0.01f) {
+            float bw = Math.min(w * 0.8f, 340);
+            Shapes.pill(cx - bw / 2f, y - 10, bw, 50).fill(Gfx.alpha(0xFF060A14, 0.42f * band)).glow(22, Gfx.alpha(0xFF060A14, 0.3f * band)).draw(g);
+        }
         float line = Anim.outQuint(Anim.window(t, 0.5f, 1.3f));
         float old = Gfx.fade(live);
         float lw = Math.min(w * 0.7f, 300) * line;

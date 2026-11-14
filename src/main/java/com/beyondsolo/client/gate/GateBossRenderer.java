@@ -42,28 +42,26 @@ public class GateBossRenderer extends GeoEntityRenderer<GateBossEntity> {
         float time = boss.tickCount + partialTick;
         int rgb = boss.isEnraged() ? 0xFF3040 : boss.rank().color();
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        VertexConsumer circle = buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE));
-        VertexConsumer glow = buffers.getBuffer(ModRenderTypes.lightTexture(GLOW));
 
         float intro = boss.introTicks() > 0 ? boss.introTicks() / (float) GateBossEntity.INTRO_TICKS : 0f;
         float flare = intro > 0 ? Mth.sin((1 - intro) * Mth.PI) : 0f;
         float dying = boss.deathTime > 0 ? Mth.clamp((boss.deathTime + partialTick) / GateBossEntity.DEATH_TICKS, 0f, 1f) : 0f;
         float circleAlpha = boss.isAwake() ? 0.55f + 0.35f * flare : 0.25f;
         circleAlpha *= 1 - dying;
-        GateFx.flat(circle, pose, 0.05f, 2.4f + 1.2f * flare, time * (boss.isEnraged() ? 3f : 1.2f), rgb, circleAlpha);
-        if (boss.isEnraged()) GateFx.flat(circle, pose, 0.06f, 1.5f, -time * 4f, 0xFF7060, 0.5f * (1 - dying));
-        if (flare > 0.01f) GateFx.dot(glow, pose, camera, 0, 2.2f, 0, 2.5f + 2f * flare, rgb, 0.45f * flare);
+        GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.05f, 2.4f + 1.2f * flare, time * (boss.isEnraged() ? 3f : 1.2f), rgb, circleAlpha);
+        if (boss.isEnraged()) GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.06f, 1.5f, -time * 4f, 0xFF7060, 0.5f * (1 - dying));
+        if (flare > 0.01f) GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 2.2f, 0, 2.5f + 2f * flare, rgb, 0.45f * flare);
 
         if (dying > 0) {
             // light gathers on it, then a pillar of light takes it
             float gather = Mth.clamp(dying * 1.6f, 0f, 1f);
             float pillar = Mth.clamp((dying - 0.55f) / 0.45f, 0f, 1f);
-            GateFx.dot(glow, pose, camera, 0, 1.6f, 0, 1.2f + 2.5f * gather, GateFx.mix(boss.rank().color(), 0xFFFFFF, 0.5f), 0.6f * gather);
+            GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 1.6f, 0, 1.2f + 2.5f * gather, GateFx.mix(boss.rank().color(), 0xFFFFFF, 0.5f), 0.6f * gather);
             for (int i = 0; i < 16; i++) {
                 float u = ((time * 0.04f + i * 0.0625f) % 1f);
                 float far = 1 - u * u;
                 float a = i * 2.4f + u * 2f;
-                GateFx.dot(glow, pose, camera, Mth.cos(a) * 3f * far, 0.3f + 3f * (i % 4) / 4f * far + 1.2f * u, Mth.sin(a) * 3f * far,
+                GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, Mth.cos(a) * 3f * far, 0.3f + 3f * (i % 4) / 4f * far + 1.2f * u, Mth.sin(a) * 3f * far,
                         0.08f, GateFx.mix(boss.rank().color(), 0xFFFFFF, 0.6f), gather * u);
             }
             if (pillar > 0) {

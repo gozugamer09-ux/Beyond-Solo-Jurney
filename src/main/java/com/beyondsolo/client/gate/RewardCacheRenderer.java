@@ -71,25 +71,22 @@ public class RewardCacheRenderer extends GeoBlockRenderer<RewardCacheBlockEntity
             GateFx.column(b, pose, camera, p.getX() + 0.5, p.getZ() + 0.5, 1.1f, 24f, blue, 0.75f * beam);
             GateFx.column(b, pose, camera, p.getX() + 0.5, p.getZ() + 0.5, 0.45f, 24f, 0xFFFFFF, 0.8f * beam);
         }
-        VertexConsumer glow = buffers.getBuffer(ModRenderTypes.lightTexture(GLOW));
-        VertexConsumer ring = buffers.getBuffer(ModRenderTypes.lightTexture(RING));
-        VertexConsumer circle = buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE));
         if (sinceLand >= 0) {
             // landing ring racing out over the floor
             if (sinceLand < 18) {
                 float k = sinceLand / 18f;
-                GateFx.flat(ring, pose, 0.04f, 0.6f + 4.5f * (float) Math.pow(k, 0.7), 0, GateFx.mix(blue, 0xFFFFFF, 0.4f), 1 - k);
+                GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, 0.04f, 0.6f + 4.5f * (float) Math.pow(k, 0.7), 0, GateFx.mix(blue, 0xFFFFFF, 0.4f), 1 - k);
             }
             // waiting: a slow circle under it and a soft glow
             float wait = sinceOpen < 0 ? 1f : Mth.clamp(1 - sinceOpen / 30f, 0f, 1f);
-            GateFx.flat(circle, pose, 0.03f, 1.25f, now * 0.8f, blue, 0.55f * wait * fadeOut);
-            GateFx.dot(glow, pose, camera, 0, 0.6f, 0, 1.0f + 0.1f * Mth.sin(now * 0.15f), blue, 0.35f * wait * fadeOut);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.03f, 1.25f, now * 0.8f, blue, 0.55f * wait * fadeOut);
+            GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 0.6f, 0, 1.0f + 0.1f * Mth.sin(now * 0.15f), blue, 0.35f * wait * fadeOut);
         }
         if (sinceOpen >= 0) {
             // the burst when the lid opens, and motes of gold rising out
             float burst = Mth.clamp((sinceOpen - 8) / 10f, 0f, 1f) * Mth.clamp(1 - (sinceOpen - 18) / 30f, 0f, 1f);
-            GateFx.dot(glow, pose, camera, 0, 1.0f, 0, 0.6f + 2.4f * burst, 0xFFFFFF, burst);
-            GateFx.dot(glow, pose, camera, 0, 1.0f, 0, 1.4f + 3.5f * burst, gold, 0.8f * burst);
+            GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 1.0f, 0, 0.6f + 2.4f * burst, 0xFFFFFF, burst);
+            GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 1.0f, 0, 1.4f + 3.5f * burst, gold, 0.8f * burst);
             VertexConsumer b = buffers.getBuffer(ModRenderTypes.lightTexture(BEAM));
             GateFx.column(b, pose, camera, p.getX() + 0.5, p.getZ() + 0.5, 0.7f, 7f, gold, 0.8f * burst);
             float rise = Mth.clamp((sinceOpen - 10) / 10f, 0f, 1f) * fadeOut;
@@ -98,7 +95,7 @@ public class RewardCacheRenderer extends GeoBlockRenderer<RewardCacheBlockEntity
                 float u = ((sinceOpen + i * 5.3f) % life) / life;
                 float a = i * 2.4f + u * 1.2f;
                 float r = 0.2f + 0.5f * u;
-                GateFx.dot(glow, pose, camera, Mth.cos(a) * r, 0.8f + 2.2f * u, Mth.sin(a) * r, 0.05f + 0.03f * (i % 3),
+                GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, Mth.cos(a) * r, 0.8f + 2.2f * u, Mth.sin(a) * r, 0.05f + 0.03f * (i % 3),
                         GateFx.mix(gold, 0xFFFFFF, 0.4f), rise * Mth.sin(u * Mth.PI));
             }
         }
