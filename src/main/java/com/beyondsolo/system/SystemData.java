@@ -16,6 +16,8 @@ import org.jetbrains.annotations.UnknownNullability;
  */
 public final class SystemData implements INBTSerializable<CompoundTag> {
     private boolean awakened;
+    /** The player has the System at all (it binds to them in the awakening trial; evaluation comes after). */
+    private boolean hasSystem;
     private PlayerRank rank = PlayerRank.E;
     private PlayerClass playerClass = PlayerClass.WARRIOR;
     private int level = 1;
@@ -38,6 +40,8 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     // ---- reads ----
 
     public boolean isAwakened() { return awakened; }
+    /** True once the System is bound to the player. Everyone who has been evaluated has it. */
+    public boolean hasSystem() { return hasSystem || awakened; }
     public PlayerRank rank() { return rank; }
     public PlayerClass playerClass() { return playerClass; }
     public int level() { return level; }
@@ -59,6 +63,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     // ---- writes (package-private or via SystemAPI) ----
 
     void setAwakened(boolean awakened) { this.awakened = awakened; }
+    void setHasSystem(boolean has) { this.hasSystem = has; }
     void setRank(PlayerRank rank) { this.rank = rank; }
     void setPlayerClass(PlayerClass playerClass) { this.playerClass = playerClass; }
     void setLevel(int level) { this.level = Math.max(1, level); }
@@ -91,6 +96,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     public @UnknownNullability CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("awakened", awakened);
+        tag.putBoolean("hasSystem", hasSystem);
         tag.putString("rank", rank.name());
         tag.putString("class", playerClass.name());
         tag.putInt("level", level);
@@ -112,6 +118,8 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag) {
         awakened = tag.getBoolean("awakened");
+        // saves from before the awakening trial: whoever was evaluated already has the System
+        hasSystem = tag.contains("hasSystem") ? tag.getBoolean("hasSystem") : awakened;
         PlayerRank r = PlayerRank.byName(tag.getString("rank"));
         rank = r == null ? PlayerRank.E : r;
         PlayerClass c = PlayerClass.byName(tag.getString("class"));

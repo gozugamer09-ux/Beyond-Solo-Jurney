@@ -27,6 +27,7 @@ public final class BeyondSolo {
         ModEffects.EFFECTS.register(modBus);
         ModArmorMaterials.MATERIALS.register(modBus);
         com.beyondsolo.registry.ModComponents.COMPONENTS.register(modBus);
+        com.beyondsolo.item.arsenal.Arsenal.init();
         ModItems.ITEMS.register(modBus);
         com.beyondsolo.skill.Skills.init();
         ModItems.TABS.register(modBus);

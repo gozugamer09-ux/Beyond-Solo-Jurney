@@ -100,6 +100,43 @@ public final class CombatWorldFx {
                 burst(level, ParticleTypes.END_ROD, x, y, z, 6, 0.06);
             }
             case ROLL -> burst(level, ParticleTypes.POOF, x, e.getY() + 0.1, z, 8, 0.05);
+            case FREEZE -> {
+                burst(level, ParticleTypes.SNOWFLAKE, x, y, z, 30, 0.2);
+                burst(level, new DustParticleOptions(new Vector3f(0.75f, 0.92f, 1f), 1.4f), x, y, z, 20, 0.15);
+            }
+            case SHATTER -> {
+                burst(level, ParticleTypes.ITEM_SNOWBALL, x, y, z, 24, 0.35);
+                burst(level, new DustParticleOptions(new Vector3f(0.85f, 0.97f, 1f), 1.0f), x, y, z, 30, 0.45);
+            }
+            case CHAIN -> {
+                Entity from = level.getEntity(param);
+                if (from != null && from != e) {
+                    double fx = from.getX(), fy = from.getY() + from.getBbHeight() * 0.6, fz = from.getZ();
+                    int steps = (int) Math.max(6, Math.sqrt(e.distanceToSqr(from)) * 4);
+                    for (int i = 0; i <= steps; i++) {
+                        double t = i / (double) steps;
+                        double jitter = (i == 0 || i == steps) ? 0 : 0.25;
+                        level.addParticle(ParticleTypes.ELECTRIC_SPARK, Mth.lerp(t, fx, x) + rnd(jitter), Mth.lerp(t, fy, y) + rnd(jitter),
+                                Mth.lerp(t, fz, z) + rnd(jitter), 0, 0, 0);
+                    }
+                }
+                burst(level, ParticleTypes.ELECTRIC_SPARK, x, y, z, 10, 0.2);
+            }
+            case NOVA -> {
+                int c = param & 0xFFFFFF;
+                Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
+                burst(level, new DustParticleOptions(rgb, 1.2f), x, y, z, 16, 0.25);
+            }
+            case SIGNATURE -> {
+                int c = param & 0xFFFFFF;
+                Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
+                for (int i = 0; i < 28; i++) {
+                    double a = i / 28.0 * Math.PI * 2;
+                    level.addParticle(new DustParticleOptions(rgb, 1.3f), x + Math.cos(a) * 0.8, e.getY() + 0.15, z + Math.sin(a) * 0.8,
+                            Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15);
+                }
+                burst(level, ParticleTypes.END_ROD, x, y, z, 4, 0.08);
+            }
         }
     }
 
@@ -185,7 +222,8 @@ public final class CombatWorldFx {
             float age = (time - b.start) / 20f; // seconds of game time
             float life = switch (b.kind) {
                 case CRIMSON_BURST, HEAVY_VENOM -> 1.2f;
-                case IGNITE, CURE, BLOOD_POP -> 0.9f;
+                case IGNITE, CURE, BLOOD_POP, FREEZE, SHATTER -> 0.9f;
+                case NOVA, SIGNATURE -> 1.1f;
                 default -> 0.5f;
             };
             if (age >= life || age < -1) {
@@ -230,6 +268,29 @@ public final class CombatWorldFx {
                     disc(pose, buffers, GLOW, 0.03f, size * 1.4f, 0, c, fade * 0.7f);
                 }
                 case ROLL -> ringAt(pose, buffers, 0.05f, size * (0.4f + 1.2f * out), 0xBFE6FF, fade * 0.5f);
+                case FREEZE -> {
+                    dot(pose, buffers, camera, 0, h * 0.5f, 0, size * (0.8f + 0.4f * out), 0xBFEFFF, fade * 0.8f);
+                    disc(pose, buffers, SIGIL, 0.04f, size * (0.5f + 1.0f * out), time * 1.5f, 0x9ED8FF, fade);
+                    ringAt(pose, buffers, 0.05f, size * (0.4f + 2.2f * out), 0xCFF2FF, fade);
+                }
+                case SHATTER -> {
+                    dotTex(pose, buffers, camera, BURST, 0, h * 0.55f, 0, size * (0.6f + 1.4f * out), 0xDFF6FF, fade * 1.2f, b.start * 23);
+                    ringAt(pose, buffers, h * 0.5f, size * (0.4f + 2.0f * out), 0x9ED8FF, fade);
+                }
+                case CHAIN -> dot(pose, buffers, camera, 0, h * 0.6f, 0, size * (0.5f + 0.6f * out), 0xB8E2FF, fade);
+                case NOVA -> {
+                    int c = b.param & 0xFFFFFF;
+                    float radius = Math.max(1, (b.param >>> 24) & 0x7F);
+                    ringAt(pose, buffers, 0.08f, 0.5f + radius * out, c, fade * 1.2f);
+                    ringAt(pose, buffers, 0.1f, 0.3f + radius * 0.7f * out, mixRgb(c, 0xFFFFFF, 0.4f), fade * 0.8f);
+                    disc(pose, buffers, GLOW, 0.05f, 0.5f + radius * 0.9f * out, 0, c, fade * 0.5f);
+                    dot(pose, buffers, camera, 0, h * 0.5f, 0, size * (0.6f + 0.8f * out), mixRgb(c, 0xFFFFFF, 0.3f), fade * 0.7f);
+                }
+                case SIGNATURE -> {
+                    int c = b.param & 0xFFFFFF;
+                    disc(pose, buffers, SIGIL, 0.05f, size * (0.8f + 1.8f * out), time * 4, c, fade * 1.2f);
+                    dotTex(pose, buffers, camera, BURST, 0, h * 0.55f, 0, size * (0.6f + 1.2f * out), mixRgb(c, 0xFFFFFF, 0.3f), fade, b.start * 7);
+                }
             }
             pose.popPose();
         }

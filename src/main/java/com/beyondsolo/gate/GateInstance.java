@@ -37,6 +37,10 @@ public final class GateInstance {
     private boolean bossDefeated;
     @Nullable private BlockPos exitPos;
     private long clearedAt = -1;
+    /** Set for an awakening trial: the one player it was opened for. Null for an ordinary gate. */
+    @Nullable private UUID owner;
+    /** Awakening trial: the furthest cavern the owner has reached (where they get up again after falling). */
+    private int checkpoint;
 
     private transient DungeonLayout layout;
 
@@ -51,7 +55,13 @@ public final class GateInstance {
 
     public UUID id() { return id; }
     public PlayerRank rank() { return rank; }
-    public GateTheme theme() { return GateTheme.of(rank); }
+    public GateTheme theme() { return owner != null ? GateTheme.TRIAL : GateTheme.of(rank); }
+    /** True for the awakening trial behind a sealed gate. */
+    public boolean isTrial() { return owner != null; }
+    @Nullable public UUID owner() { return owner; }
+    public void setOwner(@Nullable UUID owner) { this.owner = owner; this.layout = null; }
+    public int checkpoint() { return checkpoint; }
+    public void setCheckpoint(int room) { this.checkpoint = room; }
     public long seed() { return seed; }
     public int slot() { return slot; }
     public ResourceKey<Level> gateDimension() { return gateDimension; }
@@ -124,6 +134,8 @@ public final class GateInstance {
         tag.putBoolean("bossDefeated", bossDefeated);
         if (exitPos != null) tag.put("exit", NbtUtils.writeBlockPos(exitPos));
         tag.putLong("clearedAt", clearedAt);
+        if (owner != null) tag.putUUID("owner", owner);
+        tag.putInt("checkpoint", checkpoint);
         return tag;
     }
 
@@ -145,6 +157,8 @@ public final class GateInstance {
         g.bossDefeated = tag.getBoolean("bossDefeated");
         g.exitPos = NbtUtils.readBlockPos(tag, "exit").orElse(null);
         g.clearedAt = tag.getLong("clearedAt");
+        if (tag.hasUUID("owner")) g.owner = tag.getUUID("owner");
+        g.checkpoint = tag.getInt("checkpoint");
         return g;
     }
 }

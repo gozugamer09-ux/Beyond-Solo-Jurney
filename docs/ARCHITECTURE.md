@@ -27,6 +27,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
+| `awakening` | How a player gets the System: the stages (`AwakeningData`), the sealed gate and its tether, the trial, the Hollow Arbiter (`ArbiterEntity`), the awakening sequence and the legendary reward (`AwakeningService`) |
+| `client.awakening` | The awakening overlay (called, pulled back, threshold, revive, slain, the awakening itself), the Arbiter's renderer, its attacks drawn as light |
 | `skill` | Skills: definitions (`Skills`), what each one does (`SkillActions`), a player's known skills, bar, cooldowns and buffs (`SkillData`), passives, tomes, and `SkillAPI` |
 | `client.skill` | The skill bar on the HUD, the Skills tab, the Skill Acquired moment, skill effects in the world (`SkillWorldFx`), the Appraising Gaze read-outs |
 
@@ -175,6 +177,34 @@ buffs) and its key binding (blocked during a collapse), all behind `ModList` che
 Textures (weapons, armor icons and model layers, bottles, effect icons, the sigil and burst light textures) are
 made by `tools/gen_combat_assets.py`.
 
+## Arsenal and item grades
+
+Every System weapon and armor piece has a **grade**: common, rare, epic, legendary, mythic or divine
+(`item/ItemGrade`). It is stored per stack as the `beyondsolo:grade` data component (set as a default component in
+`Arsenal.defaultGrades`), so enhancement or boss loot can raise one stack's grade later. The client shows it in
+`client/combat/GradeVisuals`: coloured names (a moving two-colour gradient for mythic and divine), a tooltip frame in
+the grade's colours, a glow behind graded items in inventory slots, and a light beam with a glowing sigil over dropped
+gear (rare and up; legendary and up shed sparks too). Legendary and up also get an animated light sweep on the sprite.
+
+- **Weapons:** `item/arsenal/Arsenal` registers 39 weapons on top of the 8 combat ones (6 common, 8 rare, 8 epic,
+  8 legendary, 3 mythic, 6 divine). A weapon is a `WeaponKind` (base damage, speed, weight and Better Combat
+  moveset), a grade (its `Tier`), an element and buildup, traits, a favoured class and maybe a signature. Melee
+  weapons are `SystemWeaponItem`, bows are `SystemBowItem` (`ArsenalWeapon` is what both share).
+- **Traits** (`item/arsenal/Trait`, effects in `combat/ArsenalHits`): frostbite (stacks to III, then freezes; the
+  next hit shatters the ice for +40%), thunderclap (chain lightning), armor breaker, lifesteal, executioner, mending,
+  rhythm, bulwark, backstab, twin and split shot. Trait and signature damage runs through `ArsenalHits.proc`, so it
+  never procs traits or weapon buildup again.
+- **Spell power** (`beyondsolo:spell_power`, carried by staffs) multiplies magic damage, which is how skill spells hit.
+- **Signatures** (`item/arsenal/Signature`, effects in `combat/ArsenalAbilities`): right-click arts on mythic and
+  divine weapons with an item cooldown, a screen flash for the wielder and light bursts (`CombatFxPayload` kinds
+  `NOVA`, `SIGNATURE`, `FREEZE`, `SHATTER`, `CHAIN`). The divine bow's Starfall is passive (full draws).
+- **Divine weapons** are bound to one class each (`Arsenal.divineFor`). Anyone else, or a player without the System,
+  deals half damage and can't use the signature (`ArsenalHits.refuses`).
+- **Where they come from:** common and rare weapons have recipes; gate reward caches roll a grade by the gate's
+  rank (`GateLoot.GRADE_WEIGHTS`: E gates drop common and rare, S gates drop epic and up with about 2% divine).
+- **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
+  `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
+
 ## Quests
 
 A quest is a self-contained instance (`quest/Quest`): texts, objectives already scaled to the player's rank,
@@ -241,7 +271,7 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 
 | Piece | Does |
 | --- | --- |
-| `GateTheme` | One per rank: the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
+| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
 | `DungeonLayout` | The plan of a cave from its seed: a winding chain of caverns, side caves with a chest, the boss arena at the end, curved tunnels between them. Pure logic, tested without a world |
 | `DungeonBuilder` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick), then decorates: wall lights, fill light, stalagmites, pillars round the arena, side-cave loot |
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
@@ -266,6 +296,38 @@ The game-test server does not load datapack dimensions, so there (only) caves ar
 walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
 
 `/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
+
+## The awakening
+
+Players start without the System. `SystemData.hasSystem()` is the lock: without it there are no pop-ups
+(`Notifications.send` drops them), no System window, HUD or keys, no quests, and the Evaluation Crystal stays dark.
+`isAwakened()` still means "evaluated" and implies `hasSystem()`. Check `SystemAPI.hasSystem(player)` before showing
+a player anything that belongs to the System; check `isAwakened` for anything that needs a rank or a class.
+`SystemEvent.SystemGranted` fires when it is bound. Config `awakening.required = false` gives it at first login.
+
+| Stage (`AwakeningData.Stage`) | What happens |
+| --- | --- |
+| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away |
+| `CALLED` | Set by `AwakeningService.gateCleared` when a gate of rank D or higher is cleared with them inside. When they step out, a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`) opens in front of them. `tether` pulls them back past `awakening.tetherRadius` and re-opens the gate beside them if they get far away or change dimension. Only the owner can enter |
+| `TRIAL` | Inside. Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last cavern reached (`GateInstance.checkpoint`), in the hall the awakening begins |
+| `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
+| `DONE` | Has the System. The evaluation follows as before |
+
+The Hollow Arbiter (`ArbiterEntity`, a `DungeonBoss` like `GateBossEntity`, so the boss bar and intro work for both)
+kneels dormant and invulnerable until its challenger is well inside the hall, rises for `INTRO_TICKS`, then uses
+three attacks: a cleave across everything in front of it, a sunder that sends a ring along the floor (jump it), and
+judgment, marks of light under each player that burst a moment later. Under half health it is unbound: faster,
+double rings, three marks. 1500 health, heavy armour, arrows do little. Killing it (`arbiterSlain`) drops a cache
+that holds one `ModItems.LEGENDARIES` weapon (`LegendaryWeaponItem`), then the awakening plays with
+`arbiterSlain` set, which also gives the title `title.beyondsolo.arbiter_slayer`.
+
+Its model, animations and textures, the sealed gate's texture and the legendary weapons' icons come from
+`tools/gen_awakening_assets.py`. The server's timings (wind-ups, `INTRO_TICKS`, `DEATH_TICKS`) and the animation
+lengths in that script must be changed together. In GeckoLib files a positive x rotation pitches a bone forward
+(top to the front, a hanging limb's end to the back); the script's poses are written as a body moves and converted.
+
+Testing: `/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant`. `reset` takes the System away again
+and closes the old trial; `grant` skips the trial.
 
 ## Skills
 
@@ -376,6 +438,7 @@ exhaustion resistance, and that every weapon has a Better Combat file. `test/Que
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
 `test/GateGameTests` covers: the cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
+`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, only a D-rank or higher clear calls a player, the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage

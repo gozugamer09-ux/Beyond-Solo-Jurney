@@ -4,7 +4,19 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 
 ## What's in the game so far
 
-- **Random first spawn.** New players wake up 800-3000 blocks from world spawn with one objective: find a village.
+- **You start with nothing.** No System, no windows, no quests: an ordinary player in an ordinary world, with gates
+  tearing open around you. Low gates (rank D) open near players who have no System yet.
+- **The awakening trial.** The first time you clear a gate of rank D or higher, a **sealed gate** opens in front of
+  you as you step out. It will not let you leave: walk away and it pulls you back, run and it follows. Behind it lies
+  the **Ashen Threshold**, a long way down through bone-white caverns to the hall of the **Hollow Arbiter**, a
+  kneeling, faceless colossus in chains. It cannot reasonably be beaten. When it strikes you down you do not die and
+  you lose nothing: the screen goes dark, the first System window opens in the dark, and you wake outside with
+  **the System**. That is where the game begins.
+- **The hidden way.** The Arbiter can be killed. Whoever manages it still receives the System, with a title, and
+  its cache holds one of four **legendary weapons** (Sunderveil, Ashen Oath, Nightglass Fang, Thorn Requiem),
+  unbreakable and far beyond anything else in the game.
+- **Random first spawn.** New players wake up 800-3000 blocks from world spawn. Once the System is theirs it gives
+  them one objective: find a village.
 - **Evaluation Zone.** Villages (plains, desert, savanna, snowy, taiga) can generate a small stone pavilion with an
   Evaluation Crystal: a shard of light floating over a magic circle. Touch it and stay close while it scans you
   (5 seconds), then the reveal plays on your screen: the **rank (E to S)** is rolled and stamped in, then the
@@ -33,6 +45,13 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 - **Weapons:** Hunter's Dagger, Knight's Blade, Steel Greatsword, Hunting Spear (blood), and the Duskforged
   elemental weapons Emberbrand (fire), Venom Fang (poison), Crimson Reaper (crimson) and Bloodletter (blood). Each
   one has a Better Combat moveset (dagger, sword, claymore, spear, scythe, katana).
+- **The arsenal and item grades:** 39 more weapons from **common** to **divine** (daggers, longswords, rapiers,
+  greatswords, glaives, halberds, great axes, maces, warhammers, gauntlets, claws, staffs and bows). Grades colour the
+  name and tooltip, glow in inventory slots and throw a beam of light over dropped gear. Weapons carry traits
+  (frostbite and freezing, chain lightning, armor breaker, lifesteal, executioner, mending, rhythm, bulwark,
+  backstab, twin, split shot). Three **mythic** weapons and six **divine** weapons (one bound to each class) have a
+  right-click signature art, such as Absolute Zero, Heaven's Verdict, Cataclysm Cleave or Dragon's Wrath. Staffs add
+  spell power to skill spells. Gate caches roll weapon grades by the gate's rank.
 - **Armor sets:** Hunter (light, less exhaustion), Knight (heavy plate, blood resistance), Duskforged (fire, poison
   and crimson resistance). Wearing all four pieces adds a set bonus.
 - **Elements.** Hits fill an element's buildup on the target; when it is full, something happens. It works on
@@ -64,9 +83,11 @@ Admin commands for testing (op level 2): `/system evaluate [rank] [class]` (play
 nearest crystal if there is one), `/system awaken [rank] [class]` (same result, no show), `/system reset`,
 `/system xp <n>`, `/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`,
 `/system exhaustion <percent>`, `/system notify <text>`, `/system buildup <targets> <element> <amount>`,
-`/system status <targets> <deep_burn|venom|heavy_venom|crimson_brand> [stacks]`.
+`/system status <targets> <deep_burn|venom|heavy_venom|crimson_brand> [stacks]`,
+`/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it).
 
-Config: `config/beyondsolo-common.toml` (spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,
+Config: `config/beyondsolo-common.toml` (`awakening.required` turns the trial off so players start with
+the System, spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,
 exhaustion rates, mob element buildup) and `config/beyondsolo-client.toml` (pop-up mode, stay-open pop-ups, HUD,
 sounds, System typeface on or off, damage numbers, enemy meters, screen tints).
 

@@ -40,7 +40,15 @@ public enum GateTheme {
     S(PlayerRank.S, DamageElement.CRIMSON, 10, 5,
             blocks(Blocks.OBSIDIAN, Blocks.RED_NETHER_BRICKS, Blocks.BLACKSTONE), blocks(Blocks.CRIMSON_NYLIUM, Blocks.BLACKSTONE, Blocks.NETHER_WART_BLOCK),
             blocks(Blocks.CRYING_OBSIDIAN, Blocks.NETHER_WART_BLOCK), Blocks.CRIMSON_ROOTS, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.WITHER_SKELETON, EntityType.EVOKER, EntityType.BLAZE, EntityType.VINDICATOR));
+            List.of(EntityType.WITHER_SKELETON, EntityType.EVOKER, EntityType.BLAZE, EntityType.VINDICATOR)),
+    /**
+     * The awakening trial behind a sealed gate (not a rank of its own: its monsters are D-rank). Bone-white stone with
+     * gold seams over dark tiled floors, cold soul light, and a long way down to the Hollow Arbiter.
+     */
+    TRIAL(PlayerRank.D, DamageElement.CRIMSON, 11, 2,
+            blocks(Blocks.CALCITE, Blocks.POLISHED_DIORITE, Blocks.CALCITE), blocks(Blocks.POLISHED_DEEPSLATE, Blocks.DEEPSLATE_TILES, Blocks.CRACKED_DEEPSLATE_TILES),
+            blocks(Blocks.GILDED_BLACKSTONE, Blocks.RAW_GOLD_BLOCK, Blocks.CHISELED_QUARTZ_BLOCK), Blocks.SOUL_LANTERN, Blocks.GLOWSTONE, Blocks.BONE_BLOCK,
+            List.of(EntityType.SKELETON, EntityType.ZOMBIE, EntityType.STRAY, EntityType.SKELETON));
 
     public final PlayerRank rank;
     public final DamageElement element;
@@ -77,6 +85,11 @@ public enum GateTheme {
         return values()[rank.ordinal()];
     }
 
+    /** A theme by its ordinal (as stored on gate monsters), clamped. */
+    public static GateTheme byIndex(int i) {
+        return values()[Math.max(0, Math.min(values().length - 1, i))];
+    }
+
     public BlockState wall(RandomSource r) {
         return r.nextInt(9) == 0 ? accents[r.nextInt(accents.length)] : walls[r.nextInt(walls.length)];
     }
@@ -93,9 +106,9 @@ public enum GateTheme {
         return walls[0];
     }
 
-    /** The colour of the gate's light (the rank's colour). */
+    /** The colour of the gate's light (the rank's colour; the trial's pale gold). */
     public int color() {
-        return rank.color();
+        return this == TRIAL ? 0xF2D58A : rank.color();
     }
 
     public Component dungeonName() {

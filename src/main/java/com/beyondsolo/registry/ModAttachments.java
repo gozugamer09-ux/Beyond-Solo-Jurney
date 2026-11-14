@@ -34,5 +34,9 @@ public final class ModAttachments {
     public static final Supplier<AttachmentType<com.beyondsolo.skill.SkillData>> SKILLS = ATTACHMENT_TYPES.register("skills",
             () -> AttachmentType.serializable(com.beyondsolo.skill.SkillData::new).copyOnDeath().build());
 
+    /** Where a player is on the road to the System (awakening module). Survives death. */
+    public static final Supplier<AttachmentType<com.beyondsolo.awakening.AwakeningData>> AWAKENING = ATTACHMENT_TYPES.register("awakening",
+            () -> AttachmentType.serializable(com.beyondsolo.awakening.AwakeningData::new).copyOnDeath().build());
+
     private ModAttachments() {}
 }

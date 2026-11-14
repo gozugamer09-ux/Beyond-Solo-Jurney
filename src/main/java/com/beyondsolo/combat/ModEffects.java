@@ -49,6 +49,28 @@ public final class ModEffects {
     public static final DeferredHolder<MobEffect, MobEffect> CRIMSON_BRAND = EFFECTS.register("crimson_brand",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0xC2185B, Set.of(EffectCures.MILK, ElementCures.TONIC), 0, (e, amp) -> {}));
 
+    /** Frostbite: frost weapons stack it (I to III). Each level slows movement and attacks. A fourth hit freezes. */
+    public static final DeferredHolder<MobEffect, MobEffect> FROSTBITE = EFFECTS.register("frostbite",
+            () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0x9ED8FF, Set.of(EffectCures.MILK, EffectCures.HONEY), 0, (e, amp) -> {})
+                    .addAttributeModifier(Attributes.MOVEMENT_SPEED, BeyondSolo.id("effect.frostbite"), -0.15,
+                            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
+                    .addAttributeModifier(Attributes.ATTACK_SPEED, BeyondSolo.id("effect.frostbite"), -0.1,
+                            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+
+    /** Frozen solid: can barely move or jump. The next weapon hit shatters the ice for bonus damage. */
+    public static final DeferredHolder<MobEffect, MobEffect> FROZEN = EFFECTS.register("frozen",
+            () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0xCFF2FF, Set.of(EffectCures.MILK), 0, (e, amp) -> {})
+                    .addAttributeModifier(Attributes.MOVEMENT_SPEED, BeyondSolo.id("effect.frozen"), -0.9,
+                            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
+                    .addAttributeModifier(Attributes.JUMP_STRENGTH, BeyondSolo.id("effect.frozen"), -0.9,
+                            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)
+                    .addAttributeModifier(Attributes.ATTACK_SPEED, BeyondSolo.id("effect.frozen"), -0.5,
+                            AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+
+    /** A divine or mythic weapon's stance: Colossus Stance, Infernal Rend... drawn as a buff. */
+    public static final DeferredHolder<MobEffect, MobEffect> INFERNAL_REND = EFFECTS.register("infernal_rend",
+            () -> new CombatStatusEffect(MobEffectCategory.BENEFICIAL, 0xFF5A1E, Set.of(), 0, (e, amp) -> {}));
+
     // Wards: short resistances from the remedies.
     public static final DeferredHolder<MobEffect, MobEffect> FIRE_WARD = ward("fire_ward", 0xFFA45C, ModAttributes.FIRE_RESISTANCE);
     public static final DeferredHolder<MobEffect, MobEffect> POISON_WARD = ward("poison_ward", 0xA8E06A, ModAttributes.POISON_RESISTANCE);

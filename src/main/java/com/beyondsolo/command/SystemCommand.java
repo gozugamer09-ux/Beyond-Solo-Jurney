@@ -56,6 +56,7 @@ public final class SystemCommand {
                                 .then(Commands.argument("class", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerClass.values()), b))
                                         .executes(ctx -> evaluate(ctx, rank(ctx), playerClass(ctx))))))
                 .then(Commands.literal("reset").executes(ctx -> {
+                    com.beyondsolo.awakening.AwakeningService.reset(ctx.getSource().getPlayerOrException());
                     SystemAPI.reset(ctx.getSource().getPlayerOrException());
                     com.beyondsolo.quest.QuestEngine.reset(ctx.getSource().getPlayerOrException());
                     com.beyondsolo.skill.SkillAPI.reset(ctx.getSource().getPlayerOrException());
@@ -119,6 +120,8 @@ public final class SystemCommand {
         if (crystal == null) crystal = origin.relative(player.getDirection(), 2);
         SystemAPI.reset(player);
         com.beyondsolo.quest.QuestEngine.reset(player);
+        // the reset took the System with it: the crystal only answers those it is bound to
+        SystemAPI.grantSystem(player);
         EvaluationManager.begin(player, crystal, rank, playerClass);
         return ok(ctx, "evaluate");
     }

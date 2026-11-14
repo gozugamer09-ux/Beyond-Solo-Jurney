@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " SL",
+    "S L",
+    " SL"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:stick"
+    },
+    "L": {
+      "item": "minecraft:string"
+    }
+  },
+  "result": {
+    "id": "beyondsolo:hunters_shortbow",
+    "count": 1
+  }
+}

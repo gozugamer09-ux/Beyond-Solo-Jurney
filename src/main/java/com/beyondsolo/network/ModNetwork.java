@@ -77,6 +77,8 @@ public final class ModNetwork {
                         default -> {}
                     }
                 }));
+        registrar.playToClient(AwakeningPayload.TYPE, AwakeningPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onAwakening(payload)));
 
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
