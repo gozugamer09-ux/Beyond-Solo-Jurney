@@ -19,9 +19,11 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.evaluation` | The on-screen evaluation: scan read-out and the rank / class / stats reveal |
 | `client.render` | World rendering: the crystal's renderer, render types, client-only effects |
 | `client.combat` | Combat HUD (rail, enemy meters, damage numbers, screen tints) and world effects |
-| `command` | `/system` admin commands |
+| `quest` | Quest engine: quests, templates, rank scaling, progress hooks, triggers (`quest.trigger`) |
+| `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
+| `command` | `/system` admin commands (`/system quest ...` for quests) |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
-| `quest`, `npc`, `gate` | Reserved for the next modules |
+| `npc`, `gate` | Reserved for the next modules |
 
 ## Rules for new modules
 
@@ -99,14 +101,11 @@ Rules that came out of building it, worth keeping for gates and bosses:
 
 ## Hooks per planned module
 
-### Quest engine (set quests + surprise quests)
-- Rewards: `SystemAPI.grantXp(player, amount, yourQuestId)`, `addStatPoints`, `setTitle`, `restoreMana`.
-- Surprise quest pop-up: `Notifications.send` with `Kind.QUEST` (or `ALERT` for emergencies).
-- UI: replace the placeholder Quests tab with `SystemTabs.register(SystemTabs.QUESTS, 100, YourQuestTab::new)`.
-- Story steps: `SystemAPI.setObjective(player, id)` with lang keys `objective.beyondsolo.<id>` and `.desc`.
-- `ServerScheduler.schedule(ticks, runnable)` for delayed checks.
+### Quest engine (built: see "Quests" below)
 
 ### NPC quests
+- Build quests with `QuestBuilder.of(id, QuestCategory.NPC, player)` (counts and rewards scale by rank on their own),
+  register templates in `QuestTemplates.register`, hand them out with `QuestEngine.offer` / `start`. See "Quests".
 - Scale quest difficulty and rewards by `SystemAPI.get(player).rank().tier()` (0 = E ... 5 = S) and `level()`.
 
 ### Gates and dungeons
@@ -176,6 +175,39 @@ buffs) and its key binding (blocked during a collapse), all behind `ModList` che
 Textures (weapons, armor icons and model layers, bottles, effect icons, the sigil and burst light textures) are
 made by `tools/gen_combat_assets.py`.
 
+## Quests
+
+A quest is a self-contained instance (`quest/Quest`): texts, objectives already scaled to the player's rank,
+rewards, penalty, clock and optional area are stored on it, so it keeps working if its template changes. A player's
+quests live in their own attachment (`QuestData`, `ModAttachments.QUESTS`, kept through death).
+
+| Piece | Does |
+| --- | --- |
+| `QuestEngine` | The lifecycle: `offer` (pop-up, accept key J or the QUESTS tab, expires), `start` (forced), `accept`, `decline`, `abandon`, `complete` (rewards through `SystemAPI`), `fail` (penalty), `progress`, `tick` (once a second per player) |
+| `QuestBuilder` | Builds a quest for a player. Kill/break/gather counts and XP/stat points given as E-rank base values and scaled by `RankScaling` |
+| `QuestTemplates` | Templates by id. Built in: the System line (`SET_LINE`: Proof of Strength, Provisions, Growth, Trial of the Depths), the daily, and the surprise quests |
+| `QuestHooks` | Kills, block breaks, walking, death, login sync |
+| `quest.trigger` | `QuestTrigger`s checked every 2 s: spawner nest (emergency), ambush (emergency), deep veins (offer). `QuestTriggers.register` for more |
+| `QuestEvent` | `Started`, `Completed`, `Failed` (with a reason) on `NeoForge.EVENT_BUS` |
+
+Objective types: `KILL`, `BREAK`, `COLLECT` (counted in the inventory, not taken), `TRAVEL` (blocks on foot), `LEVEL`,
+and `CUSTOM` for other modules (`QuestEngine.progress(player, "mymod:key", 1)`). Targets are an id, a `#tag`, empty, or
+`hostile`. Area-only objectives count inside the quest's area; leaving `leaveRadius` fails the quest.
+
+Categories: `SET` (can't be abandoned; the next one starts 5 s after the last), `DAILY` (fails at the next in-game
+day, a new one starts), `SURPRISE` (offered), `EMERGENCY` (forced, one at a time; dying or fleeing fails it),
+and `NPC` / `GATE` reserved. Failing costs exhaustion plus weakness and slowness (half when abandoned), harsher with rank.
+
+The first System quest and the daily are handed out once the player is evaluated and the reveal is over.
+
+On the client (`client.quest`): `QuestOverlay` plays the big moments (accepted: line of light opens into the window,
+emblem pops, title types, then it flies into the tracker; complete: seal stamps down with shockwaves, sparks, rays,
+rewards count up; failed: red flash, shake, glitching header, struck-through title, penalty types out). New pop-ups
+wait while one plays, and the hide key skips it. `QuestTracker` is the HUD list under the status capsule, and
+`QuestLogTab` replaces the core Quests tab. The moments also land in the Log tab.
+
+`/system quest list|start <id>|offer <id>|trigger <id>|accept|progress <n>|complete|fail|reset` for testing.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -198,5 +230,7 @@ stats and buffs, XP levels up and stat points raise attributes, no XP before eva
 recovery, and the blood buildup pop. `test/CombatGameTests` covers: burn into deep burn, deep burn ignores milk and
 totems but the elixir cures it, venom stacking into heavy venom and which cures work, crimson brand damage, the
 blood pop through armor, buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
-exhaustion resistance, and that every weapon has a Better Combat file. Fake players can't take damage, so damage
+exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
+evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
+timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives. Fake players can't take damage, so damage
 checks use zombies.

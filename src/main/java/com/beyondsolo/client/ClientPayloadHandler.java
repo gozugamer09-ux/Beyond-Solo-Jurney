@@ -11,6 +11,9 @@ import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.network.EvaluationPayload;
 import com.beyondsolo.network.NotificationPayload;
 import com.beyondsolo.network.SyncSystemDataPayload;
+import com.beyondsolo.network.QuestEventPayload;
+import com.beyondsolo.network.QuestSyncPayload;
+import com.beyondsolo.client.quest.ClientQuests;
 
 /** Client-side packet handling. Only ever called on the client. */
 public final class ClientPayloadHandler {
@@ -36,6 +39,14 @@ public final class ClientPayloadHandler {
 
     public static void onDamageNumber(DamageNumberPayload payload) {
         FloatingNumbers.add(payload);
+    }
+
+    public static void onQuestSync(QuestSyncPayload payload) {
+        ClientQuests.update(payload);
+    }
+
+    public static void onQuestEvent(QuestEventPayload payload) {
+        ClientQuests.onEvent(payload);
     }
 
     private ClientPayloadHandler() {}

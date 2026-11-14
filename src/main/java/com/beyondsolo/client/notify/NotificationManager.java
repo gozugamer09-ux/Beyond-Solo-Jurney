@@ -79,6 +79,12 @@ public final class NotificationManager {
     private static final Deque<Entry> HISTORY = new ArrayDeque<>();
     private static int unread;
     private static boolean suppressed;
+    /** While true (a quest moment in the middle of the screen), new pop-ups wait; the ones showing stay. */
+    private static boolean held;
+
+    public static void setHeld(boolean value) {
+        held = value;
+    }
 
     public static void push(SystemNotification notification) {
         HISTORY.addFirst(new Entry(notification, System.currentTimeMillis()));
@@ -89,6 +95,12 @@ public final class NotificationManager {
         } else {
             WAITING.addLast(notification);
         }
+    }
+
+    /** Adds a message to the Log without a pop-up (for moments another overlay already shows, like quest results). */
+    public static void log(SystemNotification notification) {
+        HISTORY.addFirst(new Entry(notification, System.currentTimeMillis()));
+        while (HISTORY.size() > HISTORY_SIZE) HISTORY.removeLast();
     }
 
     /** Runs once per rendered frame: retires old pop-ups and brings in waiting ones. */
@@ -106,6 +118,7 @@ public final class NotificationManager {
         }
         if (suppressed) return;
         // With "stay open" on, a full stack makes room by retiring its oldest pop-up.
+        if (held) return;
         if (keep && !WAITING.isEmpty() && shown >= MAX_VISIBLE) {
             for (Popup p : ACTIVE) {
                 if (!p.hiding()) {

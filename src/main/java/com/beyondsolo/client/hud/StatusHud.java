@@ -29,6 +29,12 @@ public final class StatusHud {
     /** Set by the evaluation reveal so the HUD does not sit on top of it. */
     private static boolean hidden;
     private static float visible = 1;
+    /** Where the HUD ended on the last frame, so the quest tracker can sit under it. */
+    private static float bottom = 8;
+
+    public static float bottom() {
+        return bottom;
+    }
 
     public static void setHidden(boolean value) {
         hidden = value;
@@ -45,7 +51,10 @@ public final class StatusHud {
         if (collapse > 0.01f) drawCollapse(g, d);
 
         visible = Anim.approach(visible, hidden ? 0 : 1, 8f);
-        if (!ClientConfig.SHOW_HUD.get() || mc.getDebugOverlay().showDebugScreen() || visible < 0.02f) return;
+        if (!ClientConfig.SHOW_HUD.get() || mc.getDebugOverlay().showDebugScreen() || visible < 0.02f) {
+            bottom = 8;
+            return;
+        }
         float old = Gfx.fade(visible);
         float x = 8;
         float y = 8;
@@ -108,7 +117,9 @@ public final class StatusHud {
             Shapes.icon(Icons.PIN, ox + 10.5f, y + h / 2f, 9).fill(SystemTheme.GOLD).glow(2 + fresh * 3, Gfx.alpha(SystemTheme.GOLD, 0.6f)).draw(g);
             SysFont.title(g, title, ox + 19, SysFont.centerY(y, h, 8f), 8f, Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.25f + 0.5f * fresh));
             Gfx.setAlpha(oldChip);
+            y += (h + 6) * objectiveShown;
         }
+        bottom = y;
         Gfx.setAlpha(old);
     }
 
