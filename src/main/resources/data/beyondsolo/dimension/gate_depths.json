@@ -1,0 +1,26 @@
+{
+  "type": "beyondsolo:gate_depths",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "beyondsolo:gate_depths",
+      "lakes": false,
+      "features": false,
+      "structure_overrides": [],
+      "layers": [
+        {
+          "block": "minecraft:bedrock",
+          "height": 1
+        },
+        {
+          "block": "minecraft:deepslate",
+          "height": 40
+        },
+        {
+          "block": "minecraft:stone",
+          "height": 87
+        }
+      ]
+    }
+  }
+}

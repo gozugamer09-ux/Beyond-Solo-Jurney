@@ -57,5 +57,9 @@ public final class ClientPayloadHandler {
         com.beyondsolo.client.npc.NpcMarkers.update(payload);
     }
 
+    public static void onGate(com.beyondsolo.network.GatePayload payload) {
+        com.beyondsolo.client.gate.GateOverlay.handle(payload);
+    }
+
     private ClientPayloadHandler() {}
 }

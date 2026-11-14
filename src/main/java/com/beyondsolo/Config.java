@@ -70,6 +70,11 @@ public final class Config {
             .comment("Exhaustion from each Combat Roll dodge.")
             .defineInRange("exhaustion.perRoll", 2.5, 0.0, 100.0);
 
+    // --- Gates ---
+    public static final ModConfigSpec.DoubleValue GATE_SPAWN_CHANCE = B
+            .comment("Chance, checked once a minute for each evaluated player in the overworld, that a gate opens 40-80 blocks away (never near another open gate). 0 turns it off; world generation still places gates.")
+            .defineInRange("gates.openChancePerMinute", 0.08, 0.0, 1.0);
+
     public static final ModConfigSpec SPEC = B.build();
 
     private Config() {}

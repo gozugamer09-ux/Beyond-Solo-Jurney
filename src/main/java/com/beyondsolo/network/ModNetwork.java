@@ -59,6 +59,9 @@ public final class ModNetwork {
                     }
                 }));
 
+        registrar.playToClient(GatePayload.TYPE, GatePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onGate(payload)));
+
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     Stat stat = Stat.byIndex(payload.stat());

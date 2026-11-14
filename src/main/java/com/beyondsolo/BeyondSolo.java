@@ -32,6 +32,7 @@ public final class BeyondSolo {
         ModBlockEntities.BLOCK_ENTITIES.register(modBus);
         ModAttachments.ATTACHMENT_TYPES.register(modBus);
         com.beyondsolo.registry.ModEntities.ENTITY_TYPES.register(modBus);
+        com.beyondsolo.gate.GateFeature.FEATURES.register(modBus);
         container.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);
     }

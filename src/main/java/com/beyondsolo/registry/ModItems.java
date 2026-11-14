@@ -48,6 +48,7 @@ public final class ModItems {
     public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, BeyondSolo.MOD_ID);
 
     public static final DeferredItem<BlockItem> EVALUATION_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.EVALUATION_CRYSTAL);
+    public static final DeferredItem<BlockItem> GATE = ITEMS.registerSimpleBlockItem(ModBlocks.GATE);
 
     /** The sealed parcel of a villager's delivery request. */
     public static final DeferredItem<com.beyondsolo.item.ParcelItem> SEALED_PARCEL = ITEMS.register("sealed_parcel",
@@ -153,6 +154,7 @@ public final class ModItems {
     static void addToTabs(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.OP_BLOCKS && event.hasPermissions()) {
             event.accept(EVALUATION_CRYSTAL);
+            event.accept(GATE);
         }
     }
 

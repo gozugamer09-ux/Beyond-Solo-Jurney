@@ -96,15 +96,15 @@ public final class GateInstance {
         return local.offset(origin());
     }
 
-    /** Where players arrive: on the floor of the first cavern. */
+    /** Where players arrive: on the floor of the first cavern (the floor's top block is just below {@code floorY}). */
     public BlockPos entrance() {
         DungeonLayout.Room room = layout().entrance();
-        return world(new BlockPos(room.center().getX(), room.floorY() + 1, room.center().getZ()));
+        return world(new BlockPos(room.center().getX(), room.floorY(), room.center().getZ()));
     }
 
     public BlockPos bossRoomCenter() {
         DungeonLayout.Room room = layout().boss();
-        return world(new BlockPos(room.center().getX(), room.floorY() + 1, room.center().getZ()));
+        return world(new BlockPos(room.center().getX(), room.floorY(), room.center().getZ()));
     }
 
     public CompoundTag save() {

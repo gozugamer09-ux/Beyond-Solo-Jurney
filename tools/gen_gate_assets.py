@@ -667,6 +667,25 @@ def beam_texture():
         f.write('{"texture": {"blur": true, "clamp": true}}')
 
 
+def item_icon():
+    """16x16 inventory icon: a dark oval rimmed with rock and a blue swirl."""
+    S = 16
+    a = np.zeros((S, S, 4), dtype=np.uint8)
+    for y in range(S):
+        for x in range(S):
+            dx, dy = (x - 7.5) / 6.0, (y - 7.5) / 7.5
+            r = math.hypot(dx, dy)
+            if r > 1.05:
+                continue
+            if r > 0.78:
+                a[y, x] = (70, 74, 86, 255) if (x + y) % 3 else (50, 54, 64, 255)
+            else:
+                ang = math.atan2(dy, dx)
+                v = 0.5 + 0.5 * math.cos(3 * ang + 6 * r)
+                a[y, x] = (clamp(20 + 60 * v * (1 - r)), clamp(40 + 150 * v * (1 - r) + 40 * (1 - r)), clamp(90 + 165 * (1 - r)), 255)
+    Image.fromarray(a).save(os.path.join(TEX, "item", "gate.png"))
+
+
 def main():
     for d in ("block", "entity"):
         os.makedirs(os.path.join(GEO, d), exist_ok=True)
@@ -686,6 +705,7 @@ def main():
     write_json(os.path.join(GEO, "block", "reward_cache.geo.json"), cache_model(uvs, size))
     write_json(os.path.join(ANIM, "block", "reward_cache.animation.json"), cache_animations())
 
+    item_icon()
     vortex_texture()
     beam_texture()
     print("gate assets written")
