@@ -3,6 +3,7 @@ package com.beyondsolo.network;
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.ClientPayloadHandler;
 import com.beyondsolo.evaluation.EvaluationManager;
+import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.system.Stat;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,6 +31,22 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatFx(payload)));
         registrar.playToClient(DamageNumberPayload.TYPE, DamageNumberPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onDamageNumber(payload)));
+
+        registrar.playToClient(QuestSyncPayload.TYPE, QuestSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onQuestSync(payload)));
+        registrar.playToClient(QuestEventPayload.TYPE, QuestEventPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onQuestEvent(payload)));
+        registrar.playToServer(QuestActionPayload.TYPE, QuestActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (!(ctx.player() instanceof ServerPlayer player)) return;
+                    switch (payload.action()) {
+                        case QuestActionPayload.ACCEPT -> QuestEngine.accept(player, payload.quest());
+                        case QuestActionPayload.DECLINE -> QuestEngine.decline(player, payload.quest());
+                        case QuestActionPayload.ABANDON -> QuestEngine.abandon(player, payload.quest());
+                        case QuestActionPayload.ACCEPT_LATEST -> QuestEngine.acceptLatest(player);
+                        default -> {}
+                    }
+                }));
 
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {

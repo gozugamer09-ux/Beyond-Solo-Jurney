@@ -9,6 +9,11 @@ import com.beyondsolo.client.notify.NotificationRenderer;
 import com.beyondsolo.client.render.EvaluationCrystalRenderer;
 import com.beyondsolo.client.screen.DefaultTabs;
 import com.beyondsolo.client.screen.SystemScreen;
+import com.beyondsolo.client.screen.SystemTabs;
+import com.beyondsolo.client.quest.ClientQuests;
+import com.beyondsolo.client.quest.QuestLogTab;
+import com.beyondsolo.client.quest.QuestOverlay;
+import com.beyondsolo.client.quest.QuestTracker;
 import com.beyondsolo.registry.ModBlockEntities;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
@@ -36,12 +41,18 @@ public final class ClientEvents {
     /** Hides the pop-ups on screen, or brings the latest ones back when none are showing. */
     public static final KeyMapping DISMISS = new KeyMapping("key.beyondsolo.dismiss",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KEY_CATEGORY);
+    /** Accepts the newest quest offer. */
+    public static final KeyMapping ACCEPT_QUEST = new KeyMapping("key.beyondsolo.accept_quest",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, KEY_CATEGORY);
 
     @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
     public static final class ModBus {
         @SubscribeEvent
         static void setup(FMLClientSetupEvent event) {
-            event.enqueueWork(DefaultTabs::register);
+            event.enqueueWork(() -> {
+                DefaultTabs.register();
+                SystemTabs.register(SystemTabs.QUESTS, 100, QuestLogTab::new);
+            });
         }
 
         @SubscribeEvent
@@ -49,6 +60,7 @@ public final class ClientEvents {
             event.register(OPEN_SYSTEM);
             event.register(NOTIFICATION_MODE);
             event.register(DISMISS);
+            event.register(ACCEPT_QUEST);
         }
 
         @SubscribeEvent
@@ -59,7 +71,9 @@ public final class ClientEvents {
         @SubscribeEvent
         static void layers(RegisterGuiLayersEvent event) {
             event.registerAboveAll(BeyondSolo.id("status_hud"), StatusHud::render);
+            event.registerAboveAll(BeyondSolo.id("quest_tracker"), QuestTracker::render);
             event.registerAboveAll(BeyondSolo.id("notifications"), NotificationRenderer::renderHud);
+            event.registerAboveAll(BeyondSolo.id("quest_moments"), QuestOverlay::render);
             event.registerAboveAll(BeyondSolo.id("evaluation"), EvaluationOverlay::render);
         }
     }
@@ -71,6 +85,7 @@ public final class ClientEvents {
             Anim.frame();
             EvaluationOverlay.frame(event.getPartialTick());
             NotificationManager.frame();
+            QuestOverlay.frame();
         }
 
         @SubscribeEvent
@@ -89,6 +104,11 @@ public final class ClientEvents {
             while (DISMISS.consumeClick()) {
                 hideKeyPressed();
             }
+            while (ACCEPT_QUEST.consumeClick()) {
+                if (!ClientQuests.acceptLatest()) {
+                    mc.player.displayClientMessage(Component.translatable("message.beyondsolo.no_offer"), true);
+                }
+            }
         }
 
         @SubscribeEvent
@@ -98,12 +118,14 @@ public final class ClientEvents {
             NotificationRenderer.reset();
             StatusHud.reset();
             EvaluationOverlay.reset();
+            ClientQuests.clear();
         }
     }
 
     /** What the hide key does right now: skips the evaluation reveal if it is playing, otherwise hides or recalls pop-ups. */
     public static void hideKeyPressed() {
         if (EvaluationOverlay.skip()) return;
+        if (QuestOverlay.skip()) return;
         NotificationManager.toggleHidden();
     }
 

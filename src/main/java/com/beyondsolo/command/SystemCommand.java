@@ -57,6 +57,7 @@ public final class SystemCommand {
                                         .executes(ctx -> evaluate(ctx, rank(ctx), playerClass(ctx))))))
                 .then(Commands.literal("reset").executes(ctx -> {
                     SystemAPI.reset(ctx.getSource().getPlayerOrException());
+                    com.beyondsolo.quest.QuestEngine.reset(ctx.getSource().getPlayerOrException());
                     return ok(ctx, "reset");
                 }))
                 .then(Commands.literal("xp").then(Commands.argument("amount", IntegerArgumentType.integer(1)).executes(ctx -> {
@@ -116,6 +117,7 @@ public final class SystemCommand {
         }
         if (crystal == null) crystal = origin.relative(player.getDirection(), 2);
         SystemAPI.reset(player);
+        com.beyondsolo.quest.QuestEngine.reset(player);
         EvaluationManager.begin(player, crystal, rank, playerClass);
         return ok(ctx, "evaluate");
     }
