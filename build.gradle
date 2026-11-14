@@ -1,0 +1,131 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.141'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+            gameDirectory = project.file('runs/client')
+            if (project.hasProperty('uiTest')) {
+                systemProperty 'beyondsolo.uiTest', 'true'
+                programArguments.addAll '--quickPlayMultiplayer', 'localhost:25565', '--username', 'Dev', '--width', '1280', '--height', '720'
+            }
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            gameDirectory = project.file('runs/server')
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        gameTestServer {
+            type = "gameTestServer"
+            gameDirectory = project.file('runs/gametest')
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+repositories {
+    // GeckoLib: animated models (gates, bosses, custom armor and weapons)
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroupAndSubgroups('software.bernie') }
+    }
+    // Curios: extra equipment slots (rings, necklaces, artifacts)
+    maven {
+        name = 'Curios'
+        url = 'https://maven.theillusivec4.top/'
+        content { includeGroup('top.theillusivec4.curios') }
+    }
+    // Modrinth maven: mods that don't publish their own maven (Apothic Attributes, Placebo)
+    exclusiveContent {
+        forRepository { maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup('maven.modrinth') }
+    }
+}
+
+dependencies {
+    // ---- Library mods. Versions live in gradle.properties. ----
+    implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+    runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+
+    // Apothic Attributes adds crit chance/damage, armor pierce, life steal, dodge and more,
+    // which the stat system and the combat module build on. Placebo is its required library.
+    implementation "maven.modrinth:apothic-attributes:${apothic_attributes_version}"
+    implementation "maven.modrinth:placebo:${placebo_version}"
+
+    // AttributeFix lifts vanilla attribute caps (e.g. max health 1024) so high stats keep working.
+    // Bookshelf and Prickle are its required libraries.
+    runtimeOnly "maven.modrinth:attributefix:${attributefix_version}"
+    runtimeOnly "maven.modrinth:bookshelf-lib:${bookshelf_version}"
+    runtimeOnly "maven.modrinth:prickle:${prickle_version}"
+
+    // Lithostitched: datapack-driven worldgen/structure pool edits (handy for modded villages).
+    runtimeOnly "maven.modrinth:lithostitched:${lithostitched_version}"
+
+    // JEI and Jade: compile against them now, plugins (recipes, mob rank tooltips) come later.
+    compileOnly "maven.modrinth:jei:${jei_version}"
+    compileOnly "maven.modrinth:jade:${jade_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Fill in the ${...} placeholders in neoforge.mods.toml from gradle.properties.
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

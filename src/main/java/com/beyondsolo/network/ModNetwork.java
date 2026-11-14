@@ -1,0 +1,41 @@
+package com.beyondsolo.network;
+
+import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.ClientPayloadHandler;
+import com.beyondsolo.evaluation.EvaluationManager;
+import com.beyondsolo.system.Stat;
+import com.beyondsolo.system.SystemAPI;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+@EventBusSubscriber(modid = BeyondSolo.MOD_ID)
+public final class ModNetwork {
+    @SubscribeEvent
+    static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+
+        registrar.playToClient(SyncSystemDataPayload.TYPE, SyncSystemDataPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSync(payload)));
+        registrar.playToClient(NotificationPayload.TYPE, NotificationPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onNotification(payload)));
+        registrar.playToClient(EvaluationPayload.TYPE, EvaluationPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onEvaluation(payload)));
+
+        registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    Stat stat = Stat.byIndex(payload.stat());
+                    if (stat != null && ctx.player() instanceof ServerPlayer player) {
+                        SystemAPI.allocateStat(player, stat);
+                    }
+                }));
+        registrar.playToServer(SkipEvaluationPayload.TYPE, SkipEvaluationPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer player) EvaluationManager.skip(player);
+                }));
+    }
+
+    private ModNetwork() {}
+}
