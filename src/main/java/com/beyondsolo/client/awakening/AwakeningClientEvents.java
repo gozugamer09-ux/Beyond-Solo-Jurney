@@ -50,6 +50,18 @@ public final class AwakeningClientEvents {
             event.setPitch(event.getPitch() + fall[1]);
         }
 
+        /** The world changes behind the black: the awakening is drawn over the "loading terrain" screen too. */
+        @SubscribeEvent
+        static void overLoading(net.neoforged.neoforge.client.event.ScreenEvent.Render.Post event) {
+            if (!AwakeningOverlay.awakening() || !(event.getScreen() instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen)) return;
+            var g = event.getGuiGraphics();
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 400);
+            g.fill(0, 0, g.guiWidth(), g.guiHeight(), 0xFF000000);
+            AwakeningOverlay.render(g, net.minecraft.client.Minecraft.getInstance().getTimer());
+            g.pose().popPose();
+        }
+
         @SubscribeEvent
         static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
             AwakeningOverlay.reset();

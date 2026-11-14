@@ -225,6 +225,11 @@ public final class GateOverlay {
         return !com.beyondsolo.client.ClientSystemData.get().hasSystem();
     }
 
+    /** The awakening trial has no rank. */
+    private static boolean trial(Moment m) {
+        return m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal();
+    }
+
     private static int rankColor(Moment m) {
         if (m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal()) return 0xFF000000 | com.beyondsolo.gate.GateTheme.TRIAL.color();
         return SystemTheme.rank(PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)]);
@@ -317,7 +322,7 @@ public final class GateOverlay {
             if (subIn > 0.01f) {
                 float o3 = Gfx.fade(subIn);
                 float sw = SysFont.width(m.p.subtitle(), 7f, true);
-                Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
+                if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
                 SysFont.draw(g, m.p.subtitle(), cx + 4, y + 28, 7f, Gfx.mix(color, 0xFFFFFFFF, 0.4f), true, 0.5f);
                 Gfx.setAlpha(o3);
             }
@@ -360,7 +365,7 @@ public final class GateOverlay {
         float nameK = Anim.window(t, 0.9f, 1.9f);
         float nw = SysFont.width(m.p.title(), 18f, true);
         if (nameK > 0) {
-            Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
+            if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
             Shapes.box(cx - nw / 2f - 30, y + 10, nw + 60, 22).radius(11).fill(0x00000000).glow(18, Gfx.alpha(color, 0.25f * Anim.outCubic(nameK))).draw(g);
         }
         typed(g, m.p.title(), cx + 6, y + 11, 18f, 0xFFFFFFFF, nameK);
@@ -486,8 +491,10 @@ public final class GateOverlay {
         Shapes.box(x - 4, y - 2, bw + 8, 25).radius(8).fillV(0xC00A1222, 0xC0050912)
                 .border(0.75f, Gfx.alpha(enraged ? 0xFFFF4050 : color, 0.6f + 0.4f * rage))
                 .glow(8, Gfx.alpha(enraged ? 0xFFFF2040 : color, 0.2f + 0.3f * rage)).draw(g);
-        Ui.rankEmblem(g, db.rank(), x + 7, y + 8, 5.5f, 0);
-        SysFont.draw(g, boss.getDisplayName(), x + 17, y + 3.5f, 8f, 0xFFFFFFFF, true, 0f);
+        // the Arbiter has no rank to show
+        boolean ranked = !(boss instanceof com.beyondsolo.awakening.ArbiterEntity);
+        if (ranked) Ui.rankEmblem(g, db.rank(), x + 7, y + 8, 5.5f, 0);
+        SysFont.draw(g, boss.getDisplayName(), x + (ranked ? 17 : 6), y + 3.5f, 8f, 0xFFFFFFFF, true, 0f);
         if (enraged) {
             float since = Anim.since(enragedAt);
             float pop = since < 0.5f ? Anim.outBack(Anim.window(since, 0, 0.4f)) : 1f;

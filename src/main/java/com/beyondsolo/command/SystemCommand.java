@@ -120,6 +120,8 @@ public final class SystemCommand {
         if (crystal == null) crystal = origin.relative(player.getDirection(), 2);
         SystemAPI.reset(player);
         com.beyondsolo.quest.QuestEngine.reset(player);
+        // the reset took the System with it: the crystal only answers those it is bound to
+        SystemAPI.grantSystem(player);
         EvaluationManager.begin(player, crystal, rank, playerClass);
         return ok(ctx, "evaluate");
     }

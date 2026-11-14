@@ -11,8 +11,10 @@ Generates the awakening trial's models, animations and textures (no hand-drawn f
 Run from the repo root:  python3 tools/gen_awakening_assets.py
 Needs: pillow, numpy.
 
-Conventions (same as the gate boss): 16 pixels are one block, the front of the model is -z, and a positive x
-rotation swings a hanging limb forward (and leans an upright part forward).
+Conventions (same as the gate boss): 16 pixels are one block and the front of the model is -z. In the files a
+positive x rotation pitches a bone forward: the top of an upright part goes to the front, the end of a hanging limb
+to the back. The poses below are written the way a body moves instead (positive = an arm or leg swings forward, a
+knee or the cloth trails back when negative) and timeline() turns the limbs' signs around.
 """
 import math
 import os
@@ -72,6 +74,11 @@ def tile_cape(rng):
     return rgb, glow
 
 
+def clipped(tiles):
+    """Pale stone runs past white in places; without this those pixels wrap around to blue."""
+    return [(np.clip(rgb, 0, 255), np.clip(glow, 0, 255)) for rgb, glow in tiles]
+
+
 def arbiter_textures():
     rng = np.random.default_rng(900)
     tiles = [
@@ -86,7 +93,7 @@ def arbiter_textures():
         tile_rock(rng, (196, 176, 128), (255, 236, 180)),
         tile_cape(rng),
     ]
-    img, glow, uvs, size = atlas(tiles, cols=4)
+    img, glow, uvs, size = atlas(clipped(tiles), cols=4)
     img.save(os.path.join(TEX, "entity", "arbiter.png"))
     glow.save(os.path.join(TEX, "entity", "arbiter_glowmask.png"))
     return uvs, size
@@ -96,7 +103,7 @@ def sealed_gate_textures():
     rng = np.random.default_rng(910)
     tiles = [tile_rock(rng, STONE, GOLD), tile_rock(rng, [v * 0.8 for v in STONE], GOLD, veins=False),
              tile_crystal(rng, GOLD), tile_rock(rng, [v * 0.62 for v in STONE], GOLD, veins=False)]
-    img, glow, _, _ = atlas(tiles, cols=2)
+    img, glow, _, _ = atlas(clipped(tiles), cols=2)
     img.save(os.path.join(TEX, "block", "gate_sealed.png"))
     glow.save(os.path.join(TEX, "block", "gate_sealed_glowmask.png"))
 
@@ -121,7 +128,7 @@ def chain_cubes(c, anchor, to):
     dx, dy, dz = (to[i] - anchor[i] for i in range(3))
     length = math.sqrt(dx * dx + dy * dy + dz * dz)
     dx, dy, dz = dx / length, dy / length, dz / length
-    rot = [math.degrees(math.asin(dz)), 0, math.degrees(math.atan2(dx, dy))]
+    rot = [-math.degrees(math.asin(dz)), 0, math.degrees(math.atan2(dx, dy))]
     out = []
     y, i = 0.0, 0
     while y < length:
@@ -137,7 +144,12 @@ def chain_cubes(c, anchor, to):
 
 def arbiter_model(uvs, size):
     def c(origin, sz, tile, **kw):
-        return cube(origin, sz, tile, uvs, **kw)
+        made = cube(origin, sz, tile, uvs, **kw)
+        # a hair inside the tile, so the neighbouring tiles never bleed in along the edges
+        for face in made["uv"].values():
+            face["uv"] = [face["uv"][0] + 0.25, face["uv"][1] + 0.25]
+            face["uv_size"] = [T - 0.5, T - 0.5]
+        return made
 
     bones = [
         {"name": "root", "pivot": [0, 0, 0]},
@@ -182,7 +194,7 @@ def arbiter_model(uvs, size):
         a = i / 12 * 360
         r = 9.5
         px, py = r * math.sin(math.radians(a)), 50 + r * math.cos(math.radians(a))
-        bones.append({"name": f"halo{i}", "parent": "halo", "pivot": [px, py, 6.5], "rotation": [0, 0, -a], "cubes": [
+        bones.append({"name": f"halo{i}", "parent": "halo", "pivot": [px, py, 6.5], "rotation": [0, 0, a], "cubes": [
             c([px - 2.2, py - 1, 5.9], [4.4, 2, 1.2], HALO),
             c([px - 0.6, py + 0.6, 6.0], [1.2, 2.2 + (i % 3), 1.0], HALO),
         ]})
@@ -239,8 +251,8 @@ def arbiter_model(uvs, size):
 def pose(sword=None, **bones):
     p = {k: list(v) for k, v in bones.items()}
     if sword is not None:
-        chain = sum(p.get(b, [0, 0, 0])[0] for b in ("hips", "torso", "right_arm", "right_forearm"))
-        p["sword"] = [sword - chain, 0, 0]
+        chain = p.get("torso", [0, 0, 0])[0] - p.get("right_arm", [0, 0, 0])[0] - p.get("right_forearm", [0, 0, 0])[0]
+        p["sword"] = [-sword - chain, 0, 0]
     return p
 
 
@@ -262,7 +274,7 @@ STAND_PLANTED = dict(STAND, **pose(sword=-84, torso=[10, 0, 0], right_arm=[58, 0
 WRENCH = dict(STAND, **pose(sword=112, torso=[-10, 0, 0], right_arm=[150, 0, 12], right_forearm=[26, 0, 0]),
               head=[-18, 0, 0], left_arm=[-20, 0, -30], left_forearm=[30, 0, 0], cape=[-16, 0, 0])
 
-BONES = sorted({b for p in (KNEEL, STAND) for b in p})
+LIMBS = {"right_arm", "left_arm", "right_forearm", "left_forearm", "right_leg", "left_leg", "right_shin", "left_shin", "cape", "tabard"}
 
 
 def mix(a, b, k):
@@ -284,7 +296,8 @@ def timeline(steps, length, step=0.05, extra=None, only=None):
     for name in names:
         channel = "position" if name.endswith("@") else "rotation"
         add = (extra or {}).get(name)
-        fn = (lambda t, n=name, add=add: [v + w for v, w in zip(at(n, t), add(t))]) if add else (lambda t, n=name: at(n, t))
+        raw = (lambda t, n=name, add=add: [v + w for v, w in zip(at(n, t), add(t))]) if add else (lambda t, n=name: at(n, t))
+        fn = (lambda t, raw=raw: [-raw(t)[0], raw(t)[1], raw(t)[2]]) if name in LIMBS else raw
         bones.setdefault(name.rstrip("@"), {})[channel] = keyframes(fn, length, step)
     return bones
 

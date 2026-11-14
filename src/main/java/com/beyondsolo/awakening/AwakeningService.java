@@ -469,7 +469,7 @@ public final class AwakeningService {
             if (level.getBlockEntity(at) instanceof RewardCacheBlockEntity cache) cache.setupLegendary(ownerId, level.getGameTime());
             BlockPos cachePos = at;
             // it opens by itself if nobody dares touch it
-            ServerScheduler.schedule(20 * 14, () -> {
+            ServerScheduler.schedule(20 * 5, () -> {
                 if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache && !cache.isOpen()) cache.open(null);
             });
         });
@@ -568,6 +568,12 @@ public final class AwakeningService {
     public static void reset(ServerPlayer player) {
         AwakeningData d = data(player);
         closeSealedGate(player.server, d);
+        // the trial behind it goes too, built or not, so the next call starts a new one
+        GateInstance old = d.trial() == null ? null : GateData.get(player.server).get(d.trial());
+        if (old != null && old.state() == GateInstance.State.OPEN) {
+            old.setState(GateInstance.State.CLOSED);
+            GateData.get(player.server).setDirty();
+        }
         SEQUENCES.remove(player.getUUID());
         freeze(player, false);
         d.setStage(Stage.DORMANT);

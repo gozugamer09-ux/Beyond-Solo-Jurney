@@ -44,7 +44,10 @@ public class ArbiterRenderer extends GeoEntityRenderer<ArbiterEntity> {
 
     @Override
     public void render(ArbiterEntity a, float entityYaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int packedLight) {
-        super.render(a, entityYaw, partialTick, pose, buffers, packedLight);
+        // its hall is dark: the stone always catches a little light, so its shape reads from the doorway
+        int lit = net.minecraft.client.renderer.LightTexture.pack(Math.max(net.minecraft.client.renderer.LightTexture.block(packedLight), 10),
+                net.minecraft.client.renderer.LightTexture.sky(packedLight));
+        super.render(a, entityYaw, partialTick, pose, buffers, lit);
         float time = a.tickCount + partialTick;
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         float stand = a.standing(partialTick);
@@ -61,13 +64,14 @@ public class ArbiterRenderer extends GeoEntityRenderer<ArbiterEntity> {
 
         // head height: kneeling, then standing; slumping again as it dies
         float sink = Mth.clamp(dying * 1.5f, 0f, 1f);
-        float headY = Mth.lerp(stand * (1 - sink * 0.6f), 6.6f, 10.2f);
+        float headY = Mth.lerp(stand * (1 - sink * 0.6f), 5.5f, 9.1f);
         float yaw = Mth.rotLerp(partialTick, a.yBodyRotO, a.yBodyRot);
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(180f - yaw));
         // the halo: behind the head, upright, turning
         pose.pushPose();
-        pose.translate(0, headY + 0.5f, 1.25f);
+        // bowed, the head hangs forward of the shoulders
+        pose.translate(0, headY + 0.5f, Mth.lerp(stand * (1 - sink * 0.6f), -0.1f, 1.25f));
         float haloA = (0.25f + 0.75f * awake) * live;
         float haloR = 2.3f + 0.25f * Mth.sin(time * 0.1f) + (a.isEnraged() ? 0.5f : 0f);
         pose.pushPose();
