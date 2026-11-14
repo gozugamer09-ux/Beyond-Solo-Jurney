@@ -345,7 +345,9 @@ public class GateBossEntity extends Monster implements GeoEntity {
 
     @Override
     public Component getDisplayName() {
-        return theme().bossName();
+        // a gate boss is named after its gate; others (the job change's Arbiter) keep the name they were given
+        Component custom = getCustomName();
+        return custom != null ? custom : theme().bossName();
     }
 
     // ------------------------------------------------------------------ save

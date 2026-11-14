@@ -1,5 +1,7 @@
 package com.beyondsolo.skill;
 
+import com.beyondsolo.job.JobAPI;
+import com.beyondsolo.job.Subclass;
 import com.beyondsolo.network.SkillFxPayload;
 import com.beyondsolo.network.SkillMomentPayload;
 import com.beyondsolo.network.SkillSyncPayload;
@@ -135,11 +137,26 @@ public final class SkillAPI {
         return learned;
     }
 
-    /** After a class change: forgets class skills of other classes, then grants what the new class has unlocked. */
+    /** The job change hook for subclasses: teaches the player's subclass skills. Returns what was learned. */
+    public static List<Skill> grantSubclass(ServerPlayer player) {
+        List<Skill> learned = new ArrayList<>();
+        Subclass sub = JobAPI.subclass(player);
+        if (sub == null) return learned;
+        for (Skill s : Skills.forSubclass(sub)) {
+            if (learn(player, s, 1, SkillEvent.Source.JOB_CHANGE)) learned.add(s);
+        }
+        return learned;
+    }
+
+    /**
+     * After a class or subclass change: forgets skills of other classes and subclasses, then grants what the new
+     * class has unlocked.
+     */
     public static void refreshForClass(ServerPlayer player) {
         SystemData sys = SystemAPI.get(player);
+        Subclass sub = JobAPI.subclass(player);
         for (Skill s : new ArrayList<>(Skills.known(get(player)))) {
-            if (!s.fits(sys.playerClass())) get(player).forget(s.path());
+            if (!s.fits(sys.playerClass(), sub)) get(player).forget(s.path());
         }
         SkillPassives.apply(player);
         sync(player);

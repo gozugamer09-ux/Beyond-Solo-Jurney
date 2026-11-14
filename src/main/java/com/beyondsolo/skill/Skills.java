@@ -1,5 +1,6 @@
 package com.beyondsolo.skill;
 
+import com.beyondsolo.job.Subclass;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import org.jetbrains.annotations.Nullable;
@@ -144,13 +145,22 @@ public final class Skills {
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
         for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced()) out.add(s);
-        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null) out.add(s);
         return out;
     }
 
+    /** The base class's advanced skills (not the subclass ones). */
     public static List<Skill> advancedFor(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.owner() == c && s.advanced()) out.add(s);
+        for (Skill s : ALL.values()) if (s.owner() == c && s.advanced() && s.subclass() == null) out.add(s);
+        return out;
+    }
+
+    /** A subclass's own skills, actives first. */
+    public static List<Skill> forSubclass(Subclass sub) {
+        List<Skill> out = new ArrayList<>();
+        for (Skill s : ALL.values()) if (s.subclass() == sub && s.isActive()) out.add(s);
+        for (Skill s : ALL.values()) if (s.subclass() == sub && !s.isActive()) out.add(s);
         return out;
     }
 
@@ -184,13 +194,15 @@ public final class Skills {
         return add(new Skill(path, Skill.Kind.PASSIVE, owner, grade, unlock, false, color, 0, 0, 0, null, args));
     }
 
-    private static Skill add(Skill s) {
+    static Skill add(Skill s) {
         ALL.put(s.path(), s);
         return s;
     }
 
     /** Touch the class so every skill is registered. */
-    public static void init() {}
+    public static void init() {
+        SubclassSkills.init();
+    }
 
     private Skills() {}
 }
