@@ -65,7 +65,7 @@ public final class SubclassSkills {
             SubclassActions::infernoPillar, (l, t) -> a(f(pillarDamage(l, t))));
     public static final Skill KINDLED_SOUL = passive("kindled_soul", Subclass.PYROMANCER, PlayerRank.A, (l, t) -> a(f(kindle(l))));
 
-    public static final Skill CHAIN_LIGHTNING = active("chain_lightning", Subclass.STORMCALLER, PlayerRank.A, 24, 160, 90,
+    public static final Skill STORM_LASH = active("storm_lash", Subclass.STORMCALLER, PlayerRank.A, 24, 160, 90,
             SubclassActions::chainLightning, (l, t) -> a(f(chainDamage(l, t)), f(chainJumps(l))));
     public static final Skill STATIC_CHARGE = passive("static_charge", Subclass.STORMCALLER, PlayerRank.A, (l, t) -> a(f(staticRegen(l))));
 
@@ -132,7 +132,7 @@ public final class SubclassSkills {
     // ================================================================ ranger
     public static final Skill DEADEYE_SHOT = active("deadeye_shot", Subclass.SHARPSHOOTER, PlayerRank.A, 20, 200, 110,
             SubclassActions::deadeyeShot, (l, t) -> a(f(deadeyeDamage(l, t))));
-    public static final Skill STEADY_AIM = passive("steady_aim", Subclass.SHARPSHOOTER, PlayerRank.A, (l, t) -> a(f(steadyAim(l))));
+    public static final Skill HAWK_FOCUS = passive("hawk_focus", Subclass.SHARPSHOOTER, PlayerRank.A, (l, t) -> a(f(steadyAim(l))));
 
     public static final Skill CALL_OF_THE_PACK = active("call_of_the_pack", Subclass.WILDCALLER, PlayerRank.A, 30, 1200, 800,
             SubclassActions::callOfThePack, (l, t) -> a(f(packSize(l))));
@@ -142,7 +142,7 @@ public final class SubclassSkills {
             SubclassActions::snareField, (l, t) -> a(f(snareDamage(l, t))));
     public static final Skill FIELD_CRAFT = passive("field_craft", Subclass.SNARE_ARTISAN, PlayerRank.A, (l, t) -> a(f(fieldCraft(l))));
 
-    public static final Skill THUNDER_VOLLEY = active("thunder_volley", Subclass.STORM_ARCHER, PlayerRank.A, 24, 220, 130,
+    public static final Skill TEMPEST_VOLLEY = active("tempest_volley", Subclass.STORM_ARCHER, PlayerRank.A, 24, 220, 130,
             SubclassActions::thunderVolley, (l, t) -> a(f(volleyDamage(l, t))));
     public static final Skill CHARGED_QUIVER = passive("charged_quiver", Subclass.STORM_ARCHER, PlayerRank.A, (l, t) -> a(f(quiverBonus(l)), f(quiverSpark(l))));
 

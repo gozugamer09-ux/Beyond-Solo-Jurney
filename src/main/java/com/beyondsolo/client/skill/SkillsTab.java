@@ -38,6 +38,8 @@ public class SkillsTab implements SystemTab {
     private String shown = "";
     private double selectedAt = -10;
     private final List<Object[]> tiles = new ArrayList<>();
+    private int cols = 4;
+    private float tile = TILE;
     private final float[][] slotRects = new float[SkillData.SLOTS][];
     private double flashSlotAt = -10;
     private int flashSlot = -1;
@@ -79,6 +81,15 @@ public class SkillsTab implements SystemTab {
         }
 
         // ---- the gems
+        // more skills than fit at four across: add columns (smaller gems) until both grids clear the skill bar
+        int actives = 0;
+        for (Skill s : all) if (s.isActive()) actives++;
+        float room = h - 36 - 2 - 26;
+        for (cols = 4; cols < 8; cols++) {
+            tile = (GRID_W - GAP * (cols - 1)) / cols;
+            int rows = (actives + cols - 1) / cols + (all.size() - actives + cols - 1) / cols;
+            if (rows * (tile + GAP) <= room) break;
+        }
         float gy = y;
         gy = grid(g, x, gy, all, true, mouseX, mouseY, data);
         gy = grid(g, x, gy + 2, all, false, mouseX, mouseY, data);
@@ -133,26 +144,26 @@ public class SkillsTab implements SystemTab {
         long now = ClientSkills.gameTime();
         for (int i = 0; i < list.size(); i++) {
             Skill s = list.get(i);
-            float tx = x + (i % 4) * (TILE + GAP);
-            float ty = y + (i / 4) * (TILE + GAP);
+            float tx = x + (i % cols) * (tile + GAP);
+            float ty = y + (i / cols) * (tile + GAP);
             boolean isSel = s.path().equals(selected);
-            boolean hover = Ui.inside(mouseX, mouseY, tx, ty, TILE, TILE);
+            boolean hover = Ui.inside(mouseX, mouseY, tx, ty, tile, tile);
             boolean have = data.knows(s.path());
             int c = have ? Gfx.opaque(s.color()) : 0xFF3A4A5E;
-            Ui.card(g, tx, ty, TILE, TILE, 7, c, isSel ? 0.55f : hover ? 0.3f : 0.1f);
-            if (isSel) Shapes.box(tx, ty, TILE, TILE).radius(7).fill(0).border(0.9f, Gfx.alpha(c, 0.9f)).glow(4, Gfx.alpha(c, 0.3f)).draw(g);
-            SkillEmblem.draw(g, s, tx + TILE / 2f, ty + TILE / 2f, 9.5f, isSel ? 0.5f : hover ? 0.3f : 0f, !have);
+            Ui.card(g, tx, ty, tile, tile, 7, c, isSel ? 0.55f : hover ? 0.3f : 0.1f);
+            if (isSel) Shapes.box(tx, ty, tile, tile).radius(7).fill(0).border(0.9f, Gfx.alpha(c, 0.9f)).glow(4, Gfx.alpha(c, 0.3f)).draw(g);
+            SkillEmblem.draw(g, s, tx + tile / 2f, ty + tile / 2f, tile * 0.3f, isSel ? 0.5f : hover ? 0.3f : 0f, !have);
             if (have) {
-                SysFont.draw(g, String.valueOf(data.level(s.path())), tx + TILE - 3, ty + TILE - 8, 6f, Gfx.mix(c, 0xFFFFFFFF, 0.6f), true, 1f);
+                SysFont.draw(g, String.valueOf(data.level(s.path())), tx + tile - 2.5f, ty + tile - 7, tile > 26 ? 6f : 5f, Gfx.mix(c, 0xFFFFFFFF, 0.6f), true, 1f);
                 var kn = data.get(s.path());
                 if (kn != null && now - kn.learnedAt() < 20 * 60 * 3) {
-                    Shapes.circle(tx + TILE - 4, ty + 4, 2.2f).fill(SystemTheme.GOLD).glow(2 + 2 * Anim.pulse(1f), Gfx.alpha(SystemTheme.GOLD, 0.7f)).draw(g);
+                    Shapes.circle(tx + tile - 4, ty + 4, 2.2f).fill(SystemTheme.GOLD).glow(2 + 2 * Anim.pulse(1f), Gfx.alpha(SystemTheme.GOLD, 0.7f)).draw(g);
                 }
             }
             tiles.add(new Object[]{s.path(), tx, ty});
         }
-        int rows = (list.size() + 3) / 4;
-        return y + rows * (TILE + GAP);
+        int rows = (list.size() + cols - 1) / cols;
+        return y + rows * (tile + GAP);
     }
 
     private void detail(GuiGraphics g, Skill s, SkillData data, float x, float y, float w, float h) {
@@ -246,7 +257,7 @@ public class SkillsTab implements SystemTab {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         for (Object[] t : tiles) {
-            if (Ui.inside(mouseX, mouseY, (float) t[1], (float) t[2], TILE, TILE)) {
+            if (Ui.inside(mouseX, mouseY, (float) t[1], (float) t[2], tile, tile)) {
                 if (!t[0].equals(selected)) {
                     selected = (String) t[0];
                     SystemScreen.playClick();

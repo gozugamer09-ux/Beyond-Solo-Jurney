@@ -299,12 +299,49 @@ Adding a skill: one `Skills` entry with its element, an action in `SkillActions`
 kind for the look (`client.skill.SkillWorldFx` draws each kind with the light textures and particles; add a kind
 for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools/gen_ui_assets.py`
 (`skill_<path>`), and a test. Subclasses will be extra `Skills` entries marked `advanced` with their own owner,
-granted through `grantAdvanced`. Still to come: combos (chained casts) and element reactions; `SkillEvent.Cast`
-and the element on every skill are there for them.
+granted through `grantAdvanced`. Every skill hit goes through `SkillActions.hit`, which is
+where combos, range passives and elements apply; a new damaging skill should use it rather than `hurt`.
+
+### Combos and element reactions
+
+Both live in `SkillCombat` (server side, nothing saved).
+
+**Combos.** Casting a different skill within 5 seconds of the last one builds a chain, up to 6. Each link adds 8%
+to skill damage (`comboMultiplier`). The same skill twice in a row keeps the chain where it is; a cast that finds
+no target does not count. `SkillAPI.cast` calls `begin` / `undo` / `commit`; `SkillEvent.Combo` fires from 2 up.
+
+**Reactions.** A skill hit leaves its `SkillElement` on the creature for 8 seconds (`SkillCombat.aura`). A hit with
+another element that reacts with it sets off a `SkillReaction` and uses the element up; otherwise the new element
+replaces the old. Physical leaves nothing and reacts with nothing. The 15 reactions, each a damage bonus on the
+hit plus a side effect in `SkillCombat.react`:
+
+| Reaction | Elements | What it does |
+| --- | --- | --- |
+| Surge | water + lightning | +50%, bursts onto creatures within 3.5 blocks and stuns |
+| Firestorm | air + fire | +60%, heavy burn that spreads to creatures nearby |
+| Steam | fire + water | +30%, a cloud that blinds, slows and weakens |
+| Wildfire | fire + nature | +40%, a deep lasting burn |
+| Magma | fire + earth | +40%, slows and ignites |
+| Frost | water + air | +20%, frozen in place |
+| Overgrowth | water + nature | +20%, rooted; mends the caster |
+| Eclipse | light + shadow | +100% |
+| Tempest | lightning + air | +30%, arcs to three more creatures |
+| Sandstorm | earth + air | +20%, blinds and slows around it |
+| Overload | lightning + fire | +40%, a blast that throws creatures back |
+| Blight | shadow + nature | +30%, venom and weakness |
+| Shatter | earth + lightning | +50%, stuns |
+| Radiance | light + fire | +30%, mends allies nearby |
+| Resonance | arcane + anything else | +30%, returns mana |
+
+Reaction splash damage carries no element, so reactions never chain off each other. `SkillEvent.Reaction` fires
+for quests and later systems (elemental weaknesses of monsters can hook `SkillCombat.strike`). A new reaction is
+one `SkillReaction` entry, a case in `SkillCombat.react` and a `skill_reaction.beyondsolo.<name>` lang line.
+Weapon infusions should call `SkillCombat.strike` on their hits to join in.
 
 On the client: keys Z, X, C, G cast the bar (rebindable, `SkillActionPayload`), `SkillBar` shows cooldown sweeps
 and refusals, `SkillOverlay` plays Skill Acquired and the level-up banner (waits for the evaluation, quest and gate
-overlays; the hide key skips it), `SkillsTab` is the Skills page of the System window.
+overlays; the hide key skips it), `SkillsTab` is the Skills page of the System window (the gem grid adds columns as
+a class gains skills), `ComboHud` draws the combo counter and the reaction names that pop out of creatures.
 
 `/system skill list|learn <skill> [level]|levelup <skill> [n]|forget|cast|slot <n> <skill>|cooldowns|unlocked|advanced|tome [skill]|reset`
 for testing; `screen skills` in the UI driver opens the tab.
@@ -343,4 +380,4 @@ timeouts and penalties, fleeing, offers, inventory and level objectives, the dai
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
 checks use zombies.
-`test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element.
+`test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.

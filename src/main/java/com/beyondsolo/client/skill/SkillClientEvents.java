@@ -51,6 +51,7 @@ public final class SkillClientEvents {
         @SubscribeEvent
         static void layers(RegisterGuiLayersEvent event) {
             event.registerAboveAll(BeyondSolo.id("skill_gaze"), GazeHud::render);
+            event.registerAboveAll(BeyondSolo.id("skill_combo"), ComboHud::render);
             event.registerAboveAll(BeyondSolo.id("skill_bar"), SkillBar::render);
             event.registerAboveAll(BeyondSolo.id("skill_moments"), SkillOverlay::render);
         }
@@ -87,6 +88,7 @@ public final class SkillClientEvents {
             SkillOverlay.reset();
             SkillWorldFx.clear();
             SkillBar.reset();
+            ComboHud.reset();
         }
     }
 

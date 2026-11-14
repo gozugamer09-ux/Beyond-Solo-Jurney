@@ -7,6 +7,9 @@ import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestTestAccess;
 import com.beyondsolo.skill.Skill;
 import com.beyondsolo.skill.SkillAPI;
+import com.beyondsolo.skill.SkillCombat;
+import com.beyondsolo.skill.SkillElement;
+import com.beyondsolo.skill.SkillReaction;
 import com.beyondsolo.skill.SkillData;
 import com.beyondsolo.skill.SkillEvent;
 import com.beyondsolo.skill.SkillTomeItem;
@@ -54,6 +57,12 @@ public final class SkillGameTests {
         if (rank != null) {
             QuestTestAccess.markStarted(p);
             SystemAPI.awaken(p, rank, playerClass);
+        }
+        // no lucky critical hits: the tests compare damage numbers
+        var crit = p.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
+        if (crit != null) {
+            crit.removeModifiers();
+            crit.setBaseValue(-10);
         }
         return p;
     }
@@ -363,6 +372,175 @@ public final class SkillGameTests {
             helper.assertTrue(Skills.advancedFor(c).size() == 1, c + " has one advanced skill");
             helper.assertTrue(Skills.forClass(c).size() >= 10, c + " has at least 10 skills");
         }
+        helper.succeed();
+    }
+
+    // ------------------------------------------------------------------ second batch: combos, reactions, new skills
+
+    private static Zombie tough(Zombie z) {
+        z.getAttribute(Attributes.MAX_HEALTH).setBaseValue(400);
+        z.setHealth(400);
+        return z;
+    }
+
+    @GameTest(template = ARENA)
+    public static void everyClassHasEightSkills(GameTestHelper helper) {
+        for (PlayerClass c : PlayerClass.values()) {
+            long own = Skills.all().stream().filter(s -> s.owner() == c && s.subclass() == null).count();
+            long actives = Skills.all().stream().filter(s -> s.owner() == c && s.subclass() == null && s.isActive()).count();
+            helper.assertTrue(own == 8, c + " has 8 skills of its own, found " + own);
+            helper.assertTrue(actives == 6, c + " has 6 actives, found " + actives);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void chainingDifferentSkillsBuildsACombo(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.E, PlayerClass.WARRIOR);
+        SkillAPI.learn(p, Skills.WAR_CRY, 1, SkillEvent.Source.COMMAND);
+        SkillAPI.learn(p, Skills.SHIELD_BASH, 1, SkillEvent.Source.COMMAND);
+        Zombie z = tough(zombieInFront(helper, p));
+        helper.assertTrue(SkillCombat.combo(p) == 0, "no chain before the first cast");
+        SkillAPI.cast(p, Skills.RENDING_ARC);
+        float first = 400 - z.getHealth();
+        helper.assertTrue(SkillCombat.combo(p) == 1 && SkillCombat.comboMultiplier(p) == 1f, "one skill is not a combo yet");
+        SkillAPI.cast(p, Skills.WAR_CRY);
+        helper.assertTrue(SkillCombat.combo(p) == 2, "a different skill chains");
+        refill(p);
+        SkillAPI.cast(p, Skills.WAR_CRY);
+        helper.assertTrue(SkillCombat.combo(p) == 2, "the same skill again keeps the chain where it is");
+        // a cast that finds no target leaves the chain alone
+        float yaw = p.getYRot();
+        p.setYRot(yaw + 180);
+        p.setXRot(-80);
+        helper.assertTrue(!SkillAPI.cast(p, Skills.SHIELD_BASH), "nothing to bash");
+        helper.assertTrue(SkillCombat.combo(p) == 2, "a refused cast does not chain");
+        p.setYRot(yaw);
+        p.setXRot(0);
+        z.setHealth(400);
+        refill(p);
+        SkillAPI.cast(p, Skills.RENDING_ARC);
+        helper.assertTrue(SkillCombat.combo(p) == 3, "third link");
+        float third = 400 - z.getHealth();
+        helper.assertTrue(third > first * 1.1f, "a chained skill hits harder: " + first + " vs " + third);
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void reactionTable(GameTestHelper helper) {
+        helper.assertTrue(SkillReaction.of(SkillElement.WATER, SkillElement.LIGHTNING) == SkillReaction.SURGE, "water + lightning");
+        helper.assertTrue(SkillReaction.of(SkillElement.LIGHTNING, SkillElement.WATER) == SkillReaction.SURGE, "either way round");
+        helper.assertTrue(SkillReaction.of(SkillElement.FIRE, SkillElement.AIR) == SkillReaction.FIRESTORM, "air feeds fire");
+        helper.assertTrue(SkillReaction.of(SkillElement.FIRE, SkillElement.FIRE) == null, "an element does not react with itself");
+        helper.assertTrue(SkillReaction.of(SkillElement.PHYSICAL, SkillElement.FIRE) == null, "physical never reacts");
+        helper.assertTrue(SkillReaction.of(SkillElement.ARCANE, SkillElement.EARTH) == SkillReaction.RESONANCE, "arcane resonates with anything");
+        helper.assertTrue(SkillReaction.of(SkillElement.EARTH, SkillElement.WATER) == null, "not every pair reacts");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void waterThenLightningSurges(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.E, PlayerClass.MAGE);
+        SkillAPI.learn(p, Skills.TIDAL_ORB, 1, SkillEvent.Source.COMMAND);
+        Zombie z = tough(zombieInFront(helper, p));
+        Zombie near = tough(helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPOT.offset(0, 0, 2)));
+
+        // the bolt on a dry zombie, for comparison (drop the chain so it does not count)
+        SkillAPI.cast(p, Skills.ARC_BOLT);
+        float plain = 400 - z.getHealth();
+        helper.assertTrue(SkillCombat.aura(z) == SkillElement.LIGHTNING, "a skill hit leaves its element");
+        z.discard();
+        SkillCombat.clear(p);
+        refill(p);
+
+        Zombie wet = tough(zombieInFront(helper, p));
+        helper.assertTrue(SkillAPI.cast(p, Skills.TIDAL_ORB), "orb");
+        helper.assertTrue(SkillCombat.aura(wet) == SkillElement.WATER, "soaked");
+        float afterOrb = wet.getHealth();
+        float nearBefore = near.getHealth();
+        SkillCombat.clear(p);
+        SkillAPI.cast(p, Skills.ARC_BOLT);
+        float surged = afterOrb - wet.getHealth();
+        helper.assertTrue(SkillCombat.aura(wet) == null, "the reaction uses the element up");
+        helper.assertTrue(surged > plain * 1.4f, "the surge hits harder: " + plain + " vs " + surged);
+        helper.assertTrue(near.getHealth() < nearBefore, "and bursts onto the zombie beside it");
+        helper.assertTrue(wet.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN), "stunned");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void airFeedsFireAndPhysicalLeavesNothing(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.E, PlayerClass.MAGE);
+        SkillAPI.learn(p, Skills.EMBER_BURST, 1, SkillEvent.Source.COMMAND);
+        SkillAPI.learn(p, Skills.RENDING_ARC, 1, SkillEvent.Source.COMMAND);
+        Zombie z = tough(zombieInFront(helper, p));
+        SkillAPI.cast(p, Skills.RENDING_ARC);
+        helper.assertTrue(z.getHealth() < 400 && SkillCombat.aura(z) == null, "physical hits leave no element");
+
+        SkillAPI.cast(p, Skills.EMBER_BURST);
+        float burnAlone = Buildups.get(z, Statuses.BURN);
+        z.discard();
+        refill(p);
+        Zombie windy = tough(zombieInFront(helper, p));
+        SkillCombat.setAura(windy, SkillElement.AIR);
+        SkillAPI.cast(p, Skills.EMBER_BURST);
+        helper.assertTrue(SkillCombat.aura(windy) == null, "firestorm went off");
+        helper.assertTrue(Buildups.get(windy, Statuses.BURN) > burnAlone || windy.hasEffect(com.beyondsolo.combat.ModEffects.DEEP_BURN) || windy.getRemainingFireTicks() > 0,
+                "and burns hotter");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA, timeoutTicks = 200)
+    public static void everyNewSkillCasts(GameTestHelper helper) {
+        Skill[] fresh = {Skills.BULL_RUSH, Skills.FLAME_WAVE, Skills.WHIRLWIND, Skills.FAN_OF_BLADES, Skills.SHADOW_BIND,
+                Skills.DEATH_BLOSSOM, Skills.TIDAL_ORB, Skills.CHAIN_LIGHTNING, Skills.CYCLONE, Skills.SHIELD_BASH, Skills.STONE_SPIKES,
+                Skills.SUNLANCE, Skills.RADIANT_LANCE, Skills.TIDEWELL, Skills.THORNBIND, Skills.EMBER_ARROW, Skills.VAULT_SHOT, Skills.THUNDER_VOLLEY};
+        ServerPlayer p = player(helper, PlayerRank.C, PlayerClass.WARRIOR);
+        Zombie z = tough(zombieInFront(helper, p));
+        z.setNoAi(true);
+        for (Skill s : fresh) {
+            SkillAPI.learn(p, s, 3, SkillEvent.Source.COMMAND);
+            refill(p);
+            z.setHealth(400);
+            helper.assertTrue(SkillAPI.cast(p, s), s.path() + " should go off");
+        }
+        // everything delayed (spikes, lances, zones, volleys) gets time to land without blowing up
+        helper.runAfterDelay(120, () -> {
+            helper.assertTrue(z.getHealth() < 400, "the zombie took something");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = ARENA)
+    public static void newPassivesWork(GameTestHelper helper) {
+        ServerPlayer w = player(helper, PlayerRank.E, PlayerClass.WARRIOR);
+        SkillAPI.learn(w, Skills.BLOODLUST, 4, SkillEvent.Source.COMMAND);
+        w.setHealth(6);
+        Zombie z = zombieInFront(helper, w);
+        z.hurt(w.damageSources().playerAttack(w), 1000);
+        helper.assertTrue(w.getHealth() > 6, "bloodlust heals on a kill: " + w.getHealth());
+
+        ServerPlayer h = player(helper, PlayerRank.E, PlayerClass.HEALER);
+        h.setHealth(4);
+        SkillAPI.cast(h, Skills.MENDING_LIGHT);
+        float plain = h.getHealth() - 4;
+        SkillAPI.learn(h, Skills.BENEDICTION, 10, SkillEvent.Source.COMMAND);
+        refill(h);
+        h.setHealth(4);
+        SkillAPI.cast(h, Skills.MENDING_LIGHT);
+        helper.assertTrue(h.getHealth() - 4 > plain * 1.3f, "benediction heals more: " + plain + " vs " + (h.getHealth() - 4));
+
+        ServerPlayer a = player(helper, PlayerRank.E, PlayerClass.ASSASSIN);
+        Zombie back = tough(zombieInFront(helper, a));
+        back.setYRot(a.getYRot());
+        back.setYHeadRot(a.getYRot());
+        back.hurt(a.damageSources().playerAttack(a), 10);
+        float normal = 400 - back.getHealth();
+        back.setHealth(400);
+        back.invulnerableTime = 0;
+        SkillAPI.learn(a, Skills.CRUEL_PRECISION, 10, SkillEvent.Source.COMMAND);
+        back.hurt(a.damageSources().playerAttack(a), 10);
+        helper.assertTrue(400 - back.getHealth() > normal * 1.3f, "cruel precision from behind: " + normal + " vs " + (400 - back.getHealth()));
         helper.succeed();
     }
 }

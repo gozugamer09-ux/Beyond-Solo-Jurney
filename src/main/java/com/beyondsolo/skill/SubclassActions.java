@@ -194,7 +194,7 @@ public final class SubclassActions {
                 for (LivingEntity e : around(p, p.position(), 4.5, x -> canHit(p, x))) {
                     Vec3 to = e.position().subtract(p.position()).multiply(1, 0, 1);
                     if (to.lengthSqr() > 1.0e-3 && to.normalize().dot(look) < 0.3) continue;
-                    hit(p, e, dmg, false);
+                    hit(p, s, e, dmg, false);
                 }
                 sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.1f + k * 0.12f);
                 SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), 3.6f + k * 0.2f, 0);
@@ -220,7 +220,7 @@ public final class SubclassActions {
                 p.fallDistance = 0;
                 for (LivingEntity e : around(p, p.position(), 2.2, x -> canHit(p, x) && !struck.contains(x.getId()))) {
                     struck.add(e.getId());
-                    hit(p, e, chargeDamage(l, tier(p)) + stat(p, Stat.STR, 0.15f) + stat(p, Stat.VIT, 0.1f), false);
+                    hit(p, s, e, chargeDamage(l, tier(p)) + stat(p, Stat.STR, 0.15f) + stat(p, Stat.VIT, 0.1f), false);
                     e.setDeltaMovement(dir.x * 0.8, 0.7, dir.z * 0.8);
                     e.hurtMarked = true;
                 }
@@ -256,7 +256,7 @@ public final class SubclassActions {
                 ServerLevel level = p.serverLevel();
                 float dmg = cataclysmDamage(l, tier(p)) + stat(p, Stat.STR, 0.35f);
                 for (LivingEntity e : around(p, at, 9, x -> canHit(p, x))) {
-                    hit(p, e, dmg * (1f - 0.4f * (float) (e.distanceTo(p) / 9f)), false);
+                    hit(p, s, e, dmg * (1f - 0.4f * (float) (e.distanceTo(p) / 9f)), false);
                     Vec3 away = e.position().subtract(at).multiply(1, 0, 1).normalize();
                     e.setDeltaMovement(away.x * 0.9, 1.0, away.z * 0.9);
                     e.hurtMarked = true;
@@ -273,7 +273,7 @@ public final class SubclassActions {
                     ServerScheduler.schedule(6 * k, () -> {
                         if (p.level() != level) return;
                         fxAt(level, SkillFxPayload.Kind.SLAM, s.color(), at, 9 + 3 * ring, 0);
-                        for (LivingEntity e : around(p, at, 9 + 3 * ring, x -> canHit(p, x))) hit(p, e, dmg * 0.25f, false);
+                        for (LivingEntity e : around(p, at, 9 + 3 * ring, x -> canHit(p, x))) hit(p, s, e, dmg * 0.25f, false);
                         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.7f, 0.7f);
                     });
                 }
@@ -299,7 +299,7 @@ public final class SubclassActions {
                 level.playSound(null, at.x, at.y, at.z, SoundEvents.DRIPSTONE_BLOCK_BREAK, SoundSource.PLAYERS, 1.2f, 0.5f);
                 for (LivingEntity e : around(p, at, 2.6, x -> canHit(p, x) && !struck.contains(x.getId()))) {
                     struck.add(e.getId());
-                    hit(p, e, dmg, false);
+                    hit(p, s, e, dmg, false);
                     e.setDeltaMovement(e.getDeltaMovement().x, 1.1, e.getDeltaMovement().z);
                     e.hurtMarked = true;
                 }
@@ -320,7 +320,7 @@ public final class SubclassActions {
         teleport(p, dest, target);
         float dmg = executeDamage(l, tier(p)) + stat(p, Stat.AGI, 0.3f);
         boolean execute = target.getHealth() < target.getMaxHealth() * 0.3f;
-        hit(p, target, execute ? dmg * 2.5f : dmg, false);
+        hit(p, s, target, execute ? dmg * 2.5f : dmg, false);
         sound(p, SoundEvents.ENDERMAN_TELEPORT, 0.6f, 0.7f);
         sound(p, execute ? SoundEvents.WITHER_BREAK_BLOCK : SoundEvents.PLAYER_ATTACK_CRIT, 0.8f, 1.4f);
         SkillFx.play(p, SkillFxPayload.Kind.BLINK, s.color(), from, 1, 0);
@@ -340,7 +340,7 @@ public final class SubclassActions {
                 if (p.level() != level) return;
                 level.sendParticles(ParticleTypes.SNEEZE, center.x, center.y + 0.6, center.z, 20, 2, 0.5, 2, 0.01);
                 for (LivingEntity e : around(p, center, 4.5, x -> canHit(p, x))) {
-                    hit(p, e, miasmaDamage(l, tier(p)) + stat(p, Stat.INT, 0.05f), true);
+                    hit(p, s, e, miasmaDamage(l, tier(p)) + stat(p, Stat.INT, 0.05f), true);
                     Statuses.apply(e, DamageElement.POISON, 18 + 2 * l, p);
                 }
             });
@@ -362,7 +362,7 @@ public final class SubclassActions {
                 Vec3 from = p.position();
                 Vec3 side = flat(target.position().subtract(from), p).scale(target.getBbWidth() / 2 + 0.8);
                 teleport(p, target.position().add(side), target);
-                hit(p, target, flurryDamage(l, tier(p)) + stat(p, Stat.AGI, 0.2f), false);
+                hit(p, s, target, flurryDamage(l, tier(p)) + stat(p, Stat.AGI, 0.2f), false);
                 sound(p, SoundEvents.ILLUSIONER_MIRROR_MOVE, 0.7f, 1.5f);
                 SkillFx.play(p, SkillFxPayload.Kind.DASH, s.color(), from, 1, 8);
                 SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), 2.8f, 0);
@@ -401,7 +401,7 @@ public final class SubclassActions {
                     e.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 40, 0));
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 1));
                     if (e instanceof Mob m && m.getTarget() == p) m.setTarget(null);
-                    hit(p, e, eclipseDamage(l, tier(p)) + stat(p, Stat.AGI, 0.12f), true);
+                    hit(p, s, e, eclipseDamage(l, tier(p)) + stat(p, Stat.AGI, 0.12f), true);
                     SkillFx.play(e, SkillFxPayload.Kind.SLASH, s.color(), e.position(), 1.6f, 0);
                 }
             });
@@ -435,7 +435,7 @@ public final class SubclassActions {
                 if (!target.isAlive()) return;
                 Vec3 side = flat(target.position().subtract(from), p).scale(target.getBbWidth() / 2 + 0.8);
                 teleport(p, target.position().add(side), target);
-                hit(p, target, voidRendDamage(l, tier(p)) + stat(p, Stat.AGI, 0.35f), false);
+                hit(p, s, target, voidRendDamage(l, tier(p)) + stat(p, Stat.AGI, 0.35f), false);
                 sound(p, SoundEvents.ENDERMAN_TELEPORT, 0.5f, 1.6f);
                 SkillFx.play(p, SkillFxPayload.Kind.BLINK, s.color(), from, 1, 0);
                 SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), 3.4f, 0);
@@ -460,7 +460,7 @@ public final class SubclassActions {
             level.sendParticles(ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 10, 0.8, 0.2, 0.8, 0);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.2f, 0.6f);
             for (LivingEntity e : around(p, at, 3.2, x -> canHit(p, x))) {
-                hit(p, e, dmg, true);
+                hit(p, s, e, dmg, true);
                 Statuses.apply(e, DamageElement.FIRE, 40 + 5 * l, p);
                 e.setDeltaMovement(e.getDeltaMovement().x, 0.9, e.getDeltaMovement().z);
                 e.hurtMarked = true;
@@ -482,7 +482,7 @@ public final class SubclassActions {
             struck.add(current.getId());
             Vec3 end = current.position().add(0, current.getBbHeight() * 0.55, 0);
             SkillFx.play(from, SkillFxPayload.Kind.BOLT, s.color(), end, 0.3f, 0);
-            hit(p, current, dmg * (float) Math.pow(0.85, jump), true);
+            hit(p, s, current, dmg * (float) Math.pow(0.85, jump), true);
             level.sendParticles(ParticleTypes.ELECTRIC_SPARK, end.x, end.y, end.z, 12, 0.25, 0.25, 0.25, 0.25);
             from = current;
             LivingEntity last = current;
@@ -506,7 +506,7 @@ public final class SubclassActions {
         for (LivingEntity e : around(p, p.position(), 7, x -> canHit(p, x))) {
             Vec3 to = e.position().subtract(p.position()).multiply(1, 0, 1);
             if (to.lengthSqr() > 1.0e-3 && to.normalize().dot(look) < 0.35) continue;
-            hit(p, e, dmg, true);
+            hit(p, s, e, dmg, true);
             e.setDeltaMovement(look.x * 1.4, 0.45, look.z * 1.4);
             e.hurtMarked = true;
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 1));
@@ -524,7 +524,7 @@ public final class SubclassActions {
         float dmg = harvestDamage(l, tier(p)) + stat(p, Stat.INT, 0.2f);
         int n = 0;
         for (LivingEntity e : around(p, p.position(), 6, x -> canHit(p, x))) {
-            hit(p, e, dmg, true);
+            hit(p, s, e, dmg, true);
             SkillFx.play(e, SkillFxPayload.Kind.BOLT, s.color(), p.position().add(0, 1, 0), 0.25f, 0);
             n++;
         }
@@ -557,7 +557,7 @@ public final class SubclassActions {
             ServerScheduler.schedule(delay + 12, () -> {
                 if (p.level() != level) return;
                 float dmg = astralDamage(l, tier(p)) + stat(p, Stat.INT, 0.3f);
-                for (LivingEntity e : around(p, at, 3, x -> canHit(p, x))) hit(p, e, dmg, true);
+                for (LivingEntity e : around(p, at, 3, x -> canHit(p, x))) hit(p, s, e, dmg, true);
                 level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.4, at.z, 1, 0, 0, 0, 0);
                 level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.3, at.z, 10, 0.6, 0.2, 0.6, 0.1);
                 level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.7f, 1.3f);
@@ -588,7 +588,7 @@ public final class SubclassActions {
                 }
                 float dmg = singularityDamage(l, tier(p)) + stat(p, Stat.INT, 0.4f);
                 for (LivingEntity e : around(p, center, 5.5, x -> canHit(p, x))) {
-                    hit(p, e, dmg, true);
+                    hit(p, s, e, dmg, true);
                     Vec3 away = e.position().subtract(center).normalize();
                     e.setDeltaMovement(away.x * 1.2, 0.8, away.z * 1.2);
                     e.hurtMarked = true;
@@ -608,7 +608,7 @@ public final class SubclassActions {
         if (target == null) return false;
         float dmg = judgmentDamage(l, tier(p)) + stat(p, Stat.VIT, 0.15f) + stat(p, Stat.INT, 0.1f);
         if (undead(target)) dmg *= 1.6f;
-        hit(p, target, dmg, true);
+        hit(p, s, target, dmg, true);
         p.heal(3 + 0.4f * l);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 1f, 1.3f);
         sound(p, SoundEvents.TRIDENT_THUNDER.value(), 0.3f, 1.8f);
@@ -652,7 +652,7 @@ public final class SubclassActions {
             float[] stored = STORED.remove(p);
             float dmg = (stored == null ? 0 : stored[0] * 2) + retributionBonus(l, tier(p));
             for (LivingEntity e : around(p, p.position(), 5, x -> canHit(p, x))) {
-                hit(p, e, dmg, true);
+                hit(p, s, e, dmg, true);
                 Statuses.apply(e, DamageElement.FIRE, 30 + 3 * l, p);
             }
             sound(p, SoundEvents.GENERIC_EXPLODE.value(), 1f, 0.9f);
@@ -698,7 +698,7 @@ public final class SubclassActions {
         Vec3 at = p.position();
         float dmg = domainDamage(l, tier(p)) + stat(p, Stat.VIT, 0.3f) + stat(p, Stat.STR, 0.2f);
         for (LivingEntity e : around(p, at, 12, x -> canHit(p, x))) {
-            hit(p, e, dmg, false);
+            hit(p, s, e, dmg, false);
             stun(e, 60);
             if (e instanceof Mob m) m.setTarget(p);
             e.setDeltaMovement(e.getDeltaMovement().x, 0.6, e.getDeltaMovement().z);
@@ -721,7 +721,7 @@ public final class SubclassActions {
             ally.heal(amount);
             SkillFx.play(ally, SkillFxPayload.Kind.HEAL, s.color(), ally.position(), 1, 0);
         }
-        for (LivingEntity e : around(p, p.position(), 7, x -> isFoe(p, x))) hit(p, e, undead(e) ? amount * 1.6f : amount, true);
+        for (LivingEntity e : around(p, p.position(), 7, x -> isFoe(p, x))) hit(p, s, e, undead(e) ? amount * 1.6f : amount, true);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 1f, 1.5f);
         sound(p, SoundEvents.AMETHYST_CLUSTER_BREAK, 1f, 1.2f);
         SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), p.position(), 7, 0);
@@ -778,7 +778,7 @@ public final class SubclassActions {
         if (target == null) return false;
         float dmg = siphonDamage(l, tier(p)) + stat(p, Stat.INT, 0.2f);
         float before = target.getHealth();
-        hit(p, target, dmg, true);
+        hit(p, s, target, dmg, true);
         Buildups.add(target, Buildups.BLOOD, 30 + 3 * l, p);
         p.heal(Math.max(1, (before - target.getHealth()) * 0.5f));
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1f, 1.3f);
@@ -800,7 +800,7 @@ public final class SubclassActions {
         }
         float dmg = dawnDamage(l, tier(p)) + stat(p, Stat.INT, 0.3f);
         for (LivingEntity e : around(p, p.position(), 16, x -> isFoe(p, x) && undead(x))) {
-            hit(p, e, dmg, true);
+            hit(p, s, e, dmg, true);
             SkillFx.play(e, SkillFxPayload.Kind.HEAL, s.color(), e.position(), 1.4f, 0);
         }
         sound(p, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1.2f);
@@ -821,7 +821,7 @@ public final class SubclassActions {
             ServerScheduler.schedule(3 * i, () -> {
                 if (p.level() != level || !target.isAlive()) return;
                 float dmg = dawnPillarDamage(l, tier(p)) + stat(p, Stat.INT, 0.2f);
-                hit(p, target, undead(target) ? dmg * 1.5f : dmg, true);
+                hit(p, s, target, undead(target) ? dmg * 1.5f : dmg, true);
                 SkillFx.play(target, SkillFxPayload.Kind.HEAL, s.color(), target.position(), 1.6f, 0);
                 fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), target.position(), 2, 0);
                 level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 0.35f, 1.9f);
@@ -834,7 +834,7 @@ public final class SubclassActions {
 
     public static boolean deadeyeShot(ServerPlayer p, Skill s, int l) {
         float dmg = deadeyeDamage(l, tier(p)) + stat(p, Stat.AGI, 0.3f) + stat(p, Stat.SENSE, 0.2f);
-        Vec3 end = line(p, 48, 0.4, dmg, 0.6, SkillFxPayload.Kind.SHOT, s.color());
+        Vec3 end = line(p, s, 48, 0.4, dmg, 0.6, SkillFxPayload.Kind.SHOT, s.color());
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.5f);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 1.3f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 0.6f, 0);
@@ -876,7 +876,7 @@ public final class SubclassActions {
                 if (p.level() != level) return;
                 for (LivingEntity e : around(p, center, 4, x -> canHit(p, x))) {
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 5));
-                    hit(p, e, snareDamage(l, tier(p)) + stat(p, Stat.SENSE, 0.05f), false);
+                    hit(p, s, e, snareDamage(l, tier(p)) + stat(p, Stat.SENSE, 0.05f), false);
                 }
             });
         }
@@ -891,14 +891,14 @@ public final class SubclassActions {
             Vec3 eye = p.getEyePosition();
             Vec3 end = clip(p, eye, eye.add(dir.scale(28)));
             for (LivingEntity e : struckAlong(p, eye, end, 0.4)) {
-                hit(p, e, dmg, false);
+                hit(p, s, e, dmg, false);
                 LivingEntity arc = null;
                 for (LivingEntity o : around(p, e.position(), 5, x -> canHit(p, x) && x != e)) {
                     arc = o;
                     break;
                 }
                 if (arc != null) {
-                    hit(p, arc, dmg * 0.5f, true);
+                    hit(p, s, arc, dmg * 0.5f, true);
                     SkillFx.play(e, SkillFxPayload.Kind.BOLT, s.color(), arc.position().add(0, arc.getBbHeight() * 0.5, 0), 0.25f, 0);
                 }
             }
@@ -911,7 +911,7 @@ public final class SubclassActions {
 
     public static boolean heavensArrow(ServerPlayer p, Skill s, int l) {
         float dmg = heavensDamage(l, tier(p)) + stat(p, Stat.AGI, 0.5f) + stat(p, Stat.SENSE, 0.3f);
-        Vec3 end = line(p, 80, 1.1, dmg, 1.4, SkillFxPayload.Kind.SHOT, s.color());
+        Vec3 end = line(p, s, 80, 1.1, dmg, 1.4, SkillFxPayload.Kind.SHOT, s.color());
         sound(p, SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.4f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 1.4f, 0);
@@ -975,12 +975,12 @@ public final class SubclassActions {
     }
 
     /** A piercing line from the eyes: hits everything along it once. Returns where it ends. */
-    private static Vec3 line(ServerPlayer p, double range, double width, float dmg, double push, SkillFxPayload.Kind kind, int color) {
+    private static Vec3 line(ServerPlayer p, Skill s, double range, double width, float dmg, double push, SkillFxPayload.Kind kind, int color) {
         Vec3 eye = p.getEyePosition();
         Vec3 end = clip(p, eye, eye.add(p.getLookAngle().scale(range)));
         Vec3 dir = end.subtract(eye).normalize();
         for (LivingEntity e : struckAlong(p, eye, end, width)) {
-            hit(p, e, dmg, false);
+            hit(p, s, e, dmg, false);
             e.knockback(push, -dir.x, -dir.z);
             p.serverLevel().sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 10, 0.15, 0.15, 0.15, 0.3);
         }
@@ -1027,9 +1027,9 @@ public final class SubclassActions {
                 e -> filter.test(e) && e.position().distanceTo(at) <= radius + e.getBbWidth() / 2);
     }
 
-    static void hit(ServerPlayer p, LivingEntity e, float damage, boolean magic) {
-        e.invulnerableTime = 0;
-        e.hurt(magic ? p.damageSources().indirectMagic(p, p) : p.damageSources().playerAttack(p), damage);
+    /** A subclass skill's hit goes through the shared skill hit: combo chain, passives, element aura and reactions. */
+    static void hit(ServerPlayer p, Skill s, LivingEntity e, float damage, boolean magic) {
+        SkillActions.hit(p, s, e, damage, magic);
     }
 
     private static Vec3 ground(ServerLevel level, Vec3 at) {

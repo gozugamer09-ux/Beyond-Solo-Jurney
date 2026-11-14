@@ -186,7 +186,7 @@ public final class SubclassPassives {
             int field = data.level(SubclassSkills.FIELD_CRAFT.path());
             if (field > 0 && target.hasEffect(MobEffects.MOVEMENT_SLOWDOWN)) bonus += fieldCraft(field);
             if (projectile) {
-                bonus += steadyAim(data.level(SubclassSkills.STEADY_AIM.path())) * sign(data.level(SubclassSkills.STEADY_AIM.path()));
+                bonus += steadyAim(data.level(SubclassSkills.HAWK_FOCUS.path())) * sign(data.level(SubclassSkills.HAWK_FOCUS.path()));
                 int quiver = data.level(SubclassSkills.CHARGED_QUIVER.path());
                 if (quiver > 0) {
                     bonus += quiverBonus(quiver);

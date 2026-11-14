@@ -209,7 +209,9 @@ public final class SkillAPI {
             refuse(player, skill, SkillMomentPayload.BLOCKED);
             return false;
         }
+        SkillCombat.begin(player, skill);
         if (!skill.action().cast(player, skill, level)) {
+            SkillCombat.undo(player);
             refuse(player, skill, SkillMomentPayload.NO_TARGET);
             return false;
         }
@@ -220,6 +222,7 @@ public final class SkillAPI {
         if (!player.isCreative()) SystemAPI.addExhaustion(player, CAST_EXHAUSTION);
         addProficiency(player, skill, 1);
         sync(player);
+        SkillCombat.commit(player, skill);
         return true;
     }
 
@@ -250,6 +253,7 @@ public final class SkillAPI {
     /** Wipes all skills (used by /system reset and tests). */
     public static void reset(ServerPlayer player) {
         get(player).reset();
+        SkillCombat.clear(player);
         SkillPassives.apply(player);
         sync(player);
     }
