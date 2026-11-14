@@ -1,0 +1,6 @@
+{
+  "parent": "beyondsolo:item/galebreaker_warbow",
+  "textures": {
+    "layer0": "beyondsolo:item/galebreaker_warbow_pulling_1"
+  }
+}

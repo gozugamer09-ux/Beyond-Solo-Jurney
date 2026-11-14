@@ -51,8 +51,24 @@ public class SystemArmorItem extends ArmorItem {
         return modifiers;
     }
 
+    /** Hunter gear is common, knight gear rare, dusk gear epic. */
+    public ItemGrade grade() {
+        return switch (set.name) {
+            case "knight" -> ItemGrade.RARE;
+            case "dusk" -> ItemGrade.EPIC;
+            default -> ItemGrade.COMMON;
+        };
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        return com.beyondsolo.item.arsenal.ArsenalTooltip.gradedName(super.getName(stack), stack, grade());
+    }
+
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag flag) {
+        ItemGrade g = com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade());
+        lines.add(Component.literal("◆ ").append(g.displayName()).withStyle(s -> s.withColor(net.minecraft.network.chat.TextColor.fromRgb(g.color()))));
         lines.add(Component.translatable("tooltip.beyondsolo.set." + set.name, Component.translatable("set.beyondsolo." + set.name))
                 .withStyle(ChatFormatting.GOLD));
         lines.add(Component.translatable("set.beyondsolo." + set.name + ".bonus").withStyle(ChatFormatting.GRAY));

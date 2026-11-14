@@ -21,7 +21,8 @@ public class LegendaryWeaponItem extends SystemWeaponItem {
     public static final int GOLD = 0xFFD166;
 
     public LegendaryWeaponItem(Tier tier, int damage, float speed, DamageElement element, float buildup, float weight) {
-        super(tier, damage, speed, element, buildup, weight, new Properties().rarity(Rarity.EPIC).fireResistant()
+        super(tier, net.minecraft.world.item.SwordItem.createAttributes(tier, damage, speed), element, buildup, weight,
+                ItemGrade.LEGENDARY, null, List.of(), null, null, new Properties().rarity(Rarity.EPIC).fireResistant()
                 .component(DataComponents.UNBREAKABLE, new Unbreakable(false)));
     }
 
@@ -38,7 +39,6 @@ public class LegendaryWeaponItem extends SystemWeaponItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag flag) {
         lines.add(Component.translatable("tooltip.beyondsolo.legendary").withStyle(s -> s.withColor(TextColor.fromRgb(GOLD))));
-        lines.add(Component.translatable(getDescriptionId() + ".lore").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
-        super.appendHoverText(stack, context, lines, flag);
+        super.appendHoverText(stack, context, lines, flag); // grade, buildup, weight and the lore line
     }
 }

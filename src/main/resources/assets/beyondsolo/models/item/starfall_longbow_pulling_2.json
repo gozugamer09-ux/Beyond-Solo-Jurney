@@ -1,0 +1,6 @@
+{
+  "parent": "beyondsolo:item/starfall_longbow",
+  "textures": {
+    "layer0": "beyondsolo:item/starfall_longbow_pulling_2"
+  }
+}

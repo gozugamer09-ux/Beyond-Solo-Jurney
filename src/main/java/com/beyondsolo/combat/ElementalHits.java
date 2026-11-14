@@ -84,7 +84,7 @@ public final class ElementalHits {
         boolean crit = attacker instanceof Player p && melee && LAST_CRIT.getOrDefault(p, -1) == p.tickCount;
         DamageNumbers.report(target, dealt, elementOf(source), crit, attacker);
 
-        if (isProc(source)) return;
+        if (isProc(source) || ArsenalHits.inProc()) return;
 
         if (attacker instanceof LivingEntity living && living != target) {
             // weapons (players, and mobs that pick one up)

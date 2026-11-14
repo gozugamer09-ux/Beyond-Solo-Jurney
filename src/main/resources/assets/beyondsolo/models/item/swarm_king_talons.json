@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "beyondsolo:item/swarm_king_talons"
+  }
+}

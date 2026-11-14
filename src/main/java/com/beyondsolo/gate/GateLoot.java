@@ -1,5 +1,7 @@
 package com.beyondsolo.gate;
 
+import com.beyondsolo.item.ItemGrade;
+import com.beyondsolo.item.arsenal.Arsenal;
 import com.beyondsolo.registry.ModItems;
 import com.beyondsolo.system.PlayerRank;
 import net.minecraft.util.RandomSource;
@@ -30,11 +32,8 @@ public final class GateLoot {
         if (t >= 2) out.add(new ItemStack(ModItems.QUENCHING_ELIXIR.get()));
 
         // gear
-        List<? extends DeferredItem<? extends Item>> weapons = t <= 1
-                ? List.of(ModItems.HUNTER_DAGGER, ModItems.KNIGHT_SWORD, ModItems.STEEL_GREATSWORD, ModItems.HUNTING_SPEAR)
-                : t <= 3 ? List.of(ModItems.EMBERBRAND, ModItems.VENOM_FANG, ModItems.KNIGHT_SWORD, ModItems.STEEL_GREATSWORD)
-                : List.of(ModItems.EMBERBRAND, ModItems.VENOM_FANG, ModItems.CRIMSON_REAPER, ModItems.BLOODLETTER);
-        if (r.nextFloat() < 0.55f + 0.08f * t) out.add(new ItemStack(weapons.get(r.nextInt(weapons.size())).get()));
+        if (r.nextFloat() < 0.55f + 0.08f * t) out.add(weapon(t, r));
+        if (t >= 4 && r.nextFloat() < 0.35f) out.add(weapon(t, r));
         int armorStart = t <= 1 ? 0 : t <= 2 ? 4 : 8;
         int pieces = r.nextFloat() < 0.7f ? 1 + (t >= 4 ? 1 : 0) : 0;
         for (int i = 0; i < pieces; i++) out.add(new ItemStack(ModItems.ARMOR.get(armorStart + r.nextInt(4)).get()));
@@ -42,6 +41,32 @@ public final class GateLoot {
         if (r.nextFloat() < 0.3f + 0.12f * t) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
         if (t >= 4 && r.nextFloat() < 0.4f) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
         return out;
+    }
+
+    /** Chance (out of 1000) of each grade, by gate rank E..S: common, rare, epic, legendary, mythic, divine. */
+    static final int[][] GRADE_WEIGHTS = {
+            {850, 150, 0, 0, 0, 0},
+            {600, 350, 50, 0, 0, 0},
+            {250, 500, 220, 30, 0, 0},
+            {0, 450, 400, 140, 10, 0},
+            {0, 200, 465, 310, 20, 5},
+            {0, 0, 400, 520, 60, 20},
+    };
+
+    /** Rolls a weapon's grade for a gate of this rank. */
+    public static ItemGrade rollGrade(int tier, RandomSource r) {
+        int[] w = GRADE_WEIGHTS[Math.max(0, Math.min(tier, GRADE_WEIGHTS.length - 1))];
+        int roll = r.nextInt(1000);
+        for (int i = 0; i < w.length; i++) {
+            roll -= w[i];
+            if (roll < 0) return ItemGrade.values()[i];
+        }
+        return ItemGrade.COMMON;
+    }
+
+    static ItemStack weapon(int tier, RandomSource r) {
+        ItemStack stack = Arsenal.random(rollGrade(tier, r), r);
+        return stack != null ? stack : new ItemStack(ModItems.KNIGHT_SWORD.get());
     }
 
     private GateLoot() {}

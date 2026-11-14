@@ -45,6 +45,13 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 - **Weapons:** Hunter's Dagger, Knight's Blade, Steel Greatsword, Hunting Spear (blood), and the Duskforged
   elemental weapons Emberbrand (fire), Venom Fang (poison), Crimson Reaper (crimson) and Bloodletter (blood). Each
   one has a Better Combat moveset (dagger, sword, claymore, spear, scythe, katana).
+- **The arsenal and item grades:** 39 more weapons from **common** to **divine** (daggers, longswords, rapiers,
+  greatswords, glaives, halberds, great axes, maces, warhammers, gauntlets, claws, staffs and bows). Grades colour the
+  name and tooltip, glow in inventory slots and throw a beam of light over dropped gear. Weapons carry traits
+  (frostbite and freezing, chain lightning, armor breaker, lifesteal, executioner, mending, rhythm, bulwark,
+  backstab, twin, split shot). Three **mythic** weapons and six **divine** weapons (one bound to each class) have a
+  right-click signature art, such as Absolute Zero, Heaven's Verdict, Cataclysm Cleave or Dragon's Wrath. Staffs add
+  spell power to skill spells. Gate caches roll weapon grades by the gate's rank.
 - **Armor sets:** Hunter (light, less exhaustion), Knight (heavy plate, blood resistance), Duskforged (fire, poison
   and crimson resistance). Wearing all four pieces adds a set bonus.
 - **Elements.** Hits fill an element's buildup on the target; when it is full, something happens. It works on

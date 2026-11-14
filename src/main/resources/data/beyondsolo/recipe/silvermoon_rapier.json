@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "  D",
+    " D ",
+    "Q  "
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "Q": {
+      "item": "minecraft:quartz"
+    }
+  },
+  "result": {
+    "id": "beyondsolo:silvermoon_rapier",
+    "count": 1
+  }
+}

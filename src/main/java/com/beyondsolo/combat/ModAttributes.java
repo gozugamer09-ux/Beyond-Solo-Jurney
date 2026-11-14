@@ -33,6 +33,10 @@ public final class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> ELEMENTAL_POWER = ATTRIBUTES.register("elemental_power",
             () -> new RangedAttribute("attribute.beyondsolo.elemental_power", 0, 0, 10).setSyncable(true));
 
+    /** More damage from this entity's spells (magic skill hits): 0.2 = +20%. Staffs carry it. */
+    public static final DeferredHolder<Attribute, Attribute> SPELL_POWER = ATTRIBUTES.register("spell_power",
+            () -> new RangedAttribute("attribute.beyondsolo.spell_power", 0, 0, 10).setSyncable(true));
+
     private static DeferredHolder<Attribute, Attribute> resistance(String name) {
         return ATTRIBUTES.register(name, () -> new RangedAttribute("attribute.beyondsolo." + name, 0, 0, 1).setSyncable(true));
     }
@@ -57,7 +61,7 @@ public final class ModAttributes {
     static void addToEntities(EntityAttributeModificationEvent event) {
         for (EntityType<? extends LivingEntity> type : event.getTypes()) {
             for (Holder<Attribute> a : new Holder[]{FIRE_RESISTANCE, POISON_RESISTANCE, CRIMSON_RESISTANCE, BLOOD_RESISTANCE,
-                    EXHAUSTION_RESISTANCE, ELEMENTAL_POWER}) {
+                    EXHAUSTION_RESISTANCE, ELEMENTAL_POWER, SPELL_POWER}) {
                 if (!event.has(type, a)) event.add(type, a);
             }
         }

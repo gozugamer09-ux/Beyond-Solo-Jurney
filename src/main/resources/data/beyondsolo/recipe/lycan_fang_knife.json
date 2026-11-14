@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "  B",
+    " B ",
+    "L  "
+  ],
+  "key": {
+    "B": {
+      "item": "minecraft:bone"
+    },
+    "L": {
+      "item": "minecraft:leather"
+    }
+  },
+  "result": {
+    "id": "beyondsolo:lycan_fang_knife",
+    "count": 1
+  }
+}

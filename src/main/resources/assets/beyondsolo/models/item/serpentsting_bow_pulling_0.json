@@ -1,0 +1,6 @@
+{
+  "parent": "beyondsolo:item/serpentsting_bow",
+  "textures": {
+    "layer0": "beyondsolo:item/serpentsting_bow_pulling_0"
+  }
+}

@@ -158,7 +158,10 @@ public final class ModItems {
 
     private static DeferredItem<SystemWeaponItem> weapon(String name, Tier tier, int damage, float speed, DamageElement element,
                                                          float buildup, float weight, Rarity rarity) {
-        return ITEMS.register(name, () -> new SystemWeaponItem(tier, damage, speed, element, buildup, weight, new Item.Properties().rarity(rarity)));
+        com.beyondsolo.item.ItemGrade grade = rarity == Rarity.EPIC ? com.beyondsolo.item.ItemGrade.EPIC
+                : rarity == Rarity.RARE ? com.beyondsolo.item.ItemGrade.RARE : com.beyondsolo.item.ItemGrade.COMMON;
+        return ITEMS.register(name, () -> new SystemWeaponItem(tier, net.minecraft.world.item.SwordItem.createAttributes(tier, damage, speed),
+                element, buildup, weight, grade, null, List.of(), null, null, new Item.Properties().rarity(rarity)));
     }
 
     private static DeferredItem<SystemArmorItem> armor(String name, Holder<ArmorMaterial> material, ArmorItem.Type type, ArmorSets.Set set,

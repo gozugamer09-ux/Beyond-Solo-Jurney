@@ -1,0 +1,6 @@
+{
+  "parent": "beyondsolo:item/hunters_shortbow",
+  "textures": {
+    "layer0": "beyondsolo:item/hunters_shortbow_pulling_2"
+  }
+}
