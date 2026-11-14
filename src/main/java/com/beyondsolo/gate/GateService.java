@@ -129,6 +129,20 @@ public final class GateService {
         return gate;
     }
 
+    /** Opens the sealed gate of {@code owner}'s awakening trial (see {@code awakening.AwakeningService}). */
+    public static GateBlockEntity spawnSealedGate(ServerLevel level, BlockPos pos, Direction facing, ServerPlayer owner) {
+        level.setBlock(pos, ModBlocks.GATE.get().defaultBlockState().setValue(GateBlock.FACING, facing), 3);
+        GateBlockEntity gate = (GateBlockEntity) level.getBlockEntity(pos);
+        UUID id = UUID.randomUUID();
+        GateInstance g = GateData.get(level.getServer()).create(id, PlayerRank.D, level.random.nextLong(), level.dimension(), pos);
+        g.setOwner(owner.getUUID());
+        gate.setup(id, PlayerRank.D, false, level.getGameTime());
+        gate.setSealed(true);
+        level.playSound(null, pos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.8f, 0.5f);
+        level.playSound(null, pos, SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.BLOCKS, 1.5f, 0.5f);
+        return gate;
+    }
+
     /** The rank of a gate made by world generation: deeper ranks further from the world's centre. */
     public static PlayerRank worldgenRank(BlockPos pos, RandomSource r) {
         double d = Math.sqrt((double) pos.getX() * pos.getX() + (double) pos.getZ() * pos.getZ());
@@ -176,9 +190,15 @@ public final class GateService {
     public static void beginEnter(ServerPlayer player, GateBlockEntity gate) {
         if (busy(player) || gate.gateId() == null) return;
         ServerLevel level = player.serverLevel();
-        if (!SystemAPI.isAwakened(player)) {
+        GateInstance g = GateData.get(level.getServer()).get(gate.gateId());
+        if (g == null || g.state() != GateInstance.State.OPEN) return;
+        // a sealed gate is for the one it opened for; someone the System has bound must be evaluated first.
+        // Players without the System walk into gates freely: that is how they earn it.
+        String refusal = g.isTrial() && !player.getUUID().equals(g.owner()) ? "message.beyondsolo.gate.sealed_other"
+                : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated" : null;
+        if (refusal != null) {
             if (COOLDOWN.getOrDefault(player.getUUID(), 0L) <= level.getGameTime()) {
-                player.displayClientMessage(Component.translatable("message.beyondsolo.gate.unevaluated"), true);
+                player.displayClientMessage(Component.translatable(refusal), true);
                 COOLDOWN.put(player.getUUID(), level.getGameTime() + 60);
             }
             Vec3 away = player.position().subtract(gate.center()).multiply(1, 0, 1).normalize().scale(0.6);
@@ -186,8 +206,6 @@ public final class GateService {
             player.hurtMarked = true;
             return;
         }
-        GateInstance g = GateData.get(level.getServer()).get(gate.gateId());
-        if (g == null || g.state() != GateInstance.State.OPEN) return;
         if (level.getServer().getLevel(DIMENSION) == null) {
             BeyondSolo.LOGGER.error("The gate dimension {} is missing; is the mod's datapack loaded?", DIMENSION.location());
             return;
@@ -197,8 +215,13 @@ public final class GateService {
         freeze(player, true);
         level.playSound(null, gate.getBlockPos(), SoundEvents.PORTAL_TRAVEL, SoundSource.BLOCKS, 0.35f, 1.4f);
         level.playSound(null, gate.getBlockPos(), SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 1.2f, 0.6f);
-        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.ENTER, g.rank().ordinal(), -1, 0,
-                g.theme().dungeonName(), Component.translatable("gate.beyondsolo.rank_gate", g.rank().displayName())));
+        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.ENTER, g.theme().ordinal(), -1, 0,
+                g.theme().dungeonName(), gateLabel(g)));
+    }
+
+    /** "D-Rank Gate", or "Sealed Gate" for the trial. */
+    public static Component gateLabel(GateInstance g) {
+        return g.isTrial() ? Component.translatable("gate.beyondsolo.sealed_gate") : Component.translatable("gate.beyondsolo.rank_gate", g.rank().displayName());
     }
 
     public static void beginExit(ServerPlayer player, GateBlockEntity gate) {
@@ -208,7 +231,7 @@ public final class GateService {
         TRANSITS.put(player.getUUID(), new Transit(g.id(), true, player.level().getGameTime()));
         freeze(player, true);
         player.level().playSound(null, gate.getBlockPos(), SoundEvents.PORTAL_TRAVEL, SoundSource.BLOCKS, 0.3f, 1.8f);
-        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.EXIT, g.rank().ordinal(), -1, 0,
+        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.EXIT, g.theme().ordinal(), -1, 0,
                 Component.translatable("gate.beyondsolo.leaving"), g.theme().dungeonName()));
     }
 
@@ -247,9 +270,10 @@ public final class GateService {
         player.setDeltaMovement(Vec3.ZERO);
         COOLDOWN.put(player.getUUID(), dungeon.getGameTime() + 40);
         dungeon.playSound(null, at, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.5f, 0.6f);
-        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.ARRIVE, g.rank().ordinal(), -1, 0,
-                g.theme().dungeonName(), Component.translatable("gate.beyondsolo.rank_gate", g.rank().displayName())));
-        giveQuest(player, g);
+        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.ARRIVE, g.theme().ordinal(), -1, 0,
+                g.theme().dungeonName(), gateLabel(g)));
+        if (g.isTrial()) com.beyondsolo.awakening.AwakeningService.arrived(player, g);
+        else giveQuest(player, g);
         return true;
     }
 
@@ -271,8 +295,9 @@ public final class GateService {
         if (player.distanceToSqr(to.x, y, to.z) > 4) player.moveTo(to.x, y, to.z, yaw, 0f);
         player.setDeltaMovement(Vec3.ZERO);
         COOLDOWN.put(player.getUUID(), level.getGameTime() + 80);
-        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.RETURN, g.rank().ordinal(), -1, 0,
+        PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.RETURN, g.theme().ordinal(), -1, 0,
                 Component.translatable(g.bossDefeated() ? "gate.beyondsolo.cleared" : "gate.beyondsolo.returned"), g.theme().dungeonName()));
+        com.beyondsolo.awakening.AwakeningService.leftGate(player, g);
     }
 
     // ------------------------------------------------------------------ building caves
@@ -304,6 +329,10 @@ public final class GateService {
     }
 
     private static void spawnBoss(ServerLevel dungeon, GateInstance g) {
+        if (g.isTrial()) {
+            com.beyondsolo.awakening.AwakeningService.spawnArbiter(dungeon, g);
+            return;
+        }
         GateBossEntity boss = ModEntities.GATE_BOSS.get().create(dungeon);
         if (boss == null) return;
         BlockPos c = g.bossRoomCenter();
@@ -339,8 +368,12 @@ public final class GateService {
             double dx = at.getX() - c.getX(), dz = at.getZ() - c.getZ();
             double dist = Math.sqrt(dx * dx + dz * dz);
             if (Math.abs(at.getY() - c.getY()) > room.ry() + 8) continue;
+            if (g.isTrial() && room.kind() != DungeonLayout.Kind.SIDE && room.index() > g.checkpoint() && dist < room.reach()) {
+                g.setCheckpoint(room.index());
+                data.setDirty();
+            }
             if (room.kind() == DungeonLayout.Kind.BOSS) {
-                if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - 4) wakeBoss(dungeon, g);
+                if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - (g.isTrial() ? 8 : 4)) wakeBoss(dungeon, g);
             } else if (room.kind() != DungeonLayout.Kind.ENTRANCE && !g.roomTriggered(room.index()) && dist < room.reach() + 7) {
                 g.triggerRoom(room.index());
                 data.setDirty();
@@ -374,7 +407,7 @@ public final class GateService {
         mob.moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, level.random.nextFloat() * 360f, 0f);
         mob.finalizeSpawn(level, level.getCurrentDifficultyAt(p), MobSpawnType.EVENT, null);
         mob.setPersistenceRequired();
-        mob.getPersistentData().putInt(MOB_TAG, theme.rank.ordinal());
+        mob.getPersistentData().putInt(MOB_TAG, theme.ordinal());
         var hp = mob.getAttribute(Attributes.MAX_HEALTH);
         if (hp != null && theme.mobHealthBonus() > 0) {
             hp.addPermanentModifier(new AttributeModifier(BeyondSolo.id("gate_health"), theme.mobHealthBonus(), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
@@ -391,12 +424,20 @@ public final class GateService {
     }
 
     private static void wakeBoss(ServerLevel dungeon, GateInstance g) {
-        if (g.boss() == null || !(dungeon.getEntity(g.boss()) instanceof GateBossEntity boss)) return;
+        if (g.boss() == null) return;
+        Entity e = dungeon.getEntity(g.boss());
+        if (g.isTrial() && e instanceof com.beyondsolo.awakening.ArbiterEntity arbiter) {
+            g.setBossAwake(true);
+            GateData.get(dungeon.getServer()).setDirty();
+            com.beyondsolo.awakening.AwakeningService.wakeArbiter(dungeon, g, arbiter);
+            return;
+        }
+        if (!(e instanceof GateBossEntity boss)) return;
         g.setBossAwake(true);
         GateData.get(dungeon.getServer()).setDirty();
         boss.wake();
         for (ServerPlayer p : playersIn(dungeon, g)) {
-            PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_INTRO, g.rank().ordinal(), boss.getId(), 0,
+            PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_INTRO, g.theme().ordinal(), boss.getId(), 0,
                     g.theme().bossName(), Component.translatable("gate.beyondsolo.boss_subtitle", g.rank().displayName())));
         }
     }
@@ -449,6 +490,7 @@ public final class GateService {
         data.setDirty();
 
         List<ServerPlayer> players = playersIn(level, g);
+        com.beyondsolo.awakening.AwakeningService.gateCleared(g, players);
         for (ServerPlayer p : players) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_DEFEATED, g.rank().ordinal(), boss.getId(), 0,
                     g.theme().bossName(), Component.translatable("gate.beyondsolo.boss_defeated")));
@@ -469,8 +511,10 @@ public final class GateService {
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));
                 QuestEngine.progress(p, CLEAR_KEY, 1);
-                PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.CLEARED, g.rank().ordinal(), -1, xp,
-                        g.theme().dungeonName(), Component.translatable("gate.beyondsolo.rank_gate", g.rank().displayName())));
+                // the cleared banner is the System talking; without it there's just the quiet
+                if (!SystemAPI.hasSystem(p)) continue;
+                PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.CLEARED, g.theme().ordinal(), -1, xp,
+                        g.theme().dungeonName(), gateLabel(g)));
             }
         });
         com.beyondsolo.util.ServerScheduler.schedule(GateBossEntity.DEATH_TICKS + 50, () -> openExit(level, g, center, facing));
@@ -507,6 +551,7 @@ public final class GateService {
     // ------------------------------------------------------------------ quests
 
     private static void giveQuest(ServerPlayer player, GateInstance g) {
+        if (!SystemAPI.isAwakened(player)) return;
         for (Quest q : QuestEngine.data(player).active()) {
             if (QUEST_TEMPLATE.equals(q.template()) && g.id().toString().equals(q.extra().getString("gate"))) return;
         }
@@ -608,7 +653,7 @@ public final class GateService {
         Entity src = event.getSource().getEntity();
         if (!(src instanceof LivingEntity attacker) || src instanceof GateBossEntity) return;
         if (!attacker.getPersistentData().contains(MOB_TAG) || event.getNewDamage() <= 0) return;
-        GateTheme theme = GateTheme.values()[Mth.clamp(attacker.getPersistentData().getInt(MOB_TAG), 0, 5)];
+        GateTheme theme = GateTheme.byIndex(attacker.getPersistentData().getInt(MOB_TAG));
         Statuses.apply(event.getEntity(), theme.element, theme.mobBuildup(), attacker);
     }
 

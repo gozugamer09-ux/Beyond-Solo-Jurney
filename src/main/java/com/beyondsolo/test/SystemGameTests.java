@@ -123,6 +123,8 @@ public final class SystemGameTests {
         ServerPlayer p = player(helper);
         BlockPos crystal = helper.absolutePos(CRYSTAL);
         p.moveTo(crystal.getX() + 0.5, crystal.getY(), crystal.getZ() - 1.5);
+        // the crystal only answers those the System is bound to (see AwakeningGameTests)
+        SystemAPI.grantSystem(p);
         com.beyondsolo.evaluation.EvaluationTestAccess.interact(p, crystal);
         helper.assertTrue(!SystemAPI.isAwakened(p), "evaluation takes a few seconds");
         helper.succeedWhen(() -> helper.assertTrue(SystemAPI.isAwakened(p), "player should be evaluated"));

@@ -75,6 +75,17 @@ public final class Config {
             .comment("Chance, checked once a minute for each evaluated player in the overworld, that a gate opens 40-80 blocks away (never near another open gate). 0 turns it off; world generation still places gates.")
             .defineInRange("gates.openChancePerMinute", 0.08, 0.0, 1.0);
 
+    // --- Awakening ---
+    public static final ModConfigSpec.BooleanValue AWAKENING_TRIAL = B
+            .comment("New players start without the System and must earn it: their first D-rank (or higher) gate clear opens a sealed gate to the awakening trial. false = everyone has the System from the start (the old onboarding).")
+            .define("awakening.required", true);
+    public static final ModConfigSpec.IntValue TETHER_RADIUS = B
+            .comment("How far (blocks) the sealed gate lets its player walk away before pulling them back.")
+            .defineInRange("awakening.tetherRadius", 18, 6, 64);
+    public static final ModConfigSpec.DoubleValue PRE_SYSTEM_GATE_CHANCE = B
+            .comment("Chance, checked once a minute for each player without the System, that a D-rank gate opens near them (if no gate is open close by). Keeps the first gate findable.")
+            .defineInRange("awakening.gateChancePerMinute", 0.12, 0.0, 1.0);
+
     public static final ModConfigSpec SPEC = B.build();
 
     private Config() {}

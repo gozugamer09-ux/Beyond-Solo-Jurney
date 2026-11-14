@@ -39,6 +39,7 @@ import java.util.Deque;
  * look &lt;yaw&gt; &lt;pitch&gt;                   turn the camera
  * timescale &lt;x&gt;                        slow down / speed up UI animations
  * hud on|off                           show or hide the vanilla HUD and the hand (like F1)
+ * fov &lt;30-110&gt;                         field of view (30 looks at far things as if through a lens)
  * guiscale &lt;n&gt;                         GUI scale (0 = auto)
  * crystal idle|scan|reveal            play a state on the Evaluation Crystals nearby (this client only)
  * crystal lock &lt;rank&gt;                  ... the rank is decided (e, d, c, b, a, s)
@@ -151,6 +152,7 @@ public final class UiTestDriver {
             }
             case "timescale" -> Anim.setTimeScale(Double.parseDouble(arg));
             case "hud" -> mc.options.hideGui = arg.equals("off");
+            case "fov" -> mc.options.fov().set(Integer.parseInt(arg));
             case "guiscale" -> {
                 mc.options.guiScale().set(Integer.parseInt(arg));
                 mc.resizeDisplay();

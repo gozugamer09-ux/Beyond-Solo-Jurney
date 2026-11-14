@@ -74,6 +74,14 @@ public final class ModItems {
     public static final DeferredItem<SystemWeaponItem> CRIMSON_REAPER = weapon("crimson_reaper", DUSKFORGED, 5, -2.9f, DamageElement.CRIMSON, 22, 1.6f, Rarity.EPIC);
     public static final DeferredItem<SystemWeaponItem> BLOODLETTER = weapon("bloodletter", DUSKFORGED, 3, -2.3f, DamageElement.BLOOD, 22, 1.0f, Rarity.EPIC);
 
+    // ---- legendary weapons: the hidden reward of the awakening trial, stronger than anything else ----
+    public static final Tier LEGENDARY = new SimpleTier(BlockTags.INCORRECT_FOR_NETHERITE_TOOL, 9000, 10f, 6.0f, 22, () -> Ingredient.EMPTY);
+    public static final DeferredItem<com.beyondsolo.item.LegendaryWeaponItem> SUNDERVEIL = legendary("sunderveil", 12, -2.9f, DamageElement.CRIMSON, 42, 1.4f);
+    public static final DeferredItem<com.beyondsolo.item.LegendaryWeaponItem> ASHEN_OATH = legendary("ashen_oath", 8, -2.2f, DamageElement.FIRE, 48, 0.9f);
+    public static final DeferredItem<com.beyondsolo.item.LegendaryWeaponItem> NIGHTGLASS_FANG = legendary("nightglass_fang", 5, -1.4f, DamageElement.POISON, 30, 0.5f);
+    public static final DeferredItem<com.beyondsolo.item.LegendaryWeaponItem> THORN_REQUIEM = legendary("thorn_requiem", 10, -2.7f, DamageElement.BLOOD, 46, 1.2f);
+    public static final List<DeferredItem<com.beyondsolo.item.LegendaryWeaponItem>> LEGENDARIES = List.of(SUNDERVEIL, ASHEN_OATH, NIGHTGLASS_FANG, THORN_REQUIEM);
+
     public static final List<DeferredItem<SystemWeaponItem>> WEAPONS = List.of(HUNTER_DAGGER, KNIGHT_SWORD, STEEL_GREATSWORD,
             HUNTING_SPEAR, EMBERBRAND, VENOM_FANG, CRIMSON_REAPER, BLOODLETTER);
 
@@ -134,6 +142,7 @@ public final class ModItems {
             .icon(() -> new ItemStack(BLOODLETTER.get()))
             .displayItems((params, out) -> {
                 WEAPONS.forEach(w -> out.accept(w.get()));
+                LEGENDARIES.forEach(w -> out.accept(w.get()));
                 ARMOR.forEach(a -> out.accept(a.get()));
                 REMEDIES.forEach(r -> out.accept(r.get()));
                 out.accept(com.beyondsolo.skill.SkillTomeItem.unread());
@@ -142,6 +151,10 @@ public final class ModItems {
                 }
             })
             .build());
+
+    private static DeferredItem<com.beyondsolo.item.LegendaryWeaponItem> legendary(String name, int damage, float speed, DamageElement element, float buildup, float weight) {
+        return ITEMS.register(name, () -> new com.beyondsolo.item.LegendaryWeaponItem(LEGENDARY, damage, speed, element, buildup, weight));
+    }
 
     private static DeferredItem<SystemWeaponItem> weapon(String name, Tier tier, int damage, float speed, DamageElement element,
                                                          float buildup, float weight, Rarity rarity) {
