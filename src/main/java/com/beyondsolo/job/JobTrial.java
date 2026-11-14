@@ -86,7 +86,7 @@ public final class JobTrial {
     public enum Phase { COUNTDOWN, INTRO, WAVE, WAVE_BREAK, BOSS_INTRO, BOSS, BOSS_DOWN, VERDICT }
 
     static final int COUNTDOWN_TICKS = 60;
-    static final int INTRO_TICKS = 110;
+    static final int INTRO_TICKS = 150;
     static final int WAVE_BREAK_TICKS = 50;
     static final int BOSS_INTRO_TICKS = 100;
     static final int BOSS_DOWN_TICKS = 70;
@@ -148,6 +148,14 @@ public final class JobTrial {
         begin(player, false);
     }
 
+    /** Carves the hall once per session (during the countdown, so its chunks are ready when the player arrives). */
+    private static void prepare(Session s, ServerLevel level) {
+        if (s.level == level) return;
+        s.level = level;
+        clearArena(level, s.center);
+        TrialArena.build(level, s.center);
+    }
+
     /** Starts the trial for a player (with {@code now} = true the countdown is skipped). Returns false if one is running. */
     public static boolean begin(ServerPlayer player, boolean now) {
         if (SESSIONS.containsKey(player.getUUID())) return false;
@@ -156,6 +164,8 @@ public final class JobTrial {
         if (now) {
             enter(s);
         } else {
+            ServerLevel level = GateService.dungeon(player.server);
+            if (level != null) prepare(s, level);
             Notifications.send(player, new SystemNotification(SystemNotification.Kind.QUEST,
                     Component.translatable("notify.beyondsolo.job_countdown.title"),
                     Component.translatable("notify.beyondsolo.job_countdown.body"), COUNTDOWN_TICKS + 20));
@@ -199,9 +209,7 @@ public final class JobTrial {
             SESSIONS.remove(p.getUUID());
             return;
         }
-        s.level = level;
-        clearArena(level, s.center);
-        TrialArena.build(level, s.center);
+        prepare(s, level);
         JobAPI.enterTrial(p);
         Vec3 start = TrialArena.start(s.center);
         p.teleportTo(level, start.x, start.y, start.z, 180f, 0f);
@@ -213,7 +221,7 @@ public final class JobTrial {
         freeze(p, true);
         Vec3 c = Vec3.atBottomCenterOf(s.center);
         // the camera drops in from under the dome and settles behind the player
-        send(p, CutscenePayload.glide(c.add(0, 13, 10), start.add(0, 2.6, 5.5), c.add(0, 0, -4), c.add(0, 2, -8), INTRO_TICKS - 10));
+        send(p, CutscenePayload.glide(c.add(0, 13, 10), start.add(0, 2.6, 5.5), c.add(0, 0, -4), c.add(0, 2, -8), INTRO_TICKS - 50));
         sound(level, c, SoundEvents.END_PORTAL_SPAWN, 0.6f, 1.4f);
         sound(level, c, SoundEvents.AMBIENT_CAVE.value(), 1f, 0.6f);
         banner(s, JobTrialPayload.INTRO, Component.translatable("job.beyondsolo.trial.title"), Component.translatable("job.beyondsolo.trial.intro"), 0, 0);
@@ -463,7 +471,7 @@ public final class JobTrial {
         p.teleportTo(level, start.x, start.y, start.z, 180f, 0f);
         Vec3 face = at.add(0, 3.2, 0);
         // over the player's shoulder, pushing in on the Arbiter as it wakes
-        send(p, CutscenePayload.glide(start.add(1.6, 2.4, 3.5), at.add(2.5, 2.6, 7.5), face.add(0, -0.5, 0), face, BOSS_INTRO_TICKS - 10));
+        send(p, CutscenePayload.glide(start.add(1.6, 2.4, 3.5), at.add(2.5, 2.6, 7.5), face.add(0, -0.5, 0), face, BOSS_INTRO_TICKS - 50));
         sound(level, at, SoundEvents.WARDEN_EMERGE, 1.4f, 0.6f);
         level.sendParticles(ParticleTypes.SOUL, at.x, at.y + 1, at.z, 60, 1.5, 1.5, 1.5, 0.05);
         banner(s, JobTrialPayload.BOSS, Component.translatable("job.beyondsolo.trial.arbiter"), Component.translatable("job.beyondsolo.trial.arbiter_intro"), 100, 100);

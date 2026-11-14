@@ -52,6 +52,14 @@ public final class JobCommand {
                             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, new com.beyondsolo.network.JobRevealPayload(s.ordinal(), false));
                             return 1;
                         })))
+                        .then(Commands.literal("camera").executes(ctx -> {
+                            // a test shot around the player: tries the cutscene camera anywhere
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            net.minecraft.world.phys.Vec3 at = p.position();
+                            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, com.beyondsolo.network.CutscenePayload.glide(
+                                    at.add(0, 6, 8), at.add(8, 2.5, 0), at.add(0, 1, 0), at.add(0, 1.5, 0), 100));
+                            return 1;
+                        }))
                         .then(Commands.literal("odds")
                                 .executes(ctx -> odds(ctx.getSource(), 100_000))
                                 .then(Commands.argument("rolls", IntegerArgumentType.integer(1, 10_000_000))

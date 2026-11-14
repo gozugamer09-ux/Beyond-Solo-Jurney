@@ -50,6 +50,8 @@ public final class TrialHud {
     public static void render(GuiGraphics g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
+        // the title waits with the camera while the hall is still loading
+        if (phase == JobTrialPayload.INTRO && CutsceneCamera.curtain() > 0.5f) since = Anim.now();
         float age = Anim.since(since);
         if (phase == JobTrialPayload.FAILED && age > 5f) phase = JobTrialPayload.NONE;
         boolean visible = phase != JobTrialPayload.NONE && phase != JobTrialPayload.VERDICT;

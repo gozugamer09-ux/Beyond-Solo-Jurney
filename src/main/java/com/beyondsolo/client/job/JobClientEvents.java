@@ -34,6 +34,7 @@ public final class JobClientEvents {
         @SubscribeEvent
         static void frame(RenderFrameEvent.Pre event) {
             JobRevealOverlay.frame(event.getPartialTick());
+            CutsceneCamera.frame(event.getPartialTick().getGameTimeDeltaPartialTick(true));
         }
 
         @SubscribeEvent
@@ -44,7 +45,7 @@ public final class JobClientEvents {
         /** Runs first so camera shake from other systems still adds on top. */
         @SubscribeEvent(priority = EventPriority.HIGHEST)
         static void camera(ViewportEvent.ComputeCameraAngles event) {
-            float[] look = CutsceneCamera.apply(event.getCamera(), (float) event.getPartialTick());
+            float[] look = CutsceneCamera.angles();
             if (look == null) return;
             event.setYaw(look[0]);
             event.setPitch(look[1]);
@@ -64,6 +65,14 @@ public final class JobClientEvents {
         @SubscribeEvent
         static void hand(RenderHandEvent event) {
             if (CutsceneCamera.active()) event.setCanceled(true);
+        }
+
+        /** The player's own name tag stays hidden while the camera looks at them. */
+        @SubscribeEvent
+        static void nameTag(net.neoforged.neoforge.client.event.RenderNameTagEvent event) {
+            if (CutsceneCamera.active() && event.getEntity() == Minecraft.getInstance().player) {
+                event.setCanRender(net.neoforged.neoforge.common.util.TriState.FALSE);
+            }
         }
 
         @SubscribeEvent

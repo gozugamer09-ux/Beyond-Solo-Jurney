@@ -281,6 +281,8 @@ public final class JobRevealOverlay {
 
     /** Black bars top and bottom while a cutscene runs. */
     public static void renderLetterbox(GuiGraphics g) {
+        float c = CutsceneCamera.curtain();
+        if (c > 0.002f) Shapes.box(0, 0, g.guiWidth(), g.guiHeight()).fill(Gfx.alpha(0xFF000000, c)).draw(g);
         float b = Anim.inOutCubic(CutsceneCamera.bars());
         if (b <= 0.002f) return;
         int w = g.guiWidth(), h = g.guiHeight();

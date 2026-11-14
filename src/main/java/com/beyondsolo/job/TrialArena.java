@@ -104,13 +104,17 @@ public final class TrialArena {
             }
             level.setBlock(top, Blocks.SOUL_CAMPFIRE.defaultBlockState(), flags);
         }
-        // hidden light so the hall is never pitch black
-        BlockState light = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 12);
-        for (int dx = -15; dx <= 15; dx += 6) {
-            for (int dz = -15; dz <= 15; dz += 6) {
+        // hidden light: a bright grid under the dome and a lower ring, so the fight is easy to read
+        BlockState light = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15);
+        for (int dx = -16; dx <= 16; dx += 4) {
+            for (int dz = -16; dz <= 16; dz += 4) {
                 if (dx * dx + dz * dz > 17 * 17) continue;
                 level.setBlock(c.offset(dx, 9, dz), light, flags);
             }
+        }
+        for (int i = 0; i < 16; i++) {
+            double a = Math.PI * 2 * i / 16;
+            level.setBlock(c.offset((int) Math.round(Math.cos(a) * 10), 3, (int) Math.round(Math.sin(a) * 10)), light, flags);
         }
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) level.setBlock(c.offset(dx, 3, dz), light, flags);
