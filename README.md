@@ -48,7 +48,8 @@ exhaustion rates) and `config/beyondsolo-client.toml` (pop-up mode, stay-open po
 on or off).
 
 If the dev client stops on a red error screen that names Prickle ("... not a subtype"), start it again. That
-library sometimes loses a start-up race when it runs from Gradle. It does not happen in a normal installation.
+library sometimes loses a start-up race when it runs from Gradle, where every mod is also on the plain class path.
+A normal installation loads mods differently, so it should not be affected, but that has not been tested yet.
 
 ## Library mods
 
