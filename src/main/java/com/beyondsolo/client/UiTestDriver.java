@@ -52,6 +52,9 @@ import java.util.Deque;
  * npc accept|turnin                    press the first Accept / Hand in button of the open villager window
  * npc scroll &lt;amount&gt;                  scroll the villager window's list
  * </pre>
+ *
+ * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
+ * start a server and a client on a virtual screen, send these commands and wait for that line.</p>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class UiTestDriver {
@@ -59,6 +62,7 @@ public final class UiTestDriver {
     private static final Deque<String> QUEUE = new ArrayDeque<>();
     private static int waitTicks;
     private static int pollTimer;
+    private static boolean busy;
 
     @SubscribeEvent
     static void tick(ClientTickEvent.Post event) {
@@ -68,16 +72,21 @@ public final class UiTestDriver {
         releaseKeys();
         if (waitTicks > 0) {
             waitTicks--;
-            return;
-        }
-        while (!QUEUE.isEmpty() && waitTicks == 0) {
-            String line = QUEUE.pollFirst();
-            try {
-                run(mc, line);
-            } catch (Exception e) {
-                BeyondSolo.LOGGER.error("UITEST failed: {}", line, e);
+        } else {
+            while (!QUEUE.isEmpty() && waitTicks == 0) {
+                String line = QUEUE.pollFirst();
+                try {
+                    run(mc, line);
+                } catch (Exception e) {
+                    BeyondSolo.LOGGER.error("UITEST failed: {}", line, e);
+                }
             }
-            if (QUEUE.isEmpty()) BeyondSolo.LOGGER.info("UITEST idle");
+        }
+        // Scripts wait for this line, so it is only written when everything is over: a final "wait" has run out
+        // and every pressed key is up again.
+        if (busy && QUEUE.isEmpty() && waitTicks == 0 && HELD.isEmpty()) {
+            busy = false;
+            BeyondSolo.LOGGER.info("UITEST idle");
         }
     }
 
@@ -109,6 +118,7 @@ public final class UiTestDriver {
                 if (!line.isBlank() && !line.startsWith("#")) QUEUE.addLast(line.strip());
             }
             Files.delete(file);
+            busy = true;
         } catch (IOException e) {
             BeyondSolo.LOGGER.error("UITEST could not read {}", file, e);
         }

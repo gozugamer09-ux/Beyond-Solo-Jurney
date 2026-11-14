@@ -280,6 +280,10 @@ commands, one per line, to `runs/client/uitest/cmd.txt` and it runs them in orde
 command, play a crystal state, change the GUI scale, slow animations down, wait, take a screenshot. The full list
 is in the class comment. The driver does nothing unless the game was started that way.
 
+The scripts in `tools/uitest` wrap this up for a machine with no monitor: they start a server and that client on a
+virtual screen, send the commands, and take screenshots and slow-motion videos. `tools/uitest/README.md` shows how.
+Look at every new screen and animation that way before merging it; code alone does not show how it looks.
+
 ## Tests
 
 `test/SystemGameTests` covers: the structure has its crystal, evaluation by the crystal, awakening hands out bonus
