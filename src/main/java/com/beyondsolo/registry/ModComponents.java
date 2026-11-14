@@ -15,5 +15,10 @@ public final class ModComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> SKILL = COMPONENTS.registerComponentType("skill",
             b -> b.persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8));
 
+    /** The item's grade (common to divine). Every System weapon and armor piece has one by default. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.beyondsolo.item.ItemGrade>> GRADE = COMPONENTS.registerComponentType("grade",
+            b -> b.persistent(com.beyondsolo.item.ItemGrade.CODEC)
+                    .networkSynchronized(ByteBufCodecs.idMapper(i -> com.beyondsolo.item.ItemGrade.values()[i], Enum::ordinal)));
+
     private ModComponents() {}
 }

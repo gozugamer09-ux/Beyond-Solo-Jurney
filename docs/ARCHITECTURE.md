@@ -175,6 +175,34 @@ buffs) and its key binding (blocked during a collapse), all behind `ModList` che
 Textures (weapons, armor icons and model layers, bottles, effect icons, the sigil and burst light textures) are
 made by `tools/gen_combat_assets.py`.
 
+## Arsenal and item grades
+
+Every System weapon and armor piece has a **grade**: common, rare, epic, legendary, mythic or divine
+(`item/ItemGrade`). It is stored per stack as the `beyondsolo:grade` data component (set as a default component in
+`Arsenal.defaultGrades`), so enhancement or boss loot can raise one stack's grade later. The client shows it in
+`client/combat/GradeVisuals`: coloured names (a moving two-colour gradient for mythic and divine), a tooltip frame in
+the grade's colours, a glow behind graded items in inventory slots, and a light beam with a glowing sigil over dropped
+gear (rare and up; legendary and up shed sparks too). Legendary and up also get an animated light sweep on the sprite.
+
+- **Weapons:** `item/arsenal/Arsenal` registers 39 weapons on top of the 8 combat ones (6 common, 8 rare, 8 epic,
+  8 legendary, 3 mythic, 6 divine). A weapon is a `WeaponKind` (base damage, speed, weight and Better Combat
+  moveset), a grade (its `Tier`), an element and buildup, traits, a favoured class and maybe a signature. Melee
+  weapons are `SystemWeaponItem`, bows are `SystemBowItem` (`ArsenalWeapon` is what both share).
+- **Traits** (`item/arsenal/Trait`, effects in `combat/ArsenalHits`): frostbite (stacks to III, then freezes; the
+  next hit shatters the ice for +40%), thunderclap (chain lightning), armor breaker, lifesteal, executioner, mending,
+  rhythm, bulwark, backstab, twin and split shot. Trait and signature damage runs through `ArsenalHits.proc`, so it
+  never procs traits or weapon buildup again.
+- **Spell power** (`beyondsolo:spell_power`, carried by staffs) multiplies magic damage, which is how skill spells hit.
+- **Signatures** (`item/arsenal/Signature`, effects in `combat/ArsenalAbilities`): right-click arts on mythic and
+  divine weapons with an item cooldown, a screen flash for the wielder and light bursts (`CombatFxPayload` kinds
+  `NOVA`, `SIGNATURE`, `FREEZE`, `SHATTER`, `CHAIN`). The divine bow's Starfall is passive (full draws).
+- **Divine weapons** are bound to one class each (`Arsenal.divineFor`). Anyone else, or a player without the System,
+  deals half damage and can't use the signature (`ArsenalHits.refuses`).
+- **Where they come from:** common and rare weapons have recipes; gate reward caches roll a grade by the gate's
+  rank (`GateLoot.GRADE_WEIGHTS`: E gates drop common and rare, S gates drop epic and up with about 2% divine).
+- **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
+  `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
+
 ## Quests
 
 A quest is a self-contained instance (`quest/Quest`): texts, objectives already scaled to the player's rank,

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "beyondsolo:item/eye_of_the_insatiable"
+  }
+}

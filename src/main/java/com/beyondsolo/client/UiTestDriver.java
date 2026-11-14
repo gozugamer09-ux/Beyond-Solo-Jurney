@@ -51,6 +51,9 @@ import java.util.Deque;
  * respawn                              respawn after dying
  * npc accept|turnin                    press the first Accept / Hand in button of the open villager window
  * npc scroll &lt;amount&gt;                  scroll the villager window's list
+ * inventory                            open the player's inventory
+ * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
+ * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -58,6 +61,22 @@ import java.util.Deque;
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class UiTestDriver {
+    private static void moveMouse(Minecraft mc, double guiX, double guiY) {
+        double scale = mc.getWindow().getGuiScale();
+        org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), guiX * scale, guiY * scale);
+        // Xvfb sends no cursor event for a programmatic move, so tell the mouse handler directly.
+        try {
+            var x = net.minecraft.client.MouseHandler.class.getDeclaredField("xpos");
+            var y = net.minecraft.client.MouseHandler.class.getDeclaredField("ypos");
+            x.setAccessible(true);
+            y.setAccessible(true);
+            x.setDouble(mc.mouseHandler, guiX * scale);
+            y.setDouble(mc.mouseHandler, guiY * scale);
+        } catch (ReflectiveOperationException e) {
+            BeyondSolo.LOGGER.warn("UITEST can't move the mouse", e);
+        }
+    }
+
     public static final boolean ENABLED = Boolean.getBoolean("beyondsolo.uiTest");
     private static final Deque<String> QUEUE = new ArrayDeque<>();
     private static int waitTicks;
@@ -189,6 +208,17 @@ public final class UiTestDriver {
                 default -> CameraType.FIRST_PERSON;
             });
             case "respawn" -> mc.player.respawn();
+            case "inventory" -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+            case "mouse" -> {
+                String[] a = arg.split(" ");
+                moveMouse(mc, Double.parseDouble(a[0]), Double.parseDouble(a[1]));
+            }
+            case "hover" -> {
+                if (mc.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> cs) {
+                    var slot = cs.getMenu().slots.get(Integer.parseInt(arg));
+                    moveMouse(mc, cs.getGuiLeft() + slot.x + 8, cs.getGuiTop() + slot.y + 8);
+                }
+            }
             case "npc" -> {
                 String[] a = arg.split(" ");
                 if (a[0].equals("scroll")) com.beyondsolo.client.npc.NpcBoardScreen.scrollBy(Float.parseFloat(a[1]));

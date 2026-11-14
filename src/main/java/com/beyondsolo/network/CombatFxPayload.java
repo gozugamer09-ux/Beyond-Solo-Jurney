@@ -22,7 +22,17 @@ public record CombatFxPayload(int entityId, Kind kind, int param) implements Cus
         /** A remedy cured something. param = DamageElement index. */
         CURE,
         /** A combat roll (dust trail). */
-        ROLL
+        ROLL,
+        /** Frozen solid. param = ticks. */
+        FREEZE,
+        /** A frozen target's ice shattered under a hit. */
+        SHATTER,
+        /** Lightning arced into this entity. param = the entity it came from. */
+        CHAIN,
+        /** An expanding ring of light. param = rgb | radius (blocks) << 24. */
+        NOVA,
+        /** A weapon signature art went off. param = rgb. */
+        SIGNATURE
     }
 
     public static final Type<CombatFxPayload> TYPE = new Type<>(BeyondSolo.id("combat_fx"));

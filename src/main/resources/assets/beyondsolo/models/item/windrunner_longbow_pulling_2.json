@@ -1,0 +1,6 @@
+{
+  "parent": "beyondsolo:item/windrunner_longbow",
+  "textures": {
+    "layer0": "beyondsolo:item/windrunner_longbow_pulling_2"
+  }
+}
