@@ -204,9 +204,10 @@ public final class CombatWorldFx {
             pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
             switch (b.kind) {
                 case BLOOD_POP -> {
-                    dotTex(pose, buffers, camera, BURST, 0, h * 0.6f, 0, size * (0.6f + 1.2f * out), 0xE01A2A, fade * 1.2f, b.start * 37);
-                    dot(pose, buffers, camera, 0, h * 0.6f, 0, size * (0.5f + 0.8f * out), 0xFF2030, fade);
-                    ringAt(pose, buffers, h * 0.55f, size * (0.4f + 2.2f * out), 0xD3172A, fade);
+                    dotTex(pose, buffers, camera, BURST, 0, h * 0.6f, 0, size * (0.9f + 1.8f * out), 0xE01A2A, fade * 1.3f, b.start * 37);
+                    dot(pose, buffers, camera, 0, h * 0.6f, 0, size * (0.7f + 1.2f * out), 0xFF2030, fade);
+                    ringAt(pose, buffers, h * 0.55f, size * (0.5f + 2.8f * out), 0xD3172A, fade);
+                    ringAt(pose, buffers, 0.05f, size * (0.3f + 2.0f * out), 0x8B0000, fade * 0.8f);
                 }
                 case IGNITE -> {
                     ringAt(pose, buffers, 0.05f, size * (0.3f + 2.6f * out), 0xFF7A2E, fade);

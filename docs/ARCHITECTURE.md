@@ -11,12 +11,14 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `network` | Packets: data sync, pop-ups, stat allocation, the evaluation overlay |
 | `evaluation` | Evaluation Crystal block and block entity, the evaluation flow, village pool injection |
 | `spawn` | Random first spawn and the "find a village" objective |
-| `combat` | `DamageElement` list and the buildup framework (`Buildups`, `BuildupType`) |
+| `combat` | Elements, buildups and statuses, element damage, attributes, sync to clients, exhaustion from combat, Combat Roll hook |
+| `item` | System weapons, armor (and set bonuses), remedies |
 | `client` | Key bindings, client config, the theme colours (`SystemTheme`) |
 | `client.gfx` | The drawing toolkit every System screen uses (see "Drawing the System UI") |
 | `client.screen`, `client.hud`, `client.notify` | System window and tabs, status HUD, pop-ups |
 | `client.evaluation` | The on-screen evaluation: scan read-out and the rank / class / stats reveal |
 | `client.render` | World rendering: the crystal's renderer, render types, client-only effects |
+| `client.combat` | Combat HUD (rail, enemy meters, damage numbers, screen tints) and world effects |
 | `command` | `/system` admin commands |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `quest`, `npc`, `gate` | Reserved for the next modules |
@@ -111,14 +113,68 @@ Rules that came out of building it, worth keeping for gates and bosses:
 - Use rank tier for gate rank, `grantXp` for clear rewards, pop-ups for "gate opened / cleared".
 - GeckoLib is already a dependency for animated gate and boss models.
 
-### Combat (damage types, status, armor and weapons)
-- Elements live in `combat/DamageElement` (physical, fire, poison, crimson, blood). Matching damage types are in
-  `data/beyondsolo/damage_type/`.
-- Status buildups: `Buildups.register(new BuildupType(id, element, threshold, decayPerSecond, resetOnTrigger, onTrigger))`
-  then `Buildups.add(target, type, amount, source)` from hits. Works on players and mobs.
-- Exhaustion: `SystemAPI.addExhaustion(player, amount)` for new fatigue sources; collapse already handles the lockout.
-- Stat-driven bonuses: `StatEffects.register(name, attribute, operation, data -> amount)`.
-- Mana: `SystemAPI.consumeMana(player, cost)` returns false if the player can't pay.
+### Combat (built: see "Combat" below)
+
+## Combat
+
+Better Combat gives attacks their animations, combos and reach; Combat Roll gives the dodge roll. Our weapons are
+plain `SwordItem`s (`item/SystemWeaponItem`) and get a moveset from `data/beyondsolo/weapon_attributes/<item>.json`
+(`{"parent": "bettercombat:claymore"}` and so on). Better Combat only needs those data files, so it is a runtime
+dependency; Combat Roll is compiled against for `ServerSideRollEvents` (rolls cost exhaustion), its attributes (AGI
+buffs) and its key binding (blocked during a collapse), all behind `ModList` checks in `combat/CombatSetup`.
+
+### Elements, buildups, statuses
+
+| Element | Buildup (`Statuses` / `Buildups`) | When full | Cure |
+| --- | --- | --- | --- |
+| Fire | `BURN`, 100, -8/s | Deep Burn (infinite, 1 + 1% max HP every 3 s, half healing) | Quenching Elixir only |
+| Poison | `VENOM`, 35, -5/s | +1 Venom stack (I-IV), the 5th turns into Heavy Venom | Venom: milk, honey, Antidote. Heavy: Greater Antidote |
+| Crimson | `CRIMSON`, 100, -6/s | 8% max HP burst + Crimson Brand (10 s: +25% damage taken, half healing, attackers heal 10%) | milk, Clotting Tonic |
+| Blood | `BLOOD`, 100, -4/s | Blood pop: 10% max HP, ignores armor, enchantments and Resistance | (buildup) Clotting Tonic |
+
+- Add buildup with `Statuses.apply(target, element, amount, source)` (or `Buildups.add`). The target's resistance
+  attribute for that element shrinks it. Players and mobs work the same.
+- Where buildup comes from (`combat/ElementalHits`): System weapons on melee hits (scaled by the attacker's
+  `elemental_power`, which INT feeds), mobs in the entity type tags `beyondsolo:element_attackers/<fire|poison|
+  heavy_poison|crimson|blood>` (amounts in the common config; `heavy_poison` applies Heavy Venom directly, for
+  bosses), and any fire damage (lava triple).
+- Statuses are `MobEffect`s (`combat/ModEffects`, class `CombatStatusEffect`) whose cures are NeoForge `EffectCure`s
+  (`combat/ElementCures`). Leaving `milk` out of the list is what makes an effect ignore milk; leaving
+  `protected_by_totem` out makes it survive a totem.
+- Element damage (`combat/CombatDamage.deal`) uses the four `beyondsolo:` damage types. They are tagged to bypass
+  armor, shields, knockback and the hit cooldown, and `deal` puts the target's hit cooldown back afterwards, so a
+  proc in the middle of a combo neither eats the next swing nor is eaten by it. Blood also bypasses enchantments and
+  Resistance (the "fixed 10%").
+- Attributes (`combat/ModAttributes`, on every living entity): `fire/poison/crimson/blood_resistance` (0-0.9),
+  `exhaustion_resistance`, `elemental_power`.
+
+### Gear
+
+- Weapons have an element, buildup per hit and a weight (dagger 0.6, sword 1, greatsword 1.8). Swing exhaustion is
+  multiplied by the weight (`combat/CombatExhaustion`).
+- Armor (`item/SystemArmorItem`, materials in `registry/ModArmorMaterials`) adds resistances per piece and a set
+  bonus for four pieces (`item/ArmorSets`, applied on equipment change). Heavy sets make sprinting more tiring.
+- Remedies are `item/ElixirItem`s: a drink that runs a cure and hands back the bottle.
+
+### Combat on the client
+
+- `CombatSync` sends each entity's buildups (as fractions) and status flags to the players tracking it, once per
+  tick and only when something changed (`CombatStatePayload`). `CombatFx.play` sends one-off effects
+  (`CombatFxPayload`: blood pop, ignite, venom stack, heavy venom, crimson burst, cure, roll). `DamageNumbers`
+  sends damage numbers to the attacker, and element damage to everyone close by.
+- `client/combat/CombatHud` draws, with the `client.gfx` toolkit: the player's rail of buildup gauges and status
+  capsules next to the status capsule, meters and status chips over creatures in a fight, damage numbers
+  (`FloatingNumbers`), the screen-edge tint of a deep burn, heavy venom or brand, and the flash of a pop or a cure.
+  Things over entities are projected from the world (`WorldProjector`, matrices captured every frame) so they can
+  use the same smooth shapes and font as the rest of the UI.
+- `CombatWorldFx` draws the light: the crimson brand's sigil under a target, the glow of a deep burn or heavy venom,
+  and the rings and bursts of pops, ignitions and cures, through `ModRenderTypes.lightTexture`. Vanilla particles
+  only for bursts and embers. Game time, so it follows `/tick rate`.
+- A collapsed player can't swing or roll: `CombatClientEvents` swallows the attack and roll keys (the server
+  cancels the attack anyway).
+
+Textures (weapons, armor icons and model layers, bottles, effect icons, the sigil and burst light textures) are
+made by `tools/gen_combat_assets.py`.
 
 ## World generation
 
@@ -139,4 +195,8 @@ is in the class comment. The driver does nothing unless the game was started tha
 
 `test/SystemGameTests` covers: the structure has its crystal, evaluation by the crystal, awakening hands out bonus
 stats and buffs, XP levels up and stat points raise attributes, no XP before evaluation, exhaustion collapse and
-recovery, and the blood buildup pop.
+recovery, and the blood buildup pop. `test/CombatGameTests` covers: burn into deep burn, deep burn ignores milk and
+totems but the elixir cures it, venom stacking into heavy venom and which cures work, crimson brand damage, the
+blood pop through armor, buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
+exhaustion resistance, and that every weapon has a Better Combat file. Fake players can't take damage, so damage
+checks use zombies.

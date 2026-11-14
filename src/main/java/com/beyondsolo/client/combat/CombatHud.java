@@ -46,6 +46,8 @@ public final class CombatHud {
         float visible;
         double since = Anim.now();
         boolean live;
+        /** Label kept from while the status was active, so it doesn't change while fading out. */
+        String label;
 
         Slot(String key) {
             this.key = key;
@@ -145,7 +147,7 @@ public final class CombatHud {
             Vec3 pos = e.getPosition(partial).add(0, e.getBbHeight() + 0.55, 0);
             float[] p = WorldProjector.project(pos);
             if (p == null) continue;
-            float scale = (float) Math.max(0.6, Math.min(1.1, 7.0 / Math.max(1, dist)));
+            float scale = (float) Math.max(0.75, Math.min(1.3, 9.0 / Math.max(1, dist)));
             float old = Gfx.fade(s.visible * (dist > 22 ? (float) (28 - dist) / 6f : 1f));
             drawMeters(g, s, p[0], p[1], scale);
             Gfx.setAlpha(old);
@@ -154,8 +156,8 @@ public final class CombatHud {
 
     private static void drawMeters(GuiGraphics g, ClientCombatState.State s, float cx, float bottom, float scale) {
         CombatStatePayload d = s.data;
-        float barW = 34 * scale;
-        float barH = 3.2f * scale;
+        float barW = 38 * scale;
+        float barH = 3.6f * scale;
         float gap = 2.2f * scale;
         float y = bottom;
         float fresh = 1 - Anim.outCubic(Anim.progress(s.lastRise, 0.5f));
@@ -293,6 +295,8 @@ public final class CombatHud {
                 inst = mc.player.getEffect(ModEffects.CRIMSON_BRAND);
             }
         }
+        if (s.live || s.label == null) s.label = label;
+        else label = s.label;
         float pulse = Anim.pulse(s.key.equals("deep_burn") ? 0.7f : 1.2f);
         float labelW = Math.max(SysFont.width(label, 7.5f, true), sub == null ? 0 : SysFont.width(sub, 6f, false));
         float w = 2 * r + 8 + labelW + 8;
