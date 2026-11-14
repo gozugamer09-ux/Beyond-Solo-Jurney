@@ -68,6 +68,7 @@ public final class SkillOverlay {
                         Component.translatable("skills.beyondsolo.level_up.body", s.displayName(), p.level())));
             }
             case SkillMomentPayload.REFUSED -> refuse(p.skill(), p.level());
+            case SkillMomentPayload.COMBO -> ComboHud.combo(s, p.level());
             default -> {}
         }
     }
