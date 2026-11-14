@@ -722,10 +722,21 @@ public final class JobTrial {
         if (level != null) level.playSound(null, at.x, at.y, at.z, sound, SoundSource.PLAYERS, volume, pitch);
     }
 
-    /** For tests: jump a running trial ahead. */
-    static void forTests(ServerPlayer player, java.util.function.Consumer<Session> change) {
+    /** Tests: the living echoes and the Arbiter of a player's running trial. */
+    public static List<net.minecraft.world.entity.LivingEntity> foes(ServerPlayer player) {
+        List<net.minecraft.world.entity.LivingEntity> out = new ArrayList<>();
         Session s = SESSIONS.get(player.getUUID());
-        if (s != null) change.accept(s);
+        if (s == null || s.level == null) return out;
+        for (UUID id : s.foes) if (s.level.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity e && e.isAlive()) out.add(e);
+        GateBossEntity b = boss(s);
+        if (b != null && b.isAlive()) out.add(b);
+        return out;
+    }
+
+    /** Tests: whether the Arbiter has not landed a hit yet. */
+    public static boolean flawless(ServerPlayer player) {
+        Session s = SESSIONS.get(player.getUUID());
+        return s != null && s.flawless;
     }
 
     /** Commands: skips to a phase of a running trial (waves, boss, verdict), optionally forcing the result. */

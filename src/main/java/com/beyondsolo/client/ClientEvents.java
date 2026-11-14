@@ -127,6 +127,7 @@ public final class ClientEvents {
     /** What the hide key does right now: skips the evaluation reveal if it is playing, otherwise hides or recalls pop-ups. */
     public static void hideKeyPressed() {
         if (EvaluationOverlay.skip()) return;
+        if (com.beyondsolo.client.job.JobRevealOverlay.skip()) return;
         if (QuestOverlay.skip()) return;
         if (com.beyondsolo.client.skill.SkillOverlay.skip()) return;
         if (com.beyondsolo.client.gate.GateOverlay.skip()) return;

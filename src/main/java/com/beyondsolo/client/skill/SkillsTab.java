@@ -55,6 +55,9 @@ public class SkillsTab implements SystemTab {
     private static List<Skill> skills() {
         SystemData sys = ClientSystemData.get();
         List<Skill> list = new ArrayList<>(Skills.forClass(sys.playerClass()));
+        // after the job change: the subclass's own skills
+        com.beyondsolo.job.Subclass sub = com.beyondsolo.client.job.JobClient.subclass();
+        if (sub != null) list.addAll(Skills.forSubclass(sub));
         // skills from another class (e.g. before a job change) still show while known
         for (Skill s : ClientSkills.known()) if (!list.contains(s)) list.add(s);
         return list;
