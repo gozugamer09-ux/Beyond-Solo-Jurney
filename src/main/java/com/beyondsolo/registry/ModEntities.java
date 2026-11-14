@@ -25,10 +25,16 @@ public final class ModEntities {
             () -> EntityType.Builder.<com.beyondsolo.gate.GateBossEntity>of(com.beyondsolo.gate.GateBossEntity::new, MobCategory.MONSTER)
                     .sized(1.7f, 3.3f).eyeHeight(2.9f).fireImmune().clientTrackingRange(12).build("gate_boss"));
 
+    /** The Hollow Arbiter, the giant at the end of the awakening trial. */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.beyondsolo.awakening.ArbiterEntity>> ARBITER = ENTITY_TYPES.register("arbiter",
+            () -> EntityType.Builder.<com.beyondsolo.awakening.ArbiterEntity>of(com.beyondsolo.awakening.ArbiterEntity::new, MobCategory.MONSTER)
+                    .sized(3.4f, 10.5f).eyeHeight(9.2f).fireImmune().clientTrackingRange(16).build("arbiter"));
+
     @SubscribeEvent
     static void attributes(EntityAttributeCreationEvent event) {
         event.put(TRAVELER.get(), TravelerEntity.attributes().build());
         event.put(GATE_BOSS.get(), com.beyondsolo.gate.GateBossEntity.attributes().build());
+        event.put(ARBITER.get(), com.beyondsolo.awakening.ArbiterEntity.attributes().build());
     }
 
     private ModEntities() {}

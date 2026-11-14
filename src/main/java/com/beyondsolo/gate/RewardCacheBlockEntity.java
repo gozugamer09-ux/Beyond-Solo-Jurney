@@ -51,6 +51,9 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     private long droppedAt = -1;
     private long openedAt = -1;
     private boolean burst;
+    /** The Arbiter's cache: one legendary weapon instead of a gate's loot. */
+    private boolean legendary;
+    @Nullable private java.util.UUID legendaryFor;
 
     public RewardCacheBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REWARD_CACHE.get(), pos, state);
@@ -60,6 +63,16 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     public long droppedAt() { return droppedAt; }
     public long openedAt() { return openedAt; }
     public boolean isOpen() { return openedAt >= 0; }
+    public boolean isLegendary() { return legendary; }
+
+    /** Makes this the cache of the Hollow Arbiter (awakening trial): it holds one legendary weapon for {@code owner}. */
+    public void setupLegendary(@Nullable java.util.UUID owner, long droppedAt) {
+        this.rank = PlayerRank.S;
+        this.legendary = true;
+        this.legendaryFor = owner;
+        this.droppedAt = droppedAt;
+        changed();
+    }
 
     public void setup(PlayerRank rank, long droppedAt) {
         this.rank = rank;
@@ -73,7 +86,7 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         return Mth.clamp((level.getGameTime() + partialTick - droppedAt) / DROP_TICKS, 0f, 1f);
     }
 
-    public void open(ServerPlayer player) {
+    public void open(@Nullable ServerPlayer player) {
         if (openedAt >= 0 || level == null || landed(0) < 1f) return;
         openedAt = level.getGameTime();
         changed();
@@ -106,8 +119,22 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     }
 
     private void burst(ServerLevel server) {
-        List<ItemStack> loot = GateLoot.roll(rank, server.random);
         double x = worldPosition.getX() + 0.5, y = worldPosition.getY() + 1.0, z = worldPosition.getZ() + 0.5;
+        if (legendary) {
+            // one weapon, straight up out of the light, and it is theirs
+            ItemEntity item = new ItemEntity(server, x, y, z, com.beyondsolo.awakening.AwakeningService.rollLegendary(server.random));
+            item.setDeltaMovement(0, 0.5, 0);
+            item.setPickUpDelay(30);
+            item.setGlowingTag(true);
+            server.addFreshEntity(item);
+            server.sendParticles(ParticleTypes.FIREWORK, x, y, z, 80, 0.3, 0.3, 0.3, 0.35);
+            server.sendParticles(ParticleTypes.END_ROD, x, y + 1, z, 60, 0.4, 1.2, 0.4, 0.12);
+            server.playSound(null, worldPosition, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.BLOCKS, 1.5f, 0.8f);
+            server.playSound(null, worldPosition, SoundEvents.TOTEM_USE, SoundSource.BLOCKS, 1f, 1.2f);
+            com.beyondsolo.awakening.AwakeningService.legendaryOut(server, legendaryFor, item);
+            return;
+        }
+        List<ItemStack> loot = GateLoot.roll(rank, server.random);
         for (int i = 0; i < loot.size(); i++) {
             double a = i * Math.PI * 2 / loot.size() + server.random.nextDouble() * 0.4;
             ItemEntity item = new ItemEntity(server, x, y, z, loot.get(i).copy());
@@ -137,6 +164,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         tag.putLong("droppedAt", droppedAt);
         tag.putLong("openedAt", openedAt);
         tag.putBoolean("burst", burst);
+        tag.putBoolean("legendary", legendary);
+        if (legendaryFor != null) tag.putUUID("legendaryFor", legendaryFor);
     }
 
     @Override
@@ -147,6 +176,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         droppedAt = tag.contains("droppedAt") ? tag.getLong("droppedAt") : -1;
         openedAt = tag.contains("openedAt") ? tag.getLong("openedAt") : -1;
         burst = tag.getBoolean("burst");
+        legendary = tag.getBoolean("legendary");
+        legendaryFor = tag.hasUUID("legendaryFor") ? tag.getUUID("legendaryFor") : null;
     }
 
     @Override

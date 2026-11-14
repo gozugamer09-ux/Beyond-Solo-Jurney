@@ -96,9 +96,11 @@ public final class ClientEvents {
             if (mc.player == null) return;
             EvaluationOverlay.tick();
             while (OPEN_SYSTEM.consumeClick()) {
-                if (mc.screen == null) mc.setScreen(new SystemScreen());
+                // no System, no window: before the awakening the key does nothing at all
+                if (mc.screen == null && ClientSystemData.get().hasSystem()) mc.setScreen(new SystemScreen());
             }
             while (NOTIFICATION_MODE.consumeClick()) {
+                if (!ClientSystemData.get().hasSystem()) continue;
                 ClientConfig.NotificationMode mode = ClientConfig.cycleMode();
                 mc.player.displayClientMessage(Component.translatable("message.beyondsolo.mode_changed",
                         Component.translatable("mode.beyondsolo." + mode.name().toLowerCase())), true);
@@ -107,6 +109,7 @@ public final class ClientEvents {
                 hideKeyPressed();
             }
             while (ACCEPT_QUEST.consumeClick()) {
+                if (!ClientSystemData.get().hasSystem()) continue;
                 if (!ClientQuests.acceptLatest()) {
                     mc.player.displayClientMessage(Component.translatable("message.beyondsolo.no_offer"), true);
                 }

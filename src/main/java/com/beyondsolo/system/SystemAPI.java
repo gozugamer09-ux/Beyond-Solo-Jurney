@@ -33,12 +33,30 @@ public final class SystemAPI {
         return get(player).isAwakened();
     }
 
+    /**
+     * True once the System is bound to the player (the awakening trial, see {@code awakening.AwakeningService}).
+     * Before that there are no System windows, pop-ups or quests. Evaluated players always have it.
+     */
+    public static boolean hasSystem(Player player) {
+        return get(player).hasSystem();
+    }
+
+    /** Binds the System to the player. Fires {@link SystemEvent.SystemGranted} the first time. */
+    public static void grantSystem(ServerPlayer player) {
+        SystemData data = get(player);
+        if (data.hasSystem()) return;
+        data.setHasSystem(true);
+        sync(player);
+        NeoForge.EVENT_BUS.post(new SystemEvent.SystemGranted(player));
+    }
+
     // ---------- awakening / rank / class ----------
 
     /** Activates the System for the player with the given rank and class and hands out bonus stats. */
     public static void awaken(ServerPlayer player, PlayerRank rank, PlayerClass playerClass) {
         SystemData data = get(player);
         data.setAwakened(true);
+        data.setHasSystem(true);
         data.setRank(rank);
         data.setPlayerClass(playerClass);
         data.resetStats();

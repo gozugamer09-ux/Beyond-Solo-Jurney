@@ -48,7 +48,7 @@ import java.util.UUID;
  * and a two-fisted slam that hits everything around it; below half health it roars again, calls in help and
  * attacks faster. On death it drops to its knees and slumps (the death animation), and the gate opens its way out.
  */
-public class GateBossEntity extends Monster implements GeoEntity {
+public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     public static final int INTRO_TICKS = 70;
     public static final int DEATH_TICKS = 70;
 
@@ -126,6 +126,11 @@ public class GateBossEntity extends Monster implements GeoEntity {
 
     public GateTheme theme() {
         return GateTheme.of(rank());
+    }
+
+    @Override
+    public int barColor() {
+        return rank().color();
     }
 
     @Nullable

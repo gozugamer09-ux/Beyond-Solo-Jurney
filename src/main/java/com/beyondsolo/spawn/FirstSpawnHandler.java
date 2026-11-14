@@ -51,16 +51,23 @@ public final class FirstSpawnHandler {
                 player.setRespawnPosition(level.dimension(), spot, 0f, true, false);
             }
         }
-        if (!data.isAwakened()) {
-            // Wait a moment so the pop-ups don't play behind the loading screen.
-            ServerScheduler.schedule(60, () -> {
-                if (player.isRemoved() || SystemAPI.isAwakened(player)) return;
-                Notifications.send(player, SystemNotification.of(SystemNotification.Kind.INFO,
-                        Component.translatable("notify.beyondsolo.welcome.title"),
-                        Component.translatable("notify.beyondsolo.welcome.body")));
-                SystemAPI.setObjective(player, Objectives.FIND_VILLAGE);
-            });
-        }
+        // With the awakening trial off, the System is there from the first moment (AwakeningService grants it on
+        // login, before this runs or right after); with it on, the welcome waits for the awakening.
+        if (!data.isAwakened() && (data.hasSystem() || !com.beyondsolo.Config.AWAKENING_TRIAL.get())) systemIntro(player, 60);
+    }
+
+    /**
+     * The System's first words to a player it has just bound to: the welcome, and the way to a village and its
+     * Evaluation Zone. {@code delay} ticks from now, so it doesn't play behind a loading screen or the awakening.
+     */
+    public static void systemIntro(ServerPlayer player, int delay) {
+        ServerScheduler.schedule(delay, () -> {
+            if (player.isRemoved() || player.hasDisconnected() || SystemAPI.isAwakened(player) || !SystemAPI.hasSystem(player)) return;
+            Notifications.send(player, SystemNotification.of(SystemNotification.Kind.INFO,
+                    Component.translatable("notify.beyondsolo.welcome.title"),
+                    Component.translatable("notify.beyondsolo.welcome.body")));
+            SystemAPI.setObjective(player, Objectives.FIND_VILLAGE);
+        });
     }
 
     /** Picks a random dry surface spot between the configured min and max distance from world spawn. */

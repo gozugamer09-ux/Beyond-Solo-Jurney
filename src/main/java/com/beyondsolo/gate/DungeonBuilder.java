@@ -269,6 +269,10 @@ public final class DungeonBuilder {
             for (int k = 1; k <= h; k++) placeIfAir(level, top.below(k), theme.mainWall());
         }
 
+        if (theme == GateTheme.TRIAL) {
+            decorateTrial(level, room, c, floor, r);
+            if (room.kind() == DungeonLayout.Kind.BOSS) return;
+        }
         switch (room.kind()) {
             case BOSS -> {
                 // a ring of pillars around the arena, each crowned with light
@@ -295,9 +299,81 @@ public final class DungeonBuilder {
         }
     }
 
+    /**
+     * The awakening trial: chains hang from every ceiling, and the last hall is the Arbiter's: a smooth dark floor
+     * inlaid with two rings of gold around where it kneels, broken columns of white stone round the edge (some
+     * snapped off, some reaching the roof) with chains strung from them, and soul fire in braziers between them.
+     */
+    private void decorateTrial(ServerLevel level, DungeonLayout.Room room, BlockPos c, int floor, RandomSource r) {
+        int chains = room.kind() == DungeonLayout.Kind.BOSS ? 14 : 3 + r.nextInt(3);
+        for (int i = 0; i < chains; i++) {
+            float a = r.nextFloat() * Mth.TWO_PI, d = 0.25f + r.nextFloat() * 0.6f;
+            BlockPos top = march(level, new BlockPos(c.getX() + Math.round(Mth.cos(a) * d * room.rx()), floor + 3, c.getZ() + Math.round(Mth.sin(a) * d * room.rz())), 0, 1, 0, room.ry() * 2 + 4);
+            if (top == null) continue;
+            int h = 2 + r.nextInt(room.kind() == DungeonLayout.Kind.BOSS ? 8 : 4);
+            for (int k = 1; k <= h; k++) {
+                BlockPos p = top.below(k);
+                if (p.getY() <= floor + 4) break;
+                placeIfAir(level, p, k == h && r.nextBoolean() ? Blocks.SOUL_LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true) : Blocks.CHAIN.defaultBlockState());
+            }
+        }
+        if (room.kind() != DungeonLayout.Kind.BOSS) return;
+
+        // the floor: dark polished stone, two gold rings and gold spokes
+        int rx = room.rx(), rz = room.rz();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int x = -rx; x <= rx; x++) {
+            for (int z = -rz; z <= rz; z++) {
+                float d = Mth.sqrt((x * x) / (float) (rx * rx) + (z * z) / (float) (rz * rz));
+                if (d > 0.93f) continue;
+                p.set(c.getX() + x, floor - 1, c.getZ() + z);
+                if (level.getBlockState(p).isAir() || !level.getBlockState(p.above()).isAir()) continue;
+                float ring1 = Math.abs(d - 0.3f), ring2 = Math.abs(d - 0.62f);
+                double ang = Math.atan2(z, x);
+                boolean spoke = d > 0.3f && d < 0.62f && Math.abs(Math.sin(ang * 4)) < 0.06;
+                BlockState s = ring1 < 0.022f || ring2 < 0.018f || spoke ? Blocks.GOLD_BLOCK.defaultBlockState()
+                        : d < 0.3f ? Blocks.POLISHED_BLACKSTONE.defaultBlockState()
+                        : (Math.floorMod(x + z, 2) == 0 ? Blocks.POLISHED_DEEPSLATE : Blocks.DEEPSLATE_TILES).defaultBlockState();
+                level.setBlock(p, s, FLAGS);
+            }
+        }
+        // broken white columns, chained to each other
+        int columns = 10;
+        for (int i = 0; i < columns; i++) {
+            float a = i * Mth.TWO_PI / columns + 0.15f;
+            int px = c.getX() + Math.round(Mth.cos(a) * rx * 0.8f);
+            int pz = c.getZ() + Math.round(Mth.sin(a) * rz * 0.8f);
+            boolean whole = i % 3 == 0;
+            int h = whole ? room.ry() * 2 + 4 : 4 + r.nextInt(7);
+            for (int k = 0; k < h; k++) {
+                BlockPos at = new BlockPos(px, floor + k, pz);
+                BlockState here = level.getBlockState(at);
+                if (k > 2 && !here.isAir() && !here.is(Blocks.LIGHT)) break;
+                BlockState s = k == 0 || k % 6 == 5 ? Blocks.CHISELED_QUARTZ_BLOCK.defaultBlockState() : Blocks.QUARTZ_PILLAR.defaultBlockState();
+                level.setBlock(at, s, FLAGS);
+                if (!whole && k == h - 1) {
+                    // a snapped top: a few chips around it
+                    for (Direction dir : Direction.Plane.HORIZONTAL) if (r.nextInt(3) == 0) placeIfAir(level, at.relative(dir).below(k), Blocks.CALCITE.defaultBlockState());
+                }
+            }
+            // a brazier of soul fire between this column and the next
+            float b = a + Mth.PI / columns;
+            BlockPos br = new BlockPos(c.getX() + Math.round(Mth.cos(b) * rx * 0.74f), floor, c.getZ() + Math.round(Mth.sin(b) * rz * 0.74f));
+            if (level.getBlockState(br).isAir()) {
+                level.setBlock(br, Blocks.POLISHED_BLACKSTONE_WALL.defaultBlockState(), FLAGS);
+                placeIfAir(level, br.above(), Blocks.SOUL_CAMPFIRE.defaultBlockState());
+            }
+        }
+        BlockState fill = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 11);
+        for (int i = 0; i < 6; i++) {
+            float a = i * Mth.TWO_PI / 6;
+            placeIfAir(level, new BlockPos(c.getX() + Math.round(Mth.cos(a) * rx * 0.45f), floor + 4, c.getZ() + Math.round(Mth.sin(a) * rz * 0.45f)), fill);
+        }
+    }
+
     private ResourceKey<LootTable> sideLoot() {
         return switch (theme) {
-            case E, D -> BuiltInLootTables.SIMPLE_DUNGEON;
+            case E, D, TRIAL -> BuiltInLootTables.SIMPLE_DUNGEON;
             case C -> BuiltInLootTables.ABANDONED_MINESHAFT;
             case B -> BuiltInLootTables.ANCIENT_CITY;
             case A -> BuiltInLootTables.BASTION_OTHER;

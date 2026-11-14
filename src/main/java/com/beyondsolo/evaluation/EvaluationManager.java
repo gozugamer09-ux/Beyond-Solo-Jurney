@@ -78,6 +78,12 @@ public final class EvaluationManager {
     static void interact(ServerPlayer player, BlockPos crystal) {
         if (SESSIONS.containsKey(player.getUUID())) return;
         SystemData data = SystemAPI.get(player);
+        if (!data.hasSystem()) {
+            // the crystal answers the System, and they don't have it yet
+            player.displayClientMessage(Component.translatable("message.beyondsolo.crystal_silent"), true);
+            player.serverLevel().playSound(null, crystal, SoundEvents.AMETHYST_BLOCK_HIT, SoundSource.BLOCKS, 0.8f, 0.5f);
+            return;
+        }
         if (data.isAwakened()) {
             Notifications.send(player, SystemNotification.of(SystemNotification.Kind.INFO,
                     Component.translatable("notify.beyondsolo.already_evaluated.title"),
