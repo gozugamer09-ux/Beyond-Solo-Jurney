@@ -329,7 +329,8 @@ public final class GateService {
         GateData data = GateData.get(player.server);
         GateInstance g = data.bySlotPos(player.blockPosition());
         if (g == null || g.state() == GateInstance.State.CLOSED) {
-            if (!inTransit(player)) sendHome(player);
+            // the job change trial also takes place in this dimension, in its own halls
+            if (!inTransit(player) && !com.beyondsolo.job.JobTrial.inTrial(player)) sendHome(player);
             return;
         }
         if (!g.built()) return;

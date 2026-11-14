@@ -52,6 +52,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -64,7 +65,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -103,6 +106,8 @@ public final class JobTrial {
         int defeated;
         int goal;
         final List<UUID> foes = new ArrayList<>();
+        /** Echoes of the current wave that were killed (an unloaded or missing echo is not a defeated one). */
+        final Set<UUID> killed = new HashSet<>();
         @Nullable UUID boss;
         boolean flawless = true;
         @Nullable Subclass result;
@@ -339,6 +344,7 @@ public final class JobTrial {
         s.wave = wave;
         s.defeated = 0;
         s.foes.clear();
+        s.killed.clear();
         ServerLevel level = s.level;
         List<Vec3> feet = TrialArena.pillarFeet(s.center);
         List<EntityType<? extends Mob>> roster = roster(wave);
@@ -395,16 +401,19 @@ public final class JobTrial {
     }
 
     private static void countFoes(Session s) {
-        int alive = 0;
+        boolean loaded = s.level.isLoaded(s.center);
+        int defeated = 0;
         for (UUID id : s.foes) {
             Entity e = s.level.getEntity(id);
             if (e instanceof LivingEntity l && l.isAlive()) {
-                alive++;
                 if (s.tick % 40 == 0) s.level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 2, 0.2, 0.3, 0.2, 0.01);
                 if (l instanceof Mob m && m.getTarget() != s.player) m.setTarget(s.player);
+            } else if (s.killed.contains(id) || (e == null && loaded && s.player.level() == s.level)) {
+                // killed, or gone from a hall that is loaded around the player (so it can't block the wave)
+                defeated++;
             }
         }
-        s.defeated = s.goal - alive;
+        s.defeated = defeated;
     }
 
     private static void keepFoesInside(Session s) {
@@ -631,16 +640,34 @@ public final class JobTrial {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     static void onDeath(LivingDeathEvent event) {
+        if (event.getEntity().getTags().contains(ECHO_TAG)) {
+            UUID id = event.getEntity().getUUID();
+            for (Session s : SESSIONS.values()) if (s.foes.contains(id)) s.killed.add(id);
+            return;
+        }
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
         Session s = SESSIONS.get(p.getUUID());
         if (s == null || s.phase == Phase.COUNTDOWN) return;
         event.setCanceled(true);
-        if (s.phase == Phase.VERDICT) {
-            p.setHealth(p.getMaxHealth());
-            return;
-        }
+        p.setHealth(p.getMaxHealth() * 0.5f);
+        if (s.phase == Phase.VERDICT) return;
         SESSIONS.remove(p.getUUID());
         fail(s);
+    }
+
+    /** A hit that would kill the player ends the trial instead: no real death, and no totem used up. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    static void onFatalDamage(LivingDamageEvent.Pre event) {
+        if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        Session s = SESSIONS.get(p.getUUID());
+        if (s == null || s.phase == Phase.COUNTDOWN || s.level == null) return;
+        if (event.getNewDamage() < p.getHealth()) return;
+        event.setNewDamage(0);
+        if (s.phase == Phase.VERDICT) return;
+        // ended on the next tick, outside the damage call
+        p.server.execute(() -> {
+            if (SESSIONS.remove(p.getUUID()) == s) fail(s);
+        });
     }
 
     @SubscribeEvent
