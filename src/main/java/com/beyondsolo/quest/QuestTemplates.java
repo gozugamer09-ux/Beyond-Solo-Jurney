@@ -80,7 +80,8 @@ public final class QuestTemplates {
                 .build());
         register(TRIAL_OF_DEPTHS, (p, c) -> QuestBuilder.of(TRIAL_OF_DEPTHS, QuestCategory.SET, p)
                 .text("trial_of_depths")
-                .breakBlocks("#c:ores", 10)
+                // the gate module advances this when a gate's boss falls (com.beyondsolo.gate.GateService.CLEAR_KEY)
+                .custom(id("gate_clear"), 1, net.minecraft.network.chat.Component.translatable("quest_objective.beyondsolo.gate_clear"))
                 .kill(Targets.HOSTILE, 15)
                 .xp(400).statPoints(3).item(new ItemStack(ModItems.QUENCHING_ELIXIR.get()))
                 .rewardTitle("Relentless")

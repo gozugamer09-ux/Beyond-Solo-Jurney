@@ -25,7 +25,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
 | `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
-| `gate` | Reserved for the next module |
+| `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
+| `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
 
 ## Rules for new modules
 
@@ -107,9 +108,7 @@ Rules that came out of building it, worth keeping for gates and bosses:
 
 ### NPC quests (built: see "Villager requests" below)
 
-### Gates and dungeons
-- Use rank tier for gate rank, `grantXp` for clear rewards, pop-ups for "gate opened / cleared".
-- GeckoLib is already a dependency for animated gate and boss models.
+### Gates and dungeons (built: see "Gates and dungeons" below)
 
 ### Combat (built: see "Combat" below)
 
@@ -233,6 +232,39 @@ the handed-in items into the portrait with gold shockwaves. `NpcMarkers` draws t
 
 `/system npc open|reroll|spawn <profession> [level]|give <kind>|ready|nest` for testing.
 
+## Gates and dungeons
+
+A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. Each one owns a `GateInstance`
+(saved in `GateData`, overworld saved data): its seed, its slot in the gate dimension, and how far the clear has got.
+
+| Piece | Does |
+| --- | --- |
+| `GateTheme` | One per rank: the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
+| `DungeonLayout` | The plan of a cave from its seed: a winding chain of caverns, side caves with a chest, the boss arena at the end, curved tunnels between them. Pure logic, tested without a world |
+| `DungeonBuilder` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick), then decorates: wall lights, fill light, stalagmites, pillars round the arena, side-cave loot |
+| `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
+| `GateBossEntity` | GeckoLib boss: dormant until someone enters the arena, then a roar intro; swipe and slam attacks with the gate's element; enrages under half health (adds, faster); long death animation |
+| `RewardCacheBlock(Entity)` | Falls in a beam of light, lands, opens with a lid animation and bursts out `GateLoot` |
+| `GateFeature`, `GateSpawner` | World-gen (`worldgen/placed_feature/gate.json`, rarity 1 in 220 chunks, rank grows with distance from 0,0) and gates tearing open near players (config `gates.openChancePerMinute`) |
+
+Instances sit `SLOT_SPACING` (2048) blocks apart along x in the gate dimension; `GateData.bySlotPos` finds the gate
+for a position there. A cleared cave closes once nobody is left in it, and its gate in the world collapses.
+
+Hooks: the gate quest (`QuestCategory.GATE`, started on entering, fails if you die inside) uses CUSTOM objectives
+`beyondsolo:gate_mob` and `beyondsolo:gate_boss`; any quest can use `beyondsolo:gate_clear` (the System line's
+Trial of the Depths does). Gate monsters carry `MOB_TAG` and add their gate's element buildup on hit.
+
+On the client (`client.gate`): `GateRenderer` (the GeckoLib ring of rock with glow masks, plus the vortex drawn as
+light: it tears open as a slit and collapses with a flash), `GateBossRenderer` (magic circle, enrage, the pillar of
+light on death), `RewardCacheRenderer` (beam, fall and bounce, landing ring, the burst), and `GateOverlay` (entering,
+arriving, leaving, boss intro with cinema bars, defeated stamp, dungeon cleared, the boss bar, camera shake).
+Models, animations and textures come from `tools/gen_gate_assets.py`.
+
+The game-test server does not load datapack dimensions, so there (only) caves are carved into the overworld and
+walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
+
+`/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -258,6 +290,7 @@ blood pop through armor, buildup on players, weapon hits, resistances, armor set
 exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
+`test/GateGameTests` covers: the cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
