@@ -11,6 +11,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
@@ -123,10 +124,45 @@ public final class SkillHooks {
             if (data.hasBuff(SkillActions.BUFF_GAZE, now)) {
                 amount *= 1 + SkillActions.weakSpotBonus(Math.max(1, data.level(Skills.APPRAISING_GAZE.path()))) / 100f;
             }
+            int cruel = data.level(Skills.CRUEL_PRECISION.path());
+            if (cruel > 0 && melee && fromBehind(p, target)) amount *= 1 + 0.04f * cruel;
             int eagle = data.level(Skills.EAGLE_EYE.path());
             if (eagle > 0 && direct instanceof AbstractArrow) amount *= 1 + 0.04f * eagle;
         }
+        // Arrow Rain carries its element like any other skill hit
+        if (direct instanceof AbstractArrow arrow && arrow.getTags().contains(SkillActions.RAIN_TAG) && arrow.getOwner() instanceof ServerPlayer owner) {
+            amount = SkillCombat.strike(owner, target, Skills.ARROW_RAIN.element(), amount);
+        }
+        // Thorned Guard: whoever strikes the guardian in melee is cut in return
+        if (target instanceof ServerPlayer guard && attacker instanceof LivingEntity striker && direct == attacker && striker != guard) {
+            int thorns = SkillAPI.level(guard, Skills.THORNED_GUARD);
+            if (thorns > 0 && SystemAPI.isAwakened(guard) && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.THORNS)) striker.hurt(guard.damageSources().thorns(guard), 0.5f * thorns);
+        }
         if (amount != event.getAmount()) event.setAmount(amount);
+    }
+
+    private static boolean fromBehind(ServerPlayer p, LivingEntity target) {
+        Vec3 facing = Vec3.directionFromRotation(0, target.getYHeadRot());
+        Vec3 to = target.position().subtract(p.position()).multiply(1, 0, 1);
+        return to.lengthSqr() > 1.0e-4 && to.normalize().dot(facing) > 0.3;
+    }
+
+    /** Bloodlust: a kill gives back health and mana. */
+    @SubscribeEvent
+    static void onKill(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
+        if (event.getSource().getEntity() instanceof ServerPlayer p && event.getEntity() != p) {
+            int lust = SkillAPI.level(p, Skills.BLOODLUST);
+            if (lust > 0 && p.isAlive()) {
+                p.heal(0.5f * lust);
+                SystemAPI.restoreMana(p, lust);
+            }
+        }
+        if (event.getEntity() instanceof ServerPlayer dead) SkillCombat.clear(dead);
+    }
+
+    @SubscribeEvent
+    static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        SkillCombat.clear(event.getEntity());
     }
 
     private static void endStealth(ServerPlayer p, String buff) {

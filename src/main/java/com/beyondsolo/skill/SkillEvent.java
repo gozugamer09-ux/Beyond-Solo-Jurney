@@ -55,4 +55,33 @@ public abstract class SkillEvent extends Event {
 
         public int getLevel() { return level; }
     }
+
+    /** A cast chained onto the one before it. {@code getCount()} is the length of the chain (2 or more). */
+    public static final class Combo extends SkillEvent {
+        private final int count;
+
+        public Combo(ServerPlayer player, Skill skill, int count) {
+            super(player, skill);
+            this.count = count;
+        }
+
+        public int getCount() { return count; }
+    }
+
+    /** Two elements met on a creature and reacted. */
+    public static final class Reaction extends net.neoforged.bus.api.Event {
+        private final ServerPlayer player;
+        private final net.minecraft.world.entity.LivingEntity target;
+        private final SkillReaction reaction;
+
+        public Reaction(ServerPlayer player, net.minecraft.world.entity.LivingEntity target, SkillReaction reaction) {
+            this.player = player;
+            this.target = target;
+            this.reaction = reaction;
+        }
+
+        public ServerPlayer getPlayer() { return player; }
+        public net.minecraft.world.entity.LivingEntity getTarget() { return target; }
+        public SkillReaction getReaction() { return reaction; }
+    }
 }
