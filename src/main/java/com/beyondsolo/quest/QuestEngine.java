@@ -90,7 +90,7 @@ public final class QuestEngine {
             player.level().playSound(null, player.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.PLAYERS, 0.35f, 1.6f);
         }
         NeoForge.EVENT_BUS.post(new QuestEvent.Started(player, quest));
-        if (quest.isComplete()) complete(player, quest);
+        if (quest.isComplete()) finish(player, quest);
     }
 
     /** Starts a template by id. Returns the quest, or null if there is no such template. */
@@ -125,9 +125,79 @@ public final class QuestEngine {
     /** Gives up an active quest. Story quests can't be abandoned; the rest fail with half their penalty. */
     public static boolean abandon(ServerPlayer player, UUID id) {
         Quest q = data(player).find(id);
-        if (q == null || q.status() != Quest.Status.ACTIVE || q.category() == QuestCategory.SET) return false;
+        if (q == null || !q.isTaken() || q.category() == QuestCategory.SET) return false;
         fail(player, q, QuestEvent.FailReason.ABANDONED);
         return true;
+    }
+
+    /** Every objective is done: completes the quest, or makes it READY if it has to be handed in first. */
+    public static void finish(ServerPlayer player, Quest quest) {
+        if (quest.needsTurnIn()) markReady(player, quest);
+        else complete(player, quest);
+    }
+
+    /** The objectives are done; the player is told to bring the quest back to its giver. */
+    static void markReady(ServerPlayer player, Quest quest) {
+        if (quest.status() != Quest.Status.ACTIVE) return;
+        quest.markReady();
+        sync(player);
+        event(player, QuestEventPayload.READY, quest, 0);
+        QuestGiver giver = quest.giver();
+        Notifications.send(player, new SystemNotification(SystemNotification.Kind.QUEST,
+                Component.translatable("quest.beyondsolo.ready.title", quest.title()),
+                Component.translatable("quest.beyondsolo.ready.body", giver == null ? Component.empty() : giver.name()), 20 * 8));
+        player.level().playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8f, 1.4f);
+        NeoForge.EVENT_BUS.post(new QuestEvent.Ready(player, quest));
+    }
+
+    /**
+     * Hands a READY quest in: takes the items its delivery objectives ask for and completes it.
+     * Returns false (and puts it back in progress) if the player no longer has everything.
+     */
+    public static boolean turnIn(ServerPlayer player, Quest quest) {
+        if (quest.status() != Quest.Status.READY) return false;
+        refresh(player, quest);
+        if (!quest.isComplete()) {
+            quest.unready();
+            sync(player);
+            return false;
+        }
+        for (QuestObjective o : quest.objectives()) {
+            if (o.type() == ObjectiveType.COLLECT && o.consume()) take(player, o.target(), o.required());
+        }
+        complete(player, quest);
+        return true;
+    }
+
+    /** Removes {@code count} matching items from the inventory (main inventory and offhand). */
+    private static void take(ServerPlayer player, String target, int count) {
+        int left = count;
+        List<ItemStack> stacks = new ArrayList<>(player.getInventory().items);
+        stacks.addAll(player.getInventory().offhand);
+        for (ItemStack stack : stacks) {
+            if (left <= 0) break;
+            if (!Targets.item(target, stack)) continue;
+            int n = Math.min(left, stack.getCount());
+            stack.shrink(n);
+            left -= n;
+        }
+        player.getInventory().setChanged();
+    }
+
+    /**
+     * The quest no longer has to be handed in (its giver is gone): a READY quest completes now, and an active
+     * one will complete as soon as its objectives are done.
+     */
+    public static void releaseFromGiver(ServerPlayer player, Quest quest) {
+        QuestGiver giver = quest.giver();
+        if (giver == null || !giver.turnIn()) return;
+        quest.setGiver(giver.withTurnIn(false));
+        if (quest.status() == Quest.Status.READY) {
+            quest.unready();
+            if (quest.isComplete()) complete(player, quest);
+        } else {
+            sync(player);
+        }
     }
 
     public static void complete(ServerPlayer player, Quest quest) {
@@ -223,10 +293,10 @@ public final class QuestEngine {
                     if (o.done() && !q.isComplete()) event(player, QuestEventPayload.OBJECTIVE, q, i);
                 }
             }
-            if (q.isComplete()) done.add(q);
+            if (q.status() == Quest.Status.ACTIVE && q.isComplete()) done.add(q);
         }
         if (changed) sync(player);
-        for (Quest q : done) complete(player, q);
+        for (Quest q : done) finish(player, q);
     }
 
     /** Re-counts objectives that look at the player's state (items held, level). */
@@ -301,10 +371,15 @@ public final class QuestEngine {
                 continue;
             }
             if (refresh(player, q)) changed = true;
-            if (q.isComplete()) completed.add(q);
+            if (q.status() == Quest.Status.READY && !q.isComplete()) {
+                // dropped or used the items it needs: back to work
+                q.unready();
+                changed = true;
+            }
+            if (q.status() == Quest.Status.ACTIVE && q.isComplete()) completed.add(q);
         }
         if (changed) sync(player);
-        for (Quest q : completed) complete(player, q);
+        for (Quest q : completed) finish(player, q);
 
         QuestTriggers.check(player, data);
     }

@@ -21,6 +21,11 @@ public abstract class QuestEvent extends Event {
         public Started(ServerPlayer player, Quest quest) { super(player, quest); }
     }
 
+    /** Every objective is done, but the quest still has to be handed in to its giver. */
+    public static final class Ready extends QuestEvent {
+        public Ready(ServerPlayer player, Quest quest) { super(player, quest); }
+    }
+
     /** Every objective is done. Rewards were already given. */
     public static final class Completed extends QuestEvent {
         public Completed(ServerPlayer player, Quest quest) { super(player, quest); }
@@ -39,7 +44,9 @@ public abstract class QuestEvent extends Event {
     }
 
     public enum FailReason {
-        TIME, FLED, DIED, ABANDONED, DAY_ENDED;
+        TIME, FLED, DIED, ABANDONED, DAY_ENDED,
+        /** Someone the quest was about (an escorted traveller) died. */
+        LOST;
 
         public net.minecraft.network.chat.Component describe() {
             return net.minecraft.network.chat.Component.translatable("quest_fail.beyondsolo." + name().toLowerCase());

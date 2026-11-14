@@ -58,6 +58,12 @@ public final class ClientQuests {
                         Component.translatable("quest.beyondsolo.log.failed", quest.title()), reason.describe()));
             }
             case QuestEventPayload.OBJECTIVE -> QuestTracker.objectiveDone(quest.id(), payload.detail());
+            case QuestEventPayload.READY -> {
+                QuestTracker.ready(quest.id());
+                NotificationManager.log(SystemNotification.of(SystemNotification.Kind.QUEST,
+                        Component.translatable("quest.beyondsolo.ready.title", quest.title()),
+                        Component.translatable("quest.beyondsolo.ready.body", quest.giver() == null ? Component.empty() : quest.giver().name())));
+            }
             default -> {}
         }
     }
@@ -122,7 +128,7 @@ public final class ClientQuests {
     }
 
     public static boolean canAbandon(Quest q) {
-        return q.status() == Quest.Status.ACTIVE && q.category() != QuestCategory.SET;
+        return q.isTaken() && q.category() != QuestCategory.SET;
     }
 
     public static void clear() {

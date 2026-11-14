@@ -48,6 +48,17 @@ public final class ModNetwork {
                     }
                 }));
 
+        registrar.playToClient(NpcBoardPayload.TYPE, NpcBoardPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onNpcBoard(payload)));
+        registrar.playToClient(NpcMarkersPayload.TYPE, NpcMarkersPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onNpcMarkers(payload)));
+        registrar.playToServer(NpcActionPayload.TYPE, NpcActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer player) {
+                        com.beyondsolo.npc.NpcService.handle(player, payload.action(), payload.entity(), payload.slot(), payload.quest());
+                    }
+                }));
+
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     Stat stat = Stat.byIndex(payload.stat());

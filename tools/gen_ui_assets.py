@@ -9,7 +9,7 @@ size and can add outlines and glows for free. That is why one 128px texture work
 and a 90px class emblem.
 
 Sources:
-- tools/icons-src/*.svg: Phosphor Icons (fill weight), MIT License, see LICENSE_PhosphorIcons_MIT.txt there.
+- tools/icons-src/*.svg: Phosphor Icons (bold weight), MIT License, see LICENSE_PhosphorIcons_MIT.txt there.
   The licence text ships in the jar as licenses/phosphor_icons_mit.txt.
 - Rank letters: Exo 2 ExtraBold Italic, SIL Open Font License 1.1, see tools/fonts-src/OFL.txt.
 """
@@ -81,6 +81,14 @@ ICONS = {
     "run": "person-simple-run",
     "shield": "shield",
     "weight": "barbell",
+    "package": "package",
+    "handshake": "handshake",
+    "flag": "flag-banner",
+    "path": "path",
+    "exclaim": "exclamation-mark",
+    "question": "question-mark",
+    "chat": "chat-circle-dots",
+    "villagers": "users-three",
 }
 
 RANKS = "EDCBAS"

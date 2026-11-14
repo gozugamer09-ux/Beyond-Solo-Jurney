@@ -35,8 +35,14 @@ public final class QuestData implements INBTSerializable<CompoundTag> {
 
     public List<Quest> all() { return quests; }
 
+    /** Quests the player has: in progress, or done and waiting to be handed in. */
     public List<Quest> active() {
-        return quests.stream().filter(q -> q.status() == Quest.Status.ACTIVE).toList();
+        return quests.stream().filter(Quest::isTaken).toList();
+    }
+
+    /** Quests whose objectives are done and that wait to be handed in to their giver. */
+    public List<Quest> ready() {
+        return quests.stream().filter(q -> q.status() == Quest.Status.READY).toList();
     }
 
     public List<Quest> offers() {

@@ -18,6 +18,8 @@ public record QuestEventPayload(int kind, CompoundTag quest, int detail) impleme
     public static final int COMPLETED = 1;
     public static final int FAILED = 2;
     public static final int OBJECTIVE = 3;
+    /** Objectives done, the quest waits to be handed in. */
+    public static final int READY = 4;
 
     public static final Type<QuestEventPayload> TYPE = new Type<>(BeyondSolo.id("quest_event"));
     public static final StreamCodec<ByteBuf, QuestEventPayload> STREAM_CODEC = StreamCodec.composite(

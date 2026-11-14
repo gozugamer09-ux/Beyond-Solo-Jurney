@@ -43,6 +43,14 @@ public final class Icons {
     public static final ResourceLocation RUN = icon("run");
     public static final ResourceLocation SHIELD = icon("shield");
     public static final ResourceLocation WEIGHT = icon("weight");
+    public static final ResourceLocation PACKAGE = icon("package");
+    public static final ResourceLocation HANDSHAKE = icon("handshake");
+    public static final ResourceLocation FLAG = icon("flag");
+    public static final ResourceLocation PATH = icon("path");
+    public static final ResourceLocation EXCLAIM = icon("exclaim");
+    public static final ResourceLocation QUESTION = icon("question");
+    public static final ResourceLocation CHAT = icon("chat");
+    public static final ResourceLocation VILLAGERS = icon("villagers");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

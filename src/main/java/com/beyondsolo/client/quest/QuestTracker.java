@@ -60,6 +60,26 @@ public final class QuestTracker {
         }
     }
 
+    private static final Map<UUID, Double> READY_AT = new HashMap<>();
+
+    static void ready(UUID quest) {
+        READY_AT.put(quest, Anim.now());
+    }
+
+    /** The extra line under a quest's objectives: where to hand it in, or how far the marked spot is. Null if none. */
+    private static String guideLine(Quest q) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return null;
+        if (q.status() == Quest.Status.READY && q.giver() != null) {
+            double d = Math.sqrt(q.giver().pos().distToCenterSqr(mc.player.position()));
+            return Component.translatable("quest.beyondsolo.tracker.turn_in", q.giver().name(), Math.round(d)).getString();
+        }
+        net.minecraft.world.phys.Vec3 at = com.beyondsolo.client.npc.NpcMarkers.waypoint(q);
+        if (at == null) return null;
+        double dx = at.x - mc.player.getX(), dz = at.z - mc.player.getZ();
+        return Component.translatable("quest.beyondsolo.tracker.waypoint", Math.round(Math.sqrt(dx * dx + dz * dz))).getString();
+    }
+
     static void objectiveDone(UUID quest, int index) {
         DONE_AT.put(quest + "#" + index, Anim.now());
     }
@@ -70,6 +90,7 @@ public final class QuestTracker {
         SEEN.clear();
         FLASH.clear();
         DONE_AT.clear();
+        READY_AT.clear();
         offerShown = 0;
     }
 
@@ -108,7 +129,9 @@ public final class QuestTracker {
         int color = q.category().color();
         List<QuestObjective> objectives = q.objectives();
         float rowH = 12.5f;
-        float h = 17 + objectives.size() * rowH + 3;
+        String guide = guideLine(q);
+        boolean ready = q.status() == Quest.Status.READY;
+        float h = 17 + objectives.size() * rowH + 3 + (guide != null ? 11 : 0);
         float k = Anim.outCubic(appear);
         float old = Gfx.fade(k);
         x -= (1 - k) * 24;
@@ -116,6 +139,12 @@ public final class QuestTracker {
         long left = ClientQuests.ticksLeft(q);
         boolean urgent = left >= 0 && left < 20 * 30;
         float urgentPulse = urgent ? Anim.pulse(0.6f) : 0;
+        if (ready) {
+            // waiting to be handed in: gold, breathing
+            color = SystemTheme.GOLD;
+            float flash = READY_AT.containsKey(q.id()) ? 1 - Anim.outCubic(Anim.progress(READY_AT.get(q.id()), 1.4f)) : 0;
+            Shapes.box(x - 1, y - 1, WIDTH + 2, h + 2).radius(8).fill(0x00000000).glow(6 + 10 * flash, Gfx.alpha(color, 0.18f + 0.15f * Anim.pulse(1.4f) + 0.5f * flash)).draw(g);
+        }
         Shapes.box(x + 1, y + 2, WIDTH - 2, h - 2).radius(7).fill(0x00000000).glow(7, 0x48000000).draw(g);
         Shapes.box(x, y, WIDTH, h).radius(7).fillV(Gfx.fade(SystemTheme.GLASS_TOP, 0.84f), Gfx.fade(SystemTheme.GLASS_BOTTOM, 0.84f))
                 .border(0.75f, Gfx.alpha(urgent ? SystemTheme.DANGER : color, 0.65f + 0.3f * urgentPulse), Gfx.alpha(color, 0.18f))
@@ -165,6 +194,11 @@ public final class QuestTracker {
                 Ui.bar(g, x + 19, oy + 8, WIDTH - 26, 1.8f, bar, a, Gfx.mix(b, 0xFFFFFFFF, flash * 0.6f));
             }
             oy += rowH;
+        }
+        if (guide != null) {
+            int gc = ready ? SystemTheme.GOLD : SystemTheme.ACCENT_BRIGHT;
+            Shapes.icon(ready ? Icons.HANDSHAKE : Icons.PIN, x + 12, oy + 3.5f, 7.5f).fill(gc).glow(ready ? 2 + 2 * Anim.pulse(1.2f) : 1, Gfx.alpha(gc, 0.6f)).draw(g);
+            SysFont.text(g, SysFont.fit(guide, 6.8f, true, WIDTH - 26), x + 19, oy, 6.8f, Gfx.mix(gc, 0xFFFFFFFF, 0.25f));
         }
         Gfx.setAlpha(old);
         return h * k + (1 - k) * 0;

@@ -49,5 +49,13 @@ public final class ClientPayloadHandler {
         ClientQuests.onEvent(payload);
     }
 
+    public static void onNpcBoard(com.beyondsolo.network.NpcBoardPayload payload) {
+        com.beyondsolo.client.npc.NpcBoardScreen.receive(payload.data());
+    }
+
+    public static void onNpcMarkers(com.beyondsolo.network.NpcMarkersPayload payload) {
+        com.beyondsolo.client.npc.NpcMarkers.update(payload);
+    }
+
     private ClientPayloadHandler() {}
 }

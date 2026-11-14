@@ -15,6 +15,8 @@ public final class QuestObjective {
     private final int required;
     private final boolean areaOnly;
     private final Component label;
+    /** COLLECT only: the items are taken when the quest is handed in. */
+    private boolean consume;
     private int progress;
 
     public QuestObjective(ObjectiveType type, String target, int required, boolean areaOnly, Component label) {
@@ -31,6 +33,12 @@ public final class QuestObjective {
     public boolean areaOnly() { return areaOnly; }
     public Component label() { return label; }
     public int progress() { return progress; }
+    public boolean consume() { return consume; }
+
+    QuestObjective consuming() {
+        this.consume = true;
+        return this;
+    }
     public boolean done() { return progress >= required; }
     public float fraction() { return Math.min(1f, progress / (float) required); }
 
@@ -49,6 +57,7 @@ public final class QuestObjective {
         tag.putInt("required", required);
         tag.putInt("progress", progress);
         tag.putBoolean("areaOnly", areaOnly);
+        if (consume) tag.putBoolean("consume", true);
         tag.putString("label", Component.Serializer.toJson(label, provider));
         return tag;
     }
@@ -58,6 +67,7 @@ public final class QuestObjective {
         QuestObjective o = new QuestObjective(ObjectiveType.byName(tag.getString("type")), tag.getString("target"),
                 tag.getInt("required"), tag.getBoolean("areaOnly"), label);
         o.progress = Math.min(o.required, tag.getInt("progress"));
+        o.consume = tag.getBoolean("consume");
         return o;
     }
 }
