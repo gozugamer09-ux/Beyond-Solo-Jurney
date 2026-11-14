@@ -58,6 +58,7 @@ public final class SystemCommand {
                 .then(Commands.literal("reset").executes(ctx -> {
                     SystemAPI.reset(ctx.getSource().getPlayerOrException());
                     com.beyondsolo.quest.QuestEngine.reset(ctx.getSource().getPlayerOrException());
+                    com.beyondsolo.skill.SkillAPI.reset(ctx.getSource().getPlayerOrException());
                     return ok(ctx, "reset");
                 }))
                 .then(Commands.literal("xp").then(Commands.argument("amount", IntegerArgumentType.integer(1)).executes(ctx -> {

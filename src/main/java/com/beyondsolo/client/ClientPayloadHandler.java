@@ -61,5 +61,17 @@ public final class ClientPayloadHandler {
         com.beyondsolo.client.gate.GateOverlay.handle(payload);
     }
 
+    public static void onSkillSync(com.beyondsolo.network.SkillSyncPayload payload) {
+        com.beyondsolo.client.skill.ClientSkills.update(payload.data());
+    }
+
+    public static void onSkillMoment(com.beyondsolo.network.SkillMomentPayload payload) {
+        com.beyondsolo.client.skill.SkillOverlay.handle(payload);
+    }
+
+    public static void onSkillFx(com.beyondsolo.network.SkillFxPayload payload) {
+        com.beyondsolo.client.skill.SkillWorldFx.play(payload);
+    }
+
     private ClientPayloadHandler() {}
 }

@@ -27,6 +27,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
+| `skill` | Skills: definitions (`Skills`), what each one does (`SkillActions`), a player's known skills, bar, cooldowns and buffs (`SkillData`), passives, tomes, and `SkillAPI` |
+| `client.skill` | The skill bar on the HUD, the Skills tab, the Skill Acquired moment, skill effects in the world (`SkillWorldFx`), the Appraising Gaze read-outs |
 
 ## Rules for new modules
 
@@ -265,6 +267,48 @@ walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
 
 `/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
 
+## Skills
+
+A `Skill` is a definition: active or passive, its class (`null` means every class), grade, unlock level, mana cost,
+cooldown, element (`SkillElement`) and, for actives, the `Action` that runs it. `Skills` registers them all;
+`SkillActions` holds what they do and the numbers they share. What a player knows lives in `SkillData`
+(attachment `ModAttachments.SKILLS`, kept through death, mirrored to the client): level 1 to 10 and proficiency per
+skill, the four bar slots, cooldowns, and short buffs other skills read (stealth, the empowered strike).
+
+Everything goes through `SkillAPI`:
+
+| Call | What it does |
+| --- | --- |
+| `grantUnlocked(player)` | Teaches what class, rank and level have unlocked. Runs on awakening, level-ups, rank changes, login. A higher rank unlocks skills a few levels earlier |
+| `learn` / `addLevels` / `addProficiency` / `forget` | Single skills. Learning an active puts it in the first free bar slot |
+| `cast(player, skill)` / `castSlot` | Checks awakened, not collapsed, cooldown, mana; posts the cancellable `SkillEvent.Cast`; runs the action; spends mana, starts the cooldown, adds fatigue and 1 proficiency. An action that finds no target returns false and costs nothing |
+| `grantAdvanced(player)` | **The job change hook**: teaches the class's `advanced` skills (one per class so far) |
+| `refreshForClass(player)` | After a class change: forgets other classes' skills, grants the new class's |
+| `setBuff` / `hasBuff` / `clearBuff` | Timed flags, read in `SkillHooks` |
+
+Skills grow by use (1 proficiency per cast; passives gain with player levels), by tomes and by `addLevels`. Power
+scales with level and with the stat the skill names (`SkillActions.mult`, `statBonus`). Passives are transient
+attribute modifiers reapplied by `SkillPassives.apply` whenever skills change. `SkillHooks` wires the rest:
+damage modifiers (marks, stealth openers, weak spots), mobs losing track of a stealthed player, upkeep each second.
+
+Skill tomes (`SkillTomeItem`): an unread one teaches a random fitting skill the player lacks, or raises one they
+have; a named one (`ModComponents.SKILL`) teaches that skill. Gate caches drop them (`GateLoot`), two System quests
+reward them. Events for other modules: `SkillEvent.Learned` (with its source), `LevelUp`, `Cast`.
+
+Adding a skill: one `Skills` entry with its element, an action in `SkillActions` that sends a `SkillFxPayload`
+kind for the look (`client.skill.SkillWorldFx` draws each kind with the light textures and particles; add a kind
+for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools/gen_ui_assets.py`
+(`skill_<path>`), and a test. Subclasses will be extra `Skills` entries marked `advanced` with their own owner,
+granted through `grantAdvanced`. Still to come: combos (chained casts) and element reactions; `SkillEvent.Cast`
+and the element on every skill are there for them.
+
+On the client: keys Z, X, C, G cast the bar (rebindable, `SkillActionPayload`), `SkillBar` shows cooldown sweeps
+and refusals, `SkillOverlay` plays Skill Acquired and the level-up banner (waits for the evaluation, quest and gate
+overlays; the hide key skips it), `SkillsTab` is the Skills page of the System window.
+
+`/system skill list|learn <skill> [level]|levelup <skill> [n]|forget|cast|slot <n> <skill>|cooldowns|unlocked|advanced|tome [skill]|reset`
+for testing; `screen skills` in the UI driver opens the tab.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -299,3 +343,4 @@ timeouts and penalties, fleeing, offers, inventory and level objectives, the dai
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
 checks use zombies.
+`test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element.

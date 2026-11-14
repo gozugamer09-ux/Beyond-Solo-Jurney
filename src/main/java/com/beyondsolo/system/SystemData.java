@@ -23,6 +23,8 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     private int statPoints;
     private final int[] stats = new int[Stat.values().length];
     private float mana;
+    /** Extra max mana from skills (Arcane Font). Not saved: skills put it back on login. */
+    private float manaBonus;
     private float exhaustion;
     private int collapseTicks;
     private boolean firstJoinHandled;
@@ -44,7 +46,8 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     public int statPoints() { return statPoints; }
     public int stat(Stat stat) { return stats[stat.ordinal()]; }
     public float mana() { return mana; }
-    public float maxMana() { return 50 + (stat(Stat.INT) - Stat.BASE) * 5f; }
+    public float maxMana() { return 50 + (stat(Stat.INT) - Stat.BASE) * 5f + manaBonus; }
+    public float manaBonus() { return manaBonus; }
     public float exhaustion() { return exhaustion; }
     public boolean isCollapsed() { return collapseTicks > 0; }
     public int collapseTicks() { return collapseTicks; }
@@ -63,6 +66,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     void setStatPoints(int points) { this.statPoints = Math.max(0, points); }
     void setStat(Stat stat, int value) { stats[stat.ordinal()] = Math.max(Stat.BASE, value); }
     void setMana(float mana) { this.mana = Mth.clamp(mana, 0, maxMana()); }
+    void setManaBonus(float bonus) { this.manaBonus = Math.max(0, bonus); }
     void setExhaustion(float exhaustion) { this.exhaustion = Mth.clamp(exhaustion, 0, 100); }
     void setCollapseTicks(int ticks) { this.collapseTicks = Math.max(0, ticks); }
     void setFirstJoinHandled(boolean handled) { this.firstJoinHandled = handled; }
@@ -96,6 +100,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
         for (Stat s : Stat.values()) statTag.putInt(s.key(), stats[s.ordinal()]);
         tag.put("stats", statTag);
         tag.putFloat("mana", mana);
+        tag.putFloat("manaBonus", manaBonus);
         tag.putFloat("exhaustion", exhaustion);
         tag.putInt("collapseTicks", collapseTicks);
         tag.putBoolean("firstJoinHandled", firstJoinHandled);
@@ -118,6 +123,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
         for (Stat s : Stat.values()) {
             stats[s.ordinal()] = statTag.contains(s.key()) ? Math.max(Stat.BASE, statTag.getInt(s.key())) : Stat.BASE;
         }
+        manaBonus = tag.getFloat("manaBonus");
         mana = tag.getFloat("mana");
         exhaustion = tag.getFloat("exhaustion");
         collapseTicks = tag.getInt("collapseTicks");

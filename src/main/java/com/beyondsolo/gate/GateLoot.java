@@ -38,6 +38,9 @@ public final class GateLoot {
         int armorStart = t <= 1 ? 0 : t <= 2 ? 4 : 8;
         int pieces = r.nextFloat() < 0.7f ? 1 + (t >= 4 ? 1 : 0) : 0;
         for (int i = 0; i < pieces; i++) out.add(new ItemStack(ModItems.ARMOR.get(armorStart + r.nextInt(4)).get()));
+        // skill tomes: rarer in low gates, almost certain at the top
+        if (r.nextFloat() < 0.3f + 0.12f * t) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
+        if (t >= 4 && r.nextFloat() < 0.4f) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
         return out;
     }
 

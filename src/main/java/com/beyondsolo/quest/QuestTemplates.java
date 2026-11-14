@@ -76,14 +76,14 @@ public final class QuestTemplates {
                 .text("growth")
                 .reachLevel(5)
                 .travel(600)
-                .xp(260).statPoints(2).mana(50)
+                .xp(260).statPoints(2).mana(50).item(com.beyondsolo.skill.SkillTomeItem.unread())
                 .build());
         register(TRIAL_OF_DEPTHS, (p, c) -> QuestBuilder.of(TRIAL_OF_DEPTHS, QuestCategory.SET, p)
                 .text("trial_of_depths")
                 // the gate module advances this when a gate's boss falls (com.beyondsolo.gate.GateService.CLEAR_KEY)
                 .custom(id("gate_clear"), 1, net.minecraft.network.chat.Component.translatable("quest_objective.beyondsolo.gate_clear"))
                 .kill(Targets.HOSTILE, 15)
-                .xp(400).statPoints(3).item(new ItemStack(ModItems.QUENCHING_ELIXIR.get()))
+                .xp(400).statPoints(3).item(new ItemStack(ModItems.QUENCHING_ELIXIR.get())).item(com.beyondsolo.skill.SkillTomeItem.unread())
                 .rewardTitle("Relentless")
                 .build());
 

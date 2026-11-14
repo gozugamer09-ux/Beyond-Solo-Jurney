@@ -26,7 +26,9 @@ public final class BeyondSolo {
         ModAttributes.ATTRIBUTES.register(modBus);
         ModEffects.EFFECTS.register(modBus);
         ModArmorMaterials.MATERIALS.register(modBus);
+        com.beyondsolo.registry.ModComponents.COMPONENTS.register(modBus);
         ModItems.ITEMS.register(modBus);
+        com.beyondsolo.skill.Skills.init();
         ModItems.TABS.register(modBus);
         Statuses.init();
         ModBlockEntities.BLOCK_ENTITIES.register(modBus);
