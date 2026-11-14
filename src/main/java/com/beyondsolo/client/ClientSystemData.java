@@ -32,6 +32,15 @@ public final class ClientSystemData {
         get();
     }
 
+    /** Radius of the sealed gate's circle on the ground (the server's tether; the config default on a remote server). */
+    public static float tetherRadius() {
+        try {
+            return com.beyondsolo.Config.TETHER_RADIUS.get();
+        } catch (IllegalStateException e) {
+            return 18f;
+        }
+    }
+
     static void clear() {
         data = new SystemData();
         lastTag = new CompoundTag();

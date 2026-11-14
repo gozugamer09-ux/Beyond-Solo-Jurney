@@ -50,7 +50,8 @@ public final class StatusHud {
         else if (collapse < 0.02f) collapseTotal = 0;
         if (collapse > 0.01f) drawCollapse(g, d);
 
-        visible = Anim.approach(visible, hidden ? 0 : 1, 8f);
+        // the HUD is the System's: it isn't there until the System is (and it slides in when it binds)
+        visible = Anim.approach(visible, hidden || !d.hasSystem() ? 0 : 1, d.hasSystem() ? 8f : 100f);
         if (!ClientConfig.SHOW_HUD.get() || mc.getDebugOverlay().showDebugScreen() || visible < 0.02f) {
             bottom = 8;
             return;

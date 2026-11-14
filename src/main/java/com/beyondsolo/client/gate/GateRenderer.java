@@ -31,6 +31,8 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
     private static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
     private static final int EXIT_COLOR = 0x9FE6FF;
+    private static final int SEALED_COLOR = 0xF2D58A;
+    private static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
 
     public GateRenderer(BlockEntityRendererProvider.Context context) {
         super(new GateModels.Gate());
@@ -43,7 +45,7 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         if (gate.getLevel() == null) return;
         float open = gate.openness(partialTick);
         float time = (gate.getLevel().getGameTime() % 24000L) + partialTick;
-        int rgb = gate.isExit() ? EXIT_COLOR : gate.rank().color();
+        int rgb = gate.isExit() ? EXIT_COLOR : gate.isSealed() ? SEALED_COLOR : gate.rank().color();
         int pale = GateFx.mix(rgb, 0xFFFFFF, 0.45f);
 
         // opening: a slit that grows tall first, then widens; closing runs it backwards
@@ -104,6 +106,18 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         }
         pose.popPose();
 
+        if (gate.isSealed() && open > 0.05f) {
+            // the sealed gate's hold on its player: a wide circle on the ground that nothing of theirs leaves, and
+            // a tighter one turning the other way under the gate
+            float beat = 0.6f + 0.4f * Mth.sin(time * 0.16f);
+            pose.pushPose();
+            pose.translate(0.5f, 0f, 0.5f);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, 0.08f, com.beyondsolo.client.ClientSystemData.tetherRadius() * open, 0, rgb, 0.5f * beat * open);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.1f, 4.2f * open, -time * 1.4f, rgb, 0.7f * open);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, 0.06f, 6f * open, 0, rgb, 0.3f * beat * open);
+            pose.popPose();
+        }
+
         // a beam over the gate, so it can be found from far away
         if (open > 0.5f && !gate.isExit()) {
             pose.pushPose();
@@ -148,6 +162,7 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     @Override
     public AABB getRenderBoundingBox(GateBlockEntity gate) {
         BlockPos p = gate.getBlockPos();
-        return new AABB(p.getX() - 4, p.getY() - 1, p.getZ() - 4, p.getX() + 5, p.getY() + 100, p.getZ() + 5);
+        int r = gate.isSealed() ? 70 : 4;
+        return new AABB(p.getX() - r, p.getY() - 1, p.getZ() - r, p.getX() + r + 1, p.getY() + 100, p.getZ() + r + 1);
     }
 }

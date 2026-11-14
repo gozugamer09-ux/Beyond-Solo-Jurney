@@ -8,7 +8,7 @@ import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.notify.NotificationManager;
-import com.beyondsolo.gate.GateBossEntity;
+import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.network.GatePayload;
 import com.beyondsolo.system.PlayerRank;
@@ -108,7 +108,7 @@ public final class GateOverlay {
     /** As the boss is named, the camera turns to it. */
     private static void lookAtBoss(float dt) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || !(mc.level.getEntity(bossId) instanceof GateBossEntity boss)) return;
+        if (mc.player == null || mc.level == null || !(mc.level.getEntity(bossId) instanceof net.minecraft.world.entity.LivingEntity boss)) return;
         Vec3 eye = mc.player.getEyePosition();
         Vec3 to = boss.position().add(0, boss.getBbHeight() * 0.6, 0).subtract(eye);
         double flat = Math.sqrt(to.x * to.x + to.z * to.z);
@@ -220,7 +220,18 @@ public final class GateOverlay {
         }
     }
 
+    /** The player has no System yet (before the awakening trial): the moments play without System text. */
+    private static boolean noSystem() {
+        return !com.beyondsolo.client.ClientSystemData.get().hasSystem();
+    }
+
+    /** The awakening trial has no rank. */
+    private static boolean trial(Moment m) {
+        return m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal();
+    }
+
     private static int rankColor(Moment m) {
+        if (m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal()) return 0xFF000000 | com.beyondsolo.gate.GateTheme.TRIAL.color();
         return SystemTheme.rank(PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)]);
     }
 
@@ -249,7 +260,7 @@ public final class GateOverlay {
 
         // label
         float textIn = Anim.outCubic(Anim.window(t, 0.15f, 0.6f)) * (1 - Anim.window(t, 1.6f, 1.95f));
-        if (textIn > 0.01f) {
+        if (textIn > 0.01f && !noSystem()) {
             float old = Gfx.fade(textIn);
             String label = Component.translatable(exit ? "gate.beyondsolo.leaving" : "gate.beyondsolo.overlay.entering").getString().toUpperCase();
             SysFont.spaced(g, label, cx, cy - 22 - 6 * (1 - textIn), 7f, Gfx.mix(color, 0xFFFFFFFF, 0.6f), true, 2.2f, 0.5f);
@@ -289,6 +300,11 @@ public final class GateOverlay {
         Ui.divider(g, cx - lw / 2f, y + 22, lw, Gfx.alpha(color, 0.9f));
         Shapes.pill(cx - lw * 0.15f, y + 21.25f, lw * 0.3f, 1.5f).fill(Gfx.mix(color, 0xFFFFFFFF, 0.6f)).glow(6, Gfx.alpha(color, 0.8f)).draw(g);
 
+        if (noSystem()) {
+            // without the System nobody tells you where you are
+            Gfx.setAlpha(old);
+            return;
+        }
         float chipIn = Anim.outBack(Anim.window(t, 0.8f, 1.2f));
         if (chipIn > 0.01f) {
             float o2 = Gfx.fade(Math.min(1f, chipIn));
@@ -306,7 +322,7 @@ public final class GateOverlay {
             if (subIn > 0.01f) {
                 float o3 = Gfx.fade(subIn);
                 float sw = SysFont.width(m.p.subtitle(), 7f, true);
-                Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
+                if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
                 SysFont.draw(g, m.p.subtitle(), cx + 4, y + 28, 7f, Gfx.mix(color, 0xFFFFFFFF, 0.4f), true, 0.5f);
                 Gfx.setAlpha(o3);
             }
@@ -349,7 +365,7 @@ public final class GateOverlay {
         float nameK = Anim.window(t, 0.9f, 1.9f);
         float nw = SysFont.width(m.p.title(), 18f, true);
         if (nameK > 0) {
-            Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
+            if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
             Shapes.box(cx - nw / 2f - 30, y + 10, nw + 60, 22).radius(11).fill(0x00000000).glow(18, Gfx.alpha(color, 0.25f * Anim.outCubic(nameK))).draw(g);
         }
         typed(g, m.p.title(), cx + 6, y + 11, 18f, 0xFFFFFFFF, nameK);
@@ -445,38 +461,40 @@ public final class GateOverlay {
     // ------------------------------------------------------------------ boss bar
 
     private static void bossBar(GuiGraphics g, Minecraft mc, int w) {
-        GateBossEntity boss = null;
+        net.minecraft.world.entity.LivingEntity boss = null;
         if (bossId >= 0 && mc.level != null) {
             Entity e = mc.level.getEntity(bossId);
-            if (e instanceof GateBossEntity b && b.distanceTo(mc.player) < 64) boss = b;
+            if (e instanceof DungeonBoss && e instanceof net.minecraft.world.entity.LivingEntity b && b.distanceTo(mc.player) < 72) boss = b;
         }
         if (boss == null && mc.level != null && mc.level.dimension().equals(GateService.DIMENSION)) {
-            for (GateBossEntity b : mc.level.getEntitiesOfClass(GateBossEntity.class, mc.player.getBoundingBox().inflate(40))) {
-                if (b.isAwake()) {
-                    boss = b;
-                    bossId = b.getId();
-                }
+            for (net.minecraft.world.entity.LivingEntity b : mc.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    mc.player.getBoundingBox().inflate(48), e -> e instanceof DungeonBoss db && db.isAwake())) {
+                boss = b;
+                bossId = b.getId();
             }
         }
-        boolean show = boss != null && boss.isAwake() && boss.introTicks() <= 0 && (boss.isAlive() || boss.deathTime < 20)
+        DungeonBoss db = boss instanceof DungeonBoss d ? d : null;
+        boolean show = db != null && db.isAwake() && db.introTicks() <= 0 && (boss.isAlive() || boss.deathTime < 20)
                 && (current == null || current.p.kind() != GatePayload.BOSS_INTRO);
         barIn = Anim.approach(barIn, show ? 1f : 0f, 3.5f);
-        if (barIn <= 0.01f || boss == null) return;
+        if (barIn <= 0.01f || boss == null || db == null) return;
         float hp = Mth.clamp(boss.getHealth() / boss.getMaxHealth(), 0f, 1f);
         shownHealth = Anim.approach(shownHealth, hp, 2.5f);
         if (hp > trailHealth) trailHealth = hp;
         trailHealth = Anim.approach(trailHealth, shownHealth, 0.45f);
 
-        int color = SystemTheme.rank(boss.rank());
-        boolean enraged = boss.isEnraged();
+        int color = 0xFF000000 | db.barColor();
+        boolean enraged = db.isEnraged();
         float bw = Math.min(260, w * 0.55f), x = (w - bw) / 2f, y = 8 - 20 * (1 - Anim.outCubic(barIn));
         float old = Gfx.fade(barIn);
         float rage = enraged ? 0.5f + 0.5f * Mth.sin((float) Anim.now() * 6f) : 0f;
         Shapes.box(x - 4, y - 2, bw + 8, 25).radius(8).fillV(0xC00A1222, 0xC0050912)
                 .border(0.75f, Gfx.alpha(enraged ? 0xFFFF4050 : color, 0.6f + 0.4f * rage))
                 .glow(8, Gfx.alpha(enraged ? 0xFFFF2040 : color, 0.2f + 0.3f * rage)).draw(g);
-        Ui.rankEmblem(g, boss.rank(), x + 7, y + 8, 5.5f, 0);
-        SysFont.draw(g, boss.getDisplayName(), x + 17, y + 3.5f, 8f, 0xFFFFFFFF, true, 0f);
+        // the Arbiter has no rank to show
+        boolean ranked = !(boss instanceof com.beyondsolo.awakening.ArbiterEntity);
+        if (ranked) Ui.rankEmblem(g, db.rank(), x + 7, y + 8, 5.5f, 0);
+        SysFont.draw(g, boss.getDisplayName(), x + (ranked ? 17 : 6), y + 3.5f, 8f, 0xFFFFFFFF, true, 0f);
         if (enraged) {
             float since = Anim.since(enragedAt);
             float pop = since < 0.5f ? Anim.outBack(Anim.window(since, 0, 0.4f)) : 1f;
@@ -489,7 +507,8 @@ public final class GateOverlay {
             SysFont.draw(g, tag, -tw / 2f, -2.2f, 6f, 0xFFFFE0E0, true, 0.5f);
             g.pose().popPose();
         } else {
-            SysFont.draw(g, Math.round(boss.getHealth()) + " / " + Math.round(boss.getMaxHealth()), x + bw, y + 4.5f, 6f, SystemTheme.TEXT_SOFT, false, 1f);
+            String label = db.healthLabel() != null ? db.healthLabel() : Math.round(boss.getHealth()) + " / " + Math.round(boss.getMaxHealth());
+            SysFont.draw(g, label, x + bw, y + 4.5f, 6f, SystemTheme.TEXT_SOFT, false, 1f);
         }
         float by = y + 15;
         Shapes.pill(x, by, bw, 5).fill(SystemTheme.TRACK).border(0.5f, SystemTheme.TRACK_BORDER).draw(g);

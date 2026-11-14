@@ -17,6 +17,8 @@ public record SkillMomentPayload(int moment, String skill, int level) implements
     public static final int LEARNED = 0;
     public static final int LEVEL_UP = 1;
     public static final int REFUSED = 2;
+    /** A cast chained onto the last one; level is the length of the chain. */
+    public static final int COMBO = 3;
 
     public static final int NO_MANA = 0;
     public static final int COOLDOWN = 1;

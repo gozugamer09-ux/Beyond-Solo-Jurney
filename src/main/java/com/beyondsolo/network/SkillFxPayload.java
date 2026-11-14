@@ -14,7 +14,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * @param color    RGB tint (usually the skill's colour)
  * @param x        a second point the effect needs (bolt end, dash start, meteor landing...)
  * @param size     radius or length in blocks
- * @param duration how long a lasting effect stays (ticks); 0 for one-off bursts
+ * @param duration how long a lasting effect stays (ticks); 0 for one-off bursts. A few one-off kinds use it to pick a look
  */
 public record SkillFxPayload(int entityId, Kind kind, int color, float x, float y, float z, float size, int duration)
         implements CustomPacketPayload {
@@ -52,7 +52,29 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** A streak of light shot from the caster to (x,y,z). */
         SHOT,
         /** Smoke and shadow swallowing the caster. */
-        VEIL
+        VEIL,
+        /** Something rolling along the ground from the caster to (x,y,z), {@code size} wide. Duration picks the look: 0 fire, 1 rock spikes, 2 a charge's wake. */
+        WAVE,
+        /** Blades of light circling the caster for {@code duration} ticks. */
+        SPIN,
+        /** Streaks thrown in a fan from the caster towards (x,y,z). */
+        FAN,
+        /** A burst at (x,y,z). Duration picks the look: 0 water, 1 an impact. */
+        SPLASH,
+        /** A whirlwind standing at (x,y,z) for {@code duration} ticks. */
+        VORTEX,
+        /** A column from the sky onto (x,y,z); duration is the warning before it lands (0 = a lightning strike at once). */
+        PILLAR,
+        /** A ring of petals thrown out from the caster. */
+        BLOSSOM,
+        /** Thorns and chains of shadow holding the ground at (x,y,z) for {@code duration} ticks. */
+        BIND,
+        /** Streaks of light raining onto the circle at (x,y,z) for {@code duration} ticks. */
+        RAIN,
+        /** The element a creature is carrying: a mote circling it for {@code duration} ticks (entity = the creature). */
+        ELEMENT,
+        /** An element reaction at (x,y,z); duration is the {@code SkillReaction} ordinal (entity = the creature). */
+        REACTION
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));

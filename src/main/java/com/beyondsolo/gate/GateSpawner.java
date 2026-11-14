@@ -27,7 +27,15 @@ public final class GateSpawner {
         if (chance <= 0) return;
         ServerLevel level = server.overworld();
         for (ServerPlayer p : level.players()) {
-            if (p.isSpectator() || !SystemAPI.isAwakened(p) || level.random.nextDouble() >= chance) continue;
+            if (p.isSpectator()) continue;
+            if (!SystemAPI.hasSystem(p)) {
+                // not yet awakened: D-rank gates keep opening near them until they have cleared one
+                if (com.beyondsolo.awakening.AwakeningService.stage(p) != com.beyondsolo.awakening.AwakeningData.Stage.DORMANT) continue;
+                if (level.random.nextDouble() >= com.beyondsolo.Config.PRE_SYSTEM_GATE_CHANCE.get() || openGateNear(server, p.blockPosition(), 160)) continue;
+                trySpawnNear(level, p, PlayerRank.D);
+                continue;
+            }
+            if (!SystemAPI.isAwakened(p) || level.random.nextDouble() >= chance) continue;
             if (openGateNear(server, p.blockPosition(), 160)) continue;
             trySpawnNear(level, p);
         }
@@ -42,6 +50,11 @@ public final class GateSpawner {
 
     /** Opens a gate somewhere around the player. Returns null if no good spot was found. */
     public static GateBlockEntity trySpawnNear(ServerLevel level, ServerPlayer p) {
+        return trySpawnNear(level, p, null);
+    }
+
+    /** As above, with the rank fixed (null: near the player's own). */
+    public static GateBlockEntity trySpawnNear(ServerLevel level, ServerPlayer p, @org.jetbrains.annotations.Nullable PlayerRank fixed) {
         RandomSource r = level.random;
         for (int attempt = 0; attempt < 8; attempt++) {
             float a = r.nextFloat() * Mth.TWO_PI;
@@ -51,7 +64,7 @@ public final class GateSpawner {
             BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
             if (!GateFeature.goodSpot(level, top)) continue;
             int tier = SystemAPI.get(p).rank().tier() + (r.nextInt(10) < 3 ? 1 : 0) - (r.nextInt(10) == 0 ? 1 : 0);
-            PlayerRank rank = PlayerRank.values()[Mth.clamp(tier, 0, PlayerRank.values().length - 1)];
+            PlayerRank rank = fixed != null ? fixed : PlayerRank.values()[Mth.clamp(tier, 0, PlayerRank.values().length - 1)];
             Direction facing = Direction.getNearest(p.getX() - top.getX(), 0, p.getZ() - top.getZ());
             if (facing.getAxis().isVertical()) facing = Direction.NORTH;
             GateBlockEntity gate = GateService.spawnGate(level, top, rank, facing, true);

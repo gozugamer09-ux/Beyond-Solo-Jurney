@@ -74,15 +74,18 @@ public final class DungeonLayout {
         for (int i = 1; i <= main; i++) {
             Room prev = rooms.get(rooms.size() - 1);
             boolean boss = i == main;
-            int rx = boss ? 17 : 8 + r.nextInt(5);
-            int rz = boss ? 17 : 8 + r.nextInt(5);
-            int ry = boss ? 11 : 6 + r.nextInt(3);
+            boolean trial = theme == GateTheme.TRIAL;
+            int rx = boss ? (trial ? 23 : 17) : 8 + r.nextInt(5);
+            int rz = boss ? (trial ? 23 : 17) : 8 + r.nextInt(5);
+            int ry = boss ? (trial ? 15 : 11) : 6 + r.nextInt(3);
             Room room = null;
             for (int attempt = 0; attempt < 24 && room == null; attempt++) {
                 float turn = (r.nextFloat() - 0.5f) * (attempt < 12 ? 1.4f : 3.2f);
                 float a = heading + turn;
                 int dist = prev.reach() + Math.max(rx, rz) + 9 + r.nextInt(8);
-                int y = Mth.clamp(prev.center().getY() + r.nextInt(11) - 5, MIN_Y + ry, MAX_Y - ry);
+                // the trial is a descent: every cavern lies a little deeper than the last
+                int dy = trial ? -1 - r.nextInt(4) : r.nextInt(11) - 5;
+                int y = Mth.clamp(prev.center().getY() + dy, MIN_Y + ry, MAX_Y - ry);
                 BlockPos c = new BlockPos(prev.center().getX() + Math.round(Mth.cos(a) * dist), y, prev.center().getZ() + Math.round(Mth.sin(a) * dist));
                 Room candidate = new Room(rooms.size(), c, rx, ry, rz, boss ? Kind.BOSS : Kind.CAVERN);
                 if (clear(rooms, candidate, 5)) {

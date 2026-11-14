@@ -27,6 +27,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
+| `awakening` | How a player gets the System: the stages (`AwakeningData`), the sealed gate and its tether, the trial, the Hollow Arbiter (`ArbiterEntity`), the awakening sequence and the legendary reward (`AwakeningService`) |
+| `client.awakening` | The awakening overlay (called, pulled back, threshold, revive, slain, the awakening itself), the Arbiter's renderer, its attacks drawn as light |
 | `skill` | Skills: definitions (`Skills`), what each one does (`SkillActions`), a player's known skills, bar, cooldowns and buffs (`SkillData`), passives, tomes, and `SkillAPI` |
 | `client.skill` | The skill bar on the HUD, the Skills tab, the Skill Acquired moment, skill effects in the world (`SkillWorldFx`), the Appraising Gaze read-outs |
 
@@ -269,7 +271,7 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 
 | Piece | Does |
 | --- | --- |
-| `GateTheme` | One per rank: the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
+| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
 | `DungeonLayout` | The plan of a cave from its seed: a winding chain of caverns, side caves with a chest, the boss arena at the end, curved tunnels between them. Pure logic, tested without a world |
 | `DungeonBuilder` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick), then decorates: wall lights, fill light, stalagmites, pillars round the arena, side-cave loot |
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
@@ -294,6 +296,38 @@ The game-test server does not load datapack dimensions, so there (only) caves ar
 walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
 
 `/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
+
+## The awakening
+
+Players start without the System. `SystemData.hasSystem()` is the lock: without it there are no pop-ups
+(`Notifications.send` drops them), no System window, HUD or keys, no quests, and the Evaluation Crystal stays dark.
+`isAwakened()` still means "evaluated" and implies `hasSystem()`. Check `SystemAPI.hasSystem(player)` before showing
+a player anything that belongs to the System; check `isAwakened` for anything that needs a rank or a class.
+`SystemEvent.SystemGranted` fires when it is bound. Config `awakening.required = false` gives it at first login.
+
+| Stage (`AwakeningData.Stage`) | What happens |
+| --- | --- |
+| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away |
+| `CALLED` | Set by `AwakeningService.gateCleared` when a gate of rank D or higher is cleared with them inside. When they step out, a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`) opens in front of them. `tether` pulls them back past `awakening.tetherRadius` and re-opens the gate beside them if they get far away or change dimension. Only the owner can enter |
+| `TRIAL` | Inside. Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last cavern reached (`GateInstance.checkpoint`), in the hall the awakening begins |
+| `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
+| `DONE` | Has the System. The evaluation follows as before |
+
+The Hollow Arbiter (`ArbiterEntity`, a `DungeonBoss` like `GateBossEntity`, so the boss bar and intro work for both)
+kneels dormant and invulnerable until its challenger is well inside the hall, rises for `INTRO_TICKS`, then uses
+three attacks: a cleave across everything in front of it, a sunder that sends a ring along the floor (jump it), and
+judgment, marks of light under each player that burst a moment later. Under half health it is unbound: faster,
+double rings, three marks. 1500 health, heavy armour, arrows do little. Killing it (`arbiterSlain`) drops a cache
+that holds one `ModItems.LEGENDARIES` weapon (`LegendaryWeaponItem`), then the awakening plays with
+`arbiterSlain` set, which also gives the title `title.beyondsolo.arbiter_slayer`.
+
+Its model, animations and textures, the sealed gate's texture and the legendary weapons' icons come from
+`tools/gen_awakening_assets.py`. The server's timings (wind-ups, `INTRO_TICKS`, `DEATH_TICKS`) and the animation
+lengths in that script must be changed together. In GeckoLib files a positive x rotation pitches a bone forward
+(top to the front, a hanging limb's end to the back); the script's poses are written as a body moves and converted.
+
+Testing: `/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant`. `reset` takes the System away again
+and closes the old trial; `grant` skips the trial.
 
 ## Skills
 
@@ -327,12 +361,49 @@ Adding a skill: one `Skills` entry with its element, an action in `SkillActions`
 kind for the look (`client.skill.SkillWorldFx` draws each kind with the light textures and particles; add a kind
 for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools/gen_ui_assets.py`
 (`skill_<path>`), and a test. Subclasses will be extra `Skills` entries marked `advanced` with their own owner,
-granted through `grantAdvanced`. Still to come: combos (chained casts) and element reactions; `SkillEvent.Cast`
-and the element on every skill are there for them.
+granted through `grantAdvanced`. Every skill hit goes through `SkillActions.hit`, which is
+where combos, range passives and elements apply; a new damaging skill should use it rather than `hurt`.
+
+### Combos and element reactions
+
+Both live in `SkillCombat` (server side, nothing saved).
+
+**Combos.** Casting a different skill within 5 seconds of the last one builds a chain, up to 6. Each link adds 8%
+to skill damage (`comboMultiplier`). The same skill twice in a row keeps the chain where it is; a cast that finds
+no target does not count. `SkillAPI.cast` calls `begin` / `undo` / `commit`; `SkillEvent.Combo` fires from 2 up.
+
+**Reactions.** A skill hit leaves its `SkillElement` on the creature for 8 seconds (`SkillCombat.aura`). A hit with
+another element that reacts with it sets off a `SkillReaction` and uses the element up; otherwise the new element
+replaces the old. Physical leaves nothing and reacts with nothing. The 15 reactions, each a damage bonus on the
+hit plus a side effect in `SkillCombat.react`:
+
+| Reaction | Elements | What it does |
+| --- | --- | --- |
+| Surge | water + lightning | +50%, bursts onto creatures within 3.5 blocks and stuns |
+| Firestorm | air + fire | +60%, heavy burn that spreads to creatures nearby |
+| Steam | fire + water | +30%, a cloud that blinds, slows and weakens |
+| Wildfire | fire + nature | +40%, a deep lasting burn |
+| Magma | fire + earth | +40%, slows and ignites |
+| Frost | water + air | +20%, frozen in place |
+| Overgrowth | water + nature | +20%, rooted; mends the caster |
+| Eclipse | light + shadow | +100% |
+| Tempest | lightning + air | +30%, arcs to three more creatures |
+| Sandstorm | earth + air | +20%, blinds and slows around it |
+| Overload | lightning + fire | +40%, a blast that throws creatures back |
+| Blight | shadow + nature | +30%, venom and weakness |
+| Shatter | earth + lightning | +50%, stuns |
+| Radiance | light + fire | +30%, mends allies nearby |
+| Resonance | arcane + anything else | +30%, returns mana |
+
+Reaction splash damage carries no element, so reactions never chain off each other. `SkillEvent.Reaction` fires
+for quests and later systems (elemental weaknesses of monsters can hook `SkillCombat.strike`). A new reaction is
+one `SkillReaction` entry, a case in `SkillCombat.react` and a `skill_reaction.beyondsolo.<name>` lang line.
+Weapon infusions should call `SkillCombat.strike` on their hits to join in.
 
 On the client: keys Z, X, C, G cast the bar (rebindable, `SkillActionPayload`), `SkillBar` shows cooldown sweeps
 and refusals, `SkillOverlay` plays Skill Acquired and the level-up banner (waits for the evaluation, quest and gate
-overlays; the hide key skips it), `SkillsTab` is the Skills page of the System window.
+overlays; the hide key skips it), `SkillsTab` is the Skills page of the System window (the gem grid adds columns as
+a class gains skills), `ComboHud` draws the combo counter and the reaction names that pop out of creatures.
 
 `/system skill list|learn <skill> [level]|levelup <skill> [n]|forget|cast|slot <n> <skill>|cooldowns|unlocked|advanced|tome [skill]|reset`
 for testing; `screen skills` in the UI driver opens the tab.
@@ -367,8 +438,9 @@ exhaustion resistance, and that every weapon has a Better Combat file. `test/Que
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
 `test/GateGameTests` covers: the cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
+`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, only a D-rank or higher clear calls a player, the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
 checks use zombies.
-`test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element.
+`test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.

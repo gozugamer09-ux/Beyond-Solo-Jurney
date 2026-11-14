@@ -24,6 +24,13 @@ public abstract class SystemEvent extends Event {
         return SystemAPI.get(player);
     }
 
+    /** The System bound itself to the player (end of the awakening trial). Evaluation comes later. */
+    public static final class SystemGranted extends SystemEvent {
+        public SystemGranted(ServerPlayer player) {
+            super(player);
+        }
+    }
+
     /** The player finished an evaluation and the System is now active for them. */
     public static final class Awakened extends SystemEvent {
         private final PlayerRank rank;
