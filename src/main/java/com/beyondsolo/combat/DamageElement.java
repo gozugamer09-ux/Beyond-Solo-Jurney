@@ -40,6 +40,24 @@ public record DamageElement(ResourceLocation id, int color) {
         return Collections.unmodifiableCollection(REGISTRY.values());
     }
 
+    /** Position in {@link #all()}, for packets. */
+    public int index() {
+        int i = 0;
+        for (DamageElement e : REGISTRY.values()) {
+            if (e == this) return i;
+            i++;
+        }
+        return 0;
+    }
+
+    public static DamageElement byIndex(int index) {
+        int i = 0;
+        for (DamageElement e : REGISTRY.values()) {
+            if (i++ == index) return e;
+        }
+        return PHYSICAL;
+    }
+
     public Component displayName() {
         return Component.translatable("element." + id.getNamespace() + "." + id.getPath());
     }

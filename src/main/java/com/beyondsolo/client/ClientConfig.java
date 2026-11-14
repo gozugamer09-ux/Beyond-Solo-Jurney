@@ -30,6 +30,16 @@ public final class ClientConfig {
             .comment("Draw System text in the smooth System typeface. Turn off to use the vanilla Minecraft font everywhere.")
             .define("systemFont", true);
 
+    public static final ModConfigSpec.BooleanValue DAMAGE_NUMBERS = B
+            .comment("Show floating damage numbers for your hits and for element damage nearby.")
+            .define("combat.damageNumbers", true);
+    public static final ModConfigSpec.BooleanValue ENEMY_METERS = B
+            .comment("Show element buildup meters and statuses over the heads of creatures in a fight.")
+            .define("combat.enemyMeters", true);
+    public static final ModConfigSpec.BooleanValue SCREEN_EFFECTS = B
+            .comment("Tint the screen edges while you burn, bleed, carry heavy venom or a crimson brand.")
+            .define("combat.screenEffects", true);
+
     public static final ModConfigSpec SPEC = B.build();
 
     public static NotificationMode cycleMode() {

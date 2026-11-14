@@ -35,6 +35,14 @@ public final class Icons {
     public static final ResourceLocation SEAL = icon("seal");
     public static final ResourceLocation HEXAGON = icon("hexagon");
     public static final ResourceLocation HEART = icon("stat_vit");
+    public static final ResourceLocation FLAME = icon("flame");
+    public static final ResourceLocation FLASK = icon("flask");
+    public static final ResourceLocation SPIRAL = icon("spiral");
+    public static final ResourceLocation HEART_BREAK = icon("heart_break");
+    public static final ResourceLocation SNOWFLAKE = icon("snowflake");
+    public static final ResourceLocation RUN = icon("run");
+    public static final ResourceLocation SHIELD = icon("shield");
+    public static final ResourceLocation WEIGHT = icon("weight");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

@@ -1,5 +1,9 @@
 package com.beyondsolo;
 
+import com.beyondsolo.combat.ModAttributes;
+import com.beyondsolo.combat.ModEffects;
+import com.beyondsolo.combat.Statuses;
+import com.beyondsolo.registry.ModArmorMaterials;
 import com.beyondsolo.registry.ModAttachments;
 import com.beyondsolo.registry.ModBlockEntities;
 import com.beyondsolo.registry.ModBlocks;
@@ -19,7 +23,12 @@ public final class BeyondSolo {
 
     public BeyondSolo(IEventBus modBus, ModContainer container) {
         ModBlocks.BLOCKS.register(modBus);
+        ModAttributes.ATTRIBUTES.register(modBus);
+        ModEffects.EFFECTS.register(modBus);
+        ModArmorMaterials.MATERIALS.register(modBus);
         ModItems.ITEMS.register(modBus);
+        ModItems.TABS.register(modBus);
+        Statuses.init();
         ModBlockEntities.BLOCK_ENTITIES.register(modBus);
         ModAttachments.ATTACHMENT_TYPES.register(modBus);
         container.registerConfig(ModConfig.Type.COMMON, Config.SPEC);

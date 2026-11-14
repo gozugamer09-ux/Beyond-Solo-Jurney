@@ -24,6 +24,13 @@ public final class ModNetwork {
         registrar.playToClient(EvaluationPayload.TYPE, EvaluationPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onEvaluation(payload)));
 
+        registrar.playToClient(CombatStatePayload.TYPE, CombatStatePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatState(payload)));
+        registrar.playToClient(CombatFxPayload.TYPE, CombatFxPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatFx(payload)));
+        registrar.playToClient(DamageNumberPayload.TYPE, DamageNumberPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onDamageNumber(payload)));
+
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     Stat stat = Stat.byIndex(payload.stat());

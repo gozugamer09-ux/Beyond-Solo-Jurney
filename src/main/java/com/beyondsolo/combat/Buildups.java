@@ -19,18 +19,16 @@ import java.util.Map;
  * Buildup framework. Register a {@link BuildupType}, then call {@link #add} when a hit applies it.
  * Works the same on players and mobs, so it hits both ways.
  *
- * <p>Ships with one example, {@link #BLOOD}: at 100 buildup the target loses 10% of max health.
- * The combat module adds poison stacks, deep burn, crimson and friends the same way.
+ * <p>{@link #BLOOD}: at 100 buildup the target loses 10% of max health. {@link Statuses} adds burn (deep burn),
+ * venom stacks and crimson the same way. The target's resistance to the element (see {@link ModAttributes})
+ * shrinks every amount added.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class Buildups {
     private static final Map<ResourceLocation, BuildupType> TYPES = new LinkedHashMap<>();
 
     public static final BuildupType BLOOD = register(new BuildupType(BeyondSolo.id("blood"), DamageElement.BLOOD,
-            100f, 4f, true, (target, source) -> {
-                float damage = target.getMaxHealth() * 0.10f;
-                target.hurt(target.damageSources().magic(), damage);
-            }));
+            100f, 4f, true, Statuses::bloodPop));
 
     public static synchronized BuildupType register(BuildupType type) {
         TYPES.put(type.id(), type);
@@ -52,8 +50,11 @@ public final class Buildups {
     /** Adds buildup and triggers the effect if the threshold is reached. Server side only. */
     public static void add(LivingEntity target, BuildupType type, float amount, @Nullable Entity source) {
         if (target.level().isClientSide || !target.isAlive()) return;
+        amount *= 1 - ModAttributes.resistance(target, type.element());
+        if (amount <= 0) return;
         BuildupData data = target.getData(ModAttachments.BUILDUP);
         float value = data.get(type.id()) + amount;
+        CombatSync.markDirty(target);
         if (value >= type.threshold()) {
             data.set(type.id(), type.resetOnTrigger() ? 0 : type.threshold());
             type.onTrigger().trigger(target, source);
@@ -63,7 +64,10 @@ public final class Buildups {
     }
 
     public static void clear(LivingEntity target, BuildupType type) {
-        if (target.hasData(ModAttachments.BUILDUP)) target.getData(ModAttachments.BUILDUP).set(type.id(), 0);
+        if (target.hasData(ModAttachments.BUILDUP)) {
+            target.getData(ModAttachments.BUILDUP).set(type.id(), 0);
+            CombatSync.markDirty(target);
+        }
     }
 
     @SubscribeEvent
@@ -72,6 +76,7 @@ public final class Buildups {
         if (entity.level().isClientSide || entity.tickCount % 20 != 0 || !entity.hasData(ModAttachments.BUILDUP)) return;
         BuildupData data = entity.getData(ModAttachments.BUILDUP);
         if (data.isEmpty()) return;
+        if (entity instanceof LivingEntity living) CombatSync.markDirty(living);
         data.view().forEach((id, value) -> {
             BuildupType type = TYPES.get(id);
             data.set(id, type == null ? 0 : value - type.decayPerSecond());

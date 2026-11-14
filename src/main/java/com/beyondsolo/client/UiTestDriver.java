@@ -7,6 +7,8 @@ import com.beyondsolo.client.screen.SystemTabs;
 import com.beyondsolo.evaluation.EvaluationCrystalBlockEntity;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
+import net.minecraft.client.CameraType;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.core.BlockPos;
@@ -43,6 +45,9 @@ import java.util.Deque;
  * crystal channel &lt;class&gt;              ... the class is being decided
  * shot &lt;name&gt;                          save screenshots/&lt;name&gt;.png
  * wait &lt;ticks&gt;                         pause before the next command
+ * press &lt;key&gt; [ticks]                  press a key binding (attack, use, roll, jump, sprint, forward...) and hold it
+ * slot &lt;0-8&gt;                           select a hotbar slot
+ * view first|third|front              camera mode
  * </pre>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
@@ -57,6 +62,7 @@ public final class UiTestDriver {
         Minecraft mc = Minecraft.getInstance();
         if (!ENABLED || mc.player == null) return;
         if (++pollTimer % 5 == 0) poll(mc);
+        releaseKeys();
         if (waitTicks > 0) {
             waitTicks--;
             return;
@@ -70,6 +76,26 @@ public final class UiTestDriver {
             }
             if (QUEUE.isEmpty()) BeyondSolo.LOGGER.info("UITEST idle");
         }
+    }
+
+    private static final java.util.Map<KeyMapping, Integer> HELD = new java.util.HashMap<>();
+
+    private static KeyMapping findKey(Minecraft mc, String name) {
+        for (KeyMapping k : mc.options.keyMappings) {
+            String id = k.getName();
+            if (id.equals(name) || id.endsWith("." + name)) return k;
+        }
+        BeyondSolo.LOGGER.warn("UITEST no key binding called {}", name);
+        return null;
+    }
+
+    private static void releaseKeys() {
+        HELD.replaceAll((k, t) -> t - 1);
+        HELD.entrySet().removeIf(e -> {
+            if (e.getValue() > 0) return false;
+            e.getKey().setDown(false);
+            return true;
+        });
     }
 
     private static void poll(Minecraft mc) {
@@ -133,6 +159,21 @@ public final class UiTestDriver {
             }
             case "shot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(), message -> {});
             case "wait" -> waitTicks = Integer.parseInt(arg);
+            case "press" -> {
+                String[] a = arg.split(" ");
+                KeyMapping key = findKey(mc, a[0]);
+                if (key != null) {
+                    KeyMapping.click(key.getKey());
+                    key.setDown(true);
+                    HELD.put(key, a.length > 1 ? Integer.parseInt(a[1]) : 2);
+                }
+            }
+            case "slot" -> mc.player.getInventory().selected = Integer.parseInt(arg);
+            case "view" -> mc.options.setCameraType(switch (arg) {
+                case "third" -> CameraType.THIRD_PERSON_BACK;
+                case "front" -> CameraType.THIRD_PERSON_FRONT;
+                default -> CameraType.FIRST_PERSON;
+            });
             default -> BeyondSolo.LOGGER.warn("UITEST unknown command: {}", line);
         }
         BeyondSolo.LOGGER.info("UITEST ran: {}", line);

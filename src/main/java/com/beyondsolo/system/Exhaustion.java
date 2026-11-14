@@ -34,6 +34,10 @@ public final class Exhaustion {
         if (!Config.EXHAUSTION_ENABLED.get() || !data.isAwakened() || data.isCollapsed() || player.isCreative() || player.isSpectator()) {
             return;
         }
+        if (amount > 0) {
+            // Gear and VIT can make the player tire more slowly.
+            amount *= 1f - (float) Math.min(0.8, player.getAttributeValue(com.beyondsolo.combat.ModAttributes.EXHAUSTION_RESISTANCE));
+        }
         float before = data.exhaustion();
         data.setExhaustion(before + amount);
         if (before < WARNING_LEVEL && data.exhaustion() >= WARNING_LEVEL && data.exhaustion() < 100) {

@@ -49,6 +49,27 @@ public final class Config {
     public static final ModConfigSpec.IntValue COLLAPSE_MAX_SECONDS = B
             .defineInRange("exhaustion.collapseMaxSeconds", 45, 1, 3600);
 
+
+    // --- Combat ---
+    public static final ModConfigSpec.DoubleValue MOB_FIRE_BUILDUP = B
+            .comment("Burn buildup per hit from mobs in the entity type tag beyondsolo:element_attackers/fire (100 = deep burn).")
+            .defineInRange("combat.mobFireBuildup", 20.0, 0.0, 1000.0);
+    public static final ModConfigSpec.DoubleValue MOB_POISON_BUILDUP = B
+            .comment("Poison buildup per hit from beyondsolo:element_attackers/poison mobs (35 = one venom stack).")
+            .defineInRange("combat.mobPoisonBuildup", 18.0, 0.0, 1000.0);
+    public static final ModConfigSpec.DoubleValue MOB_CRIMSON_BUILDUP = B
+            .comment("Crimson buildup per hit from beyondsolo:element_attackers/crimson mobs (100 = crimson burst).")
+            .defineInRange("combat.mobCrimsonBuildup", 20.0, 0.0, 1000.0);
+    public static final ModConfigSpec.DoubleValue MOB_BLOOD_BUILDUP = B
+            .comment("Blood buildup per hit from beyondsolo:element_attackers/blood mobs (100 = blood pop, 10% max health).")
+            .defineInRange("combat.mobBloodBuildup", 20.0, 0.0, 1000.0);
+    public static final ModConfigSpec.DoubleValue BURNING_BUILDUP = B
+            .comment("Burn buildup each time an entity takes fire damage from burning or fire blocks (lava counts triple).")
+            .defineInRange("combat.burningBuildup", 7.0, 0.0, 1000.0);
+    public static final ModConfigSpec.DoubleValue EXHAUSTION_PER_ROLL = B
+            .comment("Exhaustion from each Combat Roll dodge.")
+            .defineInRange("exhaustion.perRoll", 2.5, 0.0, 100.0);
+
     public static final ModConfigSpec SPEC = B.build();
 
     private Config() {}
