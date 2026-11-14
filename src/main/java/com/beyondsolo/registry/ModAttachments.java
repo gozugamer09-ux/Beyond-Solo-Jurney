@@ -30,5 +30,9 @@ public final class ModAttachments {
     public static final Supplier<AttachmentType<com.beyondsolo.npc.NpcBoard>> NPC_BOARD = ATTACHMENT_TYPES.register("npc_board",
             () -> AttachmentType.serializable(com.beyondsolo.npc.NpcBoard::new).build());
 
+    /** Per-player skills (skill module). Survives death. */
+    public static final Supplier<AttachmentType<com.beyondsolo.skill.SkillData>> SKILLS = ATTACHMENT_TYPES.register("skills",
+            () -> AttachmentType.serializable(com.beyondsolo.skill.SkillData::new).copyOnDeath().build());
+
     private ModAttachments() {}
 }

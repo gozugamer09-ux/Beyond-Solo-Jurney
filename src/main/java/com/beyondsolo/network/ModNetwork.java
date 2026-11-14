@@ -62,6 +62,22 @@ public final class ModNetwork {
         registrar.playToClient(GatePayload.TYPE, GatePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onGate(payload)));
 
+        registrar.playToClient(SkillSyncPayload.TYPE, SkillSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillSync(payload)));
+        registrar.playToClient(SkillMomentPayload.TYPE, SkillMomentPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillMoment(payload)));
+        registrar.playToClient(SkillFxPayload.TYPE, SkillFxPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillFx(payload)));
+        registrar.playToServer(SkillActionPayload.TYPE, SkillActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (!(ctx.player() instanceof ServerPlayer player)) return;
+                    switch (payload.action()) {
+                        case SkillActionPayload.CAST -> com.beyondsolo.skill.SkillAPI.castSlot(player, payload.slot());
+                        case SkillActionPayload.ASSIGN -> com.beyondsolo.skill.SkillAPI.assign(player, payload.slot(), payload.skill());
+                        default -> {}
+                    }
+                }));
+
         registrar.playToServer(AllocateStatPayload.TYPE, AllocateStatPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     Stat stat = Stat.byIndex(payload.stat());

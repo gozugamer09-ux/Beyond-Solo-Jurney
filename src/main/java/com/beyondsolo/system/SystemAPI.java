@@ -164,6 +164,15 @@ public final class SystemAPI {
         sync(player);
     }
 
+    /** Sets the extra max mana skills give. Does nothing if it is unchanged. */
+    public static void setManaBonus(ServerPlayer player, float bonus) {
+        SystemData data = get(player);
+        if (Math.abs(data.manaBonus() - bonus) < 0.001f) return;
+        data.setManaBonus(bonus);
+        data.setMana(data.mana());
+        sync(player);
+    }
+
     /** Adds (or with a negative value removes) exhaustion. Reaching 100% makes the player collapse. */
     public static void addExhaustion(ServerPlayer player, float amount) {
         Exhaustion.add(player, amount);

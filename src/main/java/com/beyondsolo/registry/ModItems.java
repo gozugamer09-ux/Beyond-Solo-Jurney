@@ -54,6 +54,10 @@ public final class ModItems {
     public static final DeferredItem<com.beyondsolo.item.ParcelItem> SEALED_PARCEL = ITEMS.register("sealed_parcel",
             () -> new com.beyondsolo.item.ParcelItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
 
+    /** Skill tomes: unread (rolls a skill) or naming one skill. */
+    public static final DeferredItem<com.beyondsolo.skill.SkillTomeItem> SKILL_TOME = ITEMS.register("skill_tome",
+            () -> new com.beyondsolo.skill.SkillTomeItem(new Item.Properties().stacksTo(16).rarity(Rarity.RARE)));
+
     // ---- weapon tiers ----
     /** Hunter steel: iron-grade gear for E and D rank hunters. */
     public static final Tier HUNTER_STEEL = new SimpleTier(BlockTags.INCORRECT_FOR_IRON_TOOL, 450, 6.5f, 2.0f, 14, () -> Ingredient.of(Items.IRON_INGOT));
@@ -132,6 +136,10 @@ public final class ModItems {
                 WEAPONS.forEach(w -> out.accept(w.get()));
                 ARMOR.forEach(a -> out.accept(a.get()));
                 REMEDIES.forEach(r -> out.accept(r.get()));
+                out.accept(com.beyondsolo.skill.SkillTomeItem.unread());
+                for (var skill : com.beyondsolo.skill.Skills.all()) {
+                    if (!skill.advanced()) out.accept(com.beyondsolo.skill.SkillTomeItem.of(skill));
+                }
             })
             .build());
 

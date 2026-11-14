@@ -128,6 +128,7 @@ public final class ClientEvents {
     public static void hideKeyPressed() {
         if (EvaluationOverlay.skip()) return;
         if (QuestOverlay.skip()) return;
+        if (com.beyondsolo.client.skill.SkillOverlay.skip()) return;
         if (com.beyondsolo.client.gate.GateOverlay.skip()) return;
         NotificationManager.toggleHidden();
     }
