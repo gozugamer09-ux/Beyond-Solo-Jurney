@@ -91,6 +91,10 @@ public final class SkillWorldFx {
                 case PILLAR -> lasting + 0.7f;
                 case BLOSSOM -> 0.8f;
                 case REACTION -> 0.9f;
+                case CLEAVE -> lasting + 0.9f;
+                case BANNER, BLADES, QUAKE -> Math.max(0.6f, lasting);
+                case CRACK -> 1.7f;
+                case GEYSER -> 1.0f;
             };
         }
     }
@@ -273,6 +277,29 @@ public final class SkillWorldFx {
             case MARK -> {
                 if (e != null) for (int i = 0; i < 12; i++) level.addParticle(dust, e.getX() + rnd(0.4), e.getY() + e.getBbHeight() + 0.5, e.getZ() + rnd(0.4), 0, 0.05, 0);
             }
+            case CRACK -> {
+                BlockState ground = level.getBlockState(BlockPos.containing(p.x(), p.y() - 0.5, p.z()));
+                ParticleOptions debris = ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground);
+                for (int i = 0; i < 40; i++) {
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    double r = RANDOM.nextDouble() * p.size();
+                    level.addParticle(i % 4 == 0 ? dust : debris, p.x() + Math.cos(a) * r, p.y() + 0.1, p.z() + Math.sin(a) * r, 0, 0.25 + RANDOM.nextDouble() * 0.3, 0);
+                }
+            }
+            case GEYSER -> {
+                for (int i = 0; i < 46; i++) {
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    double sp = RANDOM.nextDouble() * 0.16;
+                    level.addParticle(i % 5 == 0 ? ParticleTypes.LAVA : dust, p.x() + rnd(0.3), p.y() + 0.2 + RANDOM.nextDouble() * p.size() * 0.5, p.z() + rnd(0.3),
+                            Math.cos(a) * sp, 0.25 + RANDOM.nextDouble() * 0.35, Math.sin(a) * sp);
+                }
+            }
+            case BANNER -> {
+                for (int i = 0; i < 24; i++) {
+                    double a = i / 24.0 * Math.PI * 2;
+                    level.addParticle(dust, p.x() + Math.cos(a) * 0.5, p.y() + 0.2, p.z() + Math.sin(a) * 0.5, Math.cos(a) * 0.35, 0.02, Math.sin(a) * 0.35);
+                }
+            }
             default -> {}
         }
     }
@@ -352,6 +379,41 @@ public final class SkillWorldFx {
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     double r = Math.sqrt(RANDOM.nextDouble()) * fx.p.size();
                     mc.level.addParticle(ParticleTypes.CRIT, fx.p.x() + Math.cos(a) * r, fx.p.y() + 0.2, fx.p.z() + Math.sin(a) * r, rnd(0.2), 0.3, rnd(0.2));
+                }
+                case CLEAVE -> {
+                    // the moment the blade lands
+                    float land = fx.p.duration() / 20f;
+                    if (age >= land && age < land + 0.051f) {
+                        BlockState ground = mc.level.getBlockState(BlockPos.containing(fx.p.x(), fx.p.y() - 0.5, fx.p.z()));
+                        ParticleOptions debris = ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground);
+                        for (int i = 0; i < 36; i++) {
+                            double a = RANDOM.nextDouble() * Math.PI * 2;
+                            mc.level.addParticle(i % 3 == 0 ? dust : debris, fx.p.x() + Math.cos(a) * 0.4, fx.p.y() + 0.1, fx.p.z() + Math.sin(a) * 0.4,
+                                    Math.cos(a) * 0.3, 0.3 + RANDOM.nextDouble() * 0.4, Math.sin(a) * 0.3);
+                        }
+                        mc.level.addParticle(ParticleTypes.FLASH, fx.p.x(), fx.p.y() + 0.6, fx.p.z(), 0, 0, 0);
+                    }
+                }
+                case BANNER -> {
+                    if (RANDOM.nextFloat() < 0.5f) mc.level.addParticle(dust, fx.p.x() + rnd(0.6), fx.p.y() + 2.6 + RANDOM.nextDouble() * 1.6, fx.p.z() + rnd(0.6), 0, 0.03, 0);
+                    if (RANDOM.nextFloat() < 0.3f) {
+                        double a = RANDOM.nextDouble() * Math.PI * 2;
+                        mc.level.addParticle(ParticleTypes.END_ROD, fx.p.x() + Math.cos(a) * fx.p.size(), fx.p.y() + 0.1, fx.p.z() + Math.sin(a) * fx.p.size(), 0, 0.06, 0);
+                    }
+                }
+                case BLADES -> {
+                    if (e == null || RANDOM.nextFloat() > 0.5f) break;
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    mc.level.addParticle(ParticleTypes.CRIT, e.getX() + Math.cos(a) * fx.p.size(), e.getY() + 0.9 + rnd(0.4), e.getZ() + Math.sin(a) * fx.p.size(), -Math.sin(a) * 0.3, 0, Math.cos(a) * 0.3);
+                }
+                case QUAKE -> {
+                    BlockState ground = mc.level.getBlockState(BlockPos.containing(fx.p.x(), fx.p.y() - 0.5, fx.p.z()));
+                    ParticleOptions debris = ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground);
+                    for (int i = 0; i < 3; i++) {
+                        double a = RANDOM.nextDouble() * Math.PI * 2;
+                        double d = Math.sqrt(RANDOM.nextDouble()) * fx.p.size();
+                        mc.level.addParticle(debris, fx.p.x() + Math.cos(a) * d, fx.p.y() + 0.1, fx.p.z() + Math.sin(a) * d, 0, 0.2 + RANDOM.nextDouble() * 0.3, 0);
+                    }
                 }
                 case ELEMENT -> {
                     if (e != null && RANDOM.nextFloat() < 0.3f) mc.level.addParticle(dust, e.getX() + rnd(0.4), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(0.4), 0, 0.03, 0);
@@ -791,6 +853,156 @@ public final class SkillWorldFx {
                     dotTex(pose, buffers, camera, RING, 0, 0, 0, p.size() * 0.8f * out, 0xFFFFFF, fade * 0.8f, 0);
                     dot(pose, buffers, camera, 0, 0, 0, p.size() * (1.4f - t), c, fade * 0.8f);
                     disc(pose, buffers, RING, (float) -cc.y + 0.06f, p.size() * 1.5f * out, 0, light, fade);
+                }
+                case CLEAVE -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float fall = Math.max(0.05f, p.duration() / 20f);
+                    float len = p.size() * 1.7f;
+                    if (age < fall) {
+                        float k = age / fall;
+                        float h = 16 * (1 - k * k);
+                        streak(pose, buffers, camera, base, new Vec3(0, h, 0), new Vec3(0, h + len, 0), p.size() * 0.55f, c, 0.4f + 0.6f * k);
+                        streak(pose, buffers, camera, base, new Vec3(0, h, 0), new Vec3(0, h + len, 0), p.size() * 0.2f, 0xFFFFFF, 0.5f + 0.5f * k);
+                        streak(pose, buffers, camera, base, new Vec3(0, h + len, 0), new Vec3(0, h + len + 7, 0), p.size() * 0.3f, c, 0.5f * k);
+                        disc(pose, buffers, RING, 0.06f, p.size() * (1.6f - 0.8f * k), time * 6, c, 0.3f + 0.7f * k);
+                        disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.7f * k, -time * 4, light, 0.8f * k);
+                    } else {
+                        float k = Mth.clamp((age - fall) / 0.9f, 0, 1);
+                        float o = 1 - (1 - k) * (1 - k) * (1 - k);
+                        float a = 1 - k;
+                        // the blade stands in the ground and fades, cross-guard near the top
+                        streak(pose, buffers, camera, base, new Vec3(0, -0.3, 0), new Vec3(0, len, 0), p.size() * 0.55f * (1 - 0.5f * k), c, a * 1.2f);
+                        streak(pose, buffers, camera, base, new Vec3(0, -0.3, 0), new Vec3(0, len, 0), p.size() * 0.2f * (1 - 0.5f * k), 0xFFFFFF, a);
+                        Vec3 side = new Vec3(Mth.cos(fx.seed % 7), 0, Mth.sin(fx.seed % 7)).scale(p.size() * 0.45f);
+                        streak(pose, buffers, camera, base, side.add(0, len * 0.78f, 0), side.scale(-1).add(0, len * 0.78f, 0), p.size() * 0.22f, light, a);
+                        disc(pose, buffers, RING, 0.08f, p.size() * (0.5f + 1.3f * o), 0, light, a * 1.2f);
+                        disc(pose, buffers, RING, 0.5f, p.size() * 1.1f * o, 0, c, a * 0.8f);
+                        disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.9f, time * 2, c, a);
+                        dotTex(pose, buffers, camera, BURST, 0, 0.6f, 0, p.size() * (0.6f + 0.9f * o), light, a * 1.2f, fx.seed % 360);
+                    }
+                }
+                case BANNER -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float rise = 1 - (float) Math.pow(1 - Mth.clamp(age / 0.35f, 0, 1), 3);
+                    float top = 4.6f * rise;
+                    streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, top, 0), 0.22f, light, hold);
+                    streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, top, 0), 0.08f, 0xFFFFFF, hold);
+                    dot(pose, buffers, camera, 0, top + 0.15f, 0, 0.45f, light, hold);
+                    // the cloth: rows of light that ripple away from the pole
+                    for (int row = 0; row < 5; row++) {
+                        float y = top - 0.25f - row * 0.38f;
+                        if (y < 1) break;
+                        Vec3 prev = new Vec3(0, y, 0);
+                        for (int seg = 1; seg <= 4; seg++) {
+                            float wave = 0.22f * seg / 4f * Mth.sin(time * 0.35f - seg * 0.9f + row * 0.4f);
+                            Vec3 next = new Vec3(seg * 0.42f, y + wave * 0.5f - (row == 4 ? 0.12f * Math.abs(seg - 2.5f) : 0), wave);
+                            streak(pose, buffers, camera, base, prev, next, 0.42f, row % 2 == 0 ? c : mix(c, 0xFFFFFF, 0.25f), hold * 0.95f);
+                            prev = next;
+                        }
+                    }
+                    disc(pose, buffers, CIRCLE, 0.05f, p.size() * rise, time * 0.8f, c, hold * 0.8f);
+                    disc(pose, buffers, RING, 0.07f, p.size() * rise, 0, light, hold * 0.7f);
+                    float beat = (age % 1.2f) / 1.2f;
+                    disc(pose, buffers, RING, 0.08f, p.size() * beat, 0, light, hold * (1 - beat) * 0.9f);
+                    disc(pose, buffers, GLOW, 0.03f, p.size() * 1.05f, 0, c, hold * 0.3f);
+                }
+                case BLADES -> {
+                    int n = 6;
+                    Vec3 here = at;
+                    for (int i = 0; i < n; i++) {
+                        float ang = time * 0.42f + i * Mth.TWO_PI / n;
+                        float bob = 0.2f * Mth.sin(time * 0.2f + i * 1.3f);
+                        Vec3 mid = new Vec3(Mth.cos(ang) * p.size(), 1.05f + bob, Mth.sin(ang) * p.size());
+                        // each blade points along its path, tip a little down
+                        Vec3 dir = new Vec3(-Mth.sin(ang), -0.35f, Mth.cos(ang)).normalize().scale(0.75f);
+                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.3f, c, hold * 1.1f);
+                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.1f, 0xFFFFFF, hold);
+                        Vec3 trail = new Vec3(Mth.cos(ang - 0.5f) * p.size(), 1.05f + bob, Mth.sin(ang - 0.5f) * p.size());
+                        streak(pose, buffers, camera, here, trail, mid.subtract(dir), 0.16f, c, hold * 0.4f);
+                    }
+                    disc(pose, buffers, RING, 0.06f, p.size() * 1.05f, -time * 6, c, hold * 0.6f);
+                    if (!self) disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.6f, time * 5, light, hold * 0.45f);
+                }
+                case CRACK -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float grow = Mth.clamp(age / 0.18f, 0, 1);
+                    float glow = age < 0.5f ? 1 : Mth.clamp(1 - (age - 0.5f) / (life - 0.5f), 0, 1);
+                    RandomSource r = RandomSource.create(fx.seed);
+                    int arms = 7;
+                    for (int i = 0; i < arms; i++) {
+                        double ang = i * Math.PI * 2 / arms + r.nextDouble() * 0.5;
+                        int segs = 5;
+                        Vec3 prev = new Vec3(0, 0.09, 0);
+                        for (int sgm = 1; sgm <= segs; sgm++) {
+                            ang += (r.nextDouble() - 0.5) * 0.9;
+                            double step = p.size() / segs * (0.8 + r.nextDouble() * 0.4);
+                            Vec3 next = prev.add(Math.cos(ang) * step, 0, Math.sin(ang) * step);
+                            if (sgm / (float) segs <= grow + 0.01f) {
+                                float thin = 1 - 0.6f * sgm / segs;
+                                streak(pose, buffers, camera, base, prev, next, 0.5f * thin, c, glow * 1.2f);
+                                streak(pose, buffers, camera, base, prev, next, 0.16f * thin, 0xFFFFFF, glow);
+                                // a branch now and then
+                                if (r.nextFloat() < 0.4f) {
+                                    double b2 = ang + (r.nextBoolean() ? 0.9 : -0.9);
+                                    streak(pose, buffers, camera, base, next, next.add(Math.cos(b2) * step * 0.7, 0, Math.sin(b2) * step * 0.7), 0.28f * thin, c, glow);
+                                }
+                            } else {
+                                r.nextFloat();
+                            }
+                            prev = next;
+                        }
+                    }
+                    disc(pose, buffers, GLOW, 0.04f, p.size() * 0.9f, 0, c, glow * 0.5f);
+                    if (age < 0.5f) disc(pose, buffers, RING, 0.08f, p.size() * 1.1f * (age / 0.5f), 0, light, 1 - age / 0.5f);
+                }
+                case GEYSER -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float up = 1 - (1 - Mth.clamp(age / 0.22f, 0, 1)) * (1 - Mth.clamp(age / 0.22f, 0, 1));
+                    float a = age < 0.4f ? 1 : Mth.clamp(1 - (age - 0.4f) / (life - 0.4f), 0, 1);
+                    RandomSource r = RandomSource.create(fx.seed);
+                    streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, p.size() * up, 0), 1.3f * (1 - 0.4f * t), c, a * 1.2f);
+                    streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, p.size() * up * 0.9f, 0), 0.45f, 0xFFFFFF, a * 0.9f);
+                    for (int i = 0; i < 9; i++) {
+                        double ang = i * Math.PI * 2 / 9 + r.nextDouble();
+                        double lean = 0.5 + r.nextDouble() * 0.9;
+                        float h = p.size() * (0.55f + r.nextFloat() * 0.45f) * up;
+                        // each jet arcs outwards and droops as it ages
+                        Vec3 tip = new Vec3(Math.cos(ang) * lean * (0.4 + t), h * (1 - 0.5f * t * t), Math.sin(ang) * lean * (0.4 + t));
+                        streak(pose, buffers, camera, base, new Vec3(0, 0.1, 0), tip, 0.4f, i % 2 == 0 ? c : light, a);
+                        dot(pose, buffers, camera, (float) tip.x, (float) tip.y, (float) tip.z, 0.3f, light, a);
+                    }
+                    disc(pose, buffers, RING, 0.07f, 0.5f + p.size() * 0.55f * out, 0, light, fade * 1.1f);
+                    disc(pose, buffers, GLOW, 0.04f, p.size() * 0.5f, 0, c, a * 0.7f);
+                }
+                case QUAKE -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    for (int i = 0; i < 3; i++) {
+                        float k = ((age + i * 0.3f) % 0.9f) / 0.9f;
+                        disc(pose, buffers, RING, 0.06f + 0.01f * i, p.size() * k, 0, i == 1 ? light : c, hold * (1 - k) * 1.1f);
+                    }
+                    // short cracks that flicker in new places every few ticks
+                    RandomSource r = RandomSource.create(fx.seed + (long) (time / 4));
+                    for (int i = 0; i < 8; i++) {
+                        double ang = r.nextDouble() * Math.PI * 2;
+                        double rad = Math.sqrt(r.nextDouble()) * p.size() * 0.9;
+                        Vec3 a1 = new Vec3(Math.cos(ang) * rad, 0.08, Math.sin(ang) * rad);
+                        double a2 = r.nextDouble() * Math.PI * 2;
+                        Vec3 b1 = a1.add(Math.cos(a2) * 1.3, 0, Math.sin(a2) * 1.3);
+                        streak(pose, buffers, camera, base, a1, b1, 0.3f, c, hold * 0.9f);
+                        streak(pose, buffers, camera, base, a1, b1, 0.1f, 0xFFFFFF, hold * 0.6f);
+                    }
+                    disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.55f, time * 1.5f, c, hold * 0.6f);
+                    disc(pose, buffers, GLOW, 0.03f, p.size(), 0, c, hold * 0.35f);
                 }
                 case VEIL -> {
                     disc(pose, buffers, SIGIL, 0.04f, 1.1f, -time * 2, c, hold * 0.5f);

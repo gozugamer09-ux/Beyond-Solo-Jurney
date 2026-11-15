@@ -159,7 +159,7 @@ public final class JobGameTests {
         int a2 = 0;
         for (Stat s : Stat.values()) a2 += SystemAPI.get(q).stat(s);
         helper.assertTrue(a2 - b2 == Subclass.RARE_BONUS_POINTS, "rare bonus stats: " + (a2 - b2));
-        helper.assertTrue(Skills.forSubclass(Subclass.HEAVENPIERCER).stream().allMatch(s -> SkillAPI.knows(q, s)), "all rare skills learned");
+        helper.assertTrue(Skills.startersFor(Subclass.HEAVENPIERCER).stream().allMatch(s -> SkillAPI.knows(q, s)), "all rare starter skills learned");
         helper.succeed();
     }
 
@@ -183,7 +183,7 @@ public final class JobGameTests {
         for (Subclass sub : Subclass.values()) {
             ServerPlayer p = player(helper, sub.base());
             JobAPI.changeJob(p, sub);
-            for (Skill s : Skills.forSubclass(sub)) {
+            for (Skill s : Skills.startersFor(sub)) {
                 if (!s.isActive()) continue;
                 // a fresh target in front for the skills that need one
                 net.minecraft.world.entity.monster.Zombie z = helper.spawnWithNoFreeWill(net.minecraft.world.entity.EntityType.ZOMBIE, new BlockPos(3, 2, 1));
@@ -250,7 +250,7 @@ public final class JobGameTests {
                         helper.assertTrue(got != null && got.base() == PlayerClass.ASSASSIN, "became an assassin subclass: " + got);
                         helper.assertTrue(!JobAPI.get(p).inTrial(), "no longer in the trial");
                         helper.assertTrue(p.position().distanceTo(home) < 2, "back where they started");
-                        helper.assertTrue(Skills.forSubclass(got).stream().allMatch(s -> SkillAPI.knows(p, s)), "subclass skills learned");
+                        helper.assertTrue(Skills.startersFor(got).stream().allMatch(s -> SkillAPI.knows(p, s)), "subclass starter skills learned");
                         helper.succeed();
                     } else if (phase == JobTrial.Phase.VERDICT) {
                         JobTrial.skipReveal(p);

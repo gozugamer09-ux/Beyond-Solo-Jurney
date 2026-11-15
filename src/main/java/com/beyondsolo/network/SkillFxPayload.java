@@ -74,7 +74,19 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** The element a creature is carrying: a mote circling it for {@code duration} ticks (entity = the creature). */
         ELEMENT,
         /** An element reaction at (x,y,z); duration is the {@code SkillReaction} ordinal (entity = the creature). */
-        REACTION
+        REACTION,
+        /** A giant blade of light falling onto (x,y,z); size = blade length, duration = ticks until it lands. */
+        CLEAVE,
+        /** A war banner of light standing at (x,y,z) for {@code duration} ticks; size = the radius it commands. */
+        BANNER,
+        /** Spectral blades circling the entity at radius {@code size} for {@code duration} ticks. */
+        BLADES,
+        /** Glowing fissures tearing outwards over the ground from (x,y,z) to radius {@code size}. */
+        CRACK,
+        /** A fountain bursting up from (x,y,z) to height {@code size}. */
+        GEYSER,
+        /** Shaking ground: rings rolling outwards from (x,y,z) to radius {@code size} for {@code duration} ticks. */
+        QUAKE
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));

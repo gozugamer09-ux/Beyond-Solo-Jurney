@@ -191,7 +191,7 @@ public final class JobRevealOverlay {
             }
         }
         if (crossed(card())) play(SoundEvents.ENCHANTMENT_TABLE_USE, 1f, 0.8f);
-        List<Skill> skills = Skills.forSubclass(result);
+        List<Skill> skills = Skills.startersFor(result);
         for (int i = 0; i < skills.size(); i++) if (crossed(card() + 0.9f + i * 0.2f)) play(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.8f + i * 0.15f, 0.3f);
     }
 
@@ -407,7 +407,7 @@ public final class JobRevealOverlay {
         float in = Anim.outCubic(Anim.window(t, card() - 0.1f, card() + 0.5f));
         if (in <= 0) return;
         float o = Gfx.fade(in);
-        List<Skill> skills = Skills.forSubclass(result);
+        List<Skill> skills = Skills.startersFor(result);
         float cw = 300, ch = 150 + (result.canRaiseShadows() ? 12 : 0);
         float x0 = -cw / 2f, y0 = -40 + 12 * (1 - in);
         int edge = result.rare() ? GOLD : color;

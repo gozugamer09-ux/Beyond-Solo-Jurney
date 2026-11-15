@@ -216,7 +216,7 @@ public final class Skills {
     /** Skills a class can ever hold: the shared ones and its own, advanced last. */
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null) out.add(s);
         for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null) out.add(s);
         return out;
     }
@@ -225,6 +225,13 @@ public final class Skills {
     public static List<Skill> advancedFor(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
         for (Skill s : ALL.values()) if (s.owner() == c && s.advanced() && s.subclass() == null) out.add(s);
+        return out;
+    }
+
+    /** The skills a subclass learns at the job change itself (the rest unlock with levels afterwards). */
+    public static List<Skill> startersFor(Subclass sub) {
+        List<Skill> out = new ArrayList<>();
+        for (Skill s : forSubclass(sub)) if (s.advanced()) out.add(s);
         return out;
     }
 

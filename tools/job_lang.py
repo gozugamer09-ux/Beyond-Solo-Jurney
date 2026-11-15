@@ -172,6 +172,65 @@ TEXT = {
     "job.beyondsolo.reveal.skip": "Skip",
 }
 
+# the Warrior subclasses' own skill sets (WarriorPath.java)
+SKILLS.update({
+    # bloodrager
+    "crimson_cleave": ("Crimson Cleave", "Wide, wet and red.", "Two sweeping cuts in front of you, %s damage each. Every cut builds Blood on what it hits."),
+    "gore_rush": ("Gore Rush", "Straight through them.", "Rush forward through your foes for %s damage each. Every foe you pass through heals you a little."),
+    "thick_blood": ("Thick Blood", "It takes a lot to drain you.", "+%s max health and +%s attack damage."),
+    "blood_geyser": ("Blood Geyser", "The ground bleeds too.", "A geyser erupts where you aim: %s damage, hurls foes into the air and builds Blood."),
+    "hemorrhage": ("Hemorrhage", "A wound that will not close.", "A deep cut for %s damage that keeps bleeding: %s more every second for 5 s."),
+    "bloodscent": ("Bloodscent", "You can smell the weak.", "You deal %s%% more damage to foes below half health."),
+    "reckless_slam": ("Reckless Slam", "It hurts you too. Worth it.", "Spend 8% of your health to smash the ground: %s damage to everything around you."),
+    "blood_nova": ("Blood Nova", "Everything you have lost, given back.", "Spend 15% of your health in a burning blast: %s damage around you, up to twice as much the less health you have."),
+    "pain_tolerance": ("Pain Tolerance", "You stopped noticing a while ago.", "Below half health you take %s%% less damage."),
+    "last_stand": ("Last Stand", "Not yet.", "For %s s you cannot die: your health never drops below one point, and you hit much harder."),
+    # warlord
+    "rallying_cry": ("Rallying Cry", "On your feet!", "You and nearby allies are healed for %s and gain Regeneration and Speed for 5 s."),
+    "spear_of_command": ("Spear of Command", "Where it lands, the army follows.", "Hurl a spear of light that pierces every foe in its path for %s damage and leaves them weakened."),
+    "iron_discipline": ("Iron Discipline", "Drilled until it is instinct.", "+%s armor and +%s%% knockback resistance."),
+    "vanguard_charge": ("Vanguard Charge", "First into the breach.", "Charge forward, throwing foes aside for %s damage. Nearby allies gain Speed II."),
+    "banner_of_ruin": ("Banner of Ruin", "Nothing grows where it stood.", "Plant a burning banner where you aim for %s s: foes near it take %s damage every second and catch fire."),
+    "war_drums": ("War Drums", "The beat never stops.", "You and allies within 8 blocks always have Haste %s."),
+    "shield_wall": ("Shield Wall", "Lock shields.", "For %s s, you and nearby allies gain Resistance II and %s absorption hearts."),
+    "execution_order": ("Execution Order", "That one. Now.", "A blade drops on your target for %s damage and marks it for 12 s: it takes %s%% more damage from everyone."),
+    "spoils_of_war": ("Spoils of War", "To the victor.", "Every kill restores %s mana and %s health."),
+    "conquerors_verdict": ("Conqueror's Verdict", "The war ends here.", "Call down a colossal blade where you aim: %s damage, and everything it hits is stunned."),
+    # blademaster
+    "iaido": ("Iaido", "The cut comes after the sword is sheathed.", "Flash through your foes. A moment later every one of them is cut for %s damage."),
+    "crescent_wave": ("Crescent Wave", "The edge keeps going.", "Send a blade of wind 14 blocks ahead: %s damage to every foe it passes."),
+    "keen_edge": ("Keen Edge", "Honed every single night.", "+%s attack damage."),
+    "rising_moon": ("Rising Moon", "From the ground to the sky.", "An upward cut that throws foes into the air for %s damage, and you with them."),
+    "blade_ward": ("Blade Ward", "Six swords, no hands.", "For %s s spectral blades circle you: Resistance, and foes that come close are cut for %s damage twice a second."),
+    "riposte": ("Riposte", "Every attack is an opening.", "%s%% chance to turn a melee blow aside completely and strike back for %s damage."),
+    "falling_petal": ("Falling Petal", "It lands softly. Nothing else does.", "Leap to where you aim and land in a whirl of cuts: %s damage around you."),
+    "sword_rain": ("Sword Rain", "Look up.", "%s spectral swords fall on the area you aim at, %s damage each."),
+    "wind_step": ("Wind Step", "Lighter on your feet than the breeze.", "+%s%% movement speed."),
+    "severing_line": ("Severing Line", "One cut. Nothing more is needed.", "Focus, then cut a line 18 blocks long: %s damage, doubled against foes below a quarter of their health."),
+    # juggernaut
+    "seismic_stomp": ("Seismic Stomp", "The ground flinches.", "Stomp the ground: %s damage around you, tossing foes up and slowing them."),
+    "boulder_toss": ("Boulder Toss", "Fetch.", "Hurl a boulder that crashes down where you aim: %s damage and a short stun."),
+    "immovable": ("Immovable", "You have never taken a step back.", "+%s armor and +%s armor toughness."),
+    "stone_skin": ("Stone Skin", "Harder than what hits it.", "For %s s your skin turns to stone: Resistance II and %s absorption hearts."),
+    "grapple_slam": ("Grapple Slam", "Come here.", "Drag a foe to you, lift it and drive it into the ground: %s damage, and %s to everything near the impact."),
+    "momentum": ("Momentum", "Hard to start. Impossible to stop.", "You deal %s%% more damage while sprinting."),
+    "living_avalanche": ("Living Avalanche", "You are the rockslide.", "For 3 s you barrel forward much faster, battering everything you touch for %s damage four times a second."),
+    "bulwark_taunt": ("Bulwark Taunt", "Hit me instead.", "Every creature within 10 blocks turns on you. You gain Resistance and %s absorption hearts."),
+    "second_wind": ("Second Wind", "Down is not out.", "Below 30%% health you recover %s health every second."),
+    "mountainfall": ("Mountainfall", "A mountain, dropped.", "Leap high and crash down where you aim: %s damage and a stun. The ground keeps shaking for 4 s, slowing foes and dealing %s damage a second."),
+    # worldbreaker
+    "tectonic_uppercut": ("Tectonic Uppercut", "The earth comes up with the fist.", "An uppercut that rips up the ground in front of you: %s damage, and foes are thrown sky-high."),
+    "meteor_hurl": ("Meteor Hurl", "Tear out a hill and throw it.", "Hurl a burning boulder that crashes down where you aim: %s damage and sets everything ablaze."),
+    "earthen_might": ("Earthen Might", "The weight of the world, in one arm.", "+%s attack damage, and your blows knock foes further back."),
+    "gravity_well": ("Gravity Well", "Everything falls towards you.", "Drag every foe within 10 blocks to you, then crush them for %s damage."),
+    "titan_stride": ("Titan Stride", "Each step is an earthquake.", "For %s s every second of walking sends out a shockwave: %s damage around you."),
+    "aftershock": ("Aftershock", "The blow lands twice.", "Your melee hits send a shock through the ground: %s damage to other foes next to your target."),
+    "continental_split": ("Continental Split", "The map needs redrawing.", "Three fissures tear outwards in front of you. Each foe caught takes %s damage and is launched."),
+    "worldshaker_roar": ("Worldshaker Roar", "Mountains heard it.", "A roar that shakes everything within 12 blocks: %s damage and a 3 s stun."),
+    "unbroken": ("Unbroken", "The world breaks first.", "You take %s%% less damage from everything."),
+    "end_of_ages": ("End of Ages", "This is how the world ends.", "Gather the earth's fury for 2.5 s while pillars erupt around you for %s damage each, then shatter everything within 12 blocks for %s damage."),
+})
+
 
 def main():
     out = dict(TEXT)

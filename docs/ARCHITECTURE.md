@@ -361,8 +361,7 @@ reward them. Events for other modules: `SkillEvent.Learned` (with its source), `
 Adding a skill: one `Skills` entry with its element, an action in `SkillActions` that sends a `SkillFxPayload`
 kind for the look (`client.skill.SkillWorldFx` draws each kind with the light textures and particles; add a kind
 for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools/gen_ui_assets.py`
-(`skill_<path>`), and a test. Subclasses will be extra `Skills` entries marked `advanced` with their own owner,
-granted through `grantAdvanced`. Every skill hit goes through `SkillActions.hit`, which is
+(`skill_<path>`), and a test. Subclass skills live apart (see "Job change"). Every skill hit goes through `SkillActions.hit`, which is
 where combos, range passives and elements apply; a new damaging skill should use it rather than `hurt`.
 
 ### Combos and element reactions
@@ -432,7 +431,18 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
   the subclass's own skills (`SkillAPI.grantSubclass`); skills of any other subclass are forgotten.
 - **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
   belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
-  element reactions apply.
+  element reactions apply. The job change itself teaches the starters (`Skills.startersFor`: the `advanced` ones).
+- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath` so far): every subclass
+  grows to about 12 skills (8 actives, 4 passives; the ultimate last). These are not `advanced`: they carry an
+  unlock level (22 to 50) and `SkillAPI.grantUnlocked` teaches them as the player levels, only to players of that
+  subclass; a late job change catches up at once. A path file holds its skills, their numbers and actions, and
+  its passive hooks (`strikeBonus`, `afterStrike`, `whenStruck`, `tickSecond`, `onKill`, `refusesDeath`), which
+  `SubclassPassives` calls. `SubclassKit` has the builders (`active`, `passive`, `bonus` for attribute passives)
+  and the building blocks (`cone`, `along`, `foes`, `dash`, `leap`, `repeat`, `later`, `push`, `pull`,
+  `aimGround`). To add a class's sets: copy the shape of `WarriorPath`, call its `init()` from
+  `SubclassSkills.init()` and its hooks from `SubclassPassives`, add names to `tools/job_lang.py` and icons to
+  `tools/gen_job_assets.py`. World effects added for these sets (`SkillFxPayload.Kind`): `CLEAVE` (falling
+  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`.
 - **Cutscene camera** (`client/job/CutsceneCamera`, `CutscenePayload`): glide and orbit shots with letterbox bars.
   The camera follows a client-only marker entity, so the player's body shows. A shot holds on a black curtain until
   the world under it is drawn. Any system can send shots; `/system job camera` tries one anywhere.
