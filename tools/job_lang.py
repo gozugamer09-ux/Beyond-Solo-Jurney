@@ -231,6 +231,65 @@ SKILLS.update({
     "end_of_ages": ("End of Ages", "This is how the world ends.", "Gather the earth's fury for 2.5 s while pillars erupt around you for %s damage each, then shatter everything within 12 blocks for %s damage."),
 })
 
+# the Assassin subclasses' own skill sets (AssassinPath.java)
+SKILLS.update({
+    # nightblade
+    "shadow_fang": ("Shadow Fang", "They feel it before they see it.", "Dash through your foes for %s damage each, half again as much from behind or against a foe that has not noticed you."),
+    "dusk_shroud": ("Dusk Shroud", "The dark is a cloak.", "Vanish for %s s: foes lose track of you, and your first strike out of the shroud deals %s%% more damage."),
+    "killer_instinct": ("Killer Instinct", "Strike first.", "You deal %s%% more damage to creatures that are not hunting you."),
+    "throat_slit": ("Throat Slit", "Quick and quiet.", "A precise cut for %s damage that weakens and slows. Doubled against a foe that has not noticed you."),
+    "umbral_decoy": ("Umbral Decoy", "That was never you.", "Leave a shadow of yourself and slip 5 blocks ahead unseen. After 2 s the shadow bursts: %s damage and blindness."),
+    "nightfall_step": ("Nightfall Step", "Soft as dusk.", "+%s%% movement speed and +%s%% attack speed."),
+    "black_lotus": ("Black Lotus", "It blooms once.", "Shadow blades whirl around you three times, %s damage each, blinding what they cut."),
+    "night_terror": ("Night Terror", "Every nightmare at once.", "Foes within 8 blocks take %s damage, are thrown back in terror, weakened, and forget who they were hunting."),
+    "finisher": ("Finisher", "No one limps away.", "You deal %s%% more damage to foes below 30%% health."),
+    "endless_night": ("Endless Night", "Seven cuts, then the dark.", "Strike your target from seven sides in an instant for %s damage each, then drop a blade of night on it for %s."),
+    # toxin weaver
+    "venom_spit": ("Venom Spit", "Do not get it in your eyes.", "Spit venom at the foe in your sights: %s damage and a heavy dose of poison."),
+    "caustic_slash": ("Caustic Slash", "The blade is the least of it.", "A coated cut in front of you for %s damage. Every foe hit gains a stack of Venom."),
+    "toxic_blood": ("Toxic Blood", "Biting you is a mistake.", "Creatures that hit you in melee are poisoned (%s buildup)."),
+    "spore_burst": ("Spore Burst", "Hold your breath.", "A cloud of spores bursts around you: %s damage, poison and a slow."),
+    "paralytic_dart": ("Paralytic Dart", "It only stings for a second.", "A dart for %s damage that leaves the target unable to move for %s s."),
+    "potency": ("Potency", "A stronger brew.", "You deal %s%% more damage to poisoned foes."),
+    "plague_trail": ("Plague Trail", "Do not follow.", "For 5 s you move faster and leave pools of poison behind you: %s damage a second to foes standing in them."),
+    "neurotoxin": ("Neurotoxin", "It takes three seconds to notice.", "Inject a foe. After 3 s the toxin erupts for %s damage, doubled if the foe is poisoned, and poisons everything near it."),
+    "antibodies": ("Antibodies", "You have tried all of them on yourself.", "Poison no longer takes hold of you, and you take %s%% less magic damage."),
+    "pandemic": ("Pandemic", "It spreads.", "Flood the area you aim at with plague for %s s: %s damage a second, and every second adds Venom and weakness."),
+    # mirage dancer
+    "phantom_step": ("Phantom Step", "You left something behind.", "Blink 8 blocks ahead. The afterimage you leave slashes everything near it for %s damage."),
+    "gale_kick": ("Gale Kick", "The wind does the rest.", "A spinning kick for %s damage that blasts foes far away from you."),
+    "featherfall": ("Featherfall", "Gravity is a suggestion.", "+%s%% movement speed, and you can fall %s blocks further unharmed."),
+    "mirror_image": ("Mirror Image", "Which one is real?", "For %s s mirror images dance around you: %s%% chance that an attack hits one of them instead."),
+    "cyclone_dance": ("Cyclone Dance", "The eye of the storm.", "Whirl for 1.5 s, dragging foes in and cutting them for %s damage five times."),
+    "tailwind": ("Tailwind", "Always at your back.", "+%s%% attack speed."),
+    "updraft": ("Updraft", "Going up.", "A blast of wind for %s damage hurls nearby foes into the air and lifts you with them. You float down slowly."),
+    "afterimage_barrage": ("Afterimage Barrage", "Five of you, one after another.", "Five afterimages strike in a row ahead of you, %s damage each."),
+    "slipstream": ("Slipstream", "Hard to hit what will not stay still.", "You take %s%% less damage while sprinting."),
+    "tempest_waltz": ("Tempest Waltz", "The last dance.", "Flit between foes within 12 blocks, cutting twelve times for %s damage, then return in a burst of wind for %s."),
+    # bounty reaper
+    "chain_hook": ("Chain Hook", "No one outruns a contract.", "Hook the foe in your sights and drag it to you: %s damage and a slow."),
+    "reaping_arc": ("Reaping Arc", "The harvest.", "A sweeping scythe cut and its backswing: %s damage, then half again. Marked foes take 50%% more."),
+    "bounty_ledger": ("Bounty Ledger", "One name crossed off.", "Every kill gives you Speed II for %s s."),
+    "crippling_shot": ("Crippling Shot", "They do not run after this.", "A thrown blade for %s damage that all but stops the target, weakens it and marks it."),
+    "pursuit": ("Pursuit", "Right behind you.", "Appear behind the foe in your sights and strike for %s damage. You gain Speed II."),
+    "appraise_weakness": ("Appraise Weakness", "Everyone has a price.", "You deal %s%% more damage to marked (glowing) foes."),
+    "bola_snare": ("Bola Snare", "Wanted alive. Mostly.", "Throw a snare where you aim: %s damage, and everything caught is bound for 3 s and marked."),
+    "collect_dues": ("Collect Dues", "Payment is due.", "A blade falls on every foe within 14 blocks for %s damage. Marked foes pay double."),
+    "dead_or_alive": ("Dead or Alive", "Either way you get paid.", "+%s attack damage and +%s armor."),
+    "final_contract": ("Final Contract", "Signed in blood.", "Seal a contract on your target: %s damage, and for 15 s you deal %s%% more to it. If it dies in that time you are fully healed and every skill is ready again."),
+    # eclipse sovereign
+    "umbral_lance": ("Umbral Lance", "A line of nothing.", "A lance of darkness pierces everything in its path for %s damage."),
+    "nightfall": ("Nightfall", "The dark arrives.", "Appear where you aim in a burst of shadow: %s damage and blindness to everything around you."),
+    "void_touched": ("Void Touched", "Something looked back.", "+%s attack damage and +%s%% movement speed."),
+    "black_sun": ("Black Sun", "It gives no light.", "Hang a black sun where you aim for 4 s: it drags foes in for %s damage a second, then collapses for %s."),
+    "moonless_veil": ("Moonless Veil", "No moon, no shadow, no you.", "For %s s you are unseen and swift, and half of all attacks pass straight through you."),
+    "penumbra": ("Penumbra", "The edge of the shadow cuts too.", "%s%% chance on any hit to stun and blind the target for a moment."),
+    "crescent_reaver": ("Crescent Reaver", "Two moons, crossing.", "Two enormous crossing slashes, %s damage each, 7 blocks wide."),
+    "starless_prison": ("Starless Prison", "No stars to steer by.", "Chains of shadow bind every foe within 9 blocks for 3 s and deal %s damage."),
+    "lord_of_night": ("Lord of Night", "The dark kneels.", "You take %s%% less damage from everything."),
+    "world_without_light": ("World Without Light", "And then there was none.", "Drown everything within 14 blocks in darkness for 3 s while blades of night fall for %s damage each, then end it: %s damage to all."),
+})
+
 
 def main():
     out = dict(TEXT)
