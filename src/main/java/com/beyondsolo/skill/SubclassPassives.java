@@ -120,6 +120,7 @@ public final class SubclassPassives {
             if (level <= 0) inst.removeModifier(b.id());
             else inst.addOrUpdateTransientModifier(new AttributeModifier(b.id(), b.perLevel * level, b.op));
         }
+        SubclassKit.applyBonuses(player, data);
         if (player.getHealth() > player.getMaxHealth()) player.setHealth(player.getMaxHealth());
     }
 
@@ -151,6 +152,7 @@ public final class SubclassPassives {
         if (charge > 0) SystemAPI.restoreMana(p, staticRegen(charge));
         int core = data.level(SubclassSkills.CELESTIAL_CORE.path());
         if (core > 0) SystemAPI.restoreMana(p, 0.3f * core);
+        WarriorPath.tickSecond(p, data);
     }
 
     // ================================================================ hits
@@ -207,7 +209,9 @@ public final class SubclassPassives {
                 if (sentence[0] > now && sentence[2] == p.getId()) bonus += sentence[1];
                 else if (sentence[0] <= now) SubclassActions.SENTENCES.remove(target);
             }
+            bonus += WarriorPath.strikeBonus(p, data, target, now);
             if (bonus != 0) amount *= 1 + bonus / 100f;
+            WarriorPath.afterStrike(p, data, target, melee, now);
 
             // on-hit statuses
             int virulence = data.level(SubclassSkills.VIRULENCE.path());
@@ -226,9 +230,20 @@ public final class SubclassPassives {
             }
         }
 
+        // Execution Order: the marked creature takes more from everyone
+        if (attacker != null && attacker != target) {
+            float order = WarriorPath.orderBonus(target, now);
+            if (order > 0) amount *= 1 + order / 100f;
+        }
+
         // ---- the player is struck
         if (target instanceof ServerPlayer p && attacker != p) {
             SkillData data = SkillAPI.get(p);
+            amount = WarriorPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, amount);
+            if (amount < 0) {
+                event.setCanceled(true);
+                return;
+            }
             int dodge = data.level(SubclassSkills.EVASIVE_STEP.path());
             int foresight = data.level(SubclassSkills.FORESIGHT.path());
             float chance = (dodge > 0 ? evasion(dodge) : 0) + (foresight > 0 ? foresightDodge(foresight) : 0);
@@ -278,6 +293,10 @@ public final class SubclassPassives {
         // Undying / Eternal Grace: the player refuses to fall, now and then
         if (dead instanceof ServerPlayer p) {
             SkillData data = SkillAPI.get(p);
+            if (!event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY) && WarriorPath.refusesDeath(p, data)) {
+                event.setCanceled(true);
+                return;
+            }
             int undying = Math.max(data.level(SubclassSkills.UNDYING.path()), data.level(SubclassSkills.ETERNAL_GRACE.path()));
             if (undying > 0 && !data.hasBuff(BUFF_SAVED, p.level().getGameTime()) && !event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                 event.setCanceled(true);
@@ -293,6 +312,7 @@ public final class SubclassPassives {
         }
         if (!(event.getSource().getEntity() instanceof ServerPlayer p) || dead == p) return;
         SkillData data = SkillAPI.get(p);
+        WarriorPath.onKill(p, data, dead);
         int pact = data.level(SubclassSkills.GRAVE_PACT.path());
         if (pact > 0) {
             p.heal(pactHeal(pact));
