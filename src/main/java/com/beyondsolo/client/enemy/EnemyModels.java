@@ -22,8 +22,15 @@ public final class EnemyModels {
         GeoBone head = model.getAnimationProcessor().getBone("head");
         EntityModelData data = state.getData(DataTickets.ENTITY_MODEL_DATA);
         if (head == null || data == null) return;
-        head.setRotX(head.getRotX() + data.headPitch() * Mth.DEG_TO_RAD * pitchScale);
-        head.setRotY(head.getRotY() + data.netHeadYaw() * Mth.DEG_TO_RAD * 0.7f);
+        // Add to this frame's animated pose when an animation moved the head; otherwise start from the rest pose.
+        // (Adding to an unanimated head stacks frame after frame through GeckoLib's reset blend: the head spun.)
+        float baseX = head.hasRotationChanged() ? head.getRotX() : head.getInitialSnapshot().getRotX();
+        float baseY = head.hasRotationChanged() ? head.getRotY() : head.getInitialSnapshot().getRotY();
+        float pitch = Mth.clamp(data.headPitch(), -30f, 30f) * pitchScale;
+        float yaw = Mth.clamp(data.netHeadYaw(), -50f, 50f) * 0.7f;
+        head.setRotX(baseX + pitch * Mth.DEG_TO_RAD);
+        head.setRotY(baseY + yaw * Mth.DEG_TO_RAD);
+        head.markRotationAsChanged();
     }
 
     /** One of the gate's creatures; its texture follows its affinity. */

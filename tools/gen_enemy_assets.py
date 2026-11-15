@@ -31,8 +31,16 @@ sys.path.insert(0, os.path.dirname(__file__))
 from gen_gate_assets import (ANIM, GEO, PALETTES, RANKS, T, TEX, atlas, cube, ease_in, ease_in_out, ease_out_back,  # noqa: E402
                              geometry, keyframes, noise, tile_crystal, tile_eye, window, write_json)
 
+import paint_skins  # noqa: E402
+
 # tiles (every model's atlas has the same eight)
 HIDE, DARK, PLATE, TRIM, GLOW, EYE, BONE, CLOTH = range(8)
+
+# every face painted on its own (paint_skins); False goes back to the old shared 16 px tiles
+PAINTED = True
+
+# models drawn bigger than they are built
+MODEL_SCALE = {"boss_wyrm": 1.3}
 
 AFFINITIES = {
     "plain": (205, 210, 225),
@@ -138,6 +146,9 @@ def t_dark(rng, base):
 
 
 def tiles_for(rng, hide, plate, trim, glow, bone=(225, 214, 190), cloth=None, spots=False):
+    if PAINTED:
+        return {"hide": hide, "plate": plate, "trim": trim, "glow": glow, "bone": bone,
+                "cloth": cloth or [v * 0.8 for v in hide], "spots": spots}
     return [
         t_skin(rng, hide, spots=glow if spots else None),
         t_dark(rng, hide),
@@ -152,6 +163,10 @@ def tiles_for(rng, hide, plate, trim, glow, bone=(225, 214, 190), cloth=None, sp
 
 def save_textures(name, variants, make_tiles, seed):
     """variants: [(suffix, args...)]; writes textures/entity/<name>_<suffix>.png and its glow mask."""
+    if PAINTED:
+        # painted per face once the model is built (see paint_skins and write_geo)
+        d = paint_skins.Deferred(name, variants, make_tiles, seed)
+        return d, d
     uvs, size = None, None
     for i, (suffix, *args) in enumerate(variants):
         rng = np.random.default_rng(seed + i)
@@ -170,6 +185,7 @@ class Model:
 
     def c(self, origin, size, tile, **kw):
         made = cube(origin, size, tile, self.uvs, **kw)
+        made["_mat"] = tile
         # a hair inside the tile, so neighbouring tiles never bleed in along the edges
         for face in made["uv"].values():
             face["uv"] = [face["uv"][0] + 0.25, face["uv"][1] + 0.25]
@@ -212,11 +228,46 @@ def rot(fn):
 
 
 def write_anims(name, anims):
+    k = MODEL_SCALE.get(name, 1.0)
+    if k != 1.0:
+        # positions are in model units: they grow with the model
+        for a in anims.values():
+            for bone in a.get("bones", {}).values():
+                pos = bone.get("position")
+                if isinstance(pos, dict):
+                    for t, v in pos.items():
+                        if isinstance(v, list):
+                            pos[t] = [round(x * k, 4) for x in v]
+                        elif isinstance(v, dict):
+                            for kk in ("pre", "post", "vector"):
+                                if isinstance(v.get(kk), list):
+                                    v[kk] = [round(x * k, 4) for x in v[kk]]
     write_json(os.path.join(ANIM, "entity", f"{name}.animation.json"),
                {"format_version": "1.8.0", "animations": {f"animation.beyondsolo.{name}.{k}": v for k, v in anims.items()}})
 
 
 def write_geo(name, model):
+    geo = model["minecraft:geometry"][0]
+    k = MODEL_SCALE.get(name, 1.0)
+    if k != 1.0:
+        for b in geo["bones"]:
+            b["pivot"] = [round(v * k, 3) for v in b["pivot"]]
+            for c in b.get("cubes", []):
+                for key in ("origin", "size", "pivot"):
+                    if key in c:
+                        c[key] = [round(v * k, 3) for v in c[key]]
+        d = geo["description"]
+        d["visible_bounds_width"] *= k
+        d["visible_bounds_height"] *= k
+    d = geo["description"]
+    if isinstance(d["texture_width"], paint_skins.Deferred):
+        size, density = paint_skins.paint(name, geo["bones"], d["texture_width"], os.path.join(TEX, "entity"))
+        d["texture_width"] = d["texture_height"] = size
+        print(f"  {name}: {size}px atlas, {density} texels per unit")
+    else:
+        for b in geo["bones"]:
+            for c in b.get("cubes", []):
+                c.pop("_mat", None)
     write_json(os.path.join(GEO, "entity", f"{name}.geo.json"), model)
 
 
@@ -742,7 +793,7 @@ def magus():
 def wyrm():
     name = "boss_wyrm"
     uvs, size = save_textures(name, [(r, r) for r in RANKS], lambda rng, r: tiles_for(
-        rng, rank_tint((86, 44, 34), r, 0.35), rank_tint((150, 112, 76), r, 0.2), (200, 160, 110), rank_glow(r),
+        rng, rank_tint((150, 64, 40), r, 0.3), rank_tint((170, 120, 80), r, 0.2), (210, 170, 110), rank_glow(r),
         bone=(222, 210, 186), cloth=rank_tint((112, 48, 40), r, 0.3), spots=True), 600)
     m = Model(uvs)
     c = m.c
@@ -1081,7 +1132,7 @@ def hound_anims(name, run_period=0.8, intro=True, big=True):
 def alpha():
     name = "boss_alpha"
     uvs, size = save_textures(name, [(r, r) for r in RANKS], lambda rng, r: tiles_for(
-        rng, rank_tint((54, 54, 64), r, 0.3), rank_tint((78, 78, 92), r), (160, 150, 140), rank_glow(r), spots=False), 700)
+        rng, rank_tint((112, 122, 140), r, 0.25), rank_tint((90, 96, 112), r), (170, 160, 150), rank_glow(r), spots=False), 700)
     m = hound(name, uvs, size, 1.25)
     write_geo(name, m.geo(name, size, 5, 4, 1.4))
     hound_anims(name)

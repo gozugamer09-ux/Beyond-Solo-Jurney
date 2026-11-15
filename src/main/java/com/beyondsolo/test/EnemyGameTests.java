@@ -84,12 +84,26 @@ public final class EnemyGameTests {
             helper.assertTrue(plain != null && elite != null, kind + " spawns");
             spawned.add(plain);
             spawned.add(elite);
+            // compare at the same size: the size roll is checked on its own below
+            Enemies.applySize(plain, 1f);
+            Enemies.applySize(elite, 1f);
             EnemyTraits back = EnemyTraits.of(elite);
             helper.assertTrue(back.equals(traits), kind + " keeps its traits: " + back);
             helper.assertTrue(elite.getMaxHealth() > plain.getMaxHealth() * 1.5f, kind + " elite at B is much tougher: " + elite.getMaxHealth() + " vs " + plain.getMaxHealth());
             helper.assertTrue(elite.getAttributeValue(Attributes.ARMOR) > plain.getAttributeValue(Attributes.ARMOR), kind + " armoured affix adds armour");
             helper.assertTrue(Enemies.rankOf(elite) == PlayerRank.B, kind + " remembers its rank");
         }
+        // sizes: from half to double, mostly near the usual, giants rare
+        net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(42);
+        int giants = 0, small = 0, usual = 0;
+        for (int i = 0; i < 4000; i++) {
+            float s = Enemies.rollSize(r, false);
+            helper.assertTrue(s >= 0.5f && s <= 2f, "size in range: " + s);
+            if (s >= 1.6f) giants++;
+            else if (s < 0.8f) small++;
+            else if (s >= 0.85f && s <= 1.15f) usual++;
+        }
+        helper.assertTrue(giants > 40 && giants < 200 && small > 300 && usual > 2800, "size spread: giants " + giants + " small " + small + " usual " + usual);
         // vanilla creatures take traits too
         Mob zombie = Enemies.spawn(level, PlayerRank.C, EntityType.ZOMBIE, at, new EnemyTraits(Affinity.FLAME, Variant.VETERAN, 0), -1);
         helper.assertTrue(zombie != null && EnemyTraits.of(zombie).affinity() == Affinity.FLAME, "a zombie can be emberborn");
@@ -125,9 +139,11 @@ public final class EnemyGameTests {
                 helper.assertTrue(boss != null, "a boss");
                 boss.configure(kind.maxRank, kind, ascended);
                 helper.assertTrue(boss.kind() == kind && boss.rank() == kind.maxRank && boss.isAscended() == ascended, kind + " keeps its kind");
-                float hp = GateTheme.of(kind.maxRank).bossHealth() * kind.healthScale * (ascended ? 1.4f : 1f);
-                helper.assertTrue(Math.abs(boss.getMaxHealth() - hp) < 0.01f, kind + " has its health: " + boss.getMaxHealth() + " vs " + hp);
-                float w = kind.width * (ascended ? 1.15f : 1f);
+                float size = com.beyondsolo.enemy.Enemies.sizeOf(boss);
+                helper.assertTrue(size >= 0.5f && size <= 2f, kind + " size roll in range: " + size);
+                float hp = GateTheme.of(kind.maxRank).bossHealth() * kind.healthScale * (ascended ? 1.4f : 1f) * (1 + (size - 1) * 0.8f);
+                helper.assertTrue(Math.abs(boss.getMaxHealth() - hp) < 0.05f, kind + " has its health: " + boss.getMaxHealth() + " vs " + hp);
+                float w = kind.width * (ascended ? 1.15f : 1f) * size;
                 helper.assertTrue(Math.abs(boss.getBbWidth() - w) < 0.05f, kind + " has its own size: " + boss.getBbWidth() + " vs " + w);
                 helper.assertTrue(EnemyTraits.of(boss).affinity() == kind.affinity, kind + " has its affinity");
                 helper.assertTrue(boss.getCustomName() != null && !boss.getCustomName().getString().startsWith("gate."), kind + " has a name: " + boss.getCustomName());
