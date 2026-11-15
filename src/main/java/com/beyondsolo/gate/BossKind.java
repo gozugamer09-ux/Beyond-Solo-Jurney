@@ -28,7 +28,7 @@ public enum BossKind {
     /** A floating masked caster. Bolts, sigils under your feet, blinks away, raises acolytes. */
     MAGUS("magus", "boss_magus", PlayerRank.C, PlayerRank.S, 3, 1.4f, 3.7f, 0.8f, 1f, Affinity.STORM, "intro"),
     /** A drake of ash and embers. Fire breath, a tail sweep, a wing buffet that throws you back. */
-    WYRM("wyrm", "boss_wyrm", PlayerRank.B, PlayerRank.S, 3, 3.2f, 2.9f, 1.25f, 1.05f, Affinity.FLAME, "intro");
+    WYRM("wyrm", "boss_wyrm", PlayerRank.B, PlayerRank.S, 3, 4.2f, 3.8f, 1.25f, 1.05f, Affinity.FLAME, "intro");
 
     public final String id;
     /** The model, animation and texture name (textures/entity/&lt;model&gt;_&lt;rank&gt;.png). */

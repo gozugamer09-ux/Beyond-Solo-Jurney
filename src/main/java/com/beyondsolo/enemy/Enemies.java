@@ -76,11 +76,45 @@ public final class Enemies {
             mod(mob, Attributes.ARMOR, "affix_armored", 8, AttributeModifier.Operation.ADD_VALUE);
             mod(mob, Attributes.KNOCKBACK_RESISTANCE, "affix_armored", 0.5, AttributeModifier.Operation.ADD_VALUE);
         }
+        if (mob.getAttribute(Attributes.SCALE) != null && mob.getAttribute(Attributes.SCALE).getModifier(BeyondSolo.id("size_roll")) == null) {
+            applySize(mob, rollSize(mob.getRandom(), false));
+        }
         mob.setHealth(mob.getMaxHealth());
         if (mob instanceof GateMonsterEntity m) m.setAffinity(traits.affinity());
         if (traits.affinity() == Affinity.FLAME) mob.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false));
         mob.getPersistentData().putInt(RANK_KEY, rank.ordinal());
         traits.save(mob);
+    }
+
+    /**
+     * A creature's size, as a multiple of its kind's: most are near their usual size, about one in eight is small
+     * (down to half), and the unlucky meet a giant (up to double). Bosses stray less often.
+     */
+    public static float rollSize(RandomSource r, boolean boss) {
+        float roll = r.nextFloat();
+        float giant = boss ? 0.015f : 0.025f;
+        float big = boss ? 0.07f : 0.09f;
+        float small = boss ? 0.07f : 0.12f;
+        if (roll < giant) return 1.6f + 0.4f * r.nextFloat();
+        if (roll < giant + big) return 1.25f + 0.35f * r.nextFloat();
+        if (roll < giant + big + small) return 0.5f + 0.3f * r.nextFloat();
+        return 0.85f + 0.3f * r.nextFloat();
+    }
+
+    /** Sets a creature's size roll: its scale, and its health, damage and pace with it. */
+    public static void applySize(Mob mob, float size) {
+        mod(mob, Attributes.SCALE, "size_roll", size - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        mod(mob, Attributes.MAX_HEALTH, "size_health", (size - 1) * 0.8, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        mod(mob, Attributes.ATTACK_DAMAGE, "size_damage", (size - 1) * 0.4, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        mod(mob, Attributes.MOVEMENT_SPEED, "size_pace", (1 - size) * 0.25, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        mob.refreshDimensions();
+    }
+
+    /** The size roll a creature got (1 when it has none). */
+    public static float sizeOf(net.minecraft.world.entity.LivingEntity e) {
+        AttributeInstance inst = e.getAttribute(Attributes.SCALE);
+        var m = inst == null ? null : inst.getModifier(BeyondSolo.id("size_roll"));
+        return m == null ? 1f : 1f + (float) m.amount();
     }
 
     private static void mod(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr, String id, double amount,
