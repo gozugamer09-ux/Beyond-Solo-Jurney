@@ -118,8 +118,9 @@ public final class SkillAPI {
         SystemData sys = SystemAPI.get(player);
         List<Skill> learned = new ArrayList<>();
         if (!sys.isAwakened()) return learned;
+        Subclass sub = JobAPI.subclass(player);
         for (Skill s : Skills.all()) {
-            if (!s.fits(sys.playerClass())) continue;
+            if (!s.fits(sys.playerClass(), sub)) continue;
             int at = s.unlockLevel(sys.rank());
             if (at < 1 || at > sys.level() || knows(player, s)) continue;
             if (learn(player, s, 1, SkillEvent.Source.LEVEL)) learned.add(s);
@@ -137,14 +138,16 @@ public final class SkillAPI {
         return learned;
     }
 
-    /** The job change hook for subclasses: teaches the player's subclass skills. Returns what was learned. */
+    /** The job change hook for subclasses: teaches the subclass's starter skills. Returns what was learned. */
     public static List<Skill> grantSubclass(ServerPlayer player) {
         List<Skill> learned = new ArrayList<>();
         Subclass sub = JobAPI.subclass(player);
         if (sub == null) return learned;
-        for (Skill s : Skills.forSubclass(sub)) {
+        for (Skill s : Skills.startersFor(sub)) {
             if (learn(player, s, 1, SkillEvent.Source.JOB_CHANGE)) learned.add(s);
         }
+        // a late job change: the subclass skills the player's level has already passed
+        grantUnlocked(player);
         return learned;
     }
 
