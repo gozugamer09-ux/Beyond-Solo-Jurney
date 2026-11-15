@@ -1,6 +1,7 @@
 package com.beyondsolo.skill;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.job.Subclass;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import net.minecraft.network.chat.Component;
@@ -49,6 +50,8 @@ public final class Skill {
     private final @Nullable Action action;
     private final Args args;
     private SkillElement element = SkillElement.PHYSICAL;
+    /** Set for subclass skills: only that subclass learns them, at the job change. */
+    private @Nullable Subclass subclass;
 
     Skill(String path, Kind kind, @Nullable PlayerClass owner, PlayerRank grade, int unlockLevel, boolean advanced, int color,
           float mana, int cooldown, int cooldownAtMax, @Nullable Action action, Args args) {
@@ -83,6 +86,19 @@ public final class Skill {
     Skill element(SkillElement element) {
         this.element = element;
         return this;
+    }
+
+    /** The subclass that learns it at the job change, or null for base class and shared skills. */
+    public @Nullable Subclass subclass() { return subclass; }
+
+    Skill subclass(Subclass subclass) {
+        this.subclass = subclass;
+        return this;
+    }
+
+    /** True if a player of this class and subclass (null = no job change yet) may hold the skill. */
+    public boolean fits(PlayerClass playerClass, @Nullable Subclass playerSubclass) {
+        return fits(playerClass) && (subclass == null || subclass == playerSubclass);
     }
 
     /** True if a player of this class may hold the skill at all. */

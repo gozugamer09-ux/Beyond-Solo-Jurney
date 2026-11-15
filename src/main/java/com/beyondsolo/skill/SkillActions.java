@@ -919,7 +919,7 @@ public final class SkillActions {
      * A skill's hit: the combo chain and the passives scale it, the skill's element is left on the creature or
      * reacts with the one already there ({@link SkillCombat#strike}), then the damage lands.
      */
-    private static void hit(ServerPlayer p, Skill s, LivingEntity e, float damage, boolean magic) {
+    static void hit(ServerPlayer p, Skill s, LivingEntity e, float damage, boolean magic) {
         damage *= SkillCombat.comboMultiplier(p);
         int steady = SkillAPI.level(p, Skills.STEADY_AIM);
         if (steady > 0 && e.distanceTo(p) > STEADY_RANGE) damage *= 1 + 0.03f * steady;

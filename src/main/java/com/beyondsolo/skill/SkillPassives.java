@@ -42,7 +42,8 @@ public final class SkillPassives {
             else inst.addOrUpdateTransientModifier(new AttributeModifier(b.id(), b.perLevel * level, b.op));
         }
         int font = data.level(Skills.ARCANE_FONT.path());
-        SystemAPI.setManaBonus(player, font * 8f);
+        SubclassPassives.apply(player, data);
+        SystemAPI.setManaBonus(player, font * 8f + SubclassPassives.manaBonus(data));
     }
 
     /** Once a second: mana flow and life bloom. */
@@ -52,6 +53,7 @@ public final class SkillPassives {
         if (flow > 0) SystemAPI.restoreMana(player, SkillActions.manaFlow(flow));
         int bloom = data.level(Skills.LIFE_BLOOM.path());
         if (bloom > 0 && player.getHealth() < player.getMaxHealth() && player.isAlive()) player.heal(SkillActions.lifeBloom(bloom));
+        SubclassPassives.tickSecond(player, data);
     }
 
     private SkillPassives() {}

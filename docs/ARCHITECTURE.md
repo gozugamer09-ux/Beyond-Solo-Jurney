@@ -408,6 +408,36 @@ a class gains skills), `ComboHud` draws the combo counter and the reaction names
 `/system skill list|learn <skill> [level]|levelup <skill> [n]|forget|cast|slot <n> <skill>|cooldowns|unlocked|advanced|tome [skill]|reset`
 for testing; `screen skills` in the UI driver opens the tab.
 
+## Job change
+
+Code in `job/` (server) and `client/job/` (client); the module registers itself from `JobModule.init` with its own
+attachment, item, payloads, config (`beyondsolo-jobs.toml`) and lang namespace (`assets/beyondsolo_jobs/lang`, made
+by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_assets.py`.
+
+- **Subclasses** (`Subclass`): 5 per base class, 30 in all. One per class is extremely rare (1% by default, doubled
+  for a flawless trial) and much stronger: S-grade skills, 30 bonus stat points instead of 10, a second active.
+  The other four share the rest evenly. Necromancer is a normal Mage subclass and the only one with
+  `canRaiseShadows()` (for the shadow army).
+- **Unlock**: at level 20 (config) a player who has the System gets a notification, the "Job Change" quest and the
+  Key of Ascension (`JobAPI.unlockIfReady` on level-up). A lost key is handed back on login/respawn.
+- **The trial** (`JobTrial`, one `Session` per player, ticked from the server tick): countdown, then a domed hall
+  (`TrialArena`, carved in the gate dimension on lane z=60000, one slot per running trial), a camera glide, three
+  waves of Echoes, the Ascendant Warden (a `GateBossEntity` with an unregistered `GateInstance`), and the verdict:
+  an orbit shot while the client plays the reveal (`JobRevealOverlay`, timing in `JobRevealTimeline`). A blow that
+  would kill the player ends the trial instead (no death, no totem used, a retry timer); logging out abandons it
+  and the player is sent home on the next login. Surprise quests and the gate dimension's "no gate, go home" rule
+  leave trial players alone.
+- **Job change** (`JobAPI.changeJob`): bonus stats along the subclass's weights, the base class's advanced skills,
+  the subclass's own skills (`SkillAPI.grantSubclass`); skills of any other subclass are forgotten.
+- **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
+  belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
+  element reactions apply.
+- **Cutscene camera** (`client/job/CutsceneCamera`, `CutscenePayload`): glide and orbit shots with letterbox bars.
+  The camera follows a client-only marker entity, so the player's body shows. A shot holds on a black curtain until
+  the world under it is drawn. Any system can send shots; `/system job camera` tries one anywhere.
+- **Commands** (`/system job ...`, level 2): unlock, trial [now], jump 1|2|3|boss|verdict [subclass],
+  set/reveal &lt;subclass&gt;, odds [rolls], info, reset, camera.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the

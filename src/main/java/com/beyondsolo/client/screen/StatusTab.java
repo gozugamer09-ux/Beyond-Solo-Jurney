@@ -192,10 +192,13 @@ public class StatusTab implements SystemTab {
         SysFont.draw(g, name, mid, y + 123, 11, SystemTheme.TEXT, true, 0.5f);
 
         // class line: icon + name
-        String className = d.playerClass().displayName().getString();
+        // after the job change the subclass takes the class's place
+        com.beyondsolo.job.Subclass sub = com.beyondsolo.client.job.JobClient.subclass();
+        if (sub != null) classColor = Gfx.opaque(sub.color());
+        String className = (sub != null ? sub.displayName() : d.playerClass().displayName()).getString();
         float cw = SysFont.width(className, 8.5f, true) + 12;
         float cx = mid - cw / 2f;
-        Shapes.icon(Icons.of(d.playerClass()), cx + 4, y + 139.5f, 9).fill(Gfx.mix(classColor, 0xFFFFFFFF, 0.25f)).glow(2.5f, Gfx.alpha(classColor, 0.6f)).draw(g);
+        Shapes.icon(sub != null ? sub.icon() : Icons.of(d.playerClass()), cx + 4, y + 139.5f, 9).fill(Gfx.mix(classColor, 0xFFFFFFFF, 0.25f)).glow(2.5f, Gfx.alpha(classColor, 0.6f)).draw(g);
         SysFont.title(g, className, cx + 12, y + 136.5f, 8.5f, Gfx.mix(classColor, 0xFFFFFFFF, 0.2f));
 
         Component titleText = d.title().isEmpty() ? Component.translatable("status.beyondsolo.title.none") : Component.translatable(d.title());

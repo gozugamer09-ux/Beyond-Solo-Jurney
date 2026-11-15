@@ -386,8 +386,8 @@ public final class SkillGameTests {
     @GameTest(template = ARENA)
     public static void everyClassHasEightSkills(GameTestHelper helper) {
         for (PlayerClass c : PlayerClass.values()) {
-            long own = Skills.all().stream().filter(s -> s.owner() == c).count();
-            long actives = Skills.all().stream().filter(s -> s.owner() == c && s.isActive()).count();
+            long own = Skills.all().stream().filter(s -> s.owner() == c && s.subclass() == null).count();
+            long actives = Skills.all().stream().filter(s -> s.owner() == c && s.subclass() == null && s.isActive()).count();
             helper.assertTrue(own == 8, c + " has 8 skills of its own, found " + own);
             helper.assertTrue(actives == 6, c + " has 6 actives, found " + actives);
         }

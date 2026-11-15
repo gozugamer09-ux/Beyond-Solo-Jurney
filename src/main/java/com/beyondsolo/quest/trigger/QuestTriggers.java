@@ -44,6 +44,8 @@ public final class QuestTriggers {
     public static void check(ServerPlayer player, QuestData data) {
         if (player.isSpectator() || player.isCreative() && !allowCreative) return;
         if ((player.tickCount / 20) % CHECK_EVERY != 0) return;
+        // no surprise quests in the middle of the job change trial
+        if (com.beyondsolo.job.JobTrial.inTrial(player)) return;
         // one emergency at a time
         boolean inEmergency = false;
         for (Quest q : data.active()) if (q.category() == QuestCategory.EMERGENCY) inEmergency = true;
