@@ -20,6 +20,9 @@ public final class SellPrices {
     /** By grade: common .. divine. */
     public static final long[] GRADE = {40, 150, 600, 2000, 6000, 20000};
 
+    /** Monster cores by rank E..S (boss cores are worth six times as much). */
+    public static final long[] CORE = {20, 45, 100, 220, 500, 1200};
+
     private static Map<Item, Long> fixed;
 
     private static synchronized Map<Item, Long> fixed() {
@@ -62,6 +65,14 @@ public final class SellPrices {
         m.put(com.beyondsolo.gear.GearModule.REFINING_STONE.get(), 15L);
         m.put(com.beyondsolo.gear.GearModule.WARD_SEAL.get(), 150L);
         com.beyondsolo.gear.GearModule.CRYSTALS.values().forEach(c -> m.put(c.get(), 60L));
+        // monster cores, boss cores, mana stones, materials
+        for (int i = 0; i < CORE.length; i++) {
+            m.put(com.beyondsolo.crafting.CraftingModule.CORES.get(i).get(), CORE[i]);
+            m.put(com.beyondsolo.crafting.CraftingModule.BOSS_CORES.get(i).get(), CORE[i] * 6);
+        }
+        long[] mana = {6, 30, 120};
+        for (int i = 0; i < mana.length; i++) m.put(com.beyondsolo.crafting.CraftingModule.MANA_STONES.get(i).get(), mana[i]);
+        com.beyondsolo.crafting.CraftingModule.MATERIALS.values().forEach(x -> m.put(x.get(), 8L));
         fixed = m;
         return m;
     }
@@ -84,7 +95,7 @@ public final class SellPrices {
             }
             return base;
         }
-        if (stack.getItem() instanceof ElixirItem) return 15;
+        if (stack.getItem() instanceof ElixirItem || stack.getItem() instanceof com.beyondsolo.crafting.SystemPotionItem) return 15;
         Long v = fixed().get(stack.getItem());
         return v == null ? 0 : v;
     }

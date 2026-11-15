@@ -73,6 +73,11 @@ public final class CombatHud {
             case CRIMSON_BURST -> flash(0xFFC2185B, 0.8f);
             case VENOM_STACK -> flash(0xFF7CCF3A, 0.25f);
             case FREEZE -> flash(0xFFBFEFFF, 0.6f);
+            case RESTORE, ABSORB -> {
+                ringAt = Anim.now();
+                ringColor = 0xFF000000 | (param & 0xFFFFFF);
+                flash(Gfx.mix(ringColor, 0xFFFFFFFF, 0.4f), kind == CombatFxPayload.Kind.ABSORB ? 0.3f : 0.35f);
+            }
             case CURE -> {
                 ringAt = Anim.now();
                 ringColor = 0xFF000000 | DamageElement.byIndex(param).color();

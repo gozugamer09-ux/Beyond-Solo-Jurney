@@ -138,6 +138,9 @@ public final class ArsenalGameTests {
     @GameTest(template = ARENA)
     public static void knightsbaneHitsArmorHarder(GameTestHelper helper) {
         ServerPlayer p = player(helper);
+        // Apothic's random critical hits (5% base) would make the comparison flaky
+        var crit = p.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
+        if (crit != null) crit.setBaseValue(-10);
         Zombie bare = zombie(helper);
         Zombie armored = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPOT.east());
         armored.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.IRON_CHESTPLATE));

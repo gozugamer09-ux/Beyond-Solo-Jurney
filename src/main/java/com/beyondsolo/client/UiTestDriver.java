@@ -29,12 +29,14 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gallery  open a System page (or the drawing test page)
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory
  * forge &lt;slot&gt; [refine|infuse] [element] [ward|noward]  what the Forge tab shows (slot: inventory index, 36-39 armor)
  * forgego                              press the forge's REFINE / INFUSE button
+ * craft &lt;recipe&gt; [amount]             what the Craft tab shows
+ * craftgo                              press the Craft tab's CRAFT button
  * close                                close the current screen
  * mode floating|pinned|hidden          pop-up mode
  * keep on|off                          "stay open" pop-ups
@@ -163,6 +165,7 @@ public final class UiTestDriver {
                     case "storage" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.STORAGE_TAB);
                     case "shop" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.SHOP_TAB);
                     case "forge" -> SystemScreen.openOn(com.beyondsolo.client.gear.GearClientEvents.FORGE_TAB);
+                    case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -185,6 +188,11 @@ public final class UiTestDriver {
                 com.beyondsolo.client.gear.ForgeTab.show(Integer.parseInt(a[0]), a.length > 1 && a[1].equals("infuse"), e);
             }
             case "forgego" -> com.beyondsolo.client.gear.ForgeTab.press();
+            case "craft" -> {
+                String[] a = arg.split(" ");
+                com.beyondsolo.client.crafting.CraftTab.show(a[0], a.length > 1 ? Integer.parseInt(a[1]) : 1);
+            }
+            case "craftgo" -> com.beyondsolo.client.crafting.CraftTab.press();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }
