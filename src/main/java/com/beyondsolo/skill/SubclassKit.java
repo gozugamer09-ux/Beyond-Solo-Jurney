@@ -183,6 +183,47 @@ final class SubclassKit {
         SkillActions.hit(p, s, e, damage, false);
     }
 
+    /** A hit that ignores armour (spells, poison, shadow). */
+    static void magic(ServerPlayer p, Skill s, LivingEntity e, float damage) {
+        SkillActions.hit(p, s, e, damage, true);
+    }
+
+    /**
+     * Moves the player to a spot next to a creature (behind it when {@code behind}, otherwise on the player's
+     * side of it), facing it. Falls back to the near side when the spot is blocked.
+     */
+    static void blinkTo(ServerPlayer p, LivingEntity target, boolean behind) {
+        Vec3 from = p.position();
+        double gap = target.getBbWidth() / 2 + 0.9;
+        Vec3 near = target.position().add(flat(from.subtract(target.position()), p).scale(gap));
+        Vec3 dest = behind ? target.position().add(flat(target.getLookAngle(), target).scale(-gap)) : near;
+        if (!p.level().noCollision(p, p.getBoundingBox().move(dest.subtract(from)))) dest = near;
+        SubclassActions.teleport(p, dest, target);
+    }
+
+    /** Moves the player up to {@code distance} the way they face, stopping at walls. Returns where they were. */
+    static Vec3 blinkForward(ServerPlayer p, double distance) {
+        Vec3 from = p.position();
+        Vec3 dir = facing(p);
+        Vec3 dest = from;
+        for (double d = distance; d >= 1; d -= 0.5) {
+            Vec3 to = from.add(dir.scale(d));
+            if (p.level().noCollision(p, p.getBoundingBox().move(to.subtract(from)))) {
+                dest = to;
+                break;
+            }
+        }
+        p.teleportTo(p.serverLevel(), dest.x, dest.y, dest.z, p.getYRot(), p.getXRot());
+        if (p.position().distanceToSqr(dest) > 0.01) p.moveTo(dest.x, dest.y, dest.z, p.getYRot(), p.getXRot());
+        p.fallDistance = 0;
+        return from;
+    }
+
+    static boolean poisoned(LivingEntity e) {
+        return e.hasEffect(net.minecraft.world.effect.MobEffects.POISON) || e.hasEffect(com.beyondsolo.combat.ModEffects.VENOM)
+                || e.hasEffect(com.beyondsolo.combat.ModEffects.HEAVY_VENOM);
+    }
+
     static void launch(LivingEntity e, double up) {
         e.setDeltaMovement(e.getDeltaMovement().x * 0.4, up, e.getDeltaMovement().z * 0.4);
         e.hurtMarked = true;

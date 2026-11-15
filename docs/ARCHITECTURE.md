@@ -433,7 +433,7 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
 - **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
   belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
   element reactions apply. The job change itself teaches the starters (`Skills.startersFor`: the `advanced` ones).
-- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath` so far): every subclass
+- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath` and `AssassinPath` so far): every subclass
   grows to about 12 skills (8 actives, 4 passives; the ultimate last). These are not `advanced`: they carry an
   unlock level (22 to 50) and `SkillAPI.grantUnlocked` teaches them as the player levels, only to players of that
   subclass; a late job change catches up at once. A path file holds its skills, their numbers and actions, and
