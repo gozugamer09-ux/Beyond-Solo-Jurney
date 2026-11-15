@@ -25,7 +25,7 @@ public final class ArsenalTooltip {
 
     public static Component gradedName(Component name, ItemStack stack, ItemGrade fallback) {
         ItemGrade g = gradeOf(stack, fallback);
-        return name.copy().withStyle(s -> s.withColor(TextColor.fromRgb(g.color())));
+        return com.beyondsolo.gear.GearTooltip.name(name.copy().withStyle(s -> s.withColor(TextColor.fromRgb(g.color()))), stack);
     }
 
     public static void append(ItemStack stack, ArsenalWeapon w, String weightClass, List<Component> lines) {
@@ -33,6 +33,8 @@ public final class ArsenalTooltip {
         MutableComponent head = Component.literal("◆ ").append(grade.displayName());
         if (w.kind() != null) head.append(Component.literal(" ")).append(w.kind().displayName());
         lines.add(head.withStyle(s -> s.withColor(TextColor.fromRgb(grade.color()))));
+
+        com.beyondsolo.gear.GearTooltip.extras(stack, lines);
 
         PlayerClass cls = w.favoredClass();
         if (cls != null) {

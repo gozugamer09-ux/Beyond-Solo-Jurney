@@ -51,13 +51,9 @@ public class SystemArmorItem extends ArmorItem {
         return modifiers;
     }
 
-    /** Hunter gear is common, knight gear rare, dusk gear epic. */
+    /** The set's own grade (a dropped piece can be higher, see the stack's grade component). */
     public ItemGrade grade() {
-        return switch (set.name) {
-            case "knight" -> ItemGrade.RARE;
-            case "dusk" -> ItemGrade.EPIC;
-            default -> ItemGrade.COMMON;
-        };
+        return set.grade;
     }
 
     @Override
@@ -66,12 +62,16 @@ public class SystemArmorItem extends ArmorItem {
     }
 
     @Override
+    public boolean isFoil(ItemStack stack) {
+        return com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade()).atLeast(ItemGrade.MYTHIC) || super.isFoil(stack);
+    }
+
+    @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag flag) {
         ItemGrade g = com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade());
         lines.add(Component.literal("◆ ").append(g.displayName()).withStyle(s -> s.withColor(net.minecraft.network.chat.TextColor.fromRgb(g.color()))));
-        lines.add(Component.translatable("tooltip.beyondsolo.set." + set.name, Component.translatable("set.beyondsolo." + set.name))
-                .withStyle(ChatFormatting.GOLD));
-        lines.add(Component.translatable("set.beyondsolo." + set.name + ".bonus").withStyle(ChatFormatting.GRAY));
-        if (set.weight > 0) lines.add(Component.translatable("tooltip.beyondsolo.armor_weight").withStyle(ChatFormatting.DARK_GRAY));
+        com.beyondsolo.gear.GearTooltip.extras(stack, lines);
+        com.beyondsolo.gear.GearTooltip.set(set, lines);
+        if (set.weight > 0.09f) lines.add(Component.translatable("tooltip.beyondsolo.armor_weight").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

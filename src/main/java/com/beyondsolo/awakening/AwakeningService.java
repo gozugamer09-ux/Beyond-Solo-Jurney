@@ -438,7 +438,7 @@ public final class AwakeningService {
     // ------------------------------------------------------------------ the hidden way
 
     public static ItemStack rollLegendary(RandomSource r) {
-        return new ItemStack(ModItems.LEGENDARIES.get(r.nextInt(ModItems.LEGENDARIES.size())).get());
+        return com.beyondsolo.gear.GearRolls.roll(new ItemStack(ModItems.LEGENDARIES.get(r.nextInt(ModItems.LEGENDARIES.size())).get()), r);
     }
 
     static void arbiterSlain(ServerLevel level, ArbiterEntity arbiter, DamageSource source) {

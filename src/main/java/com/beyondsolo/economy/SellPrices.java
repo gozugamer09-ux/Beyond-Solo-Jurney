@@ -59,6 +59,9 @@ public final class SellPrices {
         m.put(Items.DRAGON_BREATH, 25L);
         // System things
         m.put(ModItems.SKILL_TOME.get(), 300L);
+        m.put(com.beyondsolo.gear.GearModule.REFINING_STONE.get(), 15L);
+        m.put(com.beyondsolo.gear.GearModule.WARD_SEAL.get(), 150L);
+        com.beyondsolo.gear.GearModule.CRYSTALS.values().forEach(c -> m.put(c.get(), 60L));
         fixed = m;
         return m;
     }
@@ -70,6 +73,10 @@ public final class SellPrices {
         ItemGrade grade = stack.get(ModComponents.GRADE.get());
         if (grade != null) {
             long base = GRADE[grade.ordinal()];
+            // refined gear and rolled stats are worth more
+            int level = com.beyondsolo.gear.Enhancement.level(stack);
+            int rolls = com.beyondsolo.gear.GearRolls.stats(stack).rolls().size();
+            base = Math.round(base * (1 + 0.15 * level + 0.1 * rolls));
             // worn gear is worth less
             if (stack.isDamageableItem() && stack.getMaxDamage() > 0) {
                 float health = 1f - (float) stack.getDamageValue() / stack.getMaxDamage();

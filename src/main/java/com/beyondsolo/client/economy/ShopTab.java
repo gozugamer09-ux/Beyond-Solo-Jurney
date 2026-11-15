@@ -189,6 +189,7 @@ public class ShopTab implements SystemTab {
             case REMEDIES -> Icons.FLASK;
             case WEAPONS -> Icons.of(PlayerClass.WARRIOR);
             case ARMOR -> Icons.SHIELD;
+            case FORGE -> Icons.FLAME;
             case SPECIAL -> Icons.DIAMOND;
         };
     }

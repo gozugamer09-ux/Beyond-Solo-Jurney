@@ -180,11 +180,11 @@
   "tooltip.beyondsolo.set.dusk": "%s set",
   "tooltip.beyondsolo.armor_weight": "Heavy armor: sprinting is more tiring",
   "set.beyondsolo.hunter": "Hunter",
-  "set.beyondsolo.hunter.bonus": "Full set: 20% less exhaustion, a little faster",
+  "set.beyondsolo.hunter.bonus": "4 pieces: 20% less exhaustion, a little faster",
   "set.beyondsolo.knight": "Knight",
-  "set.beyondsolo.knight.bonus": "Full set: +20% blood resistance, stands firm against knockback",
+  "set.beyondsolo.knight.bonus": "4 pieces: +20% blood resistance, stands firm against knockback",
   "set.beyondsolo.dusk": "Duskforged",
-  "set.beyondsolo.dusk.bonus": "Full set: +15% fire, poison and crimson resistance",
+  "set.beyondsolo.dusk.bonus": "4 pieces: +15% fire, poison and crimson resistance",
   "effect.beyondsolo.deep_burn": "Deep Burn",
   "effect.beyondsolo.venom": "Venom",
   "effect.beyondsolo.heavy_venom": "Heavy Venom",
@@ -830,5 +830,8 @@
   "effect.beyondsolo.frozen": "Frozen",
   "effect.beyondsolo.infernal_rend": "Infernal Rend",
   "attribute.beyondsolo.spell_power": "Spell Power",
-  "itemGroup.beyondsolo.arsenal": "System Arsenal"
+  "itemGroup.beyondsolo.arsenal": "System Arsenal",
+  "set.beyondsolo.hunter.two": "2 pieces: 10% less exhaustion",
+  "set.beyondsolo.knight.two": "2 pieces: +10% blood resistance",
+  "set.beyondsolo.dusk.two": "2 pieces: +8% fire, poison and crimson resistance"
 }
