@@ -60,6 +60,13 @@ public final class PenaltyGameTests {
         }
     }
 
+    /** The player's sentence data with the short wait before the warning taken out. */
+    private static net.minecraft.nbt.CompoundTag unhurried(ServerPlayer p) {
+        net.minecraft.nbt.CompoundTag tag = PenaltyZone.data(p).serializeNBT(p.server.registryAccess());
+        tag.putLong("notBefore", 0);
+        return tag;
+    }
+
     private static void clearSentence(ServerPlayer p) {
         hold(p, false);
         clearSentence0(p);
@@ -84,6 +91,8 @@ public final class PenaltyGameTests {
         helper.assertTrue(PenaltyZone.data(p).reason().getString().equals(daily.title().getString()), "the reason is the quest");
         helper.assertTrue(!p.hasEffect(MobEffects.WEAKNESS) && !p.hasEffect(MobEffects.MOVEMENT_SLOWDOWN), "no debuffs instead");
         helper.assertTrue(SystemAPI.get(p).exhaustion() == before, "no fatigue instead");
+        helper.assertTrue(!PenaltyZone.tryStart(p), "not during the quest's own failed moment");
+        PenaltyZone.data(p).deserializeNBT(p.server.registryAccess(), unhurried(p));
         helper.assertTrue(PenaltyZone.tryStart(p), "the warning starts once free");
         helper.assertTrue(PenaltyZone.phase(p) == PenaltyZone.Phase.WARNING, "warned first");
         helper.assertTrue(PenaltyZone.busy(p) && !PenaltyZone.inZone(p), "busy but still at home");
@@ -109,6 +118,7 @@ public final class PenaltyGameTests {
         ServerPlayer p = player(helper);
         clearSentence(p);
         helper.assertTrue(PenaltyZone.sentence(p, Component.literal("test")), "sentenced");
+        PenaltyZone.data(p).deserializeNBT(p.server.registryAccess(), unhurried(p));
         p.setGameMode(GameType.SPECTATOR);
         helper.assertTrue(!PenaltyZone.tryStart(p), "not while occupied");
         helper.assertTrue(PenaltyZone.data(p).pending(), "still owed");

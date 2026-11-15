@@ -31,12 +31,15 @@ public final class PenaltyClient {
                 endedAt = Anim.now();
             }
             phase = PenaltyPayload.NONE;
+            com.beyondsolo.client.notify.NotificationManager.setHeld(false);
             return;
         }
         if (p.phase() != phase) {
             // the server's tick in the phase tells how far in it already is (a late join, a resent packet)
             phaseStart = Anim.now() - (p.phase() == PenaltyPayload.SURVIVE ? 0 : p.tick() / 20.0);
             phase = p.phase();
+            // other pop-ups wait while the warning and the cards play
+            com.beyondsolo.client.notify.NotificationManager.setHeld(phase != PenaltyPayload.SURVIVE);
         }
         length = p.length();
         tickAtReceive = p.tick();
@@ -76,6 +79,7 @@ public final class PenaltyClient {
     }
 
     public static void clear() {
+        if (phase != PenaltyPayload.NONE) com.beyondsolo.client.notify.NotificationManager.setHeld(false);
         phase = PenaltyPayload.NONE;
         endedFrom = PenaltyPayload.NONE;
         endedAt = -100;

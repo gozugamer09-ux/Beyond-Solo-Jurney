@@ -93,6 +93,7 @@ public final class PenaltyZone {
     static final int SPAWN_WARN_TICKS = 18;
     static final int ERUPT_WARN_TICKS = 30;
     static final int RESUME_GRACE_TICKS = 20 * 15;
+    static final int SENTENCE_DELAY_TICKS = 20 * 5;
     static final int ACCENT = 0xFF3B30;
     static final int EMBER = 0xFF7A3D;
 
@@ -150,7 +151,8 @@ public final class PenaltyZone {
         PenaltyData data = data(player);
         if (SESSIONS.containsKey(player.getUUID())) return true; // already paying for something
         data.sentence(reason);
-        // starts at the next check once the player is free (usually within a second)
+        // a few seconds for the quest's own "failed" moment, then the warning starts once the player is free
+        data.setNotBefore(player.serverLevel().getGameTime() + SENTENCE_DELAY_TICKS);
         return true;
     }
 

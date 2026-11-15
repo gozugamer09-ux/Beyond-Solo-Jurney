@@ -103,12 +103,14 @@ public final class PenaltyWorldFx {
         pose.mulPose(modelView);
         pose.mulPose(Axis.YP.rotationDegrees(-8));
         pose.mulPose(Axis.XP.rotationDegrees(24));
-        pose.translate(0, 0, -100);
+        // close to the eye (nearer than the haze begins), so the fog leaves the black disc black
+        pose.translate(0, 0, -10);
+        pose.scale(0.1f, 0.1f, 0.1f);
         Matrix4f m = pose.last().pose();
         float breathe = 1 + 0.03f * Mth.sin(time * 0.02f);
         // the haze and the corona
-        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), m, 75 * breathe, 75 * breathe, 0x9A1208, 0.75f);
-        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), m, 34 * breathe, 34 * breathe, 0xFF5A24, 0.8f);
+        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), m, 80 * breathe, 80 * breathe, 0x9A1208, 0.6f);
+        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), m, 30 * breathe, 30 * breathe, 0xFF5A24, 0.85f);
         buffers.endBatch(ModRenderTypes.lightTexture(GLOW));
         pose.pushPose();
         pose.mulPose(Axis.ZP.rotationDegrees(time * 0.05f));
@@ -118,16 +120,16 @@ public final class PenaltyWorldFx {
         // the black disc
         VertexConsumer disc = buffers.getBuffer(ModRenderTypes.CRYSTAL);
         int n = 48;
-        float rad = 13.5f;
+        float rad = 14.2f;
         for (int i = 0; i < n; i++) {
             float a0 = Mth.TWO_PI * i / n, a1 = Mth.TWO_PI * (i + 1) / n;
-            disc.addVertex(m, 0, 0, 0.1f).setColor(8, 2, 4, 255);
-            disc.addVertex(m, Mth.cos(a0) * rad, Mth.sin(a0) * rad, 0.1f).setColor(14, 3, 5, 255);
-            disc.addVertex(m, Mth.cos(a1) * rad, Mth.sin(a1) * rad, 0.1f).setColor(14, 3, 5, 255);
+            disc.addVertex(m, 0, 0, 0.1f).setColor(6, 1, 3, 255);
+            disc.addVertex(m, Mth.cos(a0) * rad, Mth.sin(a0) * rad, 0.1f).setColor(16, 3, 5, 255);
+            disc.addVertex(m, Mth.cos(a1) * rad, Mth.sin(a1) * rad, 0.1f).setColor(16, 3, 5, 255);
         }
         buffers.endBatch(ModRenderTypes.CRYSTAL);
         // a thin bright rim
-        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), m, 15.2f, 15.2f, 0xFFE0C0, 0.55f);
+        GateFx.quad(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), m, 15.4f, 15.4f, 0xFFE0C0, 0.6f);
         buffers.endBatch(ModRenderTypes.lightTexture(RING));
     }
 
