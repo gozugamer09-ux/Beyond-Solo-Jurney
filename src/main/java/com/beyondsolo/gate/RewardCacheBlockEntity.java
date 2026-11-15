@@ -48,6 +48,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private PlayerRank rank = PlayerRank.E;
+    @Nullable private BossKind boss;
+    private boolean ascended;
     private long droppedAt = -1;
     private long openedAt = -1;
     private boolean burst;
@@ -75,6 +77,13 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     }
 
     public void setup(PlayerRank rank, long droppedAt) {
+        setup(rank, null, false, droppedAt);
+    }
+
+    /** A boss's cache: its rank's loot plus the boss's signature loot table ({@link GateLoot#signature}). */
+    public void setup(PlayerRank rank, @Nullable BossKind boss, boolean ascended, long droppedAt) {
+        this.boss = boss;
+        this.ascended = ascended;
         this.rank = rank;
         this.droppedAt = droppedAt;
         changed();
@@ -134,7 +143,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
             com.beyondsolo.awakening.AwakeningService.legendaryOut(server, legendaryFor, item);
             return;
         }
-        List<ItemStack> loot = GateLoot.roll(rank, server.random);
+        List<ItemStack> loot = new java.util.ArrayList<>(GateLoot.roll(rank, server.random));
+        if (boss != null) loot.addAll(GateLoot.signature(server, boss, rank, ascended, worldPosition));
         for (int i = 0; i < loot.size(); i++) {
             double a = i * Math.PI * 2 / loot.size() + server.random.nextDouble() * 0.4;
             ItemEntity item = new ItemEntity(server, x, y, z, loot.get(i).copy());
@@ -164,9 +174,10 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
             sig.append(s.getHoverName());
         }
         if (sigs > 0) {
+            Object bossName = boss != null ? boss.name(rank) : com.beyondsolo.gate.GateTheme.values()[rank.tier()].bossName();
             for (ServerPlayer p : server.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(worldPosition).inflate(32))) {
                 Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
-                        Component.translatable("notify.beyondsolo.gear.signature.title", com.beyondsolo.gate.GateTheme.values()[rank.tier()].bossName()), sig));
+                        Component.translatable("notify.beyondsolo.gear.signature.title", bossName), sig));
             }
         }
     }
@@ -179,6 +190,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         tag.putLong("openedAt", openedAt);
         tag.putBoolean("burst", burst);
         tag.putBoolean("legendary", legendary);
+        if (boss != null) tag.putString("boss", boss.id);
+        tag.putBoolean("ascended", ascended);
         if (legendaryFor != null) tag.putUUID("legendaryFor", legendaryFor);
     }
 
@@ -191,6 +204,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         openedAt = tag.contains("openedAt") ? tag.getLong("openedAt") : -1;
         burst = tag.getBoolean("burst");
         legendary = tag.getBoolean("legendary");
+        boss = tag.contains("boss") ? BossKind.byId(tag.getString("boss")) : null;
+        ascended = tag.getBoolean("ascended");
         legendaryFor = tag.hasUUID("legendaryFor") ? tag.getUUID("legendaryFor") : null;
     }
 

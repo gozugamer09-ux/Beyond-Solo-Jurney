@@ -554,6 +554,34 @@ Textures come from `tools/gen_gear_assets.py`.
   &lt;element|none&gt;, bossloot &lt;rank&gt; [n], set &lt;name&gt;, materials. UI driver: `screen forge`,
   `forge <slot> [refine|infuse] [element] [ward|noward]`, `forgego`.
 
+## Enemy roster and boss pool
+
+Gates no longer hold the same creatures and the same boss every time.
+
+- **Creatures** (`enemy/`): six of the gate's own kinds (`MonsterKind`: gloomfang, broodling, shardback, hollow acolyte,
+  ashen sentinel, emberwisp), one entity class `GateMonsterEntity` with a behaviour per style (hound, swarm, charger,
+  caster, guard, bomber), mixed with vanilla mobs per rank in `EnemyRoster`. A gate's mix comes from its seed
+  (`GateInstance.mix()`): three or four kinds, at least two of them the gate's own, plus an affinity.
+- **Affinity** (flame, frost, venom, storm, shade, blood): texture, aura, what its hits leave, and an elemental
+  strength and weakness (`Affinity.multiplier`, applied to skills in `SkillCombat.strike` through `EnemyHooks.skillMultiplier`).
+- **Variants** (`Variant`: normal, veteran, elite, champion) scale health, damage, size and rewards; elites and champions
+  carry affixes (`Affix`: swift, armoured, vampiric, frenzied, volatile, splitting, warded, thorned). A pack's first
+  creature is its leader. Traits live in the entity's persistent data (`EnemyTraits`) and reach the client by
+  `EnemyTraitsPayload` for name plates and auras.
+- **Bosses** (`gate/BossKind`): brute, broodmother, alpha, knight, magus and wyrm, each with a rank range, its own
+  model, hitbox, affinity, intro, death and scripted moves with ground telegraphs (`BossMoves`, `EnemyFx`). A gate
+  picks one from its seed; about one gate in twelve holds an **ascended** boss (tougher, bigger, gold title, more loot).
+- **Loot hook**: each boss kind rolls `data/beyondsolo/loot_table/gate_boss/<kind>.json` into the reward cache
+  (`GateLoot.signature`), then posts `GateLoot.BossLootEvent` with a mutable loot list for other modules.
+
+Reuse for dungeon breaks and events: `EnemyRoster.random(rank, r)`, `Enemies.roll(...)` and
+`Enemies.spawn(level, rank, type, pos, traits, -1)` for creatures; `BossKind.roll(rank, r)` and
+`GateBossEntity.configure(rank, kind, ascended)` then `wake()` for a boss outside a gate (its death opens nothing).
+
+Test commands: `/system enemy spawn <kind> [rank] [variant] [affinity]`, `/system enemy boss <kind> [rank] [ascended]`,
+`/system enemy mix [rank]`, `/system gate spawnboss <rank> <boss> [ascended]`. Assets come from
+`tools/gen_enemy_assets.py`, texts from `tools/enemy_lang.py`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the

@@ -71,7 +71,52 @@ public final class GateLoot {
         return ItemGrade.COMMON;
     }
 
-    static ItemStack weapon(int tier, RandomSource r) {
+    /**
+     * A boss's signature loot: its kind's loot table ({@code data/beyondsolo/loot_table/gate_boss/<kind>.json}, rolled
+     * with the gate's rank as luck), then whatever {@link BossLootEvent} listeners add. An ascended boss rolls its
+     * table twice and always adds one weapon a grade up from the rank's roll.
+     */
+    public static List<ItemStack> signature(net.minecraft.server.level.ServerLevel level, BossKind boss, PlayerRank rank, boolean ascended,
+                                            net.minecraft.core.BlockPos at) {
+        List<ItemStack> out = new ArrayList<>();
+        var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE, boss.lootTable());
+        var table = level.getServer().reloadableRegistries().getLootTable(key);
+        var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(level)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, net.minecraft.world.phys.Vec3.atCenterOf(at))
+                .withLuck(rank.tier())
+                .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+        for (int i = 0; i < (ascended ? 2 : 1); i++) out.addAll(table.getRandomItems(params));
+        if (ascended) {
+            ItemGrade g = rollGrade(rank.tier(), level.random);
+            ItemGrade up = ItemGrade.values()[Math.min(ItemGrade.values().length - 1, g.ordinal() + 1)];
+            ItemStack w = Arsenal.random(up, level.random);
+            if (w != null) out.add(w);
+        }
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new BossLootEvent(level, boss, rank, ascended, out));
+        return out;
+    }
+
+    /**
+     * Fired when a boss's signature loot is rolled, so other modules (item grades, set pieces, boss trophies) can add
+     * to or change it. {@code loot} is mutable.
+     */
+    public static final class BossLootEvent extends net.neoforged.bus.api.Event {
+        public final net.minecraft.server.level.ServerLevel level;
+        public final BossKind boss;
+        public final PlayerRank rank;
+        public final boolean ascended;
+        public final List<ItemStack> loot;
+
+        public BossLootEvent(net.minecraft.server.level.ServerLevel level, BossKind boss, PlayerRank rank, boolean ascended, List<ItemStack> loot) {
+            this.level = level;
+            this.boss = boss;
+            this.rank = rank;
+            this.ascended = ascended;
+            this.loot = loot;
+        }
+    }
+
+    public static ItemStack weapon(int tier, RandomSource r) {
         ItemStack stack = Arsenal.random(rollGrade(tier, r), r);
         return GearRolls.roll(stack != null ? stack : new ItemStack(ModItems.KNIGHT_SWORD.get()), r);
     }

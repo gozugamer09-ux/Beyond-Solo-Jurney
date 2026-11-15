@@ -130,6 +130,8 @@ public final class SkillCombat {
      * reacts, otherwise leaves this one on it. Returns the damage to deal.
      */
     public static float strike(ServerPlayer player, LivingEntity target, SkillElement element, float damage) {
+        // gate creatures' elemental strengths and weaknesses (enemy.Affinity) and warded affixes
+        damage *= com.beyondsolo.enemy.EnemyHooks.skillMultiplier(target, element);
         if (element == SkillElement.PHYSICAL) return damage;
         SkillElement carried = aura(target);
         SkillReaction reaction = carried == null ? null : SkillReaction.of(carried, element);
