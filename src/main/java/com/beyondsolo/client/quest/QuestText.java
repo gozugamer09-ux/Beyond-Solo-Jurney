@@ -92,6 +92,7 @@ public final class QuestText {
 
     public static Component penaltyLine(QuestPenalty p) {
         if (p.isNone()) return Component.translatable("quest.beyondsolo.penalty.none");
+        if (p.zone()) return Component.translatable("quest.beyondsolo.penalty.zone");
         return Component.translatable("quest.beyondsolo.penalty", Math.round(p.exhaustion()), p.debuffSeconds());
     }
 

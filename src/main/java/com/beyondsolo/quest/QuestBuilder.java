@@ -168,6 +168,12 @@ public final class QuestBuilder {
         return this;
     }
 
+    /** Failing (or giving up) sends the player to the Penalty Zone instead of the exhaustion and debuffs. */
+    public QuestBuilder penaltyZone() {
+        this.penalty = penalty.withZone();
+        return this;
+    }
+
     /** Base penalty for an E-rank, scaled by rank. */
     public QuestBuilder penalty(float exhaustion, int debuffSeconds) {
         this.penalty = RankScaling.penalty(exhaustion, debuffSeconds, tier);

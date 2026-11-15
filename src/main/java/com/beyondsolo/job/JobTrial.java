@@ -142,7 +142,8 @@ public final class JobTrial {
             return;
         }
         if (GateService.isDungeon(player.level()) || GateService.inTransit(player)
-                || com.beyondsolo.awakening.AwakeningService.inSequence(player)) {
+                || com.beyondsolo.awakening.AwakeningService.inSequence(player)
+                || com.beyondsolo.penalty.PenaltyZone.busy(player)) {
             info(player, "job_not_here");
             return;
         }

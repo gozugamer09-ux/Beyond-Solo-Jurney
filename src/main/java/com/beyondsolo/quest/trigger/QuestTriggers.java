@@ -46,6 +46,8 @@ public final class QuestTriggers {
         if ((player.tickCount / 20) % CHECK_EVERY != 0) return;
         // no surprise quests in the middle of the job change trial
         if (com.beyondsolo.job.JobTrial.inTrial(player)) return;
+        // nor in the Penalty Zone
+        if (com.beyondsolo.penalty.PenaltyZone.busy(player)) return;
         // one emergency at a time
         boolean inEmergency = false;
         for (Quest q : data.active()) if (q.category() == QuestCategory.EMERGENCY) inEmergency = true;
