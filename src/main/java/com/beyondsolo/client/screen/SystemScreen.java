@@ -134,18 +134,9 @@ public class SystemScreen extends Screen {
             }
             indicatorX = Anim.approach(indicatorX, target[0], 20f);
             indicatorW = Anim.approach(indicatorW, target[2], 20f);
-            Shapes.pill(indicatorX, target[1], indicatorW, TAB_H)
-                    .fillV(Gfx.alpha(SystemTheme.ACCENT, 0.34f), Gfx.alpha(SystemTheme.ACCENT_DEEP, 0.2f))
-                    .border(0.75f, Gfx.alpha(SystemTheme.ACCENT, 0.95f), Gfx.alpha(SystemTheme.ACCENT, 0.4f))
-                    .glow(5, Gfx.alpha(SystemTheme.ACCENT, 0.3f)).draw(g);
-            for (int i = 0; i < tabs.size(); i++) {
-                float[] r = tabRects.get(i);
-                boolean sel = i == selected;
-                boolean hover = !sel && Ui.inside(mouseX, mouseY, r[0], r[1], r[2], TAB_H);
-                if (hover) Shapes.pill(r[0], r[1], r[2], TAB_H).fill(0x18FFFFFF).border(0.5f, 0x30FFFFFF).draw(g);
-                int color = sel ? SystemTheme.TEXT : hover ? SystemTheme.ACCENT_BRIGHT : SystemTheme.TEXT_SOFT;
-                SysFont.spaced(g, tabs.get(i).title().getString(), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, TAB_SIZE), TAB_SIZE, color, true, TAB_TRACKING, 0.5f);
-            }
+            List<String> titles = new ArrayList<>();
+            for (SystemTab t : tabs) titles.add(t.title().getString());
+            drawTabs(g, titles, tabRects, selected, indicatorX, indicatorW, mouseX, mouseY);
         }
 
         Ui.divider(g, x + 12, y + HEADER, WIDTH - 24, Gfx.alpha(SystemTheme.ACCENT, 0.55f));
@@ -171,18 +162,69 @@ public class SystemScreen extends Screen {
 
     private void layoutTabs(float x, float y) {
         tabRects.clear();
-        float total = 0;
-        float[] widths = new float[tabs.size()];
-        for (int i = 0; i < tabs.size(); i++) {
-            widths[i] = SysFont.spacedWidth(tabs.get(i).title().getString(), TAB_SIZE, true, TAB_TRACKING) + 18;
-            total += widths[i] + (i > 0 ? 4 : 0);
+        List<String> titles = new ArrayList<>();
+        for (SystemTab t : tabs) titles.add(t.title().getString());
+        tabRects.addAll(layoutTabs(titles, x, y));
+    }
+
+    /**
+     * Where the tab pills go in a window at (x, y): right-aligned in the header. With many tabs the padding
+     * shrinks so they still fit (the title gives way first).
+     */
+    public static List<float[]> layoutTabs(List<String> titles, float x, float y) {
+        List<float[]> rects = new ArrayList<>();
+        float[] text = new float[titles.size()];
+        float textTotal = 0;
+        for (int i = 0; i < titles.size(); i++) {
+            text[i] = SysFont.spacedWidth(titles.get(i), TAB_SIZE, true, TAB_TRACKING);
+            textTotal += text[i];
         }
+        float gaps = Math.max(0, titles.size() - 1) * 4;
+        float room = WIDTH - 24 - 26 - gaps - textTotal;
+        float pad = titles.isEmpty() ? 18 : Math.max(8, Math.min(18, room / titles.size()));
+        float total = textTotal + pad * titles.size() + gaps;
         float tx = x + WIDTH - 12 - total;
         float ty = y + (HEADER - TAB_H) / 2f + 1;
-        for (int i = 0; i < tabs.size(); i++) {
-            tabRects.add(new float[]{tx, ty, widths[i]});
-            tx += widths[i] + 4;
+        for (int i = 0; i < titles.size(); i++) {
+            rects.add(new float[]{tx, ty, text[i] + pad});
+            tx += text[i] + pad + 4;
         }
+        return rects;
+    }
+
+    /** Draws the tab pills (the selected one lit) the way the System window does. */
+    public static void drawTabs(GuiGraphics g, List<String> titles, List<float[]> rects, int selected, float indicatorX, float indicatorW, int mouseX, int mouseY) {
+        if (selected >= 0 && selected < rects.size()) {
+            float[] target = rects.get(selected);
+            Shapes.pill(indicatorX, target[1], indicatorW, TAB_H)
+                    .fillV(Gfx.alpha(SystemTheme.ACCENT, 0.34f), Gfx.alpha(SystemTheme.ACCENT_DEEP, 0.2f))
+                    .border(0.75f, Gfx.alpha(SystemTheme.ACCENT, 0.95f), Gfx.alpha(SystemTheme.ACCENT, 0.4f))
+                    .glow(5, Gfx.alpha(SystemTheme.ACCENT, 0.3f)).draw(g);
+        }
+        for (int i = 0; i < titles.size(); i++) {
+            float[] r = rects.get(i);
+            boolean sel = i == selected;
+            boolean hover = !sel && Ui.inside(mouseX, mouseY, r[0], r[1], r[2], TAB_H);
+            if (hover) Shapes.pill(r[0], r[1], r[2], TAB_H).fill(0x18FFFFFF).border(0.5f, 0x30FFFFFF).draw(g);
+            int color = sel ? SystemTheme.TEXT : hover ? SystemTheme.ACCENT_BRIGHT : SystemTheme.TEXT_SOFT;
+            SysFont.spaced(g, titles.get(i), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, TAB_SIZE), TAB_SIZE, color, true, TAB_TRACKING, 0.5f);
+        }
+    }
+
+    public static float tabHeight() {
+        return TAB_H;
+    }
+
+    public static float headerHeight() {
+        return HEADER;
+    }
+
+    /** Opens the System window on a page without the opening animation (coming back from the storage window). */
+    public static SystemScreen openInstant(ResourceLocation tab) {
+        lastTab = tab;
+        SystemScreen s = new SystemScreen();
+        s.openedAt = Anim.now() - 1;
+        return s;
     }
 
     @Override

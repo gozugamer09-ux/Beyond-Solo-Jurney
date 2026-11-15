@@ -25,6 +25,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
 | `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
+| `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -484,6 +485,41 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
   next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index], kill, reset.
 
+## Gold, storage, shop and license
+
+Code in `economy/` (server) and `client/economy/` (client); the module registers itself from `EconomyModule.init` with
+its own attachment (`hunter`, kept through death: `HunterData`), item (`hunter_license`), data component
+(`beyondsolo:license`), menu type (`system_storage`), payloads and lang namespace (`assets/beyondsolo_economy/lang`).
+The license sprites and model come from `tools/gen_economy_assets.py`.
+
+- **Gold** (`Economy`): the System's currency. Change it only through `Economy.add / spend / set`, which send the
+  change to the client (`GoldPayload`, with an `Economy.Reason`). Sources (`EconomyHooks`): hostile monsters killed by a
+  player with the System (max health / 5, gate monsters x(1.5 + 0.6 x gate tier)), quests (a quarter of their XP),
+  gate clears (`GATE_GOLD` by rank, called from `GateService.bossDefeated`), and selling to the shop.
+- **System storage** (`SystemStorage`, `StorageMenu`): 27 slots at E, +9 per rank, +9 per expansion bought (4 at
+  most), 108 at most, in pages of 54. Slots past the capacity are locked (things can still be taken out). Menu
+  buttons: prev, next, stack in (inventory items onto matching storage stacks; the hotbar is left alone), sort.
+  Opened with the STORAGE tab of the System window or the I key; `StorageScreen` draws the System window around it,
+  and picking another tab goes back to `SystemScreen` (`SystemScreen.openInstant`). `SystemScreen.layoutTabs`
+  shrinks the tab padding when there are many tabs.
+- **System shop** (`ShopCatalog`, `ShopService`, `client/economy/ShopTab`): categories Today's deals (3 entries a
+  day at -30%, the same for everyone, picked from the day number), Supplies, Remedies, Weapons (arsenal common to
+  epic; legendary and up only come from gates), Armor, Special (skill tome, totem, storage expansion with doubling
+  price, a new license copy). Entries can need a rank and have a daily limit (`HunterData.purchases`, reset per
+  in-game day). Selling (`SellPrices`): graded gear by grade (worn gear less), gate treasure, monster drops; a test
+  checks that nothing in the shop sells back for more than its sale price.
+- **Hunter license** (`HunterLicenseItem`, `LicenseInfo`): issued `LICENSE_DELAY` ticks after the evaluation (or at
+  login for hunters evaluated before licenses existed). The card carries a snapshot (name, rank, class, subclass,
+  level, gates cleared, highest gate, number, issue day) that the owner's own card refreshes every second while in
+  their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
+  scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
+  the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+  the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
+- **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
+  shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
+  `shop buy|sell <category> [entry]`, `storagebtn <id>`, `license`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -521,3 +557,4 @@ death, parcel delivery, and the nest spawning. Fake players can't take damage, s
 checks use zombies.
 `test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.
 `test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
+`test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.

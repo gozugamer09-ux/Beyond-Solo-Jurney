@@ -51,6 +51,14 @@ public final class Icons {
     public static final ResourceLocation QUESTION = icon("question");
     public static final ResourceLocation CHAT = icon("chat");
     public static final ResourceLocation VILLAGERS = icon("villagers");
+    public static final ResourceLocation COINS = icon("coins");
+    public static final ResourceLocation COIN = icon("coin");
+    public static final ResourceLocation VAULT = icon("vault");
+    public static final ResourceLocation STOREFRONT = icon("storefront");
+    public static final ResourceLocation CART = icon("cart");
+    public static final ResourceLocation TAG = icon("tag");
+    public static final ResourceLocation ID_CARD = icon("id_card");
+    public static final ResourceLocation DEPOSIT = icon("deposit");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

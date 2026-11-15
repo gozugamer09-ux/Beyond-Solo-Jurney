@@ -1,0 +1,44 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "beyondsolo:item/hunter_license"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.099
+      },
+      "model": "beyondsolo:item/hunter_license_e"
+    },
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.199
+      },
+      "model": "beyondsolo:item/hunter_license_d"
+    },
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.299
+      },
+      "model": "beyondsolo:item/hunter_license_c"
+    },
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.399
+      },
+      "model": "beyondsolo:item/hunter_license_b"
+    },
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.499
+      },
+      "model": "beyondsolo:item/hunter_license_a"
+    },
+    {
+      "predicate": {
+        "beyondsolo:rank": 0.599
+      },
+      "model": "beyondsolo:item/hunter_license_s"
+    }
+  ]
+}
