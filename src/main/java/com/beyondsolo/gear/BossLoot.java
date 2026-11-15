@@ -84,10 +84,11 @@ public final class BossLoot {
         return out;
     }
 
-    /** True if this stack is a signature drop worth calling out (set pieces and the boss's weapons). */
-    public static boolean isSignature(ItemStack stack) {
-        if (stack.getItem() instanceof SystemArmorItem a && a.set().boss != null) return true;
-        for (Table t : TABLES) for (Entry e : t.weapons()) if (stack.is(e.item().get())) return true;
+    /** True if this stack is one of this boss's signature drops (its set pieces and its weapons), worth calling out. */
+    public static boolean isSignature(ItemStack stack, PlayerRank rank) {
+        Table t = table(rank);
+        if (stack.getItem() instanceof SystemArmorItem a && a.set() == t.set()) return true;
+        for (Entry e : t.weapons()) if (stack.is(e.item().get())) return true;
         return false;
     }
 

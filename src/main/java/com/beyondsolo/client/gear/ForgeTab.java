@@ -331,7 +331,7 @@ public class ForgeTab implements SystemTab {
         boolean creative = inv.player.getAbilities().instabuild;
         float ry = y + 14;
         float costX = x + 12;
-        costX += costChip(g, costX, ry, new ItemStack(GearModule.REFINING_STONE.get()), haveStones + "/" + stones, creative || haveStones >= stones) + 5;
+        costX += costChip(g, costX, ry, new ItemStack(GearModule.REFINING_STONE.get()), "×" + stones + (creative ? "" : "  (" + haveStones + ")"), creative || haveStones >= stones) + 5;
         costX += goldChip(g, costX, ry, gold, creative || EconomyClient.gold() >= gold) + 5;
         boolean risky = Enhancement.risky(level);
         if (risky) {
@@ -471,7 +471,7 @@ public class ForgeTab implements SystemTab {
                     float ang = i * 51.4f + 13;
                     float len = (14 + (i * 7) % 12) * ck;
                     g.pose().pushPose();
-                    g.pose().translate(cx, cy, 160);
+                    g.pose().translate(cx, cy, 440);
                     g.pose().mulPose(Axis.ZP.rotationDegrees(ang));
                     Shapes.box(4, -0.6f, len, 1.2f).fill(Gfx.alpha(c, 0.9f * fade)).glow(2, Gfx.alpha(c, 0.5f * fade)).draw(g);
                     Shapes.box(4 + len * 0.6f, -0.5f, len * 0.4f, 1f).fill(Gfx.alpha(c, 0.7f * fade)).draw(g);
@@ -501,7 +501,7 @@ public class ForgeTab implements SystemTab {
         float s = 1.5f - 0.5f * Anim.outBackStrong(pop);
         float old = Gfx.fade(alpha);
         g.pose().pushPose();
-        g.pose().translate(cx, cy + 2, 220);
+        g.pose().translate(cx, cy + 2, 450);
         g.pose().mulPose(Axis.ZP.rotationDegrees(-7));
         g.pose().scale(s, s, 1);
         float size = label.startsWith("+") ? 13f : 8f;

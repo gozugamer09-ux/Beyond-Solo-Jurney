@@ -159,7 +159,7 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         MutableComponent sig = Component.empty();
         int sigs = 0;
         for (ItemStack s : loot) {
-            if (!com.beyondsolo.gear.BossLoot.isSignature(s)) continue;
+            if (!com.beyondsolo.gear.BossLoot.isSignature(s, rank)) continue;
             if (sigs++ > 0) sig.append(", ");
             sig.append(s.getHoverName());
         }

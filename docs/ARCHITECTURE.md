@@ -26,6 +26,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
+| `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -520,6 +521,39 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
   `shop buy|sell <category> [entry]`, `storagebtn <id>`, `license`.
 
+## Gear: rolls, sets, boss loot, enhancement, infusions
+
+Code in `gear/` (server) and `client/gear/` (client); `GearModule.init` registers its items, data components
+(`beyondsolo:bonus_stats`, `beyondsolo:enhance`, `beyondsolo:infusion`), the six boss armor materials, the FORGE
+creative tab and payloads (`ForgeActionPayload`, `ForgeResultPayload`). Lang lives in `assets/beyondsolo_gear/lang`.
+Textures come from `tools/gen_gear_assets.py`.
+
+- **Bonus stats** (`BonusStat`, `GearRolls`): every dropped or rewarded weapon and armor piece rolls random bonus stats
+  by grade (common 0-1, rare 1, epic 2, legendary 3, mythic 4, divine 5), each scaled by `1 + 0.35 x tier`. Stats
+  fit the gear kind (`GearKind`: melee, bow, armor), e.g. crit chance on weapons, max health or a resistance on armor.
+  Armor from gate caches can roll one grade above the gate (`GearRolls.dropGrade`, capped at legendary).
+  `GearAttributes` turns rolls and enhancement into attribute modifiers through `ItemAttributeModifierEvent`.
+- **Enhancement** (`Enhancement`, `ForgeService.refine`): +1..+10. Chance for +1..+10: 100/95/90/80/70/60/50/40/30/20 %, damage
+  +3 % up to +50 % (bows add arrow damage, armor adds armor and toughness). Costs gold (by grade and level) and
+  refining stones. From +7 a failure drops one level; a **ward seal** (consumed only when it saves you) prevents that.
+- **Infusions** (`Infusions`, `ForgeService.infuse`): an element crystal plus gold sets a weapon's element. 15 % of the
+  hit lands again as that element through `SkillCombat.strike`, so it applies auras and triggers the skill system's
+  reactions for every class; arrows carry the bow's infusion (`Infusions.tagArrow`).
+- **Armor sets** (`item/ArmorSets`): every set has a 2-piece and a 4-piece bonus and may carry a perk. Boss sets
+  (`BossSets`, one per gate rank E..S: Stonehide, Mirefang, Rimeguard, Gloomreaver, Emberwrought, Sovereign) add
+  perks (`SetEffects`: Unbroken, Venom Skin, Frost Aegis, Night's Edge, Living Flame, Crimson Dominion) and an
+  innate element for un-infused weapons.
+- **Boss signature loot** (`BossLoot`): each rank's boss table drops its set pieces, a chance at its weighted signature
+  weapons, refining stones, crystals and (C and up) ward seals. `GateLoot` adds it to the reward cache, which calls out
+  signature drops with a pop-up (`BossLoot.isSignature(stack, rank)`).
+- **Forge tab** (`client/gear/ForgeTab`, order 125 in the System window): pick gear, REFINE or INFUSE, see chances and
+  costs; the ring charges with hammer strikes, then plays success rays and a +N stamp, cracks and a shake, the ward
+  hexagon, or the infusion spiral. The shop sells refining stones, ward seals and crystals (category FORGE);
+  `SellPrices` values gear more with enhancement and rolls (refining never pays back more than it costs).
+- **Commands** (`/system gear ...`, level 2): info, roll &lt;grade&gt;, enhance &lt;0-10&gt;, refine [ward], infuse
+  &lt;element|none&gt;, bossloot &lt;rank&gt; [n], set &lt;name&gt;, materials. UI driver: `screen forge`,
+  `forge <slot> [refine|infuse] [element] [ward|noward]`, `forgego`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -558,3 +592,4 @@ checks use zombies.
 `test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.
 `test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
 `test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.
+`test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
