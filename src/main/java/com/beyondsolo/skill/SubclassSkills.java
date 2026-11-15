@@ -172,6 +172,7 @@ public final class SubclassSkills {
     /** Touch the class so every subclass skill is registered (called from {@link Skills#init()}). */
     static void init() {
         WarriorPath.init();
+        AssassinPath.init();
     }
 
     private SubclassSkills() {}

@@ -1001,7 +1001,7 @@ public final class SubclassActions {
         return hit.getType() == HitResult.Type.MISS ? to : hit.getLocation();
     }
 
-    private static void teleport(ServerPlayer p, Vec3 dest, LivingEntity faceTo) {
+    static void teleport(ServerPlayer p, Vec3 dest, LivingEntity faceTo) {
         Vec3 d = faceTo.getEyePosition().subtract(dest.add(0, p.getEyeHeight(), 0));
         float yaw = (float) (Math.atan2(d.z, d.x) * (180 / Math.PI)) - 90f;
         float pitch = (float) (-(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * (180 / Math.PI)));

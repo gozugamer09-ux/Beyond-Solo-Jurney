@@ -153,6 +153,7 @@ public final class SubclassPassives {
         int core = data.level(SubclassSkills.CELESTIAL_CORE.path());
         if (core > 0) SystemAPI.restoreMana(p, 0.3f * core);
         WarriorPath.tickSecond(p, data);
+        AssassinPath.tickSecond(p, data);
     }
 
     // ================================================================ hits
@@ -210,8 +211,10 @@ public final class SubclassPassives {
                 else if (sentence[0] <= now) SubclassActions.SENTENCES.remove(target);
             }
             bonus += WarriorPath.strikeBonus(p, data, target, now);
+            bonus += AssassinPath.strikeBonus(p, data, target, now);
             if (bonus != 0) amount *= 1 + bonus / 100f;
             WarriorPath.afterStrike(p, data, target, melee, now);
+            AssassinPath.afterStrike(p, data, target);
 
             // on-hit statuses
             int virulence = data.level(SubclassSkills.VIRULENCE.path());
@@ -240,6 +243,7 @@ public final class SubclassPassives {
         if (target instanceof ServerPlayer p && attacker != p) {
             SkillData data = SkillAPI.get(p);
             amount = WarriorPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, amount);
+            if (amount >= 0) amount = AssassinPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount < 0) {
                 event.setCanceled(true);
                 return;
@@ -313,6 +317,7 @@ public final class SubclassPassives {
         if (!(event.getSource().getEntity() instanceof ServerPlayer p) || dead == p) return;
         SkillData data = SkillAPI.get(p);
         WarriorPath.onKill(p, data, dead);
+        AssassinPath.onKill(p, data, dead);
         int pact = data.level(SubclassSkills.GRAVE_PACT.path());
         if (pact > 0) {
             p.heal(pactHeal(pact));
