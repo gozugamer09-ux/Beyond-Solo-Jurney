@@ -38,5 +38,9 @@ public final class ModAttachments {
     public static final Supplier<AttachmentType<com.beyondsolo.awakening.AwakeningData>> AWAKENING = ATTACHMENT_TYPES.register("awakening",
             () -> AttachmentType.serializable(com.beyondsolo.awakening.AwakeningData::new).copyOnDeath().build());
 
+    /** What the evaluation crystal remembers between evaluations (re-evaluation module). Survives death. */
+    public static final Supplier<AttachmentType<com.beyondsolo.evaluation.EvaluationRecord>> EVALUATION_RECORD = ATTACHMENT_TYPES.register("evaluation_record",
+            () -> AttachmentType.serializable(com.beyondsolo.evaluation.EvaluationRecord::new).copyOnDeath().build());
+
     private ModAttachments() {}
 }

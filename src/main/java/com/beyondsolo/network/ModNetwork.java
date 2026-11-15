@@ -24,6 +24,8 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onNotification(payload)));
         registrar.playToClient(EvaluationPayload.TYPE, EvaluationPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onEvaluation(payload)));
+        registrar.playToClient(ReevaluationSyncPayload.TYPE, ReevaluationSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.evaluation.ReevaluationClient.onSync(payload)));
 
         registrar.playToClient(CombatStatePayload.TYPE, CombatStatePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatState(payload)));
@@ -86,7 +88,7 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     Stat stat = Stat.byIndex(payload.stat());
                     if (stat != null && ctx.player() instanceof ServerPlayer player) {
-                        SystemAPI.allocateStat(player, stat);
+                        SystemAPI.allocateStats(player, stat, Math.max(1, Math.min(100, payload.count())));
                     }
                 }));
         registrar.playToServer(SkipEvaluationPayload.TYPE, SkipEvaluationPayload.STREAM_CODEC,

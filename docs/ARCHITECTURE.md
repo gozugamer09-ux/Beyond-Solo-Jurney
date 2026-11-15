@@ -110,6 +110,28 @@ Rules that came out of building it, worth keeping for gates and bosses:
 
 `/system evaluate [rank] [class]` plays the whole thing with a chosen result.
 
+### Stat points, hidden ranks and re-evaluation
+
+- **Stat points**: `Config progression.statPointsPerLevel` (3) per level, spent in the STATUS tab (click +1,
+  shift +5, ctrl all; `SystemAPI.allocateStats`). Every point is a real buff through `StatEffects`; the stat tooltip
+  lists the live bonuses (`StatEffects.bonusesOf(stat)`). Points spent by hand are counted in
+  `evaluation/EvaluationRecord` (attachment `evaluation_record`), and the **Elixir of Rebirth** (CRAFT tab, C rank)
+  gives exactly those back (`Reevaluation.refundAllocated`); rank, job-change and reward points stay.
+- **Hidden rank thresholds** (`Reevaluation`, config `reevaluation.rankThresholds`, default D 90, C 140, B 210, A 300,
+  S 420 on the total of the five stats): crossing one makes the player truly that rank (`Reevaluation.trueRank`), but
+  the window, HUD and license keep the evaluated rank, and the true rank is never sent to the client. The System only
+  whispers "something has changed" the first time (config `reevaluation.hintOnThreshold`).
+- **Re-evaluation**: touching a crystal once a new milestone is reached (every `reevaluation.milestoneLevels` = 10
+  levels) plays the evaluation again in re-evaluation mode (`EvaluationManager.beginReevaluation`): same scan, crystal
+  states and overlay, but the roulette only shows ranks from the current one up, the class (or subclass) is confirmed
+  instead of rolled, "RANK UP" with a C -> A line or "RANK CONFIRMED", and the summary shows growth since the last
+  evaluation (`EvaluationPayload.previousRank`, ten stats). The rank only rises, can jump several ranks, and goes
+  through `SystemAPI.setRank`, so skills, storage and the license follow. The attempt uses the milestone either way.
+  Outside a milestone the crystal just repeats the result and names the next level. The STATUS tab's corner crystal
+  glows when it is open (`ReevaluationSyncPayload`).
+- Commands: `/system reeval [rank]` (play now, optionally forced), `reeval info` (total, true rank, thresholds),
+  `reeval unlock`, `reeval reset`. Tests: `ReevaluationGameTests`.
+
 ## Hooks per planned module
 
 ### Quest engine (built: see "Quests" below)

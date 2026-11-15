@@ -63,12 +63,18 @@ public final class EvaluationManager {
         int revealTick = -1;
         @Nullable PlayerRank rank;
         @Nullable PlayerClass playerClass;
+        /** The rank before a re-evaluation, or null for the first evaluation. */
+        @Nullable PlayerRank oldRank;
 
         Session(ServerPlayer player, BlockPos crystal, @Nullable PlayerRank rank, @Nullable PlayerClass playerClass) {
             this.player = player;
             this.crystal = crystal;
             this.rank = rank;
             this.playerClass = playerClass;
+        }
+
+        boolean reevaluation() {
+            return oldRank != null;
         }
     }
 
@@ -85,10 +91,16 @@ public final class EvaluationManager {
             return;
         }
         if (data.isAwakened()) {
+            if (Reevaluation.isAvailable(player)) {
+                beginReevaluation(player, crystal, null);
+                return;
+            }
+            // read once per milestone: until the next one the crystal only repeats what it said last time
             Notifications.send(player, SystemNotification.of(SystemNotification.Kind.INFO,
                     Component.translatable("notify.beyondsolo.already_evaluated.title"),
-                    Component.translatable("notify.beyondsolo.already_evaluated.body",
-                            data.rank().displayName(), data.playerClass().displayName())));
+                    Component.translatable("notify.beyondsolo.already_evaluated.locked",
+                            data.rank().displayName(), data.playerClass().displayName(), Reevaluation.nextLevel(player))));
+            player.serverLevel().playSound(null, crystal, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.8f, 0.7f);
             return;
         }
         begin(player, crystal, null, null);
@@ -106,6 +118,26 @@ public final class EvaluationManager {
         level.playSound(null, crystal, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 1f, 1.3f);
         level.playSound(null, crystal, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.BLOCKS, 1.2f, 0.6f);
         PacketDistributor.sendToPlayer(player, EvaluationPayload.start(EvaluationTimeline.SCAN_TICKS));
+        return true;
+    }
+
+    /**
+     * Starts a re-evaluation of an evaluated player: the same scan and reveal, but the class stays and the rank can
+     * only rise, to whatever their stats truly are ({@link Reevaluation#trueRank}). Pass a rank to force the result.
+     * Uses up the player's current milestone when the reveal starts. Returns false if one is already running.
+     */
+    public static boolean beginReevaluation(ServerPlayer player, BlockPos crystal, @Nullable PlayerRank forced) {
+        if (SESSIONS.containsKey(player.getUUID())) return false;
+        SystemData data = SystemAPI.get(player);
+        if (!data.isAwakened()) return false;
+        Session s = new Session(player, crystal.immutable(), forced, data.playerClass());
+        s.oldRank = data.rank();
+        SESSIONS.put(player.getUUID(), s);
+        ServerLevel level = player.serverLevel();
+        crystalState(level, crystal, EvaluationCrystalBlockEntity.SCANNING, 0);
+        level.playSound(null, crystal, SoundEvents.BEACON_ACTIVATE, SoundSource.BLOCKS, 1f, 1.3f);
+        level.playSound(null, crystal, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.BLOCKS, 1.2f, 0.6f);
+        PacketDistributor.sendToPlayer(player, EvaluationPayload.start(EvaluationTimeline.SCAN_TICKS, s.oldRank.ordinal()));
         return true;
     }
 
@@ -213,13 +245,18 @@ public final class EvaluationManager {
         int r = s.revealTick;
 
         if (r == 0) {
-            if (s.rank == null) s.rank = PlayerRank.roll(player.getRandom());
-            if (s.playerClass == null) s.playerClass = PlayerClass.roll(player.getRandom());
-            SystemAPI.awaken(player, s.rank, s.playerClass);
-            SystemData data = SystemAPI.get(player);
             List<Integer> stats = new ArrayList<>();
-            for (Stat stat : Stat.values()) stats.add(data.stat(stat));
-            PacketDistributor.sendToPlayer(player, EvaluationPayload.reveal(s.rank.ordinal(), s.playerClass.ordinal(), stats));
+            int previous = -1;
+            if (s.reevaluation()) {
+                previous = revealReevaluation(player, s, stats);
+            } else {
+                if (s.rank == null) s.rank = PlayerRank.roll(player.getRandom());
+                if (s.playerClass == null) s.playerClass = PlayerClass.roll(player.getRandom());
+                SystemAPI.awaken(player, s.rank, s.playerClass);
+                SystemData data = SystemAPI.get(player);
+                for (Stat stat : Stat.values()) stats.add(data.stat(stat));
+            }
+            PacketDistributor.sendToPlayer(player, EvaluationPayload.reveal(s.rank.ordinal(), s.playerClass.ordinal(), stats, previous));
             // The overlay covers the screen, so nothing can hurt the player until it is over.
             player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, EvaluationTimeline.FINISH + 20, 4, false, false, false));
             crystalState(level, s.crystal, EvaluationCrystalBlockEntity.REVEALING, 0);
@@ -258,6 +295,28 @@ public final class EvaluationManager {
             level.playSound(null, s.crystal, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.BLOCKS, 1f, 1.0f);
             level.playSound(null, s.crystal, SoundEvents.AMETHYST_CLUSTER_BREAK, SoundSource.BLOCKS, 1f, 0.8f);
         }
+    }
+
+    /**
+     * The re-evaluation's result, decided when its reveal starts: the true rank (never lower than before) becomes the
+     * player's rank, the milestone is used up and the stats become the new baseline. Fills {@code stats} with the
+     * current stats followed by those of the last evaluation, and returns the old rank's ordinal.
+     */
+    private static int revealReevaluation(ServerPlayer player, Session s, List<Integer> stats) {
+        SystemData data = SystemAPI.get(player);
+        PlayerRank old = s.oldRank == null ? data.rank() : s.oldRank;
+        PlayerRank result = s.rank != null ? s.rank : Reevaluation.trueRank(player);
+        if (result.tier() < old.tier()) result = old;
+        s.rank = result;
+        s.playerClass = data.playerClass();
+        EvaluationRecord record = Reevaluation.record(player);
+        for (Stat stat : Stat.values()) stats.add(data.stat(stat));
+        for (Stat stat : Stat.values()) stats.add(record.snapshot(stat));
+        if (result != old) SystemAPI.setRank(player, result);
+        Reevaluation.markEvaluated(player);
+        Reevaluation.countReevaluation(player);
+        Reevaluation.sync(player);
+        return old.ordinal();
     }
 
     private static void rankBurst(ServerLevel level, Session s, PlayerRank rank) {
@@ -328,6 +387,10 @@ public final class EvaluationManager {
         crystalState(level, s.crystal, EvaluationCrystalBlockEntity.IDLE, 0);
         level.playSound(null, s.crystal, SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 0.7f, 1.4f);
         if (rank == null || playerClass == null) return;
+        if (s.reevaluation()) {
+            finishReevaluation(player, s.oldRank, rank);
+            return;
+        }
 
         Notifications.send(player, new SystemNotification(SystemNotification.Kind.LEVEL_UP,
                 Component.translatable("notify.beyondsolo.evaluated.title"),
@@ -341,6 +404,25 @@ public final class EvaluationManager {
             Component message = Component.translatable("chat.beyondsolo.awakened", player.getDisplayName(),
                     Component.translatable("chat.beyondsolo.awakened.rank", rank.displayName()).withStyle(style -> style.withColor(TextColor.fromRgb(rank.color())).withBold(true)),
                     playerClass.displayName().copy().withStyle(style -> style.withColor(TextColor.fromRgb(playerClass.color()))))
+                    .withStyle(ChatFormatting.GRAY);
+            player.server.getPlayerList().broadcastSystemMessage(message, false);
+        }
+    }
+
+    private static void finishReevaluation(ServerPlayer player, PlayerRank old, PlayerRank rank) {
+        boolean up = rank != old;
+        if (up) {
+            Notifications.send(player, new SystemNotification(SystemNotification.Kind.LEVEL_UP,
+                    Component.translatable("notify.beyondsolo.reevaluated.up.title"),
+                    Component.translatable("notify.beyondsolo.reevaluated.up.body", old.displayName(), rank.displayName()), 220));
+        } else {
+            Notifications.send(player, new SystemNotification(SystemNotification.Kind.INFO,
+                    Component.translatable("notify.beyondsolo.reevaluated.same.title"),
+                    Component.translatable("notify.beyondsolo.reevaluated.same.body", rank.displayName(), Reevaluation.nextLevel(player)), 220));
+        }
+        if (up && Config.ANNOUNCE_AWAKENINGS.get()) {
+            Component message = Component.translatable("chat.beyondsolo.reevaluated", player.getDisplayName(),
+                    Component.translatable("chat.beyondsolo.awakened.rank", rank.displayName()).withStyle(style -> style.withColor(TextColor.fromRgb(rank.color())).withBold(true)))
                     .withStyle(ChatFormatting.GRAY);
             player.server.getPlayerList().broadcastSystemMessage(message, false);
         }

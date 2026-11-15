@@ -75,5 +75,7 @@
   "item.beyondsolo.draught_of_might": "Draught of Might",
   "item.beyondsolo.draught_of_might.desc": "Strength for 90 seconds",
   "item.beyondsolo.ironskin_draught": "Ironskin Draught",
-  "item.beyondsolo.ironskin_draught.desc": "Resistance for 90 seconds"
+  "item.beyondsolo.ironskin_draught.desc": "Resistance for 90 seconds",
+  "item.beyondsolo.elixir_of_rebirth": "Elixir of Rebirth",
+  "item.beyondsolo.elixir_of_rebirth.desc": "Returns every stat point you spent, to place again"
 }

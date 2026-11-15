@@ -86,6 +86,17 @@ public final class Config {
             .comment("Chance, checked once a minute for each player without the System, that a D-rank gate opens near them (if no gate is open close by). Keeps the first gate findable.")
             .defineInRange("awakening.gateChancePerMinute", 0.12, 0.0, 1.0);
 
+    // --- Re-evaluation ---
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends Integer>> RANK_THRESHOLDS = B
+            .comment("Hidden rank thresholds: the total of a player's five stats needed to count as rank D, C, B, A and S. Crossing one is never shown; the player only learns it by being re-evaluated at a crystal.")
+            .defineList("reevaluation.rankThresholds", java.util.List.of(90, 140, 210, 300, 420), () -> 100, o -> o instanceof Integer i && i > 0);
+    public static final ModConfigSpec.IntValue REEVALUATION_MILESTONE = B
+            .comment("Levels per milestone. A player can be re-evaluated once per milestone: at level 10, 20, 30 ... with the default.")
+            .defineInRange("reevaluation.milestoneLevels", 10, 1, 999);
+    public static final ModConfigSpec.BooleanValue REEVALUATION_HINT = B
+            .comment("Give a vague pop-up (it never names the rank) when a player's stats cross a hidden rank threshold.")
+            .define("reevaluation.hintOnThreshold", true);
+
     public static final ModConfigSpec SPEC = B.build();
 
     private Config() {}

@@ -107,6 +107,7 @@ public final class SystemRecipes {
         add(m, Category.POTIONS, CraftingModule.STAMINA_TONIC.get(), 1, 15, E, bottle(), core(E, 1), item(CraftingModule.GLOOMFANG_FANG.get(), 2));
         add(m, Category.POTIONS, CraftingModule.DRAUGHT_OF_MIGHT.get(), 1, 40, D, bottle(), core(D, 1), item(CraftingModule.ASHEN_PLATE.get(), 1));
         add(m, Category.POTIONS, CraftingModule.IRONSKIN_DRAUGHT.get(), 1, 40, D, bottle(), core(D, 1), item(CraftingModule.SHARD_CARAPACE.get(), 2));
+        add(m, Category.POTIONS, CraftingModule.ELIXIR_OF_REBIRTH.get(), 1, 250, C, bottle(), core(C, 2), item(CraftingModule.HOLLOW_ESSENCE.get(), 2), item(CraftingModule.MANA_STONE.get(), 1));
         add(m, Category.POTIONS, ModItems.ANTIDOTE.get(), 1, 10, E, bottle(), core(E, 1), item(CraftingModule.BROOD_SILK.get(), 1));
         add(m, Category.POTIONS, ModItems.CLOTTING_TONIC.get(), 1, 10, E, bottle(), core(E, 1), item(CraftingModule.GLOOMFANG_FANG.get(), 1));
         add(m, Category.POTIONS, ModItems.GREATER_ANTIDOTE.get(), 1, 50, D, bottle(), affinityCore(Affinity.VENOM, E, 1), item(CraftingModule.BROOD_SILK.get(), 2));
