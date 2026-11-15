@@ -31,6 +31,7 @@ public final class CombatClientEvents {
             if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
             WorldProjector.capture(event.getModelViewMatrix(), event.getProjectionMatrix(), event.getCamera().getPosition());
             CombatWorldFx.render(event.getPoseStack(), event.getCamera(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+            SignatureFx.render(event.getPoseStack(), event.getCamera(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
         }
 
         @SubscribeEvent
@@ -46,12 +47,14 @@ public final class CombatClientEvents {
         static void tickPost(ClientTickEvent.Post event) {
             ClientCombatState.tick();
             CombatWorldFx.tick();
+            SignatureFx.tick();
         }
 
         @SubscribeEvent
         static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
             ClientCombatState.clear();
             CombatWorldFx.clear();
+            SignatureFx.clear();
             FloatingNumbers.clear();
             CombatHud.reset();
         }

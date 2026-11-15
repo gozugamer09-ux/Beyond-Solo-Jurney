@@ -192,9 +192,12 @@ public final class ArsenalGameTests {
         ItemStack stack = new ItemStack(lance);
         p.setItemInHand(InteractionHand.MAIN_HAND, stack);
         ArsenalAbilities.unleash(p, stack, lance);
-        helper.assertTrue(z.hasEffect(ModEffects.FROZEN), "the zombie is frozen solid");
-        helper.assertTrue(p.getCooldowns().isOnCooldown(lance), "the signature goes on cooldown");
-        helper.succeed();
+        helper.assertTrue(p.getCooldowns().isOnCooldown(lance), "the signature goes on cooldown at once");
+        helper.assertFalse(z.hasEffect(ModEffects.FROZEN), "nothing freezes before the lance strikes the ground");
+        helper.runAfterDelay(com.beyondsolo.item.arsenal.Signature.ABSOLUTE_ZERO.impactTicks() + 2, () -> {
+            helper.assertTrue(z.hasEffect(ModEffects.FROZEN), "the zombie is frozen solid on the strike frame");
+            helper.succeed();
+        });
     }
 
     @GameTest(template = ARENA)

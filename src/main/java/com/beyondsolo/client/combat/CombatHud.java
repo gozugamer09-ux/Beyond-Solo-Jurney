@@ -73,11 +73,6 @@ public final class CombatHud {
             case CRIMSON_BURST -> flash(0xFFC2185B, 0.8f);
             case VENOM_STACK -> flash(0xFF7CCF3A, 0.25f);
             case FREEZE -> flash(0xFFBFEFFF, 0.6f);
-            case SIGNATURE -> {
-                ringAt = Anim.now();
-                ringColor = 0xFF000000 | (param & 0xFFFFFF);
-                flash(Gfx.mix(ringColor, 0xFFFFFFFF, 0.3f), 0.45f);
-            }
             case CURE -> {
                 ringAt = Anim.now();
                 ringColor = 0xFF000000 | DamageElement.byIndex(param).color();
@@ -99,6 +94,7 @@ public final class CombatHud {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
         screenEffects(g, mc);
+        SignatureFx.renderHud(g);
         if (ClientConfig.ENEMY_METERS.get()) enemyMeters(g, mc, delta.getGameTimeDeltaPartialTick(true));
         FloatingNumbers.render(g);
         if (ClientConfig.SHOW_HUD.get() && !mc.getDebugOverlay().showDebugScreen()) rail(g, mc);

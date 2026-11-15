@@ -298,14 +298,11 @@ public final class ArsenalHits {
     /** Starfall: a crit arrow brings down a bolt of starlight that hurts everything around the target. */
     static void starfall(LivingEntity attacker, LivingEntity target) {
         if (!(target.level() instanceof ServerLevel level)) return;
-        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-        if (bolt != null) {
-            bolt.moveTo(target.getX(), target.getY(), target.getZ());
-            bolt.setVisualOnly(true);
-            level.addFreshEntity(bolt);
-        }
         for (LivingEntity e : foesAround(attacker, target.position(), 3)) magicHit(attacker, e, 6f);
-        CombatFx.play(target, CombatFxPayload.Kind.NOVA, packNova(0xFFF0A8, 3));
+        Vec3 at = target.position();
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 1.2f, 1.5f);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 1.4f, 0.7f);
+        ArsenalAbilities.send(attacker, Signature.STARFALL, com.beyondsolo.network.SignatureFxPayload.IMPACT, List.of(at));
     }
 
     /** NOVA effect parameter: colour and radius in blocks. */

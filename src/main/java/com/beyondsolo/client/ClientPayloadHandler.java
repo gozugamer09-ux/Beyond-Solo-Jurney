@@ -3,12 +3,14 @@ package com.beyondsolo.client;
 import com.beyondsolo.client.combat.ClientCombatState;
 import com.beyondsolo.client.combat.CombatWorldFx;
 import com.beyondsolo.client.combat.FloatingNumbers;
+import com.beyondsolo.client.combat.SignatureFx;
 import com.beyondsolo.client.evaluation.EvaluationOverlay;
 import com.beyondsolo.network.CombatFxPayload;
 import com.beyondsolo.network.CombatStatePayload;
 import com.beyondsolo.network.DamageNumberPayload;
 import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.network.EvaluationPayload;
+import com.beyondsolo.network.SignatureFxPayload;
 import com.beyondsolo.network.NotificationPayload;
 import com.beyondsolo.network.SyncSystemDataPayload;
 import com.beyondsolo.network.QuestEventPayload;
@@ -35,6 +37,10 @@ public final class ClientPayloadHandler {
 
     public static void onCombatFx(CombatFxPayload payload) {
         CombatWorldFx.play(payload);
+    }
+
+    public static void onSignatureFx(SignatureFxPayload payload) {
+        SignatureFx.play(payload);
     }
 
     public static void onDamageNumber(DamageNumberPayload payload) {
