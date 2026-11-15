@@ -35,6 +35,22 @@ public enum Signature {
         return color;
     }
 
+    /**
+     * Ticks from activation to the strike frame of the wielder's body animation: the damage lands then.
+     * Matches the animations made by {@code tools/gen_signature_anims.py}.
+     */
+    public int impactTicks() {
+        return switch (this) {
+            case INFERNAL_REND -> 8;
+            case ABSOLUTE_ZERO, CATACLYSM_CLEAVE -> 10;
+            case HEAVENS_VERDICT -> 14;
+            case DRAGONS_WRATH -> 5;
+            case DEVOURING_STAR, COLOSSUS_STANCE -> 9;
+            case VERDANT_BLESSING -> 12;
+            case STARFALL -> 0;
+        };
+    }
+
     /** False for the bow's passive signature. */
     public boolean active() {
         return cooldownSeconds > 0;

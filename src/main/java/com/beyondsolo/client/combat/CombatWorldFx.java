@@ -127,16 +127,6 @@ public final class CombatWorldFx {
                 Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
                 burst(level, new DustParticleOptions(rgb, 1.2f), x, y, z, 16, 0.25);
             }
-            case SIGNATURE -> {
-                int c = param & 0xFFFFFF;
-                Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
-                for (int i = 0; i < 28; i++) {
-                    double a = i / 28.0 * Math.PI * 2;
-                    level.addParticle(new DustParticleOptions(rgb, 1.3f), x + Math.cos(a) * 0.8, e.getY() + 0.15, z + Math.sin(a) * 0.8,
-                            Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15);
-                }
-                burst(level, ParticleTypes.END_ROD, x, y, z, 4, 0.08);
-            }
         }
     }
 
@@ -223,7 +213,7 @@ public final class CombatWorldFx {
             float life = switch (b.kind) {
                 case CRIMSON_BURST, HEAVY_VENOM -> 1.2f;
                 case IGNITE, CURE, BLOOD_POP, FREEZE, SHATTER -> 0.9f;
-                case NOVA, SIGNATURE -> 1.1f;
+                case NOVA -> 1.1f;
                 default -> 0.5f;
             };
             if (age >= life || age < -1) {
@@ -285,11 +275,6 @@ public final class CombatWorldFx {
                     ringAt(pose, buffers, 0.1f, 0.3f + radius * 0.7f * out, mixRgb(c, 0xFFFFFF, 0.4f), fade * 0.8f);
                     disc(pose, buffers, GLOW, 0.05f, 0.5f + radius * 0.9f * out, 0, c, fade * 0.5f);
                     dot(pose, buffers, camera, 0, h * 0.5f, 0, size * (0.6f + 0.8f * out), mixRgb(c, 0xFFFFFF, 0.3f), fade * 0.7f);
-                }
-                case SIGNATURE -> {
-                    int c = b.param & 0xFFFFFF;
-                    disc(pose, buffers, SIGIL, 0.05f, size * (0.8f + 1.8f * out), time * 4, c, fade * 1.2f);
-                    dotTex(pose, buffers, camera, BURST, 0, h * 0.55f, 0, size * (0.6f + 1.2f * out), mixRgb(c, 0xFFFFFF, 0.3f), fade, b.start * 7);
                 }
             }
             pose.popPose();

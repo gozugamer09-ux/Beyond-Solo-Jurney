@@ -29,6 +29,8 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatState(payload)));
         registrar.playToClient(CombatFxPayload.TYPE, CombatFxPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onCombatFx(payload)));
+        registrar.playToClient(SignatureFxPayload.TYPE, SignatureFxPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSignatureFx(payload)));
         registrar.playToClient(DamageNumberPayload.TYPE, DamageNumberPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onDamageNumber(payload)));
 
