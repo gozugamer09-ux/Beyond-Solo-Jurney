@@ -54,21 +54,22 @@ public final class EnemyHud {
         float tagSize = 5f * scale;
         float nameW = SysFont.width(name, nameSize, true);
         String tag = t.variant().title().getString().toUpperCase();
-        float y = bottom - nameSize * 1.1f;
-        float pad = 5 * scale;
+        float pad = 6 * scale;
         float boxW = nameW + pad * 2;
-        float boxH = nameSize * 1.5f;
+        float boxH = nameSize * 1.7f;
+        float y0 = bottom - boxH;
         boolean champion = t.variant() == Variant.CHAMPION;
         float glow = champion ? 4 + 2 * Anim.pulse(1.2f) : 3;
-        Shapes.box(cx - boxW / 2, y - boxH * 0.2f, boxW, boxH).radius(boxH / 2).fillV(0xC0101420, 0xC0060810)
+        Shapes.box(cx - boxW / 2, y0, boxW, boxH).radius(boxH / 2).fillV(0xC0101420, 0xC0060810)
                 .border(0.8f * scale, Gfx.alpha(vc, 0.8f)).glow(glow * scale, Gfx.alpha(vc, champion ? 0.55f : 0.35f)).draw(g);
-        SysFont.draw(g, name, cx, y + boxH * 0.3f - nameSize * 0.45f, nameSize, ac, true, 0.5f);
-        // the variant tag sits on the top edge
-        float tagW = SysFont.spacedWidth(tag, tagSize, true, 1.2f) + 6 * scale;
-        float ty = y - boxH * 0.2f - tagSize * 0.75f;
-        Shapes.pill(cx - tagW / 2, ty, tagW, tagSize * 1.5f).fill(Gfx.alpha(Gfx.shade(vc, -0.55f), 0.95f)).border(0.6f * scale, vc).draw(g);
-        SysFont.spaced(g, tag, cx, ty + tagSize * 0.25f, tagSize, vc, true, 1.2f, 0.5f);
-        // affixes under the plate
+        SysFont.draw(g, name, cx, y0 + (boxH - nameSize) / 2f, nameSize, ac, true, 0.5f);
+        // the variant tag sits above the plate, clear of the name
+        float tagH = tagSize * 1.6f;
+        float tagW = SysFont.spacedWidth(tag, tagSize, true, 1.2f) + 8 * scale;
+        float ty = y0 - tagH - 1.5f * scale;
+        Shapes.pill(cx - tagW / 2, ty, tagW, tagH).fill(Gfx.alpha(Gfx.shade(vc, -0.6f), 0.95f)).border(0.6f * scale, vc).draw(g);
+        SysFont.spaced(g, tag, cx, ty + (tagH - tagSize) / 2f, tagSize, vc, true, 1.2f, 0.5f);
+        // affixes under the plate, on their own dark strip so they read against the sky
         var affixes = t.affixes();
         if (!affixes.isEmpty()) {
             StringBuilder b = new StringBuilder();
@@ -76,7 +77,13 @@ public final class EnemyHud {
                 if (!b.isEmpty()) b.append("  ·  ");
                 b.append(a.title().getString());
             }
-            SysFont.draw(g, b.toString(), cx, y + boxH * 0.8f + 1.5f * scale, 5.5f * scale, 0xFFC8CEDA, false, 0.5f);
+            String text = b.toString();
+            float as = 6f * scale;
+            float aw = SysFont.width(text, as, true) + 8 * scale;
+            float ah = as * 1.6f;
+            float ay = y0 + boxH + 1.5f * scale;
+            Shapes.pill(cx - aw / 2, ay, aw, ah).fill(0xB0080A12).draw(g);
+            SysFont.draw(g, text, cx, ay + (ah - as) / 2f, as, 0xFFE4E8F0, true, 0.5f);
         }
     }
 
