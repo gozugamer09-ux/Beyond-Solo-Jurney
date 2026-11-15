@@ -165,6 +165,21 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
                     Component.translatable("notify.beyondsolo.gate.cache.title"), list));
         }
+        // the boss's signature drops get their own call-out
+        MutableComponent sig = Component.empty();
+        int sigs = 0;
+        for (ItemStack s : loot) {
+            if (!com.beyondsolo.gear.BossLoot.isSignature(s, rank)) continue;
+            if (sigs++ > 0) sig.append(", ");
+            sig.append(s.getHoverName());
+        }
+        if (sigs > 0) {
+            Object bossName = boss != null ? boss.name(rank) : com.beyondsolo.gate.GateTheme.values()[rank.tier()].bossName();
+            for (ServerPlayer p : server.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(worldPosition).inflate(32))) {
+                Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
+                        Component.translatable("notify.beyondsolo.gear.signature.title", bossName), sig));
+            }
+        }
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.beyondsolo.gate;
 
+import com.beyondsolo.gear.BossLoot;
+import com.beyondsolo.gear.GearRolls;
 import com.beyondsolo.item.ItemGrade;
 import com.beyondsolo.item.arsenal.Arsenal;
 import com.beyondsolo.registry.ModItems;
@@ -36,10 +38,15 @@ public final class GateLoot {
         if (t >= 4 && r.nextFloat() < 0.35f) out.add(weapon(t, r));
         int armorStart = t <= 1 ? 0 : t <= 2 ? 4 : 8;
         int pieces = r.nextFloat() < 0.7f ? 1 + (t >= 4 ? 1 : 0) : 0;
-        for (int i = 0; i < pieces; i++) out.add(new ItemStack(ModItems.ARMOR.get(armorStart + r.nextInt(4)).get()));
+        for (int i = 0; i < pieces; i++) {
+            ItemStack armor = new ItemStack(ModItems.ARMOR.get(armorStart + r.nextInt(4)).get());
+            out.add(GearRolls.roll(armor, GearRolls.dropGrade(armor, t, r), r));
+        }
         // skill tomes: rarer in low gates, almost certain at the top
         if (r.nextFloat() < 0.3f + 0.12f * t) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
         if (t >= 4 && r.nextFloat() < 0.4f) out.add(com.beyondsolo.skill.SkillTomeItem.unread());
+        // the boss's own signature loot: its armor set, maybe one of its weapons, forge materials
+        out.addAll(0, BossLoot.roll(rank, r));
         return out;
     }
 
@@ -111,7 +118,7 @@ public final class GateLoot {
 
     public static ItemStack weapon(int tier, RandomSource r) {
         ItemStack stack = Arsenal.random(rollGrade(tier, r), r);
-        return stack != null ? stack : new ItemStack(ModItems.KNIGHT_SWORD.get());
+        return GearRolls.roll(stack != null ? stack : new ItemStack(ModItems.KNIGHT_SWORD.get()), r);
     }
 
     private GateLoot() {}

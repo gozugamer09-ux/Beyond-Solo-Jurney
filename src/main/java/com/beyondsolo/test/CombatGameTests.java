@@ -178,11 +178,11 @@ public final class CombatGameTests {
         z.setItemSlot(EquipmentSlot.LEGS, new ItemStack(ModItems.KNIGHT_GREAVES.get()));
         helper.runAfterDelay(2, () -> {
             double three = z.getAttributeValue(ModAttributes.BLOOD_RESISTANCE);
-            helper.assertTrue(Math.abs(three - 0.24) < 1e-6, "three pieces: 3 x 8%, got " + three);
+            helper.assertTrue(Math.abs(three - 0.34) < 1e-6, "three pieces: 3 x 8% + the 2-piece 10%, got " + three);
             z.setItemSlot(EquipmentSlot.FEET, new ItemStack(ModItems.KNIGHT_SABATONS.get()));
             helper.runAfterDelay(2, () -> {
                 double four = z.getAttributeValue(ModAttributes.BLOOD_RESISTANCE);
-                helper.assertTrue(Math.abs(four - 0.52) < 1e-6, "full set: 4 x 8% + 20%, got " + four);
+                helper.assertTrue(Math.abs(four - 0.62) < 1e-6, "full set: 4 x 8% + 10% + 20%, got " + four);
                 helper.assertTrue(ArmorSets.weight(z) > 0.5f, "knight plate is heavy");
                 helper.succeed();
             });

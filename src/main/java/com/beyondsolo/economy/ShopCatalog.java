@@ -28,7 +28,7 @@ import java.util.function.Supplier;
  * entries a day are on sale ({@link #featured}).
  */
 public final class ShopCatalog {
-    public enum Category { FEATURED, SUPPLIES, REMEDIES, WEAPONS, ARMOR, SPECIAL }
+    public enum Category { FEATURED, SUPPLIES, REMEDIES, WEAPONS, ARMOR, FORGE, SPECIAL }
 
     /** Specials that are not a plain item. */
     public enum Special { NONE, EXPANSION, LICENSE }
@@ -128,6 +128,10 @@ public final class ShopCatalog {
             int set = Math.min(2, i / 4);
             gear(m, Category.ARMOR, ModItems.ARMOR.get(i).get(), armorPrice[set], armorRank[set], 0);
         }
+        // the forge: refining stones, ward seals, infusion crystals
+        item(m, Category.FORGE, com.beyondsolo.gear.GearModule.REFINING_STONE.get(), 4, 240, PlayerRank.E);
+        add(m, new Entry("ward_seal", Category.FORGE, () -> new ItemStack(com.beyondsolo.gear.GearModule.WARD_SEAL.get()), 900, PlayerRank.C, 2, Special.NONE));
+        com.beyondsolo.gear.GearModule.CRYSTALS.values().forEach(c -> item(m, Category.FORGE, c.get(), 1, 350, PlayerRank.D));
         // special
         add(m, new Entry("skill_tome", Category.SPECIAL, com.beyondsolo.skill.SkillTomeItem::unread, 1500, PlayerRank.D, 1, Special.NONE));
         add(m, new Entry("totem_of_undying", Category.SPECIAL, () -> new ItemStack(Items.TOTEM_OF_UNDYING), 3000, PlayerRank.B, 1, Special.NONE));

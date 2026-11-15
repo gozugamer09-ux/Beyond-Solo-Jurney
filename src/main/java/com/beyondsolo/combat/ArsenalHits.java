@@ -326,6 +326,7 @@ public final class ArsenalHits {
         }
         if (!(bow.getItem() instanceof SystemBowItem sb)) return;
         arrow.getPersistentData().putString(BOW_TAG, BuiltInRegistries.ITEM.getKey(sb).toString());
+        com.beyondsolo.gear.Infusions.tagArrow(arrow, bow);
         boolean refused = refuses(owner, sb);
         arrow.setBaseDamage(arrow.getBaseDamage() * sb.damageMultiplier() * (refused ? REFUSED_DAMAGE : 1f));
         if (refused && owner instanceof Player p) warnRefused(p, sb);
@@ -343,6 +344,7 @@ public final class ArsenalHits {
                 split.pickup = AbstractArrow.Pickup.CREATIVE_ONLY;
                 split.getPersistentData().putString(BOW_TAG, BuiltInRegistries.ITEM.getKey(sb).toString());
                 split.getPersistentData().putBoolean(SPLIT_TAG, true);
+                com.beyondsolo.gear.Infusions.copyTag(arrow, split);
                 arrow.level().addFreshEntity(split);
             }
         }
