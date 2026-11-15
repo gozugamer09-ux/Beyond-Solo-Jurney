@@ -41,6 +41,10 @@ public final class GateInstance {
     @Nullable private UUID owner;
     /** Awakening trial: the furthest cavern the owner has reached (where they get up again after falling). */
     private int checkpoint;
+    /** Set by commands (and tests) to force a boss; otherwise the boss comes from the seed. */
+    @Nullable private BossKind bossOverride;
+    /** -1: from the seed, 0: not ascended, 1: ascended. */
+    private int ascendedOverride = -1;
 
     private transient DungeonLayout layout;
 
@@ -81,6 +85,34 @@ public final class GateInstance {
     @Nullable public BlockPos exitPos() { return exitPos; }
     public void setExitPos(@Nullable BlockPos pos) { this.exitPos = pos; }
     public long clearedAt() { return clearedAt; }
+
+    /** Which boss waits at the end of this gate (from its seed unless forced). */
+    public BossKind bossKind() {
+        if (bossOverride != null) return bossOverride;
+        return BossKind.forSeed(rank, seed);
+    }
+
+    public void setBossKind(@Nullable BossKind kind) { this.bossOverride = kind; }
+
+    /** True when the boss is an ascended one (tougher, bigger, gold title). */
+    public boolean bossAscended() {
+        if (isTrial()) return false;
+        return ascendedOverride >= 0 ? ascendedOverride == 1 : BossKind.ascendedForSeed(seed);
+    }
+
+    public void setBossAscended(boolean ascended) { this.ascendedOverride = ascended ? 1 : 0; }
+
+    /** The boss's name as the System says it. */
+    public net.minecraft.network.chat.Component bossName() {
+        if (isTrial()) return theme().bossName();
+        net.minecraft.network.chat.Component name = bossKind().name(rank);
+        return bossAscended() ? net.minecraft.network.chat.Component.translatable("gate.beyondsolo.boss_ascended", name) : name;
+    }
+
+    /** The creatures behind this gate. */
+    public com.beyondsolo.enemy.EnemyRoster.Mix mix() {
+        return com.beyondsolo.enemy.EnemyRoster.forSeed(rank, seed);
+    }
     public void setClearedAt(long time) { this.clearedAt = time; }
 
     public boolean roomTriggered(int room) {
@@ -136,6 +168,8 @@ public final class GateInstance {
         tag.putLong("clearedAt", clearedAt);
         if (owner != null) tag.putUUID("owner", owner);
         tag.putInt("checkpoint", checkpoint);
+        if (bossOverride != null) tag.putString("bossKind", bossOverride.id);
+        tag.putInt("ascended", ascendedOverride);
         return tag;
     }
 
@@ -159,6 +193,8 @@ public final class GateInstance {
         g.clearedAt = tag.getLong("clearedAt");
         if (tag.hasUUID("owner")) g.owner = tag.getUUID("owner");
         g.checkpoint = tag.getInt("checkpoint");
+        if (tag.contains("bossKind")) g.bossOverride = BossKind.byId(tag.getString("bossKind"));
+        g.ascendedOverride = tag.contains("ascended") ? tag.getInt("ascended") : -1;
         return g;
     }
 }

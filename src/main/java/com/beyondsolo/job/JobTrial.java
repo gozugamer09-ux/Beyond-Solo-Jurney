@@ -454,7 +454,10 @@ public final class JobTrial {
         }
         Vec3 at = TrialArena.bossSpot(s.center);
         // an instance only for its looks and base numbers: it is never registered, so no gate reacts to this boss
-        boss.configure(new GateInstance(UUID.randomUUID(), look, 0, 0, Level.OVERWORLD, BlockPos.ZERO));
+        GateInstance shape = new GateInstance(UUID.randomUUID(), look, 0, 0, Level.OVERWORLD, BlockPos.ZERO);
+        shape.setBossKind(com.beyondsolo.gate.BossKind.BRUTE);
+        shape.setBossAscended(false);
+        boss.configure(shape);
         boss.moveTo(at.x, at.y, at.z, 0f, 0f);
         boss.setYHeadRot(0f);
         float hp = 160 + 70 * sys.rank().tier() + 4 * sys.level();

@@ -140,7 +140,9 @@ public final class GateGameTests {
         helper.assertTrue(d.getBlockState(m).isAir(), "tunnels are dug");
         helper.assertTrue(g.bossSpawned() && g.boss() != null, "the boss is waiting");
         helper.assertTrue(d.getEntity(g.boss()) instanceof GateBossEntity boss && !boss.isAwake()
-                && Math.abs(boss.getMaxHealth() - GateTheme.C.bossHealth()) < 0.01f, "dormant, with its rank's health");
+                && boss.kind() == g.bossKind()
+                && Math.abs(boss.getMaxHealth() - GateTheme.C.bossHealth() * g.bossKind().healthScale * (g.bossAscended() ? 1.4f : 1f)) < 0.01f,
+                "dormant, its gate's kind, with its rank's health");
         helper.succeed();
     }
 
