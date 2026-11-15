@@ -512,6 +512,7 @@ public final class GateService {
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));
                 QuestEngine.progress(p, CLEAR_KEY, 1);
+                com.beyondsolo.economy.EconomyHooks.gateCleared(p, g.rank());
                 // the cleared banner is the System talking; without it there's just the quiet
                 if (!SystemAPI.hasSystem(p)) continue;
                 PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.CLEARED, g.theme().ordinal(), -1, xp,

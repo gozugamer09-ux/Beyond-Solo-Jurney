@@ -143,6 +143,15 @@ ICONS = {
     "exclaim": "exclamation-mark",
     "question": "question-mark",
     "chat": "chat-circle-dots",
+    # hunter economy: gold, storage, shop, license
+    "coins": "coins",
+    "coin": "coin",
+    "vault": "vault",
+    "storefront": "storefront",
+    "cart": "shopping-cart",
+    "tag": "tag",
+    "id_card": "identification-card",
+    "deposit": "arrow-fat-lines-down",
     "villagers": "users-three",
 }
 
