@@ -246,7 +246,9 @@ public final class QuestEngine {
         if (!data.all().remove(quest)) return;
         data.countFailed();
         QuestPenalty penalty = reason == QuestEvent.FailReason.ABANDONED ? quest.penalty().scaled(0.5f) : quest.penalty();
-        if (!penalty.isNone()) {
+        // the Penalty Zone takes the place of the exhaustion and debuffs (unless it is switched off)
+        boolean zone = penalty.zone() && com.beyondsolo.penalty.PenaltyZone.sentence(player, quest.title());
+        if (!zone && !penalty.isNone()) {
             if (penalty.exhaustion() > 0) SystemAPI.addExhaustion(player, penalty.exhaustion());
             if (penalty.debuffSeconds() > 0) {
                 int ticks = penalty.debuffSeconds() * 20;

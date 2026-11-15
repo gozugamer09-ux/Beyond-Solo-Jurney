@@ -28,6 +28,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
 | `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
+| `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -265,8 +266,8 @@ Objective types: `KILL`, `BREAK`, `COLLECT` (counted in the inventory, not taken
 and `CUSTOM` for other modules (`QuestEngine.progress(player, "mymod:key", 1)`). Targets are an id, a `#tag`, empty, or
 `hostile`. Area-only objectives count inside the quest's area; leaving `leaveRadius` fails the quest.
 
-Categories: `SET` (can't be abandoned; the next one starts 5 s after the last), `DAILY` (fails at the next in-game
-day, a new one starts), `SURPRISE` (offered), `EMERGENCY` (forced, one at a time; dying or fleeing fails it),
+Categories: `SET` (can't be abandoned; the next one starts 5 s after the last), `DAILY` (the daily training; fails at
+the next in-game day and a new one starts; failing it means the Penalty Zone), `SURPRISE` (offered), `EMERGENCY` (forced, one at a time; dying or fleeing fails it),
 and `NPC` / `GATE` reserved. Failing costs exhaustion plus weakness and slowness (half when abandoned), harsher with rank.
 
 The first System quest and the daily are handed out once the player is evaluated and the reveal is over.
@@ -660,6 +661,40 @@ blockstates come from `tools/gen_crafting_assets.py`.
 - **Commands** (`/system craft ...`, level 2): make &lt;recipe&gt; [n], cores &lt;rank&gt; [n] [affinity], bosscore &lt;rank&gt; [n],
   bossloot &lt;rank&gt;, kit, drainmana. UI driver: `screen craft`, `craft <recipe> [amount]`, `craftgo`.
 
+## The Penalty Zone and the daily training
+
+Code in `penalty/` (server) and `client/penalty/` (client); `PenaltyModule.init` registers the attachment
+(`PenaltyData`), the payload and the config (`beyondsolo-penalty.toml`). Lang lives in `assets/beyondsolo_penalty/lang`.
+
+- **Daily training** (`QuestTemplates.DAILY`, "Tempering the Body"): the same four drills every day at every rank:
+  run 1000 blocks, 80 jumps, 60 squats (crouching on the ground), 120 strikes. The run is the engine's TRAVEL objective;
+  `quest/TrainingHooks` counts the other three and restores health, mana and fatigue when the training is finished.
+- **The trigger**: a `QuestPenalty` can carry `zone` (`QuestBuilder.penaltyZone()`; the daily does). When such a quest
+  fails or is given up, `QuestEngine.fail` calls `PenaltyZone.sentence(player, title)` instead of the fatigue and
+  debuffs (those still apply when the zone is off in the config or the player has no System). Any quest can use it.
+- **The sentence** (`PenaltyZone`, one `Session` per player, ticked from the server tick): it stays `pending` in
+  `PenaltyData` until the player is free (not in a gate, the job trial, the awakening or an evaluation), then:
+  `WARNING` (10 s, red window and countdown, the player can still move) -> `ARRIVAL` (pulled into the zone, frozen
+  and unharmed while a camera glides in) -> `SURVIVE` (3 min by default) -> `SURVIVED` or `FAILED` -> home.
+- **Surviving**: creatures of the player's rank (`EnemyRoster.random`, `Enemies.spawn`, tagged `PenaltyZone.FOE_TAG`)
+  claw out of the sand around the player, more of them as time passes; a surge at one third and two thirds; a
+  champion for the last 30 s; sand eruptions under the player (a red ring warns for 1.5 s; creatures caught in one
+  take double damage); the edge at `PenaltyArena.RADIUS` pushes back and singes.
+- **Ending**: when the time runs out the creatures crumble, light lifts the player and they are sent home healed. A
+  blow that would kill ends it instead (no death, nothing dropped): home, collapsed, weak and slow for 90 s.
+  Logging out does not escape: the player is sent home at login and the sentence starts over 15 s later.
+  `PenaltyEvent.Ended` fires either way.
+- **The place**: its own dimension `beyondsolo:penalty_zone` (flat red sand, biome `penalty_wastes` with no spawns,
+  fixed dusk so undead don't burn). `PenaltyArena.build` shapes one basin per running sentence (slots 512 apart on
+  z = -60000): dunes, a ring of leaning black spires, ribcages, the Pillar of Judgment, hidden light. The game-test
+  server has no datapack dimensions, so there it is built in the overworld.
+- **Client**: `PenaltyOverlay` (warning window with heartbeat, typed lines, countdown ring, the screen cracking to
+  black; the arrival title card; the timer with kills and banners; the PENALTY COMPLETE stamp or PENALTY FAILED),
+  `PenaltyWorldFx` (the edge as a curtain of red light that burns brighter near the player; the eclipse in the sky),
+  `PenaltyClientEvents` (the dimension's effects, red haze).
+- **Commands** (`/system penalty ...`, level 2): sentence, now, jump arrive|fight|time <s>|survive|fail|surge [n]|erupt|champion,
+  cancel, reset, status.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -700,3 +735,4 @@ checks use zombies.
 `test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.
 `test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
 `test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
+`test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.

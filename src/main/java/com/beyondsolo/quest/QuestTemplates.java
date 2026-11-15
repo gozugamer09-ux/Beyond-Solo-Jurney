@@ -2,6 +2,7 @@ package com.beyondsolo.quest;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.registry.ModItems;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -29,6 +30,14 @@ public final class QuestTemplates {
     public static final List<String> SET_LINE = List.of(PROOF_OF_STRENGTH, PROVISIONS, GROWTH, TRIAL_OF_DEPTHS);
 
     public static final String DAILY = id("daily/conditioning");
+    /** The daily training's drills: CUSTOM objective keys (advanced by {@link TrainingHooks}) and how much of each. */
+    public static final String TRAIN_JUMP = BeyondSolo.id("train_jump").toString();
+    public static final String TRAIN_SQUAT = BeyondSolo.id("train_squat").toString();
+    public static final String TRAIN_STRIKE = BeyondSolo.id("train_strike").toString();
+    public static final int TRAIN_RUN = 1000;
+    public static final int TRAIN_JUMPS = 80;
+    public static final int TRAIN_SQUATS = 60;
+    public static final int TRAIN_STRIKES = 120;
     public static final String SPAWNER_NEST = id("surprise/spawner_nest");
     public static final String AMBUSH = id("surprise/ambush");
     public static final String DEEP_VEINS = id("surprise/deep_veins");
@@ -87,14 +96,17 @@ public final class QuestTemplates {
                 .rewardTitle("Relentless")
                 .build());
 
-        // ---- daily: resets with the in-game day, failing it costs you
+        // ---- daily training: the same four drills every day, whatever the rank. Skipping it means the Penalty Zone
         register(DAILY, (p, c) -> QuestBuilder.of(DAILY, QuestCategory.DAILY, p)
                 .text("daily")
-                .travel(800)
-                .kill(Targets.HOSTILE, 8)
-                .breakBlocks("#minecraft:base_stone_overworld", 24)
                 .xp(150).statPoints(1)
                 .penalty(40, 30)
+                .penaltyZone()
+                .fixed()
+                .objective(ObjectiveType.TRAVEL, "", TRAIN_RUN, false, Component.translatable("quest_objective.beyondsolo.train_run"))
+                .custom(TRAIN_JUMP, TRAIN_JUMPS, Component.translatable("quest_objective.beyondsolo.train_jump"))
+                .custom(TRAIN_SQUAT, TRAIN_SQUATS, Component.translatable("quest_objective.beyondsolo.train_squat"))
+                .custom(TRAIN_STRIKE, TRAIN_STRIKES, Component.translatable("quest_objective.beyondsolo.train_strike"))
                 .build());
 
         // ---- surprise quests (see quest.trigger)

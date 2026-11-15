@@ -1,0 +1,18 @@
+{
+  "type": "beyondsolo:penalty_zone",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "beyondsolo:penalty_wastes",
+      "lakes": false,
+      "features": false,
+      "structure_overrides": [],
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:stone", "height": 56 },
+        { "block": "minecraft:red_sandstone", "height": 4 },
+        { "block": "minecraft:red_sand", "height": 3 }
+      ]
+    }
+  }
+}
