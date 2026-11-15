@@ -221,7 +221,7 @@ public final class SkillAPI {
         if (cost > 0) SystemAPI.consumeMana(player, cost);
         data.startCooldown(skill.path(), now, player.isCreative() ? Math.min(20, skill.cooldown(level)) : skill.cooldown(level));
         player.swing(InteractionHand.MAIN_HAND, true);
-        SkillFx.play(player, SkillFxPayload.Kind.CAST, skill.color(), 1.2f);
+        if (skill.castCircle()) SkillFx.play(player, SkillFxPayload.Kind.CAST, skill.color(), 1.2f);
         if (!player.isCreative()) SystemAPI.addExhaustion(player, CAST_EXHAUSTION);
         addProficiency(player, skill, 1);
         sync(player);

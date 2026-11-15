@@ -173,6 +173,7 @@ public final class SubclassSkills {
     static void init() {
         WarriorPath.init();
         AssassinPath.init();
+        MagePath.init();
     }
 
     private SubclassSkills() {}

@@ -170,6 +170,21 @@ SKILLS.update({
     "world_without_light": "globe-hemisphere-west",
 })
 
+SKILLS.update({
+    "fire_lance": "fire-simple", "flame_wall": "wall", "pyromania": "flame", "combustion": "fire", "phoenix_dive": "bird",
+    "molten_skin": "thermometer-hot", "meteor_shower": "meteor", "living_bomb": "bomb", "ember_heart": "heart", "sun_fall": "sun-horizon",
+    "thunder_spear": "lightning", "ball_lightning": "globe-simple", "overcharge": "battery-charging", "thunderclap": "hands-clapping",
+    "lightning_dash": "lightning-slash", "conductivity": "plugs-connected", "storm_cage": "bounding-box", "tempest_call": "cloud-lightning",
+    "storm_surge": "wave-sine", "judgment_of_thunder": "gavel",
+    "water_whip": "waves", "bubble_prison": "circle", "undertow": "arrow-bend-down-left", "riptide": "arrow-fat-lines-right",
+    "healing_rain": "cloud-rain", "high_tide": "drop", "maelstrom": "spiral", "tsunami": "waveform", "ebb_and_flow": "arrows-left-right",
+    "abyssal_deluge": "drop-half-bottom",
+    "bone_spear": "bone", "withering_curse": "leaf", "necrotic_might": "hand-fist", "grave_burst": "cross", "life_drain": "heartbeat",
+    "bone_armor": "shield", "spirit_swarm": "ghost", "curse_of_frailty": "heart-break", "deaths_embrace": "skull", "requiem": "music-notes",
+    "star_bolt": "star", "comet": "shooting-star", "stellar_mind": "brain", "event_horizon": "circle-half-tilt", "constellation": "graph",
+    "cosmic_flow": "infinity", "supernova": "star-four", "astral_aegis": "shield-star", "zenith": "sun", "genesis_ray": "sparkle",
+})
+
 
 def fetch(src_dir):
     for name in sorted(set(SUBCLASSES.values()) | set(SKILLS.values())):

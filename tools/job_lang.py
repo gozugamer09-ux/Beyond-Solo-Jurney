@@ -290,6 +290,64 @@ SKILLS.update({
     "world_without_light": ("World Without Light", "And then there was none.", "Drown everything within 14 blocks in darkness for 3 s while blades of night fall for %s damage each, then end it: %s damage to all."),
 })
 
+SKILLS.update({
+    # pyromancer
+    "fire_lance": ("Fire Lance", "Straight through.", "A lance of flame pierces everything in its path for %s damage and sets it alight."),
+    "flame_wall": ("Flame Wall", "Nobody crosses.", "Raise a wall of fire in front of you for 5 s. Foes in it take %s damage twice a second and burn."),
+    "pyromania": ("Pyromania", "It is prettier when it burns.", "You deal %s%% more damage to burning foes."),
+    "combustion": ("Combustion", "Everything is fuel.", "Your target erupts for %s damage. If it was already burning it takes 60%% more and the blast spreads to foes around it."),
+    "phoenix_dive": ("Phoenix Dive", "Rise. Fall. Burn.", "Leap to where you aim and land in flames: %s damage, fire and a knockback to everything around you."),
+    "molten_skin": ("Molten Skin", "Do not touch.", "Fire hurts you %s%% less, and anyone who strikes you in melee catches fire."),
+    "meteor_shower": ("Meteor Shower", "Look up.", "Seven meteors fall around the spot you aim at, each for %s damage in a small blast."),
+    "living_bomb": ("Living Bomb", "Three. Two. One.", "Turn your target into a bomb. After 3 s it explodes for %s damage to itself and %s to everything within 5 blocks."),
+    "ember_heart": ("Ember Heart", "Every death feeds the fire.", "Each kill restores %s mana."),
+    "sun_fall": ("Sun Fall", "The last sunrise.", "Call down a sun where you aim. After 2 s it lands for %s damage within 10 blocks, and the ground keeps burning for 4 s."),
+    # stormcaller
+    "thunder_spear": ("Thunder Spear", "Faster than the sound of it.", "A bolt pierces everything in its path for %s damage and stuns it for a moment."),
+    "ball_lightning": ("Ball Lightning", "It wanders. It bites.", "Send a slow orb of lightning forward for 3 s. It shocks every foe near it for %s damage four times a second."),
+    "overcharge": ("Overcharge", "Too much is the right amount.", "Your hits have a %s%% chance to stun for 1 s."),
+    "thunderclap": ("Thunderclap", "Cover your ears.", "A clap of thunder around you: %s damage, a knockback and a 1.5 s stun."),
+    "lightning_dash": ("Lightning Dash", "You were the bolt.", "Become lightning and flash 9 blocks forward: %s damage and a stun to everything you pass through."),
+    "conductivity": ("Conductivity", "The shortest path.", "You deal %s%% more damage to foes that are slowed, stunned or wet."),
+    "storm_cage": ("Storm Cage", "Stay.", "Trap the spot you aim at in a cage of lightning for 4 s. Foes inside take %s damage twice a second, are slowed and cannot leave."),
+    "tempest_call": ("Tempest Call", "The sky answers.", "Nine thunderbolts strike foes around you over 3 s, each for %s damage and a short stun."),
+    "storm_surge": ("Storm Surge", "Always charged.", "You regain %s mana every second."),
+    "judgment_of_thunder": ("Judgment of Thunder", "The verdict is loud.", "Gather the storm for 1.5 s, then drop it where you aim: %s damage and a 3 s stun within 8 blocks, and arcs for %s damage to foes farther out."),
+    # tidecaller
+    "water_whip": ("Water Whip", "Come here.", "Lash the foes in front of you for %s damage and drag them towards you."),
+    "bubble_prison": ("Bubble Prison", "Float a while.", "Lift your target in a bubble for %s s, helpless. It takes %s damage when caught and again when the bubble bursts."),
+    "undertow": ("Undertow", "The water remembers.", "Your hits slow foes for %s s."),
+    "riptide": ("Riptide", "Ride it.", "Surge forward on a wave: %s damage to everything you pass, thrown aside."),
+    "healing_rain": ("Healing Rain", "Let it pour.", "Rain falls around you for 6 s. Allies in it heal %s health a second and stop burning; foes are slowed."),
+    "high_tide": ("High Tide", "It keeps rising.", "+%s maximum mana."),
+    "maelstrom": ("Maelstrom", "Round and round.", "Open a whirlpool where you aim for 4 s. It drags foes in and deals %s damage twice a second."),
+    "tsunami": ("Tsunami", "The sea visits.", "A great wave rolls 18 blocks forward: %s damage, and everything it meets is carried away."),
+    "ebb_and_flow": ("Ebb and Flow", "Bend, do not break.", "You take %s%% less damage."),
+    "abyssal_deluge": ("Abyssal Deluge", "The deep comes up.", "A vast whirlpool drags in everything within 12 blocks for 3 s, then erupts: %s damage and foes are hurled skyward. Allies in it heal %s."),
+    # necromancer
+    "bone_spear": ("Bone Spear", "Sharpened patience.", "A spear of bone pierces everything in its path for %s damage and withers it."),
+    "withering_curse": ("Withering Curse", "Rot.", "Curse your target for %s s: it withers, weakens, and takes %s damage now."),
+    "necrotic_might": ("Necrotic Might", "A little death in every touch.", "Your hits wither foes for %s s."),
+    "grave_burst": ("Grave Burst", "They want out.", "Bones erupt from the ground where you aim: %s damage, and foes are thrown up and slowed."),
+    "life_drain": ("Life Drain", "Yours is mine.", "Drain your target for 2 s: %s damage four times a second, and each pulse heals you for %s."),
+    "bone_armor": ("Bone Armor", "Borrowed ribs.", "+%s armor and +%s armor toughness."),
+    "spirit_swarm": ("Spirit Swarm", "They are hungry.", "Six spirits fly at foes around you, each for %s damage and withering."),
+    "curse_of_frailty": ("Curse of Frailty", "Brittle things break.", "Curse the foes where you aim for 8 s: they are weakened and take %s%% more damage from everyone."),
+    "deaths_embrace": ("Death's Embrace", "Closer to it, stronger for it.", "While below half health you deal %s%% more damage."),
+    "requiem": ("Requiem", "The last song.", "Sing for 2 s, then every foe within 12 blocks takes %s damage, doubled against those below 20%% health. Each one struck heals you and restores mana."),
+    # starborn archon
+    "star_bolt": ("Star Bolt", "Three wishes.", "Three bolts of starlight strike your target for %s damage each."),
+    "comet": ("Comet", "A visitor.", "A comet lands where you aim: %s damage within 4 blocks, and foes are thrown up."),
+    "stellar_mind": ("Stellar Mind", "Room for a galaxy.", "+%s maximum mana."),
+    "event_horizon": ("Event Horizon", "No way back.", "Blink 10 blocks forward and leave a collapsing star behind. It drags foes in for 1 s, then bursts for %s damage."),
+    "constellation": ("Constellation", "Connect the dots.", "Link up to six foes around you with starlight. A moment later each takes %s damage, plus %s for every foe in the link."),
+    "cosmic_flow": ("Cosmic Flow", "It never runs dry.", "You regain %s mana every second."),
+    "supernova": ("Supernova", "Bright, then brighter.", "Gather light for a moment, then burst: %s damage, blindness and a hard knockback within 9 blocks."),
+    "astral_aegis": ("Astral Aegis", "Starlight for armor.", "For %s s you take %s%% less damage and everyone who strikes you takes %s damage back."),
+    "zenith": ("Zenith", "At the highest point.", "You deal %s%% more damage."),
+    "genesis_ray": ("Genesis Ray", "Let there be light.", "Pour out a beam for 2.5 s that follows your gaze: %s damage four times a second to everything in it, then the far end bursts for %s."),
+})
+
 
 def main():
     out = dict(TEXT)

@@ -73,6 +73,14 @@ public final class Skill {
     public ResourceLocation id() { return BeyondSolo.id(path); }
     public Kind kind() { return kind; }
     public boolean isActive() { return kind == Kind.ACTIVE; }
+
+    /**
+     * Whether casting draws the magic circle under the caster. Spells do, and so do the few strongest skills of
+     * any class; a sword skill does not need one.
+     */
+    public boolean castCircle() {
+        return owner == PlayerClass.MAGE || owner == PlayerClass.HEALER || cooldown >= 900;
+    }
     /** The class that learns it, or null for skills anyone can learn. */
     public @Nullable PlayerClass owner() { return owner; }
     /** How rare and strong the skill is (E..S). Shown as a chip; skill tomes roll better grades in higher gates. */

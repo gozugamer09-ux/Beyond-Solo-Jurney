@@ -86,7 +86,13 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** A fountain bursting up from (x,y,z) to height {@code size}. */
         GEYSER,
         /** Shaking ground: rings rolling outwards from (x,y,z) to radius {@code size} for {@code duration} ticks. */
-        QUAKE
+        QUAKE,
+        /** A steady beam from the entity to (x,y,z) for {@code duration} ticks; size = its width. */
+        BEAM,
+        /** A sphere of light hanging at (x,y,z) for {@code duration} ticks; size = its radius. */
+        ORB,
+        /** A thunderbolt from the sky onto (x,y,z); size = the radius it scorches. */
+        THUNDER
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));

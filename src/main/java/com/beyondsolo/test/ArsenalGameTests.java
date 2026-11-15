@@ -50,6 +50,12 @@ public final class ArsenalGameTests {
         p.setGameMode(GameType.SURVIVAL);
         p.removeAllEffects();
         p.setHealth(p.getMaxHealth());
+        // no lucky critical hits: the tests compare damage numbers
+        var crit = p.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
+        if (crit != null) {
+            crit.removeModifiers();
+            crit.setBaseValue(-10);
+        }
         p.getCooldowns().tick();
         BlockPos start = helper.absolutePos(SPOT);
         p.moveTo(start.getX() + 0.5, start.getY(), start.getZ() + 0.5);
