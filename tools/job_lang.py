@@ -27,7 +27,7 @@ SUBCLASSES = {
     "pyromancer": ("Pyromancer", "Calls pillars of fire from the ground and sets every foe it touches alight."),
     "stormcaller": ("Stormcaller", "Lightning that leaps from foe to foe, and a body that hums with mana."),
     "tidecaller": ("Tidecaller", "Commands crashing waves that sweep enemies away, and a deep well of mana."),
-    "necromancer": ("Necromancer", "Speaks with the dead. Drains the life of its foes, and one day will raise an army of shadows."),
+    "necromancer": ("Necromancer", "Speaks with the dead. Drains the life of its foes and raises their shadows as an army that grows with it."),
     "starborn_archon": ("Starborn Archon", "One in a hundred mages. Pulls stars from the sky and folds space into a crushing void."),
     # guardian
     "paladin": ("Paladin", "A holy shield. Smites with light, mends itself, and is deadly to the undead."),
@@ -168,7 +168,7 @@ TEXT = {
     "job.beyondsolo.reveal.skills": "New skills",
     "job.beyondsolo.reveal.active": "Active",
     "job.beyondsolo.reveal.passive": "Passive",
-    "job.beyondsolo.reveal.shadows": "The shadows answer to you now. Their army will come.",
+    "job.beyondsolo.reveal.shadows": "The shadows answer to you now. Raise your army.",
     "job.beyondsolo.reveal.skip": "Skip",
 }
 

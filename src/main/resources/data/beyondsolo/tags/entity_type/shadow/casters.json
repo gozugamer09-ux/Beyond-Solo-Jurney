@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:skeleton", "minecraft:stray", "minecraft:bogged", "minecraft:pillager", "minecraft:blaze", "minecraft:witch",
+    "minecraft:evoker", "minecraft:illusioner", "minecraft:ghast", "minecraft:breeze", "minecraft:shulker", "minecraft:drowned"
+  ]
+}

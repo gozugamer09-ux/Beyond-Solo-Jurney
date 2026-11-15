@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:ender_dragon", "minecraft:armor_stand", "minecraft:giant", "minecraft:player",
+    "beyondsolo:shadow", "beyondsolo:traveler", "beyondsolo:arbiter"
+  ]
+}

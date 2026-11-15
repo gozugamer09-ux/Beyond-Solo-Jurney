@@ -24,6 +24,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
 | `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -448,6 +449,41 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
 - **Commands** (`/system job ...`, level 2): unlock, trial [now], jump 1|2|3|boss|verdict [subclass],
   set/reveal &lt;subclass&gt;, odds [rolls], info, reset, camera.
 
+## Shadow army
+
+Code in `shadow/` (server) and `client/shadow/` (client); the module registers itself from `ShadowModule.init` with its
+own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:shadow`), payloads, entity type tags
+(`data/beyondsolo/tags/entity_type/shadow/`) and lang namespace (`assets/beyondsolo_shadows/lang`).
+**Only a necromancer** (`Subclass.canRaiseShadows()`, checked by `ShadowService.canRaise`) gets any of it.
+
+- **Souls.** A creature killed by a necromancer or one of their shadows leaves a soul for 20 s (a boss's for 60 s),
+  only for that player. Tag `shadow/no_soul` leaves none. The raise key (H) next to a soul starts the extraction
+  ritual (2 s); each soul has 3 tries. The chance (`ShadowService.chance`) falls with the creature's health against
+  the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
+- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (warrior; caster from tag `shadow/casters`,
+  bolts at range; mount from tag `shadow/mounts`), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
+  Commander, Marshal), level 1-10 inside the rank, and the health, damage and speed it was extracted with. Weak
+  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`) and tag `shadow/bosses` become named
+  elites (`ShadowNames`) that start at Knight to Commander, use Dread Slam and give nearby shadows +15% damage.
+- **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
+  nearby; filling level 10 climbs a rank (`ShadowService.addXp`, rank-up moment and pop-up). The master gets half
+  the usual System XP for their shadows' kills. Stats: base x rank power x (1 + 5%/level) x (1 + 1%/INT over base).
+- **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
+  left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
+  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. Never saved with
+  the world; it goes away when its master logs out, and follows through dimension changes. A fallen shadow rests
+  30 s (boss 90 s). Calling one costs mana (`summonCost`). Army size `capacity` and shadows out at once
+  `activeLimit` grow with level and INT.
+- **Mounts**: the mount key (Y) calls the strongest mount and seats the player (again to get off); right click works
+  too. Space jumps (`PlayerRideableJumping`). The first job change into a necromancer gives the steed Duskmane.
+- **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
+  violet-black), burning eyes, aura and a ring; `ShadowWorldFx` draws souls, the ritual, the extraction burst,
+  refusals, summons, recalls and rank-up pillars; `ShadowHud` the extract prompt, ritual ring, banners (cinematic
+  for bosses) and the army counter; `ShadowsTab` the System window page (necromancers only).
+- **Keys**: H extract / call the army, U recall, Y mount.
+- **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
+  next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index], kill, reset.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -484,3 +520,4 @@ hunt report-back, right-click opening the window, failing and being refused, the
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
 checks use zombies.
 `test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.
+`test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
