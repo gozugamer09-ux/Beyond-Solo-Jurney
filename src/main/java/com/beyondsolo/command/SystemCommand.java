@@ -55,7 +55,21 @@ public final class SystemCommand {
                                 .executes(ctx -> evaluate(ctx, rank(ctx), null))
                                 .then(Commands.argument("class", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerClass.values()), b))
                                         .executes(ctx -> evaluate(ctx, rank(ctx), playerClass(ctx))))))
+                .then(Commands.literal("reeval")
+                        .executes(ctx -> reevaluate(ctx, null))
+                        .then(Commands.literal("info").executes(SystemCommand::reevalInfo))
+                        .then(Commands.literal("unlock").executes(ctx -> {
+                            com.beyondsolo.evaluation.Reevaluation.unlock(ctx.getSource().getPlayerOrException());
+                            return ok(ctx, "reeval.unlock");
+                        }))
+                        .then(Commands.literal("reset").executes(ctx -> {
+                            com.beyondsolo.evaluation.Reevaluation.reset(ctx.getSource().getPlayerOrException());
+                            return ok(ctx, "reeval.reset");
+                        }))
+                        .then(Commands.argument("rank", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(names(PlayerRank.values()), b))
+                                .executes(ctx -> reevaluate(ctx, rank(ctx)))))
                 .then(Commands.literal("reset").executes(ctx -> {
+                    com.beyondsolo.evaluation.Reevaluation.reset(ctx.getSource().getPlayerOrException());
                     com.beyondsolo.awakening.AwakeningService.reset(ctx.getSource().getPlayerOrException());
                     SystemAPI.reset(ctx.getSource().getPlayerOrException());
                     com.beyondsolo.quest.QuestEngine.reset(ctx.getSource().getPlayerOrException());
@@ -109,6 +123,45 @@ public final class SystemCommand {
     private static int evaluate(CommandContext<CommandSourceStack> ctx, @Nullable PlayerRank rank, @Nullable PlayerClass playerClass) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         if (EvaluationManager.isBeingEvaluated(player)) throw BUSY.create();
+        BlockPos crystal = nearestCrystal(player);
+        SystemAPI.reset(player);
+        com.beyondsolo.quest.QuestEngine.reset(player);
+        // the reset took the System with it: the crystal only answers those it is bound to
+        SystemAPI.grantSystem(player);
+        EvaluationManager.begin(player, crystal, rank, playerClass);
+        return ok(ctx, "evaluate");
+    }
+
+    /**
+     * Plays a re-evaluation now, whatever the milestone (it still uses the current one up). With a rank, forces the
+     * result (never below the current rank); without, the crystal reads the hidden rank.
+     */
+    private static int reevaluate(CommandContext<CommandSourceStack> ctx, @Nullable PlayerRank rank) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (EvaluationManager.isBeingEvaluated(player) || !SystemAPI.isAwakened(player)) throw BUSY.create();
+        EvaluationManager.beginReevaluation(player, nearestCrystal(player), rank);
+        return ok(ctx, "reeval");
+    }
+
+    /** For testing and tuning: the numbers behind the hidden rank (the player never sees these in game). */
+    private static int reevalInfo(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        com.beyondsolo.system.SystemData d = SystemAPI.get(player);
+        int total = com.beyondsolo.evaluation.Reevaluation.statTotal(d);
+        StringBuilder th = new StringBuilder();
+        for (PlayerRank r : PlayerRank.values()) {
+            if (r.tier() > 0) th.append(r.name()).append('=').append(com.beyondsolo.evaluation.Reevaluation.threshold(r)).append(' ');
+        }
+        String text = "rank " + d.rank().name() + ", true rank " + com.beyondsolo.evaluation.Reevaluation.trueRank(player).name()
+                + ", stat total " + total + " (thresholds " + th.toString().trim() + "), level " + d.level()
+                + ", re-evaluation " + (com.beyondsolo.evaluation.Reevaluation.isAvailable(player) ? "available" : "from level " + com.beyondsolo.evaluation.Reevaluation.nextLevel(player))
+                + ", done " + com.beyondsolo.evaluation.Reevaluation.record(player).reevaluations() + "x";
+        ctx.getSource().sendSuccess(() -> Component.literal(text), false);
+        return 1;
+    }
+
+    /** The nearest Evaluation Crystal within 8 blocks, or a spot in front of the player when there is none. */
+    private static BlockPos nearestCrystal(ServerPlayer player) {
         BlockPos origin = player.blockPosition();
         BlockPos crystal = null;
         for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-8, -4, -8), origin.offset(8, 4, 8))) {
@@ -117,13 +170,7 @@ public final class SystemCommand {
                 crystal = pos.immutable();
             }
         }
-        if (crystal == null) crystal = origin.relative(player.getDirection(), 2);
-        SystemAPI.reset(player);
-        com.beyondsolo.quest.QuestEngine.reset(player);
-        // the reset took the System with it: the crystal only answers those it is bound to
-        SystemAPI.grantSystem(player);
-        EvaluationManager.begin(player, crystal, rank, playerClass);
-        return ok(ctx, "evaluate");
+        return crystal == null ? origin.relative(player.getDirection(), 2) : crystal;
     }
 
     private static PlayerRank rank(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

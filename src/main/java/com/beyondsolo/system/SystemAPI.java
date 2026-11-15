@@ -158,6 +158,16 @@ public final class SystemAPI {
         return true;
     }
 
+    /**
+     * Spends up to {@code count} free points on one stat at once (shift-click in the STATUS tab). Fires
+     * {@link SystemEvent.StatAllocated} once per point, like single clicks would. Returns how many were spent.
+     */
+    public static int allocateStats(ServerPlayer player, Stat stat, int count) {
+        int spent = 0;
+        while (spent < count && allocateStat(player, stat)) spent++;
+        return spent;
+    }
+
     /** Sets a stat directly (rewards, items, commands). Never goes below the base value. */
     public static void setStat(ServerPlayer player, Stat stat, int value) {
         get(player).setStat(stat, value);

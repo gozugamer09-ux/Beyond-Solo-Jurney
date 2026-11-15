@@ -32,6 +32,7 @@ public class StatusTab implements SystemTab {
     private final float[] hoverAmount = new float[Stat.values().length];
     private final float[] plusHover = new float[Stat.values().length];
     private final int[] lastValue = new int[Stat.values().length];
+    private boolean reevalHover;
     private final double[] bumpedAt = new double[Stat.values().length];
     private float shownHp = -1, shownMp = -1, shownXp = -1, shownFatigue = -1;
     private int lastLevel = -1;
@@ -164,7 +165,32 @@ public class StatusTab implements SystemTab {
         SysFont.title(g, Component.translatable("status.beyondsolo.points"), px + 26, SysFont.centerY(py, CELL_H, 9), 9, canSpend ? SystemTheme.GOLD : SystemTheme.TEXT_DIM);
         SysFont.draw(g, String.valueOf(d.statPoints()), px + cellW - 9, SysFont.centerY(py, CELL_H, 12), 12, canSpend ? SystemTheme.GOLD : SystemTheme.TEXT_DIM, true, 1f);
 
-        if (hovered != null) tooltip(g, hovered, mouseX, mouseY);
+        if (hovered != null) tooltip(g, d, hovered, mouseX, mouseY, canSpend);
+        else if (reevalHover) reevalTooltip(g, mouseX, mouseY);
+    }
+
+    /**
+     * A small crystal in the profile card's corner: lit and pulsing when the crystal would re-evaluate the player,
+     * dim otherwise. It never says what the result would be; the hidden rank is only read at a crystal.
+     */
+    private void renderReevalBadge(GuiGraphics g, float bx, float by, int mouseX, int mouseY) {
+        boolean ready = com.beyondsolo.client.evaluation.ReevaluationClient.available();
+        reevalHover = Math.hypot(mouseX - bx, mouseY - by) <= 9;
+        float pulse = ready ? Anim.pulse(1.3f) : 0;
+        int c = ready ? SystemTheme.GOLD : SystemTheme.TEXT_DIM;
+        Shapes.circle(bx, by, 7.5f).fillV(Gfx.alpha(c, ready ? 0.28f : 0.10f), Gfx.alpha(0xFF070D1A, 0.8f))
+                .border(0.8f, Gfx.alpha(c, ready ? 0.95f : 0.45f), Gfx.alpha(c, 0.25f))
+                .glow(ready ? 4 + 4 * pulse : 0, Gfx.alpha(c, 0.35f + 0.25f * pulse)).draw(g);
+        if (ready) Shapes.ring(bx, by, 10.5f, 0.6f).fill(Gfx.alpha(c, 0.55f)).dashes(12, 0.5f).rotation(Anim.loop(9f)).draw(g);
+        Shapes.icon(Icons.DIAMOND, bx, by, 8.5f).fill(ready ? Gfx.mix(c, 0xFFFFFFFF, 0.3f) : c).draw(g);
+    }
+
+    private static void reevalTooltip(GuiGraphics g, int mouseX, int mouseY) {
+        boolean ready = com.beyondsolo.client.evaluation.ReevaluationClient.available();
+        Component head = Component.translatable(ready ? "status.beyondsolo.reeval.ready" : "status.beyondsolo.reeval.locked");
+        Component body = ready ? Component.translatable("status.beyondsolo.reeval.ready.desc")
+                : Component.translatable("status.beyondsolo.reeval.locked.desc", com.beyondsolo.client.evaluation.ReevaluationClient.nextLevel());
+        panel(g, Icons.DIAMOND, head, SysFont.wrap(body, 8f, false, 150), List.of(), false, mouseX, mouseY, ready ? SystemTheme.GOLD : SystemTheme.ACCENT);
     }
 
     private void renderProfile(GuiGraphics g, SystemData d, Player player, int x, int y, int h, int mouseX, int mouseY) {
@@ -187,6 +213,7 @@ public class StatusTab implements SystemTab {
         g.pose().pushPose();
         g.pose().translate(0, 0, 200);
         Ui.rankEmblem(g, d.rank(), x + 18, y + 18, 10.5f, 0.15f + 0.1f * Anim.pulse(3f));
+        renderReevalBadge(g, x + CARD_W - 16, y + 16, mouseX, mouseY);
 
         String name = SysFont.fit(player.getName().getString(), 11, true, CARD_W - 12);
         SysFont.draw(g, name, mid, y + 123, 11, SystemTheme.TEXT, true, 0.5f);
@@ -244,10 +271,26 @@ public class StatusTab implements SystemTab {
         }
     }
 
-    private static void tooltip(GuiGraphics g, Stat stat, int mouseX, int mouseY) {
+    /** The stat's description, then what it gives right now (the live attribute bonuses), then how to spend faster. */
+    private static void tooltip(GuiGraphics g, SystemData d, Stat stat, int mouseX, int mouseY, boolean canSpend) {
         List<SysFont.Line> lines = SysFont.wrap(stat.description(), 8f, false, 150);
+        List<String> now = new java.util.ArrayList<>();
+        for (com.beyondsolo.system.StatEffects.Bonus b : com.beyondsolo.system.StatEffects.bonusesOf(stat)) {
+            double amount = b.amount().applyAsDouble(d);
+            if (amount == 0) continue;
+            now.add(b.attribute().value().toComponent(new net.minecraft.world.entity.ai.attributes.AttributeModifier(b.id(), amount, b.operation()),
+                    net.minecraft.world.item.TooltipFlag.NORMAL).getString());
+        }
+        if (stat == Stat.INT && d.stat(Stat.INT) > Stat.BASE) {
+            now.add(0, Component.translatable("status.beyondsolo.bonus.mana", Math.round((d.stat(Stat.INT) - Stat.BASE) * 5f)).getString());
+        }
+        if (canSpend) now.add(Component.translatable("status.beyondsolo.spend_hint").getString());
+        panel(g, Icons.of(stat), stat.displayName(), lines, now, canSpend, mouseX, mouseY, SystemTheme.ACCENT);
+    }
+
+    private static void panel(GuiGraphics g, ResourceLocation icon, Component head, List<SysFont.Line> lines, List<String> extra, boolean lastIsHint, int mouseX, int mouseY, int accent) {
         float w = 164;
-        float h = 22 + lines.size() * 8f * SysFont.LINE;
+        float h = 22 + lines.size() * 8f * SysFont.LINE + (extra.isEmpty() ? 0 : 5 + extra.size() * 7f * SysFont.LINE);
         float x = mouseX + 10;
         float y = mouseY - h - 6;
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
@@ -255,14 +298,24 @@ public class StatusTab implements SystemTab {
         if (y < 4) y = mouseY + 14;
         g.pose().pushPose();
         g.pose().translate(0, 0, 400);
-        Shapes.box(x, y, w, h).radius(7).fillV(0xF8102240, 0xF8081428).border(0.75f, Gfx.alpha(SystemTheme.ACCENT, 0.9f), Gfx.alpha(SystemTheme.ACCENT, 0.35f))
+        Shapes.box(x, y, w, h).radius(7).fillV(0xF8102240, 0xF8081428).border(0.75f, Gfx.alpha(accent, 0.9f), Gfx.alpha(accent, 0.35f))
                 .glow(8, 0x90000000).draw(g);
-        Shapes.icon(Icons.of(stat), x + 11, y + 10.5f, 9).fill(SystemTheme.ACCENT_BRIGHT).draw(g);
-        SysFont.title(g, stat.displayName(), x + 19, y + 7.5f, 9, SystemTheme.TEXT);
+        Shapes.icon(icon, x + 11, y + 10.5f, 9).fill(Gfx.mix(accent, 0xFFFFFFFF, 0.3f)).draw(g);
+        SysFont.title(g, head, x + 19, y + 7.5f, 9, SystemTheme.TEXT);
         float ly = y + 20;
         for (SysFont.Line line : lines) {
             SysFont.draw(g, line, x + 7, ly, SystemTheme.TEXT_SOFT, 0f);
             ly += 8f * SysFont.LINE;
+        }
+        if (!extra.isEmpty()) {
+            ly += 2;
+            Ui.divider(g, x + 7, ly, w - 14, Gfx.alpha(accent, 0.35f));
+            ly += 3;
+            for (int i = 0; i < extra.size(); i++) {
+                boolean hint = lastIsHint && i == extra.size() - 1;
+                SysFont.text(g, extra.get(i), x + 7, ly, 7f, hint ? SystemTheme.TEXT_DIM : SystemTheme.GOOD);
+                ly += 7f * SysFont.LINE;
+            }
         }
         g.pose().popPose();
     }
@@ -272,7 +325,10 @@ public class StatusTab implements SystemTab {
         for (int i = 0; i < plusButtons.length; i++) {
             float[] b = plusButtons[i];
             if (b != null && Math.hypot(mouseX - b[0], mouseY - b[1]) <= 9) {
-                PacketDistributor.sendToServer(new AllocateStatPayload(i));
+                // shift spends 5 at once, ctrl everything that is left
+                int count = net.minecraft.client.gui.screens.Screen.hasControlDown() ? 100
+                        : net.minecraft.client.gui.screens.Screen.hasShiftDown() ? 5 : 1;
+                PacketDistributor.sendToServer(new AllocateStatPayload(i, count));
                 SystemScreen.playClick();
                 return true;
             }

@@ -122,6 +122,12 @@ public final class EvaluationOverlay {
     private static PlayerRank rank = PlayerRank.E;
     private static PlayerClass playerClass = PlayerClass.WARRIOR;
     private static final int[] STATS_SHOWN = new int[Stat.values().length];
+    /** A re-evaluation: the same show, but the class stays, the rank can only rise and the stats show growth. */
+    private static boolean reeval;
+    /** The rank before the re-evaluation. */
+    private static PlayerRank oldRank = PlayerRank.E;
+    /** The stats at the last evaluation (re-evaluation only; the first one counts up from the base). */
+    private static final int[] STATS_BEFORE = new int[Stat.values().length];
     private static final PlayerRank[] RANK_ROLL = new PlayerRank[RANK_STEPS];
     private static final PlayerClass[] CLASS_ROLL = new PlayerClass[CLASS_STEPS];
     private static final List<Spark> SPARKS = new ArrayList<>();
@@ -132,6 +138,7 @@ public final class EvaluationOverlay {
     public static void handle(EvaluationPayload payload) {
         switch (payload.phase()) {
             case EvaluationPayload.START -> {
+                reeval = payload.reevaluation();
                 scanSeconds = Math.max(1, payload.scanTicks()) / 20f;
                 scanProgress = 0;
                 scanFailed = false;
@@ -146,11 +153,21 @@ public final class EvaluationOverlay {
             case EvaluationPayload.REVEAL -> {
                 rank = PlayerRank.values()[Mth.clamp(payload.rank(), 0, PlayerRank.values().length - 1)];
                 playerClass = PlayerClass.values()[Mth.clamp(payload.playerClass(), 0, PlayerClass.values().length - 1)];
-                for (int i = 0; i < STATS_SHOWN.length; i++) {
+                reeval = payload.reevaluation();
+                oldRank = reeval ? PlayerRank.values()[Mth.clamp(payload.previousRank(), 0, PlayerRank.values().length - 1)] : PlayerRank.E;
+                int n = STATS_SHOWN.length;
+                for (int i = 0; i < n; i++) {
                     STATS_SHOWN[i] = i < payload.stats().size() ? payload.stats().get(i) : Stat.BASE;
+                    STATS_BEFORE[i] = reeval && n + i < payload.stats().size() ? payload.stats().get(n + i) : Stat.BASE;
                 }
-                roll(RANK_ROLL, PlayerRank.values(), rank);
-                roll(CLASS_ROLL, PlayerClass.values(), playerClass);
+                if (reeval) {
+                    // the crystal only measures upwards from the rank it gave last time, and the class is not in question
+                    roll(RANK_ROLL, java.util.Arrays.copyOfRange(PlayerRank.values(), oldRank.ordinal(), PlayerRank.values().length), rank);
+                    roll(CLASS_ROLL, new PlayerClass[]{playerClass}, playerClass);
+                } else {
+                    roll(RANK_ROLL, PlayerRank.values(), rank);
+                    roll(CLASS_ROLL, PlayerClass.values(), playerClass);
+                }
                 SPARKS.clear();
                 begin(Stage.REVEAL);
             }
@@ -161,6 +178,10 @@ public final class EvaluationOverlay {
     /** Fills a roulette: random entries, never the same one twice in a row, ending on the real result. */
     private static <T> void roll(T[] into, T[] all, T result) {
         into[into.length - 1] = result;
+        if (all.length < 2) {
+            java.util.Arrays.fill(into, result);
+            return;
+        }
         for (int k = into.length - 2; k >= 0; k--) {
             T pick;
             do {
@@ -391,7 +412,7 @@ public final class EvaluationOverlay {
 
         // what the crystal is doing right now, typed out
         float tx = x0 + 54;
-        SysFont.spaced(g, tr(bad ? "evaluation.beyondsolo.scan.interrupted" : "evaluation.beyondsolo.scan.title"),
+        SysFont.spaced(g, tr(bad ? "evaluation.beyondsolo.scan.interrupted" : reeval ? "evaluation.beyondsolo.reeval.scan" : "evaluation.beyondsolo.scan.title"),
                 tx, y0 + 9.5f, 8.5f, Gfx.mix(accent, 0xFFFFFFFF, 0.25f), true, 2.4f, 0f);
         String status;
         float typedFor = 10;
@@ -427,7 +448,7 @@ public final class EvaluationOverlay {
         float t = time;
         int tier = rank.tier();
         int rankColor = SystemTheme.rank(rank);
-        int classColor = SystemTheme.playerClass(playerClass);
+        int classColor = classColor(playerClass);
         float old = Gfx.fade(1 - Anim.window(t, FINISH - FADE_OUT, FINISH));
 
         // The world dims so the reveal owns the screen, and takes on the colour of what was just decided.
@@ -449,7 +470,7 @@ public final class EvaluationOverlay {
         float oldScale = SysFont.setContentScale(s);
 
         String rankTitle = Component.translatable("evaluation.beyondsolo.rank.title", rank.displayName()).getString().toUpperCase(Locale.ROOT);
-        String classTitle = playerClass.displayName().getString().toUpperCase(Locale.ROOT);
+        String classTitle = className().toUpperCase(Locale.ROOT);
         float rankW = SysFont.width(rankTitle, HEADER_SIZE, true);
         float headerW = rankW + 7 + SysFont.width(classTitle, HEADER_SIZE, true);
 
@@ -568,12 +589,17 @@ public final class EvaluationOverlay {
             float oldBig = Gfx.fade(big);
             // the old words vanish inside the flash and the new ones come out of it, so the two never overlap
             float labelY = y - RANK_RADIUS - 30;
-            if (t < LOCK) label(g, tr("evaluation.beyondsolo.rank.pending"), labelY, SystemTheme.ACCENT, 1f);
-            else label(g, tr("evaluation.beyondsolo.rank.assigned"), labelY, Gfx.mix(rankColor, 0xFFFFFFFF, 0.3f), Anim.window(t, LOCK + 0.05f, LOCK + 0.3f));
+            if (t < LOCK) label(g, tr(reeval ? "evaluation.beyondsolo.reeval.pending" : "evaluation.beyondsolo.rank.pending"), labelY, SystemTheme.ACCENT, 1f);
+            else label(g, tr(!reeval ? "evaluation.beyondsolo.rank.assigned" : rankUp() ? "evaluation.beyondsolo.reeval.up" : "evaluation.beyondsolo.reeval.same"),
+                    labelY, Gfx.mix(rankColor, 0xFFFFFFFF, 0.3f), Anim.window(t, LOCK + 0.05f, LOCK + 0.3f));
             if (t >= LOCK) {
                 float in = Anim.outCubic(Anim.window(t, LOCK + 0.08f, LOCK + 0.45f));
                 title(g, rankTitle, y + RANK_RADIUS + 24, 26, rankColor, in);
-                typed(g, tr("evaluation.beyondsolo.rank." + rank.name().toLowerCase(Locale.ROOT)), y + RANK_RADIUS + 55, t - (LOCK + 0.45f));
+                if (reeval && rankUp()) promotion(g, t, y + RANK_RADIUS + 44);
+                String line = !reeval ? tr("evaluation.beyondsolo.rank." + rank.name().toLowerCase(Locale.ROOT))
+                        : rankUp() ? Component.translatable("evaluation.beyondsolo.reeval.promoted", oldRank.displayName()).getString()
+                        : tr("evaluation.beyondsolo.reeval.unchanged");
+                typed(g, line, y + RANK_RADIUS + (reeval && rankUp() ? 64 : 55), t - (LOCK + 0.45f));
             }
             Gfx.setAlpha(oldBig);
         }
@@ -583,11 +609,11 @@ public final class EvaluationOverlay {
     private static void drawClass(GuiGraphics g, float t, float x, float y, float r, float big, String classTitle) {
         float appear = Anim.window(t, CLASS, CLASS + 0.35f);
         if (appear <= 0) return;
-        int classColor = SystemTheme.playerClass(playerClass);
+        int classColor = classColor(playerClass);
         boolean decided = t >= CLASS_LOCK - STAMP;
         int step = step(CLASS_STEP_AT, t);
         PlayerClass shown = decided ? playerClass : step < 0 ? null : CLASS_ROLL[step];
-        int color = shown == null ? SystemTheme.ACCENT : SystemTheme.playerClass(shown);
+        int color = shown == null ? SystemTheme.ACCENT : classColor(shown);
         float build = Anim.window(t, CLASS, CLASS_LOCK - STAMP);
         float old = Gfx.fade(Anim.outCubic(appear));
 
@@ -634,7 +660,7 @@ public final class EvaluationOverlay {
                 alpha = Anim.lerp(0.2f, 1f, u);
             }
             float oldIcon = Gfx.fade(alpha);
-            Shapes.icon(Icons.of(shown), x, y, er * 1.12f * scale).fillV(Gfx.mix(color, 0xFFFFFFFF, 0.8f), Gfx.mix(color, 0xFFFFFFFF, 0.3f))
+            Shapes.icon(classIcon(shown), x, y, er * 1.12f * scale).fillV(Gfx.mix(color, 0xFFFFFFFF, 0.8f), Gfx.mix(color, 0xFFFFFFFF, 0.3f))
                     .glow(er * 0.25f, Gfx.alpha(color, 0.7f)).draw(g);
             Gfx.setAlpha(oldIcon);
         }
@@ -642,12 +668,12 @@ public final class EvaluationOverlay {
         if (big > 0) {
             float oldBig = Gfx.fade(big);
             float labelY = y - CLASS_RADIUS * 1.5f - 20;
-            if (t < CLASS_LOCK) label(g, tr("evaluation.beyondsolo.class.pending"), labelY, SystemTheme.ACCENT, 1f);
-            else label(g, tr("evaluation.beyondsolo.class.assigned"), labelY, Gfx.mix(classColor, 0xFFFFFFFF, 0.3f), Anim.window(t, CLASS_LOCK + 0.05f, CLASS_LOCK + 0.3f));
+            if (t < CLASS_LOCK) label(g, tr(reeval ? "evaluation.beyondsolo.reeval.class.pending" : "evaluation.beyondsolo.class.pending"), labelY, SystemTheme.ACCENT, 1f);
+            else label(g, tr(reeval ? "evaluation.beyondsolo.reeval.class.assigned" : "evaluation.beyondsolo.class.assigned"), labelY, Gfx.mix(classColor, 0xFFFFFFFF, 0.3f), Anim.window(t, CLASS_LOCK + 0.05f, CLASS_LOCK + 0.3f));
             if (t >= CLASS_LOCK) {
                 float in = Anim.outCubic(Anim.window(t, CLASS_LOCK + 0.08f, CLASS_LOCK + 0.45f));
                 title(g, classTitle, y + CLASS_RADIUS * 1.5f + 14, 24, classColor, in);
-                typed(g, tr("evaluation.beyondsolo.class." + playerClass.name().toLowerCase(Locale.ROOT)), y + CLASS_RADIUS * 1.5f + 43, t - (CLASS_LOCK + 0.45f));
+                typed(g, tr(reeval ? "evaluation.beyondsolo.reeval.class" : "evaluation.beyondsolo.class." + playerClass.name().toLowerCase(Locale.ROOT)), y + CLASS_RADIUS * 1.5f + 43, t - (CLASS_LOCK + 0.45f));
             }
             Gfx.setAlpha(oldBig);
         }
@@ -660,7 +686,7 @@ public final class EvaluationOverlay {
 
     private static void drawSummary(GuiGraphics g, float t, String rankTitle, String classTitle, float rankW, float headerW) {
         int rankColor = SystemTheme.rank(rank);
-        int classColor = SystemTheme.playerClass(playerClass);
+        int classColor = classColor(playerClass);
 
         // headline between the two emblems: "A-RANK ASSASSIN"
         float in = Anim.outCubic(Anim.window(t, STATS - 0.1f, STATS + 0.3f));
@@ -669,7 +695,7 @@ public final class EvaluationOverlay {
         SysFont.draw(g, rankTitle, -headerW / 2f, hy, HEADER_SIZE, Gfx.mix(rankColor, 0xFFFFFFFF, 0.35f), true, 0f);
         SysFont.draw(g, classTitle, -headerW / 2f + rankW + 7, hy, HEADER_SIZE, Gfx.mix(classColor, 0xFFFFFFFF, 0.35f), true, 0f);
         Ui.divider(g, -150, HEADER_Y + 21, 300, Gfx.alpha(SystemTheme.ACCENT, 0.5f));
-        SysFont.spaced(g, tr("evaluation.beyondsolo.summary.attributes"), 0, HEADER_Y + 29, 6.5f, SystemTheme.TEXT_DIM, true, 2.2f, 0.5f);
+        SysFont.spaced(g, tr(reeval ? "evaluation.beyondsolo.reeval.attributes" : "evaluation.beyondsolo.summary.attributes"), 0, HEADER_Y + 29, 6.5f, SystemTheme.TEXT_DIM, true, 2.2f, 0.5f);
         Gfx.setAlpha(old);
 
         // the five stats pop in one after another and count up from the base value
@@ -685,9 +711,10 @@ public final class EvaluationOverlay {
             int i = stat.ordinal();
             float pop = Anim.window(t, chipAt(i), chipAt(i) + 0.32f);
             if (pop <= 0) continue;
-            int bonus = STATS_SHOWN[i] - Stat.BASE;
+            int from = reeval ? STATS_BEFORE[i] : Stat.BASE;
+            int bonus = STATS_SHOWN[i] - from;
             float count = Anim.outCubic(Anim.window(t, chipAt(i) + 0.15f, chipAt(i) + 0.95f));
-            int value = Stat.BASE + Math.round(bonus * count);
+            int value = from + Math.round(bonus * count);
             boolean main = playerClass.statWeight(stat) == best;
             int tint = main ? classColor : SystemTheme.ACCENT;
             float scale = Anim.lerp(0.7f, 1f, Anim.outBack(pop));
@@ -719,7 +746,7 @@ public final class EvaluationOverlay {
             float eased = Anim.outCubic(ready);
             float oldReady = Gfx.fade(eased);
             float ry = chipY + chipH + 16;
-            String text = tr("evaluation.beyondsolo.summary.active");
+            String text = tr(reeval ? "evaluation.beyondsolo.reeval.done" : "evaluation.beyondsolo.summary.active");
             float tw = SysFont.spacedWidth(text, 10.5f, true, 3.2f);
             Shapes.pill(-tw / 2f * eased, ry + 13f, tw * eased, 1.2f).fill(Gfx.alpha(SystemTheme.ACCENT, 0.35f)).glow(14, Gfx.alpha(SystemTheme.ACCENT, 0.22f))
                     .additive().draw(g);
@@ -756,6 +783,51 @@ public final class EvaluationOverlay {
     }
 
     // ---------------------------------------------------------------- pieces
+
+    private static boolean rankUp() {
+        return reeval && rank != oldRank;
+    }
+
+    /** After the job change a re-evaluation confirms the subclass, so it shows the subclass's name, colour and icon. */
+    private static com.beyondsolo.job.Subclass subclass() {
+        return reeval ? com.beyondsolo.client.job.JobClient.subclass() : null;
+    }
+
+    private static int classColor(PlayerClass c) {
+        com.beyondsolo.job.Subclass sub = subclass();
+        return sub != null && c == playerClass ? Gfx.opaque(sub.color()) : SystemTheme.playerClass(c);
+    }
+
+    private static net.minecraft.resources.ResourceLocation classIcon(PlayerClass c) {
+        com.beyondsolo.job.Subclass sub = subclass();
+        return sub != null && c == playerClass ? sub.icon() : Icons.of(c);
+    }
+
+    private static String className() {
+        com.beyondsolo.job.Subclass sub = subclass();
+        return (sub != null ? sub.displayName() : playerClass.displayName()).getString();
+    }
+
+    /** "D -> B": the old rank letter, an arrow that fills, and the new one, under the rank-up title. */
+    private static void promotion(GuiGraphics g, float t, float y) {
+        float in = Anim.outCubic(Anim.window(t, LOCK + 0.3f, LOCK + 0.7f));
+        if (in <= 0.02f) return;
+        float old = Gfx.fade(in);
+        int from = SystemTheme.rank(oldRank);
+        int to = SystemTheme.rank(rank);
+        float gap = 26;
+        Shapes.icon(Icons.of(oldRank), -gap, y, 13).fill(Gfx.alpha(Gfx.mix(from, 0xFFFFFFFF, 0.3f), 0.55f)).draw(g);
+        float fill = Anim.inOutCubic(Anim.window(t, LOCK + 0.45f, LOCK + 0.95f));
+        Shapes.pill(-gap + 10, y - 0.7f, (gap - 10) * 2, 1.4f).fill(0x30FFFFFF).draw(g);
+        Shapes.pill(-gap + 10, y - 0.7f, (gap - 10) * 2 * fill, 1.4f).fillH(from, to).glow(3, Gfx.alpha(to, 0.6f)).draw(g);
+        Shapes.circle(-gap + 10 + (gap - 10) * 2 * fill, y, 1.6f).fill(0xFFFFFFFF).glow(3, Gfx.alpha(to, 0.8f)).draw(g);
+        float land = Anim.window(t, LOCK + 0.9f, LOCK + 1.1f);
+        if (land > 0) {
+            Shapes.icon(Icons.of(rank), gap, y, Anim.lerp(20, 13, Anim.outCubic(land))).fillV(Gfx.mix(to, 0xFFFFFFFF, 0.8f), Gfx.mix(to, 0xFFFFFFFF, 0.25f))
+                    .glow(3, Gfx.alpha(to, 0.7f * land)).draw(g);
+        }
+        Gfx.setAlpha(old);
+    }
 
     /** A small spaced caption with a fading line on each side, centred on x = 0. */
     private static void label(GuiGraphics g, String text, float y, int color, float alpha) {

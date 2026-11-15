@@ -62,6 +62,14 @@ public final class StatEffects {
         BONUSES.add(bonus);
     }
 
+    /** The bonuses one stat gives (registered as {@code stat/<stat key>_...}), in registration order. For read-outs. */
+    public static List<Bonus> bonusesOf(Stat stat) {
+        String prefix = "stat/" + stat.key() + "_";
+        List<Bonus> out = new ArrayList<>();
+        for (Bonus b : BONUSES) if (b.id().getPath().startsWith(prefix)) out.add(b);
+        return out;
+    }
+
     static double above(SystemData data, Stat stat) {
         return data.stat(stat) - Stat.BASE;
     }

@@ -213,6 +213,7 @@ POTIONS = {
     "stamina_tonic": ("vial", "9fe870"),
     "draught_of_might": ("vial", "ff8a3a"),
     "ironskin_draught": ("tall", "b8c4d8"),
+    "elixir_of_rebirth": ("tall", "d8b8ff"),
 }
 
 

@@ -123,6 +123,7 @@ public final class ClientEvents {
             NotificationRenderer.reset();
             StatusHud.reset();
             EvaluationOverlay.reset();
+            com.beyondsolo.client.evaluation.ReevaluationClient.reset();
             ClientQuests.clear();
         }
     }

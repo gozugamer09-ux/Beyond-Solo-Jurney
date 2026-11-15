@@ -135,8 +135,16 @@ public final class CraftingModule {
             e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 1800, 0)));
     public static final DeferredItem<SystemPotionItem> IRONSKIN_DRAUGHT = potion("ironskin_draught", 0xB8C4D8, 24, Rarity.UNCOMMON, e ->
             e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 1800, 0)));
+    /** Gives back every stat point spent by hand, to place again (see {@code evaluation.Reevaluation#refundAllocated}). */
+    public static final DeferredItem<SystemPotionItem> ELIXIR_OF_REBIRTH = potion("elixir_of_rebirth", 0xD8B8FF, 40, Rarity.EPIC, e -> {
+        if (!(e instanceof ServerPlayer p)) return;
+        int back = com.beyondsolo.evaluation.Reevaluation.refundAllocated(p);
+        com.beyondsolo.notify.Notifications.send(p, com.beyondsolo.notify.SystemNotification.of(com.beyondsolo.notify.SystemNotification.Kind.REWARD,
+                Component.translatable("notify.beyondsolo.rebirth.title"),
+                back > 0 ? Component.translatable("notify.beyondsolo.rebirth.body", back) : Component.translatable("notify.beyondsolo.rebirth.none")));
+    });
     public static final List<DeferredItem<SystemPotionItem>> POTIONS = List.of(HEALING_DRAUGHT, GREATER_HEALING_DRAUGHT, SUPREME_HEALING_ELIXIR,
-            MANA_DRAUGHT, GREATER_MANA_DRAUGHT, STAMINA_TONIC, DRAUGHT_OF_MIGHT, IRONSKIN_DRAUGHT);
+            MANA_DRAUGHT, GREATER_MANA_DRAUGHT, STAMINA_TONIC, DRAUGHT_OF_MIGHT, IRONSKIN_DRAUGHT, ELIXIR_OF_REBIRTH);
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TAB = TABS.register("crafting", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.beyondsolo.crafting"))
