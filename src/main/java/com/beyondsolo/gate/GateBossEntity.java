@@ -119,6 +119,12 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         setCustomNameVisible(false);
     }
 
+    /** Client-side stand-in only (a shadow wearing this boss's shape): its rank's look, awake, no sound. */
+    public void displayAs(PlayerRank rank) {
+        entityData.set(RANK, rank.ordinal());
+        entityData.set(AWAKE, true);
+    }
+
     public PlayerRank rank() {
         int i = entityData.get(RANK);
         return PlayerRank.values()[Mth.clamp(i, 0, PlayerRank.values().length - 1)];

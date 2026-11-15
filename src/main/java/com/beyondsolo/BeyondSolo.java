@@ -38,6 +38,7 @@ public final class BeyondSolo {
         com.beyondsolo.gate.GateFeature.FEATURES.register(modBus);
         container.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         com.beyondsolo.job.JobModule.init(modBus, container);
+        com.beyondsolo.shadow.ShadowModule.init(modBus);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);
     }
 
