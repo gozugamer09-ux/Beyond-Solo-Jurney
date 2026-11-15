@@ -157,6 +157,8 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
             if (ascended) scale.addPermanentModifier(new AttributeModifier(com.beyondsolo.BeyondSolo.id("ascended"), 0.15, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
             refreshDimensions();
         }
+        // its size: most bosses come at their usual size, a few small, and now and then a giant
+        com.beyondsolo.enemy.Enemies.applySize(this, com.beyondsolo.enemy.Enemies.rollSize(getRandom(), true));
         setHealth(getMaxHealth());
         this.xpReward = (40 + 40 * rank.tier()) * (ascended ? 2 : 1);
         if (kind == BossKind.MAGUS) setNoGravity(true);
