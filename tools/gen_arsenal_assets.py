@@ -9,6 +9,7 @@ Generates the arsenal's assets (no hand-drawn files needed):
 - status icons (frostbite, frozen, infernal rend) and the loot beam light texture
 
 Run from the repo root:  python3 tools/gen_arsenal_assets.py
+Then run tools/gen_hd_gear.py: it replaces the weapon, armor and forge stone sprites with 64x64 versions.
 Needs: pillow, numpy, cairosvg.
 """
 import json

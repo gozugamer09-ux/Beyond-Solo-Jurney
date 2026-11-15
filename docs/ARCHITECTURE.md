@@ -207,6 +207,11 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
   rank (`GateLoot.GRADE_WEIGHTS`: E gates drop common and rare, S gates drop epic and up with about 2% divine).
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
+- **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers 128x64).
+  `tools/gen_hd_gear.py` renders the weapon designs above at that size with smooth multi-tone shading and grade
+  dressing (runes and aura from epic, sparkles from legendary, white-gold radiance on divine), and draws the armor
+  of all nine sets (`tools/hd_armor.py`) and the forge stones with the shared painter `tools/hd_paint.py`. Run it
+  after the other generators, which still own models, names and the 32x32 originals.
 
 ## Quests
 

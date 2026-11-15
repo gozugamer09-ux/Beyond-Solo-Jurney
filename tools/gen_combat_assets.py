@@ -9,6 +9,7 @@ Generates the combat module's textures (no hand-drawn files needed):
 - light textures for world effects (brand sigil, burst)
 
 Run from the repo root:  python3 tools/gen_combat_assets.py
+Then run tools/gen_hd_gear.py: it replaces the weapon, armor and forge stone sprites with 64x64 versions.
 Needs: pillow, numpy, cairosvg.
 """
 import io

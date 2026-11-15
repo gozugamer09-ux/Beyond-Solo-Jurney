@@ -8,6 +8,7 @@ Generates the gear module's textures (item grades, sets, enhancement, infusions)
 - item models for all of them
 
 Run from the repo root:  python3 tools/gen_gear_assets.py
+Then run tools/gen_hd_gear.py: it replaces the weapon, armor and forge stone sprites with 64x64 versions.
 Needs: pillow, numpy.
 """
 import json
