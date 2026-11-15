@@ -595,11 +595,11 @@ public final class EvaluationOverlay {
             if (t >= LOCK) {
                 float in = Anim.outCubic(Anim.window(t, LOCK + 0.08f, LOCK + 0.45f));
                 title(g, rankTitle, y + RANK_RADIUS + 24, 26, rankColor, in);
-                if (reeval && rankUp()) promotion(g, t, y + RANK_RADIUS + 44);
+                if (reeval && rankUp()) promotion(g, t, y + RANK_RADIUS + 57);
                 String line = !reeval ? tr("evaluation.beyondsolo.rank." + rank.name().toLowerCase(Locale.ROOT))
                         : rankUp() ? Component.translatable("evaluation.beyondsolo.reeval.promoted", oldRank.displayName()).getString()
                         : tr("evaluation.beyondsolo.reeval.unchanged");
-                typed(g, line, y + RANK_RADIUS + (reeval && rankUp() ? 64 : 55), t - (LOCK + 0.45f));
+                typed(g, line, y + RANK_RADIUS + (reeval && rankUp() ? 70 : 55), t - (LOCK + 0.45f));
             }
             Gfx.setAlpha(oldBig);
         }
