@@ -15,7 +15,7 @@ import java.util.List;
  * all round, so it can stand anywhere (in the gate dimension, or the overworld in game tests).
  *
  * <p>Layout: a dark floor with two rings of inlay and a sigil in the middle, eight pillars with braziers on a
- * circle, the dome lit by hidden light blocks. Echoes rise from the pillars; the Arbiter waits at the north end.</p>
+ * circle, the dome lit by hidden light blocks. Echoes rise from the pillars; the Warden waits at the north end.</p>
  */
 public final class TrialArena {
     public static final int RADIUS = 20;
@@ -36,7 +36,7 @@ public final class TrialArena {
         return Vec3.atBottomCenterOf(c.offset(0, 0, 11));
     }
 
-    /** Where the Arbiter waits. */
+    /** Where the Warden waits. */
     public static Vec3 bossSpot(BlockPos c) {
         return Vec3.atBottomCenterOf(c.offset(0, 0, -11));
     }

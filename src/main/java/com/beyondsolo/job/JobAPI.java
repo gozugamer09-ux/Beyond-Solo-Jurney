@@ -45,7 +45,7 @@ public final class JobAPI {
     public static boolean canAttemptTrial(ServerPlayer player) {
         SystemData sys = SystemAPI.get(player);
         JobData data = get(player);
-        return sys.isAwakened() && data.unlocked() && !data.changed() && !data.inTrial()
+        return sys.isAwakened() && sys.hasSystem() && data.unlocked() && !data.changed() && !data.inTrial()
                 && player.level().getGameTime() >= data.retryAt();
     }
 
@@ -56,7 +56,7 @@ public final class JobAPI {
     public static boolean unlockIfReady(ServerPlayer player) {
         SystemData sys = SystemAPI.get(player);
         JobData data = get(player);
-        if (!sys.isAwakened() || data.unlocked() || data.changed() || sys.level() < unlockLevel()) return false;
+        if (!sys.isAwakened() || !sys.hasSystem() || data.unlocked() || data.changed() || sys.level() < unlockLevel()) return false;
         unlock(player);
         return true;
     }

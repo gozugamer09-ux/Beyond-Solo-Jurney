@@ -15,7 +15,7 @@ import net.minecraft.util.Mth;
 
 /**
  * The trial's on-screen banner: a big title card when the player arrives, a wave counter with a progress bar,
- * a small line under the boss bar during the Arbiter fight, and a "trial failed" card.
+ * a small line under the boss bar during the Warden fight, and a "trial failed" card.
  */
 public final class TrialHud {
     private static final int VIOLET = 0xFFB18CFF;

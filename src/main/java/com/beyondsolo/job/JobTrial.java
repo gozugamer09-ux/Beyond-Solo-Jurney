@@ -74,8 +74,8 @@ import java.util.UUID;
  * The Trial of Ascension: the job change's solo trial.
  *
  * <p>Using the Key of Ascension starts a short countdown, then the System pulls the player into a sealed hall
- * ({@link TrialArena}). A camera sweep shows the hall, three waves of Echoes rise from the pillars, then the Arbiter of
- * Ascension wakes (a camera push-in on its roar). When it falls the player is lifted to the sigil in the middle, the
+ * ({@link TrialArena}). A camera sweep shows the hall, three waves of Echoes rise from the pillars, then the Ascendant
+ * Warden wakes (a camera push-in on its roar). When it falls the player is lifted to the sigil in the middle, the
  * camera circles them and the reveal picks their subclass ({@link JobRevealTimeline}). Then they are sent home as
  * their new subclass. Falling in the trial doesn't kill: the player is thrown out and may try again later.</p>
  *
@@ -132,7 +132,7 @@ public final class JobTrial {
             info(player, "job_done");
             return;
         }
-        if (!data.unlocked()) {
+        if (!data.unlocked() || !com.beyondsolo.system.SystemAPI.hasSystem(player)) {
             info(player, "job_locked", JobAPI.unlockLevel());
             return;
         }
@@ -141,7 +141,8 @@ public final class JobTrial {
             info(player, "job_wait", seconds / 60, String.format("%02d", seconds % 60));
             return;
         }
-        if (GateService.isDungeon(player.level()) || GateService.inTransit(player)) {
+        if (GateService.isDungeon(player.level()) || GateService.inTransit(player)
+                || com.beyondsolo.awakening.AwakeningService.inSequence(player)) {
             info(player, "job_not_here");
             return;
         }
@@ -438,7 +439,7 @@ public final class JobTrial {
                 Component.translatable("job.beyondsolo.trial.wave_sub"), s.defeated, s.goal);
     }
 
-    // ================================================================ the Arbiter
+    // ================================================================ the Warden
 
     private static void startBoss(Session s) {
         setPhase(s, Phase.BOSS_INTRO);
@@ -470,7 +471,7 @@ public final class JobTrial {
         Vec3 start = TrialArena.start(s.center);
         p.teleportTo(level, start.x, start.y, start.z, 180f, 0f);
         Vec3 face = at.add(0, 3.2, 0);
-        // over the player's shoulder, pushing in on the Arbiter as it wakes
+        // over the player's shoulder, pushing in on the Warden as it wakes
         send(p, CutscenePayload.glide(start.add(1.6, 2.4, 3.5), at.add(2.5, 2.6, 7.5), face.add(0, -0.5, 0), face, BOSS_INTRO_TICKS - 50));
         sound(level, at, SoundEvents.WARDEN_EMERGE, 1.4f, 0.6f);
         level.sendParticles(ParticleTypes.SOUL, at.x, at.y + 1, at.z, 60, 1.5, 1.5, 1.5, 0.05);
@@ -757,7 +758,7 @@ public final class JobTrial {
         if (level != null) level.playSound(null, at.x, at.y, at.z, sound, SoundSource.PLAYERS, volume, pitch);
     }
 
-    /** Tests: the living echoes and the Arbiter of a player's running trial. */
+    /** Tests: the living echoes and the Warden of a player's running trial. */
     public static List<net.minecraft.world.entity.LivingEntity> foes(ServerPlayer player) {
         List<net.minecraft.world.entity.LivingEntity> out = new ArrayList<>();
         Session s = SESSIONS.get(player.getUUID());
@@ -768,7 +769,7 @@ public final class JobTrial {
         return out;
     }
 
-    /** Tests: whether the Arbiter has not landed a hit yet. */
+    /** Tests: whether the Warden has not landed a hit yet. */
     public static boolean flawless(ServerPlayer player) {
         Session s = SESSIONS.get(player.getUUID());
         return s != null && s.flawless;

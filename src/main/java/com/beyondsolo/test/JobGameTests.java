@@ -202,7 +202,7 @@ public final class JobGameTests {
         helper.succeed();
     }
 
-    /** The whole trial, sped up: arrive, clear a wave, fell the Arbiter, take the verdict and come home changed. */
+    /** The whole trial, sped up: arrive, clear a wave, fell the Warden, take the verdict and come home changed. */
     @GameTest(template = ARENA, timeoutTicks = 1200)
     public static void trialRunsToTheEnd(GameTestHelper helper) {
         ServerPlayer p = player(helper, PlayerClass.ASSASSIN);
@@ -232,7 +232,7 @@ public final class JobGameTests {
                     }
                 }
                 case 2 -> {
-                    // after the last wave the Arbiter comes on his own
+                    // after the last wave the Warden comes on its own
                     if (phase == JobTrial.Phase.BOSS) {
                         helper.assertTrue(JobTrial.flawless(p), "flawless so far");
                         JobTrial.foes(p).forEach(LivingEntity::kill);
