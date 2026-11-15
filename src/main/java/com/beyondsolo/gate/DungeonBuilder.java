@@ -269,6 +269,16 @@ public final class DungeonBuilder {
             for (int k = 1; k <= h; k++) placeIfAir(level, top.below(k), theme.mainWall());
         }
 
+        // mana veins in the walls of caverns and side caves
+        if (theme != GateTheme.TRIAL && (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE)) {
+            int veins = 1 + r.nextInt(room.kind() == DungeonLayout.Kind.SIDE ? 3 : 2);
+            for (int i = 0; i < veins; i++) {
+                float a = r.nextFloat() * Mth.TWO_PI;
+                BlockPos hit = march(level, new BlockPos(c.getX(), floor + 1 + r.nextInt(3), c.getZ()), Mth.cos(a), 0, Mth.sin(a), room.reach() + 6);
+                if (hit != null) com.beyondsolo.crafting.ManaVeins.place(level, hit, gate.rank(), r, FLAGS);
+            }
+        }
+
         if (theme == GateTheme.TRIAL) {
             decorateTrial(level, room, c, floor, r);
             if (room.kind() == DungeonLayout.Kind.BOSS) return;

@@ -122,6 +122,28 @@ public final class CombatWorldFx {
                 }
                 burst(level, ParticleTypes.ELECTRIC_SPARK, x, y, z, 10, 0.2);
             }
+            case RESTORE -> {
+                int c = param & 0xFFFFFF;
+                Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
+                // a spiral of motes climbing the drinker
+                for (int i = 0; i < 28; i++) {
+                    double a = i / 28.0 * Math.PI * 4;
+                    double yy = e.getY() + i / 28.0 * e.getBbHeight();
+                    level.addParticle(new DustParticleOptions(rgb, 0.9f), x + Math.cos(a) * 0.55, yy, z + Math.sin(a) * 0.55, 0, 0.04, 0);
+                }
+                burst(level, ParticleTypes.END_ROD, x, y + 0.3, z, 5, 0.04);
+            }
+            case ABSORB -> {
+                // motes drawn in from all around, towards the chest
+                for (int i = 0; i < 22; i++) {
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    double up = (RANDOM.nextDouble() - 0.3) * 1.4;
+                    double r = 1.6 + RANDOM.nextDouble() * 0.6;
+                    double dx = Math.cos(a) * r, dz = Math.sin(a) * r;
+                    level.addParticle(ParticleTypes.END_ROD, x + dx, y + up, z + dz, -dx * 0.09, -up * 0.09, -dz * 0.09);
+                }
+                burst(level, ParticleTypes.GLOW, x, y, z, 8, 0.05);
+            }
             case NOVA -> {
                 int c = param & 0xFFFFFF;
                 Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
@@ -213,7 +235,8 @@ public final class CombatWorldFx {
             float life = switch (b.kind) {
                 case CRIMSON_BURST, HEAVY_VENOM -> 1.2f;
                 case IGNITE, CURE, BLOOD_POP, FREEZE, SHATTER -> 0.9f;
-                case NOVA -> 1.1f;
+                case NOVA, RESTORE -> 1.1f;
+                case ABSORB -> 0.9f;
                 default -> 0.5f;
             };
             if (age >= life || age < -1) {
@@ -275,6 +298,26 @@ public final class CombatWorldFx {
                     ringAt(pose, buffers, 0.1f, 0.3f + radius * 0.7f * out, mixRgb(c, 0xFFFFFF, 0.4f), fade * 0.8f);
                     disc(pose, buffers, GLOW, 0.05f, 0.5f + radius * 0.9f * out, 0, c, fade * 0.5f);
                     dot(pose, buffers, camera, 0, h * 0.5f, 0, size * (0.6f + 0.8f * out), mixRgb(c, 0xFFFFFF, 0.3f), fade * 0.7f);
+                }
+                case RESTORE -> {
+                    int c = b.param & 0xFFFFFF;
+                    int light = mixRgb(c, 0xFFFFFF, 0.45f);
+                    // two rings climb the body, one after the other, and a soft pool of light under the feet
+                    ringAt(pose, buffers, 0.05f + h * out, size * (1.2f - 0.5f * out), light, fade);
+                    float t2 = Mth.clamp((age - 0.25f) / (life - 0.25f), 0, 1);
+                    float out2 = 1 - (1 - t2) * (1 - t2) * (1 - t2);
+                    if (age > 0.25f) ringAt(pose, buffers, 0.05f + h * 0.8f * out2, size * (1.0f - 0.4f * out2), c, (1 - t2) * 0.9f);
+                    disc(pose, buffers, GLOW, 0.03f, size * (1.2f + 0.6f * out), 0, c, fade * 0.7f);
+                    dot(pose, buffers, camera, 0, h * 0.55f, 0, size * (0.4f + 0.5f * out), light, fade * 0.5f);
+                }
+                case ABSORB -> {
+                    int c = b.param & 0xFFFFFF;
+                    // a ring closing in on the chest, and the chest lighting up as it arrives
+                    float in = 1 - out;
+                    ringAt(pose, buffers, h * 0.55f, 0.25f + 2.2f * in, c, Math.min(1, t * 3) * 0.9f);
+                    ringAt(pose, buffers, h * 0.35f, 0.2f + 1.6f * in * in, mixRgb(c, 0xFFFFFF, 0.5f), Math.min(1, t * 3) * 0.6f);
+                    float flare = t < 0.7f ? t / 0.7f : (1 - t) / 0.3f;
+                    dot(pose, buffers, camera, 0, h * 0.6f, 0, size * (0.3f + 0.6f * flare), mixRgb(c, 0xFFFFFF, 0.4f), flare);
                 }
             }
             pose.popPose();

@@ -30,7 +30,11 @@ public record CombatFxPayload(int entityId, Kind kind, int param) implements Cus
         /** Lightning arced into this entity. param = the entity it came from. */
         CHAIN,
         /** An expanding ring of light. param = rgb | radius (blocks) << 24. */
-        NOVA
+        NOVA,
+        /** A System potion was drunk: a ring of its colour rises around the drinker. param = rgb. */
+        RESTORE,
+        /** A mana stone was absorbed: motes of light stream into the player. param = rgb. */
+        ABSORB
     }
 
     public static final Type<CombatFxPayload> TYPE = new Type<>(BeyondSolo.id("combat_fx"));

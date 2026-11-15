@@ -27,6 +27,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
+| `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -597,6 +598,46 @@ Test commands: `/system enemy spawn <kind> [rank] [variant] [affinity]`, `/syste
 `/system enemy mix [rank]`, `/system gate spawnboss <rank> <boss> [ascended]`. Assets come from
 `tools/gen_enemy_assets.py`, texts from `tools/enemy_lang.py`.
 
+## Cores, materials, potions and crafting
+
+Code in `crafting/` (server) and `client/crafting/` (client); `CraftingModule.init` registers the items, the three vein
+blocks, the `beyondsolo:core_affinity` data component, the CRAFT creative tab and payloads (`CraftActionPayload`,
+`CraftResultPayload`, `CraftStockPayload`). Lang lives in `assets/beyondsolo_crafting/lang`; textures, models and
+blockstates come from `tools/gen_crafting_assets.py`.
+
+- **Monster cores** (`MonsterCoreItem`): one item per rank E..S plus a boss core per rank. A core keeps the affinity of
+  the creature it came from (`core_affinity`, shown as "Frostbound C-rank Monster Core"); some recipes ask for one.
+- **Drops** (`CraftDrops`): roster creatures (anything `Enemies` made) killed by a hunter with the System drop a core of
+  their rank (30% normal, 50% veteran, always for elites, two for champions) and their kind's material (45% x the
+  variant's reward multiplier). Other hostile monsters: 4% for an E-rank core. Bosses add a boss core (two when
+  ascended), 2-4 cores, materials and mana stones through `GateLoot.BossLootEvent`; a boss outside a gate drops them.
+  A core tearing free flashes a `NOVA` in its colour.
+- **Materials**: one per gate creature kind (gloomfang fang, brood silk, shard carapace, hollow essence, ashen plate,
+  ember cinder), `CraftingModule.MATERIALS`.
+- **Mana stones** (`ManaStoneItem`: shard 15, stone 40, greater 100 mana): hold use to absorb (fails when mana is full),
+  plays `CombatFxPayload.Kind.ABSORB`. They come from **mana veins** that `DungeonBuilder.decorate` sets into cavern and
+  side-cave walls (`ManaVeins.place`, size by gate rank: E/D lesser, C/B plain, A/S greater). The vein model lays a
+  fully lit seam layer over the rock (NeoForge per-element `block_light`), so they glow in dark caves. Drops in
+  `loot_table/blocks/<vein>.json` (fortune, silk touch).
+- **System potions** (`SystemPotionItem`): healing, greater healing, supreme healing elixir, mana, greater mana, stamina
+  tonic (-40 exhaustion, not while collapsed), draught of might, ironskin draught. Drinking plays `RESTORE` (two rings
+  climb the drinker, a spiral of motes). The combat remedies (quenching elixir for deep burn, greater antidote for
+  heavy venom, antidote, clotting tonic) have recipes too.
+- **Recipes** (`SystemRecipes`, same list on both sides): categories POTIONS, FORGE (refining stones, ward seals, the
+  nine infusion crystals), CORES (four cores fuse into one of the next rank, mana stone fusion, mana extraction), GEAR
+  (the eight epic arsenal weapons, forged around a C-rank boss core and rolled with `GearRolls`). Each needs a rank and
+  some gold. `CraftingService.craft` takes ingredients from the inventory, then the System storage, using plain cores
+  before cores with an affinity.
+- **CRAFT tab** (`client/crafting/CraftTab`, order 127): categories and recipes on the left (can make N / missing /
+  needs rank), the result in a crucible on the right with have/need per ingredient, an amount stepper (shift for 10),
+  gold cost and CRAFT. Crafting: the ingredients fly into the crucible along curves, it draws in and flares, the
+  result springs out with "+N" and rays; a refusal shakes the panel and says why. Dropped cores and mana stones glow
+  in their colour (`CraftClientEvents`); boss cores get a short light column.
+- **Economy**: cores sell by rank (`SellPrices.CORE`, boss cores x6), mana stones 6/30/120, materials 8, potions 15.
+  The shop's REMEDIES sell four of the potions (dearer than brewing them). Numbers are first guesses for the balancing pass.
+- **Commands** (`/system craft ...`, level 2): make &lt;recipe&gt; [n], cores &lt;rank&gt; [n] [affinity], bosscore &lt;rank&gt; [n],
+  bossloot &lt;rank&gt;, kit, drainmana. UI driver: `screen craft`, `craft <recipe> [amount]`, `craftgo`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -636,3 +677,4 @@ checks use zombies.
 `test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
 `test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.
 `test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
+`test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
