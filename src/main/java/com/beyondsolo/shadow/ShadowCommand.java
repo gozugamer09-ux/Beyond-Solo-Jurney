@@ -7,7 +7,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -47,7 +46,7 @@ public final class ShadowCommand {
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"success", "fail", "random"}, b))
                                 .executes(ctx -> {
                                     String r = StringArgumentType.getString(ctx, "result");
-                                    ShadowService.forceNext(r.equals("success") ? Boolean.TRUE : r.equals("fail") ? Boolean.FALSE : null);
+                                    ShadowService.forceNext(ctx.getSource().getPlayerOrException(), r.equals("success") ? Boolean.TRUE : r.equals("fail") ? Boolean.FALSE : null);
                                     return 1;
                                 })))
                         .then(Commands.literal("rise").executes(ctx -> {

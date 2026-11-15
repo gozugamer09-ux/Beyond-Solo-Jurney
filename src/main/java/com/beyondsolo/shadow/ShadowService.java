@@ -105,6 +105,7 @@ public final class ShadowService {
         }
 
         public int id() { return id; }
+        public UUID owner() { return owner; }
         public Vec3 pos() { return pos; }
         public ResourceLocation type() { return type; }
         public boolean boss() { return boss; }
@@ -116,8 +117,8 @@ public final class ShadowService {
     private static int nextSoulId = 1;
     /** Players we have seen command shadows (lets game tests' fake players be found). */
     private static final Map<UUID, ServerPlayer> MASTERS = new HashMap<>();
-    /** Tests: the next extraction succeeds (true) or fails (false) whatever the odds. */
-    private static @Nullable Boolean forced;
+    /** Tests and staging: a player's next extraction succeeds (true) or fails (false) whatever the odds. */
+    private static final Map<UUID, Boolean> FORCED = new HashMap<>();
 
     // ================================================================ who and how many
 
@@ -181,9 +182,10 @@ public final class ShadowService {
         return Mth.clamp(0.95f - 0.3f * hard, 0.1f, 0.95f);
     }
 
-    /** Tests and staging: decide the next extraction. */
-    public static void forceNext(@Nullable Boolean success) {
-        forced = success;
+    /** Tests and staging: decide a player's next extraction (null: back to the odds). */
+    public static void forceNext(Player player, @Nullable Boolean success) {
+        if (success == null) FORCED.remove(player.getUUID());
+        else FORCED.put(player.getUUID(), success);
     }
 
     // ================================================================ souls
@@ -262,8 +264,8 @@ public final class ShadowService {
     private static void finishRitual(ServerPlayer p, Soul s) {
         ServerLevel level = p.serverLevel();
         s.ritualEnd = 0;
+        Boolean forced = FORCED.remove(p.getUUID());
         boolean ok = forced != null ? forced : p.getRandom().nextFloat() < chance(p, s.boss ? s.health * 2 : s.health, s.boss);
-        forced = null;
         if (!ok) {
             s.tries--;
             if (s.tries <= 0) {
@@ -836,7 +838,7 @@ public final class ShadowService {
     static void clearAll() {
         SOULS.clear();
         MASTERS.clear();
-        forced = null;
+        FORCED.clear();
     }
 
     static ResourceLocation id(String path) {

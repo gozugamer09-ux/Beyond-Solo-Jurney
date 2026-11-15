@@ -56,6 +56,15 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
 
         LivingEntity look = e.look();
         if (look != null) {
+            if (e.preview) {
+                // a screen preview is never ticked: give the stand-in this frame's pose
+                look.yBodyRot = look.yBodyRotO = e.yBodyRot;
+                look.setYRot(e.getYRot());
+                look.yRotO = e.getYRot();
+                look.setXRot(e.getXRot());
+                look.yHeadRot = look.yHeadRotO = e.yHeadRot;
+                look.tickCount = e.tickCount;
+            }
             pose.pushPose();
             pose.translate(0, -down, 0);
             float s = e.sizeScale();

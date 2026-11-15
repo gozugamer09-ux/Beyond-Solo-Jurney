@@ -29,7 +29,7 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|gallery  open a System page (or the drawing test page)
  * close                                close the current screen
  * mode floating|pinned|hidden          pop-up mode
  * keep on|off                          "stay open" pop-ups
@@ -154,6 +154,7 @@ public final class UiTestDriver {
                     case "skills" -> SystemScreen.openOn(com.beyondsolo.client.skill.SkillClientEvents.SKILLS_TAB);
                     case "quests" -> SystemScreen.openOn(SystemTabs.QUESTS);
                     case "log" -> SystemScreen.openOn(SystemTabs.LOG);
+                    case "shadows" -> SystemScreen.openOn(com.beyondsolo.client.shadow.ShadowClientEvents.SHADOWS_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
