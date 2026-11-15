@@ -74,6 +74,9 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     /** 0, or how many ticks it has been sinking. */
     private static final EntityDataAccessor<Integer> SINK = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
 
+    private static final net.minecraft.core.particles.DustParticleOptions WISP =
+            new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.32f, 0.2f, 0.55f), 0.9f);
+
     private @Nullable UUID recordId;
     private int skillCooldown = 80;
     private int boltCooldown = 20;
@@ -295,11 +298,11 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             if (l instanceof Mob m) m.setAggressive(isAggressive());
         }
         if (preview || isSinking() || isDeadOrDying()) return;
-        // a thin smoke always drifts off it
-        if (tickCount % (isBoss() ? 2 : 4) == 0) {
+        // wisps of violet dark always drift off it
+        if (tickCount % (isBoss() ? 3 : 6) == 0) {
             double w = getBbWidth() * 0.5;
-            level().addParticle(ParticleTypes.SMOKE, getX() + (random.nextDouble() - 0.5) * 2 * w,
-                    getY() + random.nextDouble() * getBbHeight(), getZ() + (random.nextDouble() - 0.5) * 2 * w, 0, 0.02, 0);
+            level().addParticle(WISP, getX() + (random.nextDouble() - 0.5) * 2 * w,
+                    getY() + random.nextDouble() * getBbHeight() * 0.8, getZ() + (random.nextDouble() - 0.5) * 2 * w, 0, 0.015, 0);
         }
     }
 
@@ -712,8 +715,11 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             if (canFight(hit) && m.tickCount - m.getLastHurtMobTimestamp() < 200) return hit;
             LivingEntity ownBy = getLastHurtByMob();
             if (canFight(ownBy)) return ownBy;
-            TargetingConditions cond = TargetingConditions.forCombat().range(14).selector(e -> e instanceof Enemy && canFight(e));
-            return level().getNearestEntity(Mob.class, cond, ShadowEntity.this, m.getX(), m.getY(), m.getZ(), m.getBoundingBox().inflate(14, 6, 14));
+            // monsters near its master, or near itself
+            TargetingConditions cond = TargetingConditions.forCombat().range(18).ignoreLineOfSight().selector(e -> e instanceof Enemy && canFight(e));
+            LivingEntity near = level().getNearestEntity(Mob.class, cond, ShadowEntity.this, m.getX(), m.getY(), m.getZ(), m.getBoundingBox().inflate(16, 6, 16));
+            if (near != null) return near;
+            return level().getNearestEntity(Mob.class, cond, ShadowEntity.this, getX(), getY(), getZ(), getBoundingBox().inflate(12, 5, 12));
         }
 
         @Override

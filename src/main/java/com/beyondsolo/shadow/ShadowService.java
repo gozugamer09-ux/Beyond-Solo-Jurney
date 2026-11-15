@@ -336,7 +336,7 @@ public final class ShadowService {
                 break;
             }
             // a half ring behind the master
-            double a = yaw + Math.PI / 2 + (n % 2 == 0 ? 1 : -1) * (0.35 + 0.3 * (n / 2)) + Math.PI;
+            double a = yaw + Math.PI + (n % 2 == 0 ? 1 : -1) * (0.35 + 0.3 * (n / 2));
             double rad = 2.4 + 0.6 * (n / 6);
             Vec3 at = p.position().add(-Math.sin(a) * rad, 0, Math.cos(a) * rad);
             final int delay = n * 3;
@@ -825,7 +825,7 @@ public final class ShadowService {
     }
 
     private static void soulFx(ServerLevel level, Soul s, ShadowFxPayload.Kind kind, int extra, String text) {
-        int color = s.boss ? 0xFF4A6A : s.rank.color();
+        int color = s.boss ? 0xFF4A6A : 0x9B7BE0;
         PacketDistributor.sendToPlayersNear(level, null, s.pos.x, s.pos.y, s.pos.z, 64, new ShadowFxPayload(kind.ordinal(), s.id,
                 (float) s.pos.x, (float) s.pos.y, (float) s.pos.z, color, extra, text));
     }

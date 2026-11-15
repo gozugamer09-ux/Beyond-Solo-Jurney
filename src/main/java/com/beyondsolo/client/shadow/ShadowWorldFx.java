@@ -141,11 +141,11 @@ public final class ShadowWorldFx {
                 SOULS.remove(p.id());
                 add(p, at, t);
                 boolean boss = p.extra() == 1;
-                int n = boss ? 120 : 50;
+                int n = boss ? 30 : 22;
                 for (int i = 0; i < n; i++) {
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     double sp = 0.15 + RANDOM.nextDouble() * (boss ? 0.5 : 0.3);
-                    mc.level.addParticle(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.3, at.z, Math.cos(a) * sp, 0.02 + RANDOM.nextDouble() * 0.06, Math.sin(a) * sp);
+                    mc.level.addParticle(i % 2 == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, at.x, at.y + 0.3, at.z, Math.cos(a) * sp, 0.02 + RANDOM.nextDouble() * 0.06, Math.sin(a) * sp);
                 }
                 for (int i = 0; i < (boss ? 40 : 18); i++) {
                     mc.level.addParticle(ParticleTypes.SCULK_SOUL, at.x + rnd(0.6), at.y + 0.2, at.z + rnd(0.6), rnd(0.05), 0.12 + RANDOM.nextDouble() * 0.15, rnd(0.05));
@@ -158,7 +158,7 @@ public final class ShadowWorldFx {
             }
             case SUMMON -> {
                 add(p, at, t);
-                for (int i = 0; i < 26; i++) {
+                for (int i = 0; i < 12; i++) {
                     mc.level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(0.5), at.y + 0.1, at.z + rnd(0.5), rnd(0.03), 0.04 + RANDOM.nextDouble() * 0.08, rnd(0.03));
                 }
                 for (int i = 0; i < 12; i++) mc.level.addParticle(ParticleTypes.REVERSE_PORTAL, at.x + rnd(0.5), at.y + 0.2, at.z + rnd(0.5), 0, 0.15, 0);
@@ -211,11 +211,11 @@ public final class ShadowWorldFx {
             }
             if (s.inRitual(t)) {
                 float k = s.ritualProgress(t);
-                int n = 2 + (int) (k * 5);
+                int n = 1 + (int) (k * 2.5f);
                 for (int i = 0; i < n; i++) {
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     double r = 2.2 + RANDOM.nextDouble() * 1.2;
-                    mc.level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + Math.cos(a) * r, at.y + 0.1, at.z + Math.sin(a) * r,
+                    mc.level.addParticle(ParticleTypes.SMOKE, at.x + Math.cos(a) * r, at.y + 0.1, at.z + Math.sin(a) * r,
                             -Math.cos(a) * r * 0.06, 0.02, -Math.sin(a) * r * 0.06);
                 }
                 if (mc.level.getGameTime() % 2 == 0) {

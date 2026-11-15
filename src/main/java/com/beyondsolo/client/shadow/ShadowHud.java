@@ -193,7 +193,7 @@ public final class ShadowHud {
             float bh = g.guiHeight() * 0.11f * bars;
             Shapes.box(0, 0, g.guiWidth(), bh).fill(0xF0000000).draw(g);
             Shapes.box(0, g.guiHeight() - bh, g.guiWidth(), bh).fill(0xF0000000).draw(g);
-            float cy = g.guiHeight() * 0.36f;
+            float cy = g.guiHeight() * 0.70f;
             Shapes.rays(cx, cy, 120 * in, 18).fill(Gfx.alpha(c, 0.12f)).rotation(Anim.loop(30f)).draw(g);
             Shapes.circle(cx, cy - 26, 15).fillV(0xF0140A24, 0xF0060310).border(1, c).glow(10 + 4 * Anim.pulse(1.2f), Gfx.alpha(c, 0.5f)).draw(g);
             Shapes.icon(Icons.SKULL, cx, cy - 26, 17).fill(Gfx.mix(c, 0xFFFFFFFF, 0.5f)).glow(4, Gfx.alpha(c, 0.8f)).draw(g);

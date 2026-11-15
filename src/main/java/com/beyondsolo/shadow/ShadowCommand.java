@@ -87,8 +87,8 @@ public final class ShadowCommand {
                         }))));
     }
 
-    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> typeArg() {
-        return Commands.argument("entity", StringArgumentType.string())
+    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> typeArg() {
+        return Commands.argument("entity", net.minecraft.commands.arguments.ResourceLocationArgument.id())
                 .suggests((c, b) -> SharedSuggestionProvider.suggestResource(BuiltInRegistries.ENTITY_TYPE.keySet(), b));
     }
 
@@ -98,8 +98,7 @@ public final class ShadowCommand {
     }
 
     private static EntityType<?> type(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        ResourceLocation id = ResourceLocation.tryParse(StringArgumentType.getString(ctx, "entity"));
-        if (id == null) throw UNKNOWN.create();
+        ResourceLocation id = net.minecraft.commands.arguments.ResourceLocationArgument.getId(ctx, "entity");
         return BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElseThrow(UNKNOWN::create);
     }
 

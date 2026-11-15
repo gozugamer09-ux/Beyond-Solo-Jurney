@@ -24,7 +24,7 @@ public final class ShadowTint implements MultiBufferSource {
 
     /** The usual ink: nearly black with a violet sheen. */
     public static ShadowTint ink(MultiBufferSource inner, float brightness) {
-        return new ShadowTint(inner, 0.13f * brightness, 0.10f * brightness, 0.22f * brightness, 1f);
+        return new ShadowTint(inner, 0.085f * brightness, 0.065f * brightness, 0.16f * brightness, 1f);
     }
 
     @Override
