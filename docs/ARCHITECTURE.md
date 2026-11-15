@@ -473,7 +473,7 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
 - **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
   belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
   element reactions apply. The job change itself teaches the starters (`Skills.startersFor`: the `advanced` ones).
-- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath` and `MagePath` so far): every subclass
+- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath`, `MagePath` and `GuardianPath` so far): every subclass
   grows to about 12 skills (8 actives, 4 passives; the ultimate last). These are not `advanced`: they carry an
   unlock level (22 to 50) and `SkillAPI.grantUnlocked` teaches them as the player levels, only to players of that
   subclass; a late job change catches up at once. A path file holds its skills, their numbers and actions, and
@@ -483,7 +483,7 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
   `aimGround`). To add a class's sets: copy the shape of `WarriorPath`, call its `init()` from
   `SubclassSkills.init()` and its hooks from `SubclassPassives`, add names to `tools/job_lang.py` and icons to
   `tools/gen_job_assets.py`. World effects added for these sets (`SkillFxPayload.Kind`): `CLEAVE` (falling
-  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky).
+  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky), `SHIELD` (a shield held in front of someone), `CHAIN` (links from a caster to a point), `HAMMER` (a thrown, tumbling hammer), `DISCUS` (a thrown shield).
 - **Cutscene camera** (`client/job/CutsceneCamera`, `CutscenePayload`): glide and orbit shots with letterbox bars.
   The camera follows a client-only marker entity, so the player's body shows. A shot holds on a black curtain until
   the world under it is drawn. Any system can send shots; `/system job camera` tries one anywhere.
