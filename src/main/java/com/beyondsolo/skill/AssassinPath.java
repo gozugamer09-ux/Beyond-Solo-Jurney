@@ -345,7 +345,6 @@ public final class AssassinPath {
         int ticks = Math.round(pandemicSeconds(l) * 20);
         sound(p, SoundEvents.WITCH_CELEBRATE, 1f, 0.6f);
         sound(level, at, SoundEvents.SCULK_SHRIEKER_SHRIEK, 0.6f, 0.6f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fxAt(level, Kind.ZONE, s.color(), at, 9, ticks);
         fxAt(level, Kind.QUAKE, 0x406020, at, 9, ticks);
         repeat(p, ticks, 20, () -> {
@@ -418,7 +417,6 @@ public final class AssassinPath {
         int ticks = Math.round(mirrorSeconds(l) * 20);
         SkillAPI.setBuff(p, BUFF_MIRROR, ticks);
         sound(p, SoundEvents.ILLUSIONER_PREPARE_MIRROR, 1f, 1.2f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fx(p, Kind.BLADES, s.color(), p.position(), 1.4f, ticks);
         fx(p, Kind.AURA, s.color(), p.position(), 1.1f, ticks);
         return true;
@@ -460,7 +458,6 @@ public final class AssassinPath {
         Vec3 dir = facing(p);
         Vec3 start = p.position();
         sound(p, SoundEvents.ILLUSIONER_MIRROR_MOVE, 1f, 1.6f);
-        fx(p, Kind.CAST, s.color(), start, 1.4f, 0);
         for (int i = 1; i <= 5; i++) {
             Vec3 at = ground(level, start.add(dir.scale(i * 2.2)));
             final int k = i;
@@ -622,7 +619,6 @@ public final class AssassinPath {
         List<LivingEntity> near = foes(p, p.position(), 14);
         if (near.isEmpty()) return false;
         sound(p, SoundEvents.BELL_BLOCK, 1f, 0.5f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fx(p, Kind.PULSE, s.color(), p.position(), 14, 0);
         for (LivingEntity e : near) {
             boolean due = marked(e) || SubclassActions.SENTENCES.containsKey(e) || CONTRACTS.containsKey(e);
@@ -646,7 +642,6 @@ public final class AssassinPath {
         target.addEffect(new MobEffectInstance(MobEffects.GLOWING, ticks, 0, false, false));
         sound(p, SoundEvents.BELL_RESONATE, 1f, 0.6f);
         sound(p, SoundEvents.WITHER_SKELETON_AMBIENT, 0.6f, 0.6f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
         fx(target, Kind.BIND, s.color(), target.position(), 1.4f, 40);
         fxAt(level, Kind.CLEAVE, s.color(), target.position(), 3, 10);
@@ -727,7 +722,6 @@ public final class AssassinPath {
         int ticks = 80;
         sound(level, at, SoundEvents.RESPAWN_ANCHOR_CHARGE, 1.5f, 0.5f);
         sound(level, at, SoundEvents.PORTAL_AMBIENT, 0.8f, 0.6f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fxAt(level, Kind.VORTEX, s.color(), at, 5, ticks);
         fxAt(level, Kind.DOME, s.color(), at.add(0, 2.5, 0), 3, ticks);
         fxAt(level, Kind.ZONE, s.color(), at, 8, ticks);

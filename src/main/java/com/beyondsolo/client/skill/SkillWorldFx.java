@@ -95,6 +95,9 @@ public final class SkillWorldFx {
                 case BANNER, BLADES, QUAKE -> Math.max(0.6f, lasting);
                 case CRACK -> 1.7f;
                 case GEYSER -> 1.0f;
+                case BEAM -> lasting + 0.2f;
+                case ORB -> Math.max(0.4f, lasting);
+                case THUNDER -> 0.55f;
             };
         }
     }
@@ -194,6 +197,11 @@ public final class SkillWorldFx {
             case BOLT -> {
                 Vec3 at = fx.target();
                 for (int i = 0; i < 16; i++) level.addParticle(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, rnd(0.4), rnd(0.4), rnd(0.4));
+            }
+            case THUNDER -> {
+                Vec3 at = fx.target();
+                for (int i = 0; i < 30; i++) level.addParticle(ParticleTypes.ELECTRIC_SPARK, at.x + rnd(0.5), at.y + 0.2, at.z + rnd(0.5), rnd(0.8), RANDOM.nextDouble() * 0.6, rnd(0.8));
+                for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(0.6), at.y + 0.2, at.z + rnd(0.6), 0, 0.04, 0);
             }
             case NOVA -> {
                 for (int i = 0; i < 60; i++) {
@@ -960,6 +968,45 @@ public final class SkillWorldFx {
                     }
                     disc(pose, buffers, GLOW, 0.04f, p.size() * 0.9f, 0, c, glow * 0.5f);
                     if (age < 0.5f) disc(pose, buffers, RING, 0.08f, p.size() * 1.1f * (age / 0.5f), 0, light, 1 - age / 0.5f);
+                }
+                case BEAM -> {
+                    // from the caster's right hand, so the beam is not hidden behind them or seen dead end-on
+                    Vec3 hand = fx.origin;
+                    if (e != null) {
+                        Vec3 view = e.getViewVector(partial);
+                        Vec3 right = view.cross(new Vec3(0, 1, 0));
+                        if (right.lengthSqr() > 1.0e-4) right = right.normalize().scale(0.45);
+                        hand = e.getEyePosition(partial).add(view.scale(0.6)).add(right).add(0, -0.4, 0);
+                    }
+                    Vec3 from = hand.subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    float pulse = 0.85f + 0.15f * Mth.sin(time * 1.7f);
+                    float grow = Mth.clamp(age / 0.12f, 0, 1);
+                    streak(pose, buffers, camera, at, from, to, p.size() * 2.4f * pulse * grow, c, hold * 0.7f);
+                    streak(pose, buffers, camera, at, from, to, p.size() * pulse * grow, light, hold * 1.1f);
+                    streak(pose, buffers, camera, at, from, to, p.size() * 0.4f * grow, 0xFFFFFF, hold);
+                    dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, 0.8f + p.size() * 1.5f * pulse, light, hold, time * 9);
+                    dot(pose, buffers, camera, (float) from.x, (float) from.y, (float) from.z, p.size() * 0.9f, c, hold);
+                }
+                case ORB -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    float pulse = 1 + 0.1f * Mth.sin(time * 0.9f);
+                    float grow = Mth.clamp(age / 0.2f, 0, 1);
+                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 1.7f * pulse * grow, c, hold * 0.6f);
+                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * pulse * grow, light, hold);
+                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 0.45f * grow, 0xFFFFFF, hold);
+                    dotTex(pose, buffers, camera, BURST, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 1.3f * grow, c, hold * 0.7f, time * 6);
+                }
+                case THUNDER -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    Vec3 sky = cc.add(fx.seed % 7 - 3, 26, fx.seed / 7 % 7 - 3);
+                    float flick = age < 0.12f ? 1 : fade;
+                    zigzag(pose, buffers, camera, at, sky, cc, fx.seed + (long) (time / 2), 0.9f, c, flick * 1.3f);
+                    zigzag(pose, buffers, camera, at, sky, cc, fx.seed + (long) (time / 2), 0.35f, 0xFFFFFF, flick);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    disc(pose, buffers, RING, 0.07f, p.size() * out, 0, light, fade * 1.2f);
+                    disc(pose, buffers, GLOW, 0.05f, p.size(), 0, c, fade * 0.8f);
+                    dotTex(pose, buffers, camera, BURST, 0, 0.4f, 0, 1f + 2f * out, light, fade, fx.seed % 360);
                 }
                 case GEYSER -> {
                     Vec3 cc = fx.target().subtract(at);

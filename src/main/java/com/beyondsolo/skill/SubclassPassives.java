@@ -128,7 +128,8 @@ public final class SubclassPassives {
     static float manaBonus(SkillData data) {
         return deepMana(data.level(SubclassSkills.DEEP_CURRENT.path()))
                 + celestialMana(data.level(SubclassSkills.CELESTIAL_CORE.path()))
-                + foresightMana(data.level(SubclassSkills.FORESIGHT.path()));
+                + foresightMana(data.level(SubclassSkills.FORESIGHT.path()))
+                + MagePath.manaBonus(data);
     }
 
     /** Once a second: regeneration and mana passives. */
@@ -154,6 +155,7 @@ public final class SubclassPassives {
         if (core > 0) SystemAPI.restoreMana(p, 0.3f * core);
         WarriorPath.tickSecond(p, data);
         AssassinPath.tickSecond(p, data);
+        MagePath.tickSecond(p, data);
     }
 
     // ================================================================ hits
@@ -212,9 +214,11 @@ public final class SubclassPassives {
             }
             bonus += WarriorPath.strikeBonus(p, data, target, now);
             bonus += AssassinPath.strikeBonus(p, data, target, now);
+            bonus += MagePath.strikeBonus(p, data, target);
             if (bonus != 0) amount *= 1 + bonus / 100f;
             WarriorPath.afterStrike(p, data, target, melee, now);
             AssassinPath.afterStrike(p, data, target);
+            MagePath.afterStrike(p, data, target);
 
             // on-hit statuses
             int virulence = data.level(SubclassSkills.VIRULENCE.path());
@@ -237,6 +241,8 @@ public final class SubclassPassives {
         if (attacker != null && attacker != target) {
             float order = WarriorPath.orderBonus(target, now);
             if (order > 0) amount *= 1 + order / 100f;
+            float frail = MagePath.frailty(target, now);
+            if (frail > 0) amount *= 1 + frail / 100f;
         }
 
         // ---- the player is struck
@@ -244,6 +250,7 @@ public final class SubclassPassives {
             SkillData data = SkillAPI.get(p);
             amount = WarriorPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, amount);
             if (amount >= 0) amount = AssassinPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
+            if (amount >= 0) amount = MagePath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount < 0) {
                 event.setCanceled(true);
                 return;
@@ -318,6 +325,7 @@ public final class SubclassPassives {
         SkillData data = SkillAPI.get(p);
         WarriorPath.onKill(p, data, dead);
         AssassinPath.onKill(p, data, dead);
+        MagePath.onKill(p, data, dead);
         int pact = data.level(SubclassSkills.GRAVE_PACT.path());
         if (pact > 0) {
             p.heal(pactHeal(pact));

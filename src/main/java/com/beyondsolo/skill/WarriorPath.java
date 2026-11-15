@@ -110,7 +110,6 @@ public final class WarriorPath {
     static boolean bloodGeyser(ServerPlayer p, Skill s, int l) {
         ServerLevel level = p.serverLevel();
         Vec3 at = aimGround(p, 16);
-        fx(p, Kind.CAST, s.color(), p.position(), 1.4f, 0);
         fxAt(level, Kind.PILLAR, s.color(), at, 2.2f, 8);
         sound(level, at, SoundEvents.LAVA_AMBIENT, 1.5f, 0.6f);
         later(p, 8, () -> {
@@ -325,7 +324,6 @@ public final class WarriorPath {
         Vec3 at = aimGround(p, 20);
         sound(p, SoundEvents.RAID_HORN.value(), 1f, 0.6f);
         sound(level, at, SoundEvents.BEACON_ACTIVATE, 1.5f, 0.6f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2, 0);
         fxAt(level, Kind.CLEAVE, s.color(), at, 5.5f, 16);
         later(p, 16, () -> {
             for (LivingEntity e : foes(p, at, 5.5)) {
@@ -429,7 +427,6 @@ public final class WarriorPath {
         p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, ticks, 0));
         sound(p, SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1f, 1.4f);
         sound(p, SoundEvents.AMETHYST_BLOCK_CHIME, 1f, 0.8f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2.6f, 0);
         fx(p, Kind.BLADES, s.color(), p.position(), 2.6f, ticks);
         repeat(p, ticks, 10, () -> {
             for (LivingEntity e : foes(p, p.position(), 3.2)) {
@@ -443,7 +440,6 @@ public final class WarriorPath {
     static boolean fallingPetal(ServerPlayer p, Skill s, int l) {
         ServerLevel level = p.serverLevel();
         sound(p, SoundEvents.BREEZE_JUMP, 1f, 1.2f);
-        fx(p, Kind.CAST, s.color(), p.position(), 1.6f, 0);
         leap(p, aimGround(p, 12), 0.85, land -> {
             for (LivingEntity e : foes(p, land, 4.5)) hit(p, s, e, 12 * m(l, tier(p)) + stat(p, Stat.AGI, 0.25f));
             sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.8f);
@@ -461,7 +457,6 @@ public final class WarriorPath {
         Vec3 center = aimGround(p, 18);
         int n = rainSwords(l);
         sound(p, SoundEvents.ILLUSIONER_CAST_SPELL, 1f, 1.4f);
-        fx(p, Kind.CAST, s.color(), p.position(), 1.6f, 0);
         fxAt(level, Kind.ZONE, s.color(), center, 5, n * 3 + 14);
         for (int i = 0; i < n; i++) {
             double ang = p.getRandom().nextDouble() * Math.PI * 2;
@@ -481,8 +476,6 @@ public final class WarriorPath {
         p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 12, 4, false, false, false));
         sound(p, SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1f, 0.6f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.8f);
-        fx(p, Kind.CAST, s.color(), p.position(), 2.4f, 0);
-        fx(p, Kind.AURA, s.color(), p.position(), 1.3f, 14);
         later(p, 12, () -> {
             Vec3 dir = facing(p);
             Vec3 a = p.position().add(0, 1, 0), b = a.add(dir.scale(18));
@@ -645,7 +638,6 @@ public final class WarriorPath {
         ServerLevel level = p.serverLevel();
         sound(p, SoundEvents.WARDEN_SONIC_CHARGE, 0.8f, 1.2f);
         fx(p, Kind.SLAM, s.color(), p.position(), 2.5f, 0);
-        fx(p, Kind.AURA, s.color(), p.position(), 1.5f, 30);
         leap(p, aimGround(p, 14), 1.15, land -> {
             for (LivingEntity e : foes(p, land, 7)) {
                 hit(p, s, e, 20 * m(l, tier(p)) + stat(p, Stat.STR, 0.3f) + stat(p, Stat.VIT, 0.2f));
