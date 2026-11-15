@@ -18,8 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The gold counter on the HUD. It stays out of the way until gold changes: then a capsule slides in at the top
- * right, the number rolls to the new balance, coins spark off the icon and the change floats out under it with
+ * The gold counter on the HUD. It stays out of the way until gold changes: then a capsule slides in on the right edge,
+ * the number rolls to the new balance, coins spark off the icon and the change floats out under it with
  * where it came from ("+18 Monster", "-650 Purchase"). Gains of the same kind close together add up into one line.
  */
 public final class GoldHud {
@@ -88,7 +88,8 @@ public final class GoldHud {
         }
 
         float sw = g.guiWidth();
-        float y = 8 + effectRows(mc) * 26;
+        // on the right edge, below the corner that toasts and status-effect icons share
+        float y = Math.max(8 + effectRows(mc) * 26, g.guiHeight() * 0.3f);
         float h = 18;
         String amount = EconomyClient.format(Math.round(shown));
         float tw = SysFont.width(amount, 8.5f, true);

@@ -107,7 +107,7 @@ public class LicenseScreen extends Screen {
         // guilloche-like rings in the background
         float ringT = Anim.loop(40f);
         for (int i = 0; i < 4; i++) {
-            Shapes.ring(x + CW - 48, y + CH / 2f + 6, 30 + i * 13, 0.5f).fill(Gfx.alpha(rc, 0.10f - i * 0.018f)).dashes(36 + i * 8, 0.55f)
+            Shapes.ring(x + CW - 34, y + CH / 2f + 2, 30 + i * 13, 0.5f).fill(Gfx.alpha(rc, 0.10f - i * 0.018f)).dashes(36 + i * 8, 0.55f)
                     .rotation(ringT * (i % 2 == 0 ? 1 : -1)).draw(g);
         }
         // the top strip
@@ -162,16 +162,16 @@ public class LicenseScreen extends Screen {
             SysFont.text(g, Component.translatable("license.beyondsolo.unevaluated").getString(), tx, ly, 7f, SystemTheme.TEXT_DIM);
         }
         SysFont.text(g, Component.translatable("license.beyondsolo.level", info.level()).getString(), tx, ly + 11, 6.5f, SystemTheme.TEXT_SOFT);
-        Ui.divider(g, tx, ly + 22, 108, Gfx.alpha(rc, 0.5f));
+        Ui.divider(g, tx, ly + 22, 100, Gfx.alpha(rc, 0.5f));
 
         // stats row
         float sy = y + 79;
         int shown = Math.round(info.clears() * Anim.outCubic(Anim.clamp01((t - 0.9f) / 0.7f)));
         stat(g, tx, sy, Component.translatable("license.beyondsolo.clears").getString(), String.valueOf(shown), SystemTheme.TEXT);
         PlayerRank best = info.bestRank();
-        stat(g, tx + 46, sy, Component.translatable("license.beyondsolo.best").getString(), best == null ? "—" : best.name(),
+        stat(g, tx + 38, sy, Component.translatable("license.beyondsolo.best").getString(), best == null ? "—" : best.name(),
                 best == null ? SystemTheme.TEXT_DIM : SystemTheme.rank(best));
-        stat(g, tx + 88, sy, Component.translatable("license.beyondsolo.issued_on").getString(),
+        stat(g, tx + 76, sy, Component.translatable("license.beyondsolo.issued_on").getString(),
                 Component.translatable("license.beyondsolo.day", info.issued() + 1).getString(), SystemTheme.TEXT_SOFT);
 
         // barcode along the bottom
@@ -188,7 +188,7 @@ public class LicenseScreen extends Screen {
         Gfx.setAlpha(co);
 
         // the rank emblem stamps down
-        float ex = x + CW - 46, ey = y + CH / 2f + 4;
+        float ex = x + CW - 34, ey = y + CH / 2f + 2;
         float st = Anim.clamp01((t - 0.75f) / 0.22f);
         if (st > 0) {
             float s = 1.8f - 0.8f * Anim.outBackStrong(st);
@@ -197,10 +197,10 @@ public class LicenseScreen extends Screen {
             g.pose().pushPose();
             g.pose().translate(ex, ey, 0);
             g.pose().scale(s, s, 1);
-            Ui.rankEmblem(g, info.playerRank(), 0, 0, 22, Math.max(energy, 0.15f + 0.1f * Anim.pulse(2.4f)));
+            Ui.rankEmblem(g, info.playerRank(), 0, 0, 18, Math.max(energy, 0.15f + 0.1f * Anim.pulse(2.4f)));
             g.pose().popPose();
             Gfx.setAlpha(o);
-            SysFont.spaced(g, Component.translatable("license.beyondsolo.rank").getString(), ex, ey + 31, 5.6f, Gfx.mix(rc, 0xFFFFFFFF, 0.3f), true, 1.6f, 0.5f);
+            SysFont.spaced(g, Component.translatable("license.beyondsolo.rank").getString(), ex, ey + 26, 5.6f, Gfx.mix(rc, 0xFFFFFFFF, 0.3f), true, 1.6f, 0.5f);
             // the shockwave of the stamp
             float wk = Anim.clamp01((t - 0.97f) / 0.6f);
             if (wk > 0 && wk < 1) {
@@ -217,7 +217,7 @@ public class LicenseScreen extends Screen {
 
     private void stat(GuiGraphics g, float x, float y, String label, String value, int color) {
         SysFont.text(g, label, x, y, 5f, SystemTheme.TEXT_DIM);
-        SysFont.title(g, value, x, y + 7, 10f, color);
+        SysFont.title(g, value, x, y + 7, 9f, color);
     }
 
     private static void corners(GuiGraphics g, float x, float y, float w, float h, int c) {

@@ -11,14 +11,13 @@
   "key.beyondsolo.open_storage": "Open System Storage",
   "tab.beyondsolo.storage": "STORAGE",
   "tab.beyondsolo.shop": "SHOP",
-
   "license.beyondsolo.title": "HUNTER LICENSE",
   "license.beyondsolo.registry": "SYSTEM REGISTRY",
   "license.beyondsolo.holder": "HOLDER",
   "license.beyondsolo.unevaluated": "Not yet evaluated",
   "license.beyondsolo.level": "Level %s",
-  "license.beyondsolo.clears": "GATES CLEARED",
-  "license.beyondsolo.best": "HIGHEST GATE",
+  "license.beyondsolo.clears": "CLEARS",
+  "license.beyondsolo.best": "BEST GATE",
   "license.beyondsolo.issued_on": "ISSUED",
   "license.beyondsolo.day": "Day %s",
   "license.beyondsolo.rank": "RANK",
@@ -27,7 +26,6 @@
   "license.beyondsolo.issued.body": "Registered as a %s-rank hunter. Your license keeps your rank and gate clears up to date.",
   "license.beyondsolo.renewed": "Hunter License renewed",
   "license.beyondsolo.renewed.body": "Now %s-rank. System storage: %s slots.",
-
   "storage.beyondsolo.title": "SYSTEM STORAGE",
   "storage.beyondsolo.inventory": "INVENTORY",
   "storage.beyondsolo.opening": "Opening storage...",
@@ -39,14 +37,12 @@
   "storage.beyondsolo.earned": "Earned %s",
   "storage.beyondsolo.deposit": "STACK IN",
   "storage.beyondsolo.sort": "SORT",
-
   "gold.beyondsolo.reason.kill": "Monster",
   "gold.beyondsolo.reason.quest": "Quest",
   "gold.beyondsolo.reason.gate": "Gate cleared",
   "gold.beyondsolo.reason.purchase": "Purchase",
   "gold.beyondsolo.reason.sale": "Sold",
   "gold.beyondsolo.reason.command": "System",
-
   "shop.beyondsolo.buy": "BUY",
   "shop.beyondsolo.sell": "SELL",
   "shop.beyondsolo.day": "Stock of day %s",
@@ -84,5 +80,8 @@
   "shop.beyondsolo.refused.maxed": "Storage is fully expanded.",
   "shop.beyondsolo.refused.no_system": "Only the System can trade here.",
   "shop.beyondsolo.refused.unknown": "That isn't for sale.",
-  "shop.beyondsolo.refused.nothing": "The System won't buy that."
+  "shop.beyondsolo.refused.nothing": "The System won't buy that.",
+  "storage.beyondsolo.hint.move": "+ click: move between storage and inventory",
+  "storage.beyondsolo.hint.key": "open storage anywhere",
+  "storage.beyondsolo.hint.scroll": "scroll: pages"
 }

@@ -29,7 +29,10 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|gallery  open a System page (or the drawing test page)
+ * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
+ * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
+ * license                              hold up the hunter license from the inventory
  * close                                close the current screen
  * mode floating|pinned|hidden          pop-up mode
  * keep on|off                          "stay open" pop-ups
@@ -155,11 +158,31 @@ public final class UiTestDriver {
                     case "quests" -> SystemScreen.openOn(SystemTabs.QUESTS);
                     case "log" -> SystemScreen.openOn(SystemTabs.LOG);
                     case "shadows" -> SystemScreen.openOn(com.beyondsolo.client.shadow.ShadowClientEvents.SHADOWS_TAB);
+                    case "storage" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.STORAGE_TAB);
+                    case "shop" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.SHOP_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
             }
             case "close" -> mc.setScreen(null);
+            case "shop" -> {
+                // shop buy|sell <category> [entry]: what the Shop tab shows
+                String[] a = arg.split(" ");
+                com.beyondsolo.client.economy.ShopTab.show(a[0].equals("sell"),
+                        com.beyondsolo.economy.ShopCatalog.Category.valueOf(a.length > 1 ? a[1].toUpperCase() : "FEATURED"), a.length > 2 ? a[2] : "");
+            }
+            case "storagebtn" -> {
+                if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
+            }
+            case "license" -> {
+                for (net.minecraft.world.item.ItemStack st : mc.player.getInventory().items) {
+                    var info = st.get(com.beyondsolo.economy.EconomyModule.LICENSE.get());
+                    if (info != null) {
+                        com.beyondsolo.client.economy.EconomyClient.openLicense(info);
+                        break;
+                    }
+                }
+            }
             case "mode" -> ClientConfig.NOTIFICATION_MODE.set(ClientConfig.NotificationMode.valueOf(arg.toUpperCase()));
             case "keep" -> ClientConfig.KEEP_POPUPS.set(arg.equals("on"));
             case "font" -> ClientConfig.SYSTEM_FONT.set(arg.equals("on"));

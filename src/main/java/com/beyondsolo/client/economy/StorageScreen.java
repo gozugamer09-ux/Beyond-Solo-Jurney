@@ -247,6 +247,28 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
         float bw = (iw + 8 - 4) / 2f;
         actionButton(g, ix - 4, by, bw, Component.translatable("storage.beyondsolo.deposit").getString(), Icons.DEPOSIT, depositedAt, mouseX, mouseY, StorageMenu.DEPOSIT);
         actionButton(g, ix - 4 + bw + 4, by, bw, Component.translatable("storage.beyondsolo.sort").getString(), Icons.SPARKLE, sortedAt, mouseX, mouseY, StorageMenu.SORT);
+
+        // key hints along the bottom of the window
+        float hy = y + H - 22;
+        Ui.divider(g, x + 16, hy - 6, W - 32, Gfx.alpha(SystemTheme.ACCENT, 0.25f));
+        float kx = x + StorageMenu.STORAGE_X;
+        kx += Ui.keycap(g, kx, hy, 9, "SHIFT", SystemTheme.ACCENT) + 3;
+        String a = Component.translatable("storage.beyondsolo.hint.move").getString();
+        SysFont.text(g, a, kx, hy + 1.5f, 6f, SystemTheme.TEXT_SOFT);
+        kx += SysFont.width(a, 6f, false) + 10;
+        kx += Ui.keycap(g, kx, hy, 9, keyName(EconomyClientEvents.OPEN_STORAGE), SystemTheme.ACCENT) + 3;
+        String b = Component.translatable("storage.beyondsolo.hint.key").getString();
+        SysFont.text(g, b, kx, hy + 1.5f, 6f, SystemTheme.TEXT_SOFT);
+        kx += SysFont.width(b, 6f, false) + 10;
+        if (menu.pages() > 1) {
+            kx += Ui.keycap(g, kx, hy, 9, "\u2195", SystemTheme.ACCENT) + 3;
+            SysFont.text(g, Component.translatable("storage.beyondsolo.hint.scroll").getString(), kx, hy + 1.5f, 6f, SystemTheme.TEXT_SOFT);
+        }
+    }
+
+    private static String keyName(net.minecraft.client.KeyMapping k) {
+        String s = k.getTranslatedKeyMessage().getString().toUpperCase();
+        return s.length() > 5 ? s.substring(0, 5) : s;
     }
 
     private void actionButton(GuiGraphics g, float x, float y, float w, String label, ResourceLocation icon, double pressedAt, int mouseX, int mouseY, int id) {
@@ -315,6 +337,14 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** Presses a button by id (for the UI test driver). */
+    public void press(int id) {
+        Minecraft.getInstance().gameMode.handleInventoryButtonClick(menu.containerId, id);
+        if (id == StorageMenu.SORT) sortedAt = Anim.now();
+        if (id == StorageMenu.DEPOSIT) depositedAt = Anim.now();
+        if (id == StorageMenu.PREV || id == StorageMenu.NEXT) menu.clickMenuButton(Minecraft.getInstance().player, id);
     }
 
     @Override
