@@ -389,39 +389,32 @@ public final class GateService {
         BlockPos c = g.world(room.center());
         int floor = c.getY() - (room.center().getY() - room.floorY());
         int count = theme.packSize + r.nextInt(2) + (room.kind() == DungeonLayout.Kind.SIDE ? 1 : 0);
+        com.beyondsolo.enemy.EnemyRoster.Mix mix = g.isTrial() ? null : g.mix();
+        // later caverns are more likely to be led by an elite or a champion
+        boolean late = room.index() > g.layout().rooms().size() / 2;
         for (int i = 0; i < count; i++) {
             float a = r.nextFloat() * Mth.TWO_PI;
             float d = 0.2f + r.nextFloat() * 0.45f;
             BlockPos p = new BlockPos(c.getX() + Math.round(Mth.cos(a) * d * room.rx()), floor, c.getZ() + Math.round(Mth.sin(a) * d * room.rz()));
             for (int dy = 0; dy < 5 && !dungeon.getBlockState(p).isAir(); dy++) p = p.above();
-            EntityType<?> type = theme.monsters.get(r.nextInt(theme.monsters.size()));
-            spawnMonster(dungeon, g, type, p);
+            if (mix == null) {
+                spawnMonster(dungeon, g, theme.monsters.get(r.nextInt(theme.monsters.size())), p);
+                continue;
+            }
+            EntityType<?> type = mix.pick(r);
+            com.beyondsolo.enemy.Enemies.spawn(dungeon, g.rank(), type, p,
+                    com.beyondsolo.enemy.Enemies.roll(g.rank(), mix, type, r, i == 0, late), theme.ordinal());
         }
         dungeon.playSound(null, c, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 0.6f, 1.4f);
     }
 
-    /** One of a gate's monsters: tougher by the gate's rank, carrying its element, rising out of the ground. */
+    /**
+     * One of a gate's monsters, a plain one (no affinity, no variant): tougher by the gate's rank, carrying its
+     * element, rising out of the ground. Packs use {@link com.beyondsolo.enemy.Enemies#spawn} with the gate's mix.
+     */
     @Nullable
     public static Mob spawnMonster(ServerLevel level, GateInstance g, EntityType<?> type, BlockPos p) {
-        if (!(type.create(level) instanceof Mob mob)) return null;
-        GateTheme theme = g.theme();
-        mob.moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, level.random.nextFloat() * 360f, 0f);
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(p), MobSpawnType.EVENT, null);
-        mob.setPersistenceRequired();
-        mob.getPersistentData().putInt(MOB_TAG, theme.ordinal());
-        var hp = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (hp != null && theme.mobHealthBonus() > 0) {
-            hp.addPermanentModifier(new AttributeModifier(BeyondSolo.id("gate_health"), theme.mobHealthBonus(), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
-            mob.setHealth(mob.getMaxHealth());
-        }
-        var dmg = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (dmg != null && theme.mobDamageBonus() > 0) {
-            dmg.addPermanentModifier(new AttributeModifier(BeyondSolo.id("gate_damage"), theme.mobDamageBonus(), AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
-        }
-        level.addFreshEntity(mob);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, mob.getX(), mob.getY() + 0.3, mob.getZ(), 12, 0.3, 0.1, 0.3, 0.02);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, mob.getX(), mob.getY() + 0.5, mob.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
-        return mob;
+        return com.beyondsolo.enemy.Enemies.spawn(level, g.rank(), type, p, com.beyondsolo.enemy.EnemyTraits.NONE, g.theme().ordinal());
     }
 
     private static void wakeBoss(ServerLevel dungeon, GateInstance g) {
@@ -439,7 +432,7 @@ public final class GateService {
         boss.wake();
         for (ServerPlayer p : playersIn(dungeon, g)) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_INTRO, g.theme().ordinal(), boss.getId(), 0,
-                    g.theme().bossName(), Component.translatable("gate.beyondsolo.boss_subtitle", g.rank().displayName())));
+                    g.bossName(), Component.translatable("gate.beyondsolo.boss_subtitle", g.rank().displayName())));
         }
     }
 
@@ -451,13 +444,17 @@ public final class GateService {
     static void bossEnraged(ServerLevel level, GateBossEntity boss) {
         GateInstance g = boss.gateId() == null ? null : GateData.get(level.getServer()).get(boss.gateId());
         if (g == null) return;
+        com.beyondsolo.enemy.EnemyRoster.Mix mix = g.mix();
         for (int i = 0; i < 2; i++) {
             float a = level.random.nextFloat() * Mth.TWO_PI;
-            BlockPos p = BlockPos.containing(boss.getX() + Mth.cos(a) * 4, boss.getY(), boss.getZ() + Mth.sin(a) * 4);
-            spawnMonster(level, g, g.theme().monsters.get(level.random.nextInt(g.theme().monsters.size())), p);
+            BlockPos p = BlockPos.containing(boss.getX() + Mth.cos(a) * (boss.getBbWidth() / 2 + 3), boss.getY(), boss.getZ() + Mth.sin(a) * (boss.getBbWidth() / 2 + 3));
+            for (int dy = 0; dy < 4 && !level.getBlockState(p).isAir(); dy++) p = p.above();
+            EntityType<?> type = mix.pick(level.random);
+            Mob add = com.beyondsolo.enemy.Enemies.spawn(level, g.rank(), type, p, com.beyondsolo.enemy.Enemies.roll(g.rank(), mix, type, level.random, false, true), g.theme().ordinal());
+            if (add != null && boss.getTarget() != null) add.setTarget(boss.getTarget());
         }
         for (ServerPlayer p : playersIn(level, g)) {
-            PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.ENRAGED, g.rank().ordinal(), boss.getId(), 0, g.theme().bossName(), Component.empty()));
+            PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.ENRAGED, g.rank().ordinal(), boss.getId(), 0, g.bossName(), Component.empty()));
         }
     }
 
@@ -494,7 +491,7 @@ public final class GateService {
         com.beyondsolo.awakening.AwakeningService.gateCleared(g, players);
         for (ServerPlayer p : players) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_DEFEATED, g.rank().ordinal(), boss.getId(), 0,
-                    g.theme().bossName(), Component.translatable("gate.beyondsolo.boss_defeated")));
+                    g.bossName(), Component.translatable("gate.beyondsolo.boss_defeated")));
             // the boss is the clear: whatever monsters were left behind no longer count against it
             QuestEngine.progress(p, MOB_KEY, Short.MAX_VALUE);
             QuestEngine.progress(p, BOSS_KEY, 1);
@@ -507,7 +504,7 @@ public final class GateService {
         com.beyondsolo.util.ServerScheduler.schedule(GateBossEntity.DEATH_TICKS - 6, () -> {
             BlockPos cachePos = ground(level, center.relative(facing, 3));
             level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
-            if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), level.getGameTime());
+            if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
             long xp = g.theme().clearXp();
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));
@@ -564,9 +561,9 @@ public final class GateService {
         extra.putString("gate", g.id().toString());
         Quest q = QuestBuilder.of(QUEST_TEMPLATE, QuestCategory.GATE, g.rank().tier(), SystemAPI.get(player).level())
                 .title(Component.translatable("quest.beyondsolo.gate_clear", g.rank().displayName()))
-                .description(Component.translatable("quest.beyondsolo.gate_clear.desc", theme.dungeonName(), theme.bossName()))
+                .description(Component.translatable("quest.beyondsolo.gate_clear.desc", theme.dungeonName(), g.bossName()))
                 .custom(MOB_KEY, mobs, Component.translatable("quest_objective.beyondsolo.gate_mobs"))
-                .custom(BOSS_KEY, 1, Component.translatable("quest_objective.beyondsolo.gate_boss", theme.bossName()))
+                .custom(BOSS_KEY, 1, Component.translatable("quest_objective.beyondsolo.gate_boss", g.bossName()))
                 .fixed().xp(150L * (1 + theme.rank.tier())).statPoints(theme.rank.tier() >= 3 ? 2 : 1)
                 .extra(extra)
                 .build();

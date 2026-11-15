@@ -25,7 +25,7 @@ public class GateBossRenderer extends GeoEntityRenderer<GateBossEntity> {
     private static final ResourceLocation BEAM = BeyondSolo.id("textures/effect/beam.png");
 
     public GateBossRenderer(EntityRendererProvider.Context context) {
-        super(context, new GateModels.Boss());
+        super(context, new com.beyondsolo.client.enemy.EnemyModels.Boss());
         addRenderLayer(new AutoGlowingGeoLayer<>(this));
         this.shadowRadius = 1.2f;
     }
@@ -42,14 +42,17 @@ public class GateBossRenderer extends GeoEntityRenderer<GateBossEntity> {
         float time = boss.tickCount + partialTick;
         int rgb = boss.isEnraged() ? 0xFF3040 : boss.rank().color();
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        // the circle and light grow with the boss: the brute's 1.7 wide hitbox is the reference
+        float size = Math.max(0.8f, boss.getBbWidth() / 1.7f);
+        this.shadowRadius = 1.2f * size;
 
         float intro = boss.introTicks() > 0 ? boss.introTicks() / (float) GateBossEntity.INTRO_TICKS : 0f;
         float flare = intro > 0 ? Mth.sin((1 - intro) * Mth.PI) : 0f;
         float dying = boss.deathTime > 0 ? Mth.clamp((boss.deathTime + partialTick) / GateBossEntity.DEATH_TICKS, 0f, 1f) : 0f;
         float circleAlpha = boss.isAwake() ? 0.55f + 0.35f * flare : 0.25f;
         circleAlpha *= 1 - dying;
-        GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.05f, 2.4f + 1.2f * flare, time * (boss.isEnraged() ? 3f : 1.2f), rgb, circleAlpha);
-        if (boss.isEnraged()) GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.06f, 1.5f, -time * 4f, 0xFF7060, 0.5f * (1 - dying));
+        GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.05f, (2.4f + 1.2f * flare) * size, time * (boss.isEnraged() ? 3f : 1.2f), rgb, circleAlpha);
+        if (boss.isEnraged()) GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.06f, 1.5f * size, -time * 4f, 0xFF7060, 0.5f * (1 - dying));
         if (flare > 0.01f) GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, 2.2f, 0, 2.5f + 2f * flare, rgb, 0.45f * flare);
 
         if (dying > 0) {
@@ -61,7 +64,7 @@ public class GateBossRenderer extends GeoEntityRenderer<GateBossEntity> {
                 float u = ((time * 0.04f + i * 0.0625f) % 1f);
                 float far = 1 - u * u;
                 float a = i * 2.4f + u * 2f;
-                GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, Mth.cos(a) * 3f * far, 0.3f + 3f * (i % 4) / 4f * far + 1.2f * u, Mth.sin(a) * 3f * far,
+                GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, Mth.cos(a) * 3f * size * far, 0.3f + 3f * (i % 4) / 4f * far + 1.2f * u, Mth.sin(a) * 3f * size * far,
                         0.08f, GateFx.mix(boss.rank().color(), 0xFFFFFF, 0.6f), gather * u);
             }
             if (pillar > 0) {
