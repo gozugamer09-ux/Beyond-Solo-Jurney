@@ -59,6 +59,8 @@ public final class Icons {
     public static final ResourceLocation TAG = icon("tag");
     public static final ResourceLocation ID_CARD = icon("id_card");
     public static final ResourceLocation DEPOSIT = icon("deposit");
+    public static final ResourceLocation KEY = icon("key");
+    public static final ResourceLocation CHAIN = icon("chain");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

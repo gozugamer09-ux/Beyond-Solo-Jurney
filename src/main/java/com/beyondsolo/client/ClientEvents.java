@@ -110,6 +110,8 @@ public final class ClientEvents {
             }
             while (ACCEPT_QUEST.consumeClick()) {
                 if (!ClientSystemData.get().hasSystem()) continue;
+                // in a cleared cave with a key of its rank, the same key turns it for the next run
+                if (com.beyondsolo.client.key.KeyClient.pressRerun()) continue;
                 if (!ClientQuests.acceptLatest()) {
                     mc.player.displayClientMessage(Component.translatable("message.beyondsolo.no_offer"), true);
                 }

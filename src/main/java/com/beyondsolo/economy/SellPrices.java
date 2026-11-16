@@ -98,6 +98,8 @@ public final class SellPrices {
         if (stack.getItem() instanceof ElixirItem || stack.getItem() instanceof com.beyondsolo.crafting.SystemPotionItem) return 15;
         long rune = com.beyondsolo.rune.Runes.sellPrice(stack);
         if (rune >= 0) return rune;
+        long key = com.beyondsolo.key.DungeonKeys.sellPrice(stack);
+        if (key >= 0) return key;
         Long v = fixed().get(stack.getItem());
         return v == null ? 0 : v;
     }

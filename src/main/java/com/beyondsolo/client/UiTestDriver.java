@@ -29,7 +29,7 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|gallery  open a System page (or the drawing test page)
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory
@@ -66,6 +66,9 @@ import java.util.Deque;
  *                                      ./gradlew processResources first to see changed models, animations or textures)
  * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
  * engravego                            press the engraving screen's CARVE button
+ * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
+ * gatesgo                              press the GATES page's TURN button
+ * rerun                                press the re-run prompt's key (the accept key)
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -177,6 +180,7 @@ public final class UiTestDriver {
                     case "shop" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.SHOP_TAB);
                     case "forge" -> SystemScreen.openOn(com.beyondsolo.client.gear.GearClientEvents.FORGE_TAB);
                     case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
+                    case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -206,6 +210,9 @@ public final class UiTestDriver {
             case "craftgo" -> com.beyondsolo.client.crafting.CraftTab.press();
             case "engrave" -> com.beyondsolo.client.rune.RuneEngraveScreen.select(arg);
             case "engravego" -> com.beyondsolo.client.rune.RuneEngraveScreen.pressCarve();
+            case "gates" -> com.beyondsolo.client.key.GatesTab.show(Integer.parseInt(arg));
+            case "gatesgo" -> com.beyondsolo.client.key.GatesTab.press();
+            case "rerun" -> com.beyondsolo.client.key.KeyClient.pressRerun();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }

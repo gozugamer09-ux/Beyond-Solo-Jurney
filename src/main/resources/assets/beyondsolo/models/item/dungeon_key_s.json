@@ -1,0 +1,30 @@
+{
+  "parent": "beyondsolo:item/key/key_held",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/key/key_s",
+    "layer1": "beyondsolo:item/key/key_s_light"
+  },
+  "neoforge_data": {
+    "layers": {
+      "1": {
+        "block_light": 15,
+        "sky_light": 15
+      }
+    }
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "beyondsolo:seal": 1
+      },
+      "model": "beyondsolo:item/key/key_s_sealed"
+    },
+    {
+      "predicate": {
+        "beyondsolo:seal": 2
+      },
+      "model": "beyondsolo:item/key/key_s_ascendant"
+    }
+  ]
+}

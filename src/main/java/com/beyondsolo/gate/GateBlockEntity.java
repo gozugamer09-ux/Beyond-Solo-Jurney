@@ -58,6 +58,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     private long closingAt = -1;
     /** The sealed gate of an awakening trial: pale gold, chained, and it won't let its player walk away. */
     private boolean sealed;
+    /** A gate opened with a dungeon key: a lock of light at its heart, and no beam (see key.DungeonKeys). */
+    private boolean keyed;
 
     public GateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.GATE.get(), pos, state);
@@ -73,9 +75,15 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     public long closingAt() { return closingAt; }
     public boolean isClosing() { return closingAt >= 0; }
     public boolean isSealed() { return sealed; }
+    public boolean isKeyed() { return keyed; }
 
     public void setSealed(boolean sealed) {
         this.sealed = sealed;
+        changed();
+    }
+
+    public void setKeyed(boolean keyed) {
+        this.keyed = keyed;
         changed();
     }
 
@@ -177,6 +185,11 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         double ox = Math.cos(a) * rad * 0.8, oy = Math.sin(a) * rad;
         double side = (r.nextDouble() - 0.5) * 2.5;
         double x = c.x + (alongX ? ox : side), y = c.y + oy, z = c.z + (alongX ? side : ox);
+        if (gate.keyed) {
+            // a keyed gate draws in runic letters, as a lock does its key (they fly to the given point)
+            level.addParticle(ParticleTypes.ENCHANT, c.x, c.y, c.z, x - c.x, y - c.y, z - c.z);
+            return;
+        }
         level.addParticle(gate.sealed ? ParticleTypes.END_ROD : gate.rank.tier() >= 4 ? ParticleTypes.SMALL_FLAME : ParticleTypes.REVERSE_PORTAL,
                 x, y, z, (c.x - x) * 0.05, (c.y - y) * 0.05, (c.z - z) * 0.05);
     }
@@ -192,6 +205,7 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         tag.putLong("openedAt", openedAt);
         tag.putLong("closingAt", closingAt);
         tag.putBoolean("sealed", sealed);
+        tag.putBoolean("keyed", keyed);
     }
 
     @Override
@@ -204,6 +218,7 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         openedAt = tag.contains("openedAt") ? tag.getLong("openedAt") : -1;
         closingAt = tag.contains("closingAt") ? tag.getLong("closingAt") : -1;
         sealed = tag.getBoolean("sealed");
+        keyed = tag.getBoolean("keyed");
     }
 
     @Override

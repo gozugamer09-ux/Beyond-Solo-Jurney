@@ -31,6 +31,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
 | `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
 | `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
+| `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -795,6 +796,64 @@ the two poses and all the text come from `tools/gen_rune_assets.py` (`--preview 
 - **Commands** (`/system rune ...`, level 2): give &lt;skill&gt;, sealed &lt;rank&gt;, engraving &lt;kind&gt;, kit, absorb,
   engrave &lt;skill&gt; &lt;kind&gt;, clear, bossloot &lt;boss&gt;. UI driver: `engrave <skill>`, `engravego`.
 
+## Dungeon keys and re-runs
+
+Code in `key/` (server) and `client/key/` (client). `KeyModule.init` registers the six keys (`dungeon_key_e` .. `_s`,
+`DungeonKeyItem`), the `beyondsolo:key_seal` data component (`KeySeal`: a boss's sigil, ascendant), the `KeyRunData`
+attachment (records, kept through death), the KEYS creative tab and the payloads (`KeyFxPayload`, `KeyRunPayload`,
+`KeySyncPayload`, `KeyActionPayload`). Lang lives in `assets/beyondsolo_keys/lang`. Textures, models, light textures,
+icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` (`--preview <dir>` writes contact sheets).
+
+- **Turning a key** (`DungeonKeys`): hold use for `USE_TICKS` (1.5 s), or press TURN on the GATES tab (no hold,
+  `turnFromInventory`; walking off or swapping the key away stops it). A lock of light forms where the gate will
+  open (`findSpot`: about three steps ahead on solid ground with room for a gate, not on another gate still
+  standing), cracks at each notch, and gives: `GateService.spawnKeyedGate` opens a gate of the key's rank there and
+  the key is used up. Keys of that rank then rest for `REST_TICKS` (an item cooldown), so a hold that goes on past
+  the turn doesn't start on the next key.
+  Refusals (`Refusal`, worked out on the client too for the ones it can know): no System, the key more than
+  `RANK_REACH` above the rank, the Wastes / a job trial / the gate depths outside a cave, a cave whose boss stands,
+  the last keyed gate still waiting unentered, no room, already turning.
+- **Keyed runs** (`KeyedRuns`, `GateInstance.Keyed`): the gate in the world is only a door to a fresh cave of its
+  rank. It seals `SEAL_TICKS` (10 s) after the first one goes through; one nobody enters gives up after
+  `UNUSED_TICKS` (2 min, counted while its holder is online) and the key comes back, seal and all. The way out at the
+  end leads back to where the key was turned. The run's clock starts at the first arrival and stops when the boss
+  falls (the clear goes to the players' screens right then, `KeyedRuns.cleared`); the time goes into each hunter's
+  records (`KeyRunData`: turned, cleared, best time per rank, longest chain).
+  Once everyone inside has fallen out, the run is over and the cave closes. A keyed run's gate quest pays its XP but
+  no stat points (keys can be bought and crafted).
+- **Re-runs and chains**: in a cleared cave a key opens the next gate right there, as the next run of a chain; each
+  run of a chain pays `CHAIN_BONUS` (+10%) more XP and gold, up to `CHAIN_MAX` (5) steps, and the whole chain still
+  goes home to where its first key was turned (`GateService.home`). When a cave is cleared and the player carries a
+  key of its rank, the re-run prompt shows over the hotbar once the cleared banner is done; the accept key (J) turns
+  that key (`rerunSlot`: the same seal first, then a plain one, then any of the rank).
+- **Seals**: a key can carry a boss's sigil (`KeySeal`), so its gate ends with that boss again; an ascendant seal
+  brings it ascended. Shown in the key's name, tooltip and looks (item property `beyondsolo:seal`: 0 plain, 1 sealed,
+  2 ascendant; the seal hangs from the bow as a medallion).
+- **Where keys come from** (`KeyDrops`, `KeyRecipes`, `ShopCatalog`): bosses leave a plain key of their rank (30%)
+  and a sigil key (8%, 40% ascended, half of those ascendant) into the reward cache; veteran, elite and champion gate
+  creatures rarely leave one. The CRAFT tab's KEYS page forges a key of each rank around a boss core (plus four cores,
+  mana stones and metal). The shop sells E to C keys a few a day and buys keys back (`DungeonKeys.SELL`, sealed x1.5,
+  ascendant x2). All numbers are first guesses for the balancing pass.
+- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock
+  after `GRACE_TICKS` (20 s) with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
+  in it (items, monsters tagged with `GATE_ID_TAG`) is removed, its slot goes back to `GateData.freeSlots` for the
+  next gate and its record is forgotten (an awakening trial's is kept). Monsters saved in unloaded chunks are turned
+  away when they load; a player who logs in inside a cave that is gone is sent home. Without this every run would
+  leave a cave behind.
+- **Looks**: six keys, one per rank (iron, bronze with patina, frost with icicles, blackened steel with amethyst,
+  gold with sun rays, crimson obsidian with thorns), with glowing parts drawn full-bright. While a key turns: the
+  key is held out and twisted in first person (`KeyClientEvents.HAND`), the body takes `key_turn` (`KeyAnimator`),
+  and `KeyWorldFx` draws the lock (tumbler ring, lock face, keyhole, cracks, a thread of light from the key, the
+  burst). Held still, a key sits small and upright in first person so the whole key shows (`models/item/key/key_held`,
+  whose transform `KeyClientEvents` undoes while turning). A keyed gate has a keyhole at its heart, a tumbler ring in
+  the swirl and no beam (`GateRenderer`). On
+  screen (`RunHud`): the run clock at the top (gold when cleared, with the best time or NEW BEST), the time and chain
+  bonus under the cleared banner, and the re-run prompt. The GATES tab (`GatesTab`): the key ring, the chosen key in
+  a lock with what its gate holds and TURN, and the records by rank. The System window's tab bar now shrinks its
+  labels when there are too many tabs to fit.
+- **Commands** (`/system key ...`, level 2): give &lt;rank&gt; [n], sealed &lt;rank&gt; &lt;boss&gt; [ascendant], kit, turn,
+  runs, reset, expire, seal, wipe. UI driver: `screen gates`, `gates <n>`, `gatesgo`, `rerun`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -837,4 +896,5 @@ checks use zombies.
 `test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
+`test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
