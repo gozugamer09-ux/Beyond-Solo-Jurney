@@ -2,13 +2,13 @@ package com.beyondsolo.client.rune;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.gfx.Anim;
+import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.rune.Engraving;
 import com.beyondsolo.rune.RuneModule;
 import com.beyondsolo.rune.Runes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -25,17 +26,12 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 /**
- * Client wiring for runes: the stone's looks (which stone, glyph and cracks: item properties read by the models from
- * {@code tools/gen_rune_assets.py}; the glyph and the cracks glow in the rune's colour), the raised stone in first
- * person, the world effects, the on-screen absorb and the body poses.
+ * Client wiring for runes: the stone's looks (which stone, glyph and cracks, put together by {@link RuneStoneModel};
+ * the glyph and the cracks glow in the rune's colour), the raised stone in first person, the world effects, the
+ * on-screen absorb and the body poses.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class RuneClientEvents {
-    /** The stone's look for its model: grade and glyph in one number ({@code (grade * glyphs + glyph + 0.5) / 100}). */
-    public static final net.minecraft.resources.ResourceLocation LOOK = BeyondSolo.id("rune_look");
-    /** How far a held stone has cracked (0..1 of the hold). */
-    public static final net.minecraft.resources.ResourceLocation CRACK = BeyondSolo.id("crack");
-
     /** First person: while absorbing, the stone is raised to the middle of the view, trembling and turning. */
     static final IClientItemExtensions HAND = new IClientItemExtensions() {
         @Override
@@ -56,22 +52,33 @@ public final class RuneClientEvents {
 
     @SubscribeEvent
     static void setup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            RuneClient.setup();
-            ItemProperties.register(RuneModule.RUNE_STONE.get(), LOOK, (stack, level, entity, seed) ->
-                    (Runes.gradeOf(stack).tier() * Runes.GLYPHS + Runes.glyphOf(stack) + 0.5f) / 100f);
-            ItemProperties.register(RuneModule.RUNE_STONE.get(), CRACK, (stack, level, entity, seed) ->
-                    entity != null && entity.isUsingItem() && entity.getUseItem() == stack
-                            ? Mth.clamp(entity.getTicksUsingItem() / (float) Runes.USE_TICKS, 0, 1) : 0);
-        });
+        event.enqueueWork(RuneClient::setup);
+    }
+
+    @SubscribeEvent
+    static void models(ModelEvent.RegisterAdditional event) {
+        RuneStoneModel.parts().forEach(event::register);
+    }
+
+    @SubscribeEvent
+    static void baked(ModelEvent.ModifyBakingResult event) {
+        RuneStoneModel.install(event.getModels());
     }
 
     @SubscribeEvent
     static void colors(RegisterColorHandlersEvent.Item event) {
-        // layer 1 is the glyph's glow, layer 3 the light in the cracks; the rest keeps its own colours
-        event.register((stack, tint) -> tint == 1 || tint == 3 ? 0xFF000000 | Runes.colorOf(stack) : 0xFFFFFFFF, RuneModule.RUNE_STONE.get());
+        // tint 1 is the glyph's halo, 2 its white-hot core, 3 the light in the cracks; the stone keeps its own colours
+        event.register((stack, tint) -> switch (tint) {
+            case 1, 3 -> 0xFF000000 | Runes.colorOf(stack);
+            case 2 -> Gfx.mix(0xFF000000 | Runes.colorOf(stack), 0xFFFFFFFF, 0.65f);
+            default -> 0xFFFFFFFF;
+        }, RuneModule.RUNE_STONE.get());
         for (Engraving e : Engraving.values()) {
-            event.register((stack, tint) -> tint == 1 ? 0xFF000000 | e.color : 0xFFFFFFFF, RuneModule.ENGRAVINGS.get(e).get());
+            event.register((stack, tint) -> switch (tint) {
+                case 1 -> 0xFF000000 | e.color;
+                case 2 -> Gfx.mix(0xFF000000 | e.color, 0xFFFFFFFF, 0.65f);
+                default -> 0xFFFFFFFF;
+            }, RuneModule.ENGRAVINGS.get(e).get());
         }
     }
 
