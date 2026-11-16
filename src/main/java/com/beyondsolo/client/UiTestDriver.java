@@ -62,6 +62,8 @@ import java.util.Deque;
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
+ * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
+ * engravego                            press the engraving screen's CARVE button
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
