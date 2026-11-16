@@ -102,6 +102,7 @@ public final class SkillWorldFx {
                 case SHIELD, CHAIN -> Math.max(0.3f, lasting);
                 case HAMMER, DISCUS -> Math.max(0.1f, lasting) + 0.05f;
                 case HALO, WINGS, BUBBLE, ORBIT -> Math.max(0.4f, lasting);
+                case MIST -> Math.max(1f, lasting);
                 case STREAM -> Math.max(0.3f, lasting) + 0.1f;
             };
         }
@@ -481,6 +482,13 @@ public final class SkillWorldFx {
                     if (e == null || (e == mc.player && firstPerson) || RANDOM.nextFloat() > 0.12f) break;
                     double reach = 1.3 * fx.p.size();
                     mc.level.addParticle(ParticleTypes.END_ROD, e.getX() + rnd(reach), e.getY() + e.getBbHeight() * (0.5 + RANDOM.nextDouble() * 0.6), e.getZ() + rnd(reach), 0, -0.02, 0);
+                }
+                case MIST -> {
+                    // dew: now and then a drop of it catches the light
+                    if (RANDOM.nextFloat() > 0.3f) break;
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    double d = Math.sqrt(RANDOM.nextDouble()) * fx.p.size();
+                    mc.level.addParticle(ParticleTypes.END_ROD, fx.p.x() + Math.cos(a) * d, fx.p.y() + 0.2 + RANDOM.nextDouble() * 0.9, fx.p.z() + Math.sin(a) * d, 0, 0.004, 0);
                 }
                 case BUBBLE -> {
                     if (e == null || RANDOM.nextFloat() > 0.1f) break;
@@ -1301,6 +1309,23 @@ public final class SkillWorldFx {
                         dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.28f, c, seen * 0.6f);
                         dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.13f, light, seen);
                     }
+                }
+                case MIST -> {
+                    // banks of fog that lie low, drift slowly round the middle and breathe; thickest at the centre
+                    float r = p.size();
+                    int pale = mix(c, 0xFFFFFF, 0.75f);
+                    for (int i = 0; i < 34; i++) {
+                        long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        float dist = (float) Math.sqrt(u) * r * 0.92f;
+                        float ang = v * Mth.TWO_PI + time * 0.004f * (i % 2 == 0 ? 1 : -1) * (0.5f + w);
+                        float half = (0.9f + 1.0f * w) * (0.88f + 0.12f * Mth.sin(time * 0.045f + i * 1.7f));
+                        float y = 0.3f + 0.5f * w + 0.07f * Mth.sin(time * 0.05f + i);
+                        float thick = 0.07f + 0.07f * (1 - dist / r);
+                        dot(pose, buffers, camera, Mth.cos(ang) * dist, y, Mth.sin(ang) * dist, half, i % 3 == 0 ? light : pale, hold * thick);
+                    }
+                    // where it ends, on the ground
+                    disc(pose, buffers, RING, 0.04f, r * (0.97f + 0.03f * Mth.sin(time * 0.06f)), time * 0.2f, pale, hold * 0.22f);
                 }
                 case VEIL -> {
                     disc(pose, buffers, SIGIL, 0.04f, 1.1f, -time * 2, c, hold * 0.5f);

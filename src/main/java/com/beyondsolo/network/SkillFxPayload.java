@@ -113,7 +113,9 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
          * Small lights circling the entity for {@code duration} ticks; size = how many. A new one of the same colour
          * replaces the old one, and size 0 only takes it away.
          */
-        ORBIT
+        ORBIT,
+        /** A low bank of fog lying around (x,y,z) for {@code duration} ticks; size = its radius. */
+        MIST
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));

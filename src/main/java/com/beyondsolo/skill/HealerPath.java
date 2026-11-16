@@ -660,12 +660,7 @@ public final class HealerPath {
         Vec3 center = p.position();
         sound(p, SoundEvents.FIRE_EXTINGUISH, 0.4f, 0.6f);
         sound(p, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.8f, 1.2f);
-        // the rim first, so the reach of the mist is seen at once
-        for (int i = 0; i < 16; i++) {
-            double ang = i * Math.PI / 8;
-            level.sendParticles(ParticleTypes.CLOUD, center.x + Math.cos(ang) * 5, center.y + 0.3, center.z + Math.sin(ang) * 5, 1, 0.1, 0.1, 0.1, 0.01);
-        }
-        repeat(p, 120, 5, () -> level.sendParticles(ParticleTypes.CLOUD, center.x, center.y + 0.5, center.z, 4, 2.4, 0.3, 2.4, 0.005));
+        fxAt(level, Kind.MIST, s.color(), center, 5, 120);
         repeat(p, 120, 10, () -> {
             long until = level.getGameTime() + 15;
             for (Player ally : near(level, center, 5)) gift(ally, GIFT_MIST, until, mistDodge(l));
@@ -700,8 +695,9 @@ public final class HealerPath {
         Vec3 center = ground(level, p.position().add(facing(p).scale(2)));
         sound(level, center, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1f, 0.6f);
         sound(level, center, SoundEvents.CONDUIT_ACTIVATE, 1f, 0.8f);
+        // a new jet before the last one has fallen, so the fountain never stops
+        repeat(p, 240, 10, () -> fxAt(level, Kind.GEYSER, s.color(), center, 5, 3));
         repeat(p, 240, 20, () -> {
-            fxAt(level, Kind.GEYSER, s.color(), center, 5, 3);
             for (Player ally : near(level, center, 10)) {
                 mend(p, ally, springHeal(l) + wit(p, 0.04f));
                 SubclassActions.cleanse(ally);
