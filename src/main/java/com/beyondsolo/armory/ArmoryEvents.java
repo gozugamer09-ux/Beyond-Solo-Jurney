@@ -42,6 +42,8 @@ import java.util.WeakHashMap;
 public final class ArmoryEvents {
     /** The class (ordinal + 1, 0 = none) each player's set bonuses were last worked out for. */
     private static final Map<Player, Integer> ATTUNED_TO = new WeakHashMap<>();
+    /** The set and game time of each player's last set pop-up: a whole set put on at once (a command) announces once. */
+    private static final Map<Player, String> ANNOUNCED = new WeakHashMap<>();
 
     @SubscribeEvent
     static void setup(FMLCommonSetupEvent event) {
@@ -93,6 +95,8 @@ public final class ArmoryEvents {
             }
             return;
         }
+        String stamp = set.name + "#" + worn + "@" + p.level().getGameTime();
+        if (stamp.equals(ANNOUNCED.put(p, stamp))) return;
         if (worn == 2) {
             p.displayClientMessage(Component.translatable("message.beyondsolo.set_two", name)
                     .withStyle(s -> s.withColor(0x9EE6FF)), true);
