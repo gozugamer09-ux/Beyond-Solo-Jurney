@@ -59,6 +59,7 @@ public final class JobClientEvents {
             ResourceLocation name = event.getName();
             if (name.equals(TRIAL_LAYER) || name.equals(REVEAL_LAYER)) return;
             if (name.getPath().equals("gate_moments")) return; // camera shake and the boss intro title
+            if (name.getPath().equals("penalty")) return; // the Penalty Zone's arrival card
             event.setCanceled(true);
         }
 
