@@ -27,7 +27,7 @@ import java.util.function.Supplier;
  * balancing pass tunes them.
  */
 public final class SystemRecipes {
-    public enum Category { POTIONS, FORGE, CORES, GEAR }
+    public enum Category { POTIONS, FORGE, CORES, GEAR, RUNES }
 
     /**
      * One ingredient line.
@@ -143,6 +143,8 @@ public final class SystemRecipes {
         gear(m, Arsenal.EMBER_SAGE_STAFF.get(), affinityCore(Affinity.FLAME, C, 1), item(CraftingModule.EMBER_CINDER.get(), 3));
         gear(m, Arsenal.LIFEBLOOM_STAFF.get(), item(CraftingModule.HOLLOW_ESSENCE.get(), 3), item(CraftingModule.BROOD_SILK.get(), 2));
         gear(m, Arsenal.SERPENTSTING_BOW.get(), affinityCore(Affinity.VENOM, C, 1), item(CraftingModule.BROOD_SILK.get(), 3));
+        // runes: sealing, fusing and the engraving runes
+        com.beyondsolo.rune.RuneRecipes.add(m);
         return Collections.unmodifiableMap(m);
     }
 

@@ -203,7 +203,7 @@ public final class SkillAPI {
             refuse(player, skill, SkillMomentPayload.COOLDOWN);
             return false;
         }
-        float cost = player.isCreative() ? 0 : skill.manaCost(level);
+        float cost = player.isCreative() ? 0 : com.beyondsolo.rune.Runes.manaCost(player, skill, level);
         if (sys.mana() < cost) {
             refuse(player, skill, SkillMomentPayload.NO_MANA);
             return false;
@@ -219,7 +219,8 @@ public final class SkillAPI {
             return false;
         }
         if (cost > 0) SystemAPI.consumeMana(player, cost);
-        data.startCooldown(skill.path(), now, player.isCreative() ? Math.min(20, skill.cooldown(level)) : skill.cooldown(level));
+        int cooldown = com.beyondsolo.rune.Runes.cooldown(player, skill, level);
+        data.startCooldown(skill.path(), now, player.isCreative() ? Math.min(20, cooldown) : cooldown);
         player.swing(InteractionHand.MAIN_HAND, true);
         if (skill.castCircle()) SkillFx.play(player, SkillFxPayload.Kind.CAST, skill.color(), 1.2f);
         if (!player.isCreative()) SystemAPI.addExhaustion(player, CAST_EXHAUSTION);

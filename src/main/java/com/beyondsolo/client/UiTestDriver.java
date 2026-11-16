@@ -193,6 +193,8 @@ public final class UiTestDriver {
                 com.beyondsolo.client.crafting.CraftTab.show(a[0], a.length > 1 ? Integer.parseInt(a[1]) : 1);
             }
             case "craftgo" -> com.beyondsolo.client.crafting.CraftTab.press();
+            case "engrave" -> com.beyondsolo.client.rune.RuneEngraveScreen.select(arg);
+            case "engravego" -> com.beyondsolo.client.rune.RuneEngraveScreen.pressCarve();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }

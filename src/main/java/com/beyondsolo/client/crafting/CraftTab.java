@@ -120,6 +120,7 @@ public class CraftTab implements SystemTab {
             case FORGE -> 0xFFFFB04A;
             case CORES -> 0xFF5FD0FF;
             case GEAR -> 0xFFB57CF7;
+            case RUNES -> 0xFF7FE8C8;
         };
     }
 

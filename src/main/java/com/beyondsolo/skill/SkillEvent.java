@@ -18,7 +18,7 @@ public abstract class SkillEvent extends Event {
     public Skill getSkill() { return skill; }
 
     /** Where a skill came from. */
-    public enum Source { LEVEL, BOOK, QUEST, JOB_CHANGE, COMMAND, OTHER }
+    public enum Source { LEVEL, BOOK, QUEST, JOB_CHANGE, COMMAND, OTHER, RUNE }
 
     /** The player learned a new skill. */
     public static final class Learned extends SkillEvent {

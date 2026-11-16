@@ -97,7 +97,7 @@ public final class SkillOverlay {
             NotificationManager.setHeld(false);
         }
         if (current == null && !LEARNED.isEmpty() && !EvaluationOverlay.active() && !QuestOverlay.active()
-                && !com.beyondsolo.client.gate.GateOverlay.active()) {
+                && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.rune.RuneClient.absorbing()) {
             current = LEARNED.pollFirst();
             startedAt = Anim.now();
             learnTime = LEARNED.isEmpty() ? 4.0f : 2.7f;
@@ -209,7 +209,8 @@ public final class SkillOverlay {
             float oldD = Gfx.fade(d);
             float dy = ny + 22 + (1 - d) * 5;
             String kind = Component.translatable(s.isActive() ? "skills.beyondsolo.active" : "skills.beyondsolo.passive").getString();
-            String owner = s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
+            String owner = s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
+                    : s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
             String lv = Component.translatable("skills.beyondsolo.level", m.level).getString();
             String grade = Component.translatable("skills.beyondsolo.grade", s.grade().name()).getString();
             float cw = 0;
