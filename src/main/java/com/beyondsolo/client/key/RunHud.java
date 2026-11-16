@@ -34,9 +34,8 @@ public final class RunHud {
         int w = g.guiWidth(), h = g.guiHeight();
         clockIn = Anim.approach(clockIn, KeyClient.inRun() ? 1f : 0f, 4f);
         if (clockIn > 0.01f) clock(g, w, delta.getGameTimeDeltaPartialTick(false));
-        // the prompt waits for the cleared banner to finish
-        float wait = KeyClient.justCleared() ? 5.4f - KeyClient.sinceCleared() : 0.2f - KeyClient.sinceRerun();
-        boolean prompt = KeyClient.rerunShowing() && wait <= 0 && !GateOverlay.active();
+        // the prompt comes with the cleared banner and waits for it to finish
+        boolean prompt = KeyClient.rerunShowing() && KeyClient.sinceRerun() > 0.6f && !GateOverlay.active();
         promptIn = Anim.approach(promptIn, prompt ? 1f : 0f, prompt ? 3f : 6f);
         if (promptIn > 0.01f) prompt(g, w, h);
     }

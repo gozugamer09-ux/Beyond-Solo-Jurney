@@ -72,9 +72,9 @@ public final class KeyClientEvents {
             return true;
         }
     };
-    /** The first-person transform of {@code neoforge:item/default}, which the key's layers inherit. */
-    private static final float ITEM_TURN = 90, ITEM_TILT = 25, ITEM_SCALE = 0.68f;
-    private static final float[] ITEM_OFFSET = {1.13f / 16, 3.2f / 16, 1.13f / 16};
+    /** The keys' first-person transform ({@code models/item/key/key_held.json}, from tools/gen_key_assets.py). */
+    private static final float ITEM_TURN = 90, ITEM_TILT = 35, ITEM_SCALE = 0.4f;
+    private static final float[] ITEM_OFFSET = {1.28f / 16, 5.38f / 16, 0.77f / 16};
 
     /** How far the key has turned (0..1) at this point of the hold: two notches, then the last twist. */
     static float turned(float p) {

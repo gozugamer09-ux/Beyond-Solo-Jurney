@@ -1,5 +1,5 @@
 {
-  "parent": "neoforge:item/default",
+  "parent": "beyondsolo:item/key/key_held",
   "loader": "neoforge:item_layers",
   "textures": {
     "layer0": "beyondsolo:item/key/key_e",

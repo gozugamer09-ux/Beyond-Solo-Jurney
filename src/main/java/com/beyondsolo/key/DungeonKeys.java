@@ -234,13 +234,19 @@ public final class DungeonKeys {
 
     private static boolean good(ServerLevel level, BlockPos pos) {
         if (!level.isInWorldBounds(pos) || !GateFeature.goodSpot(level, pos)) return false;
-        // not on top of another gate (an exit gate in a cleared cave, a gate already standing here)
+        // not on top of another gate still standing (an exit gate in a cleared cave, a gate already here); one that has
+        // closed and gone doesn't count, though its record lingers until its cave is wiped
         for (GateInstance g : GateData.get(level.getServer()).all()) {
             if (g.slotFreed()) continue;
-            if (g.gateDimension().equals(level.dimension()) && g.gatePos().distSqr(pos) < 36) return false;
-            if (g.exitPos() != null && GateService.isDungeon(level) && g.exitPos().distSqr(pos) < 36) return false;
+            if (g.gateDimension().equals(level.dimension()) && g.gatePos().distSqr(pos) < 36 && standing(level, g.gatePos(), g)) return false;
+            if (g.exitPos() != null && GateService.isDungeon(level) && g.exitPos().distSqr(pos) < 36 && standing(level, g.exitPos(), g)) return false;
         }
         return true;
+    }
+
+    /** A gate of this record stands at the spot (open or still closing). */
+    private static boolean standing(ServerLevel level, BlockPos at, GateInstance g) {
+        return !level.isLoaded(at) || level.getBlockEntity(at) instanceof GateBlockEntity door && g.id().equals(door.gateId());
     }
 
     // ================================================================ turning

@@ -62,15 +62,21 @@ public final class KeyedRuns {
                 g.theme().dungeonName()));
     }
 
-    /** The boss of a keyed run fell: stop the clock, and into the records of everyone there. */
+    /**
+     * The boss of a keyed run fell: the clock stops (on everyone's screen too, with the best time for the rank or NEW
+     * BEST), and the time goes into the records of everyone there.
+     */
     public static void cleared(ServerLevel level, GateInstance g, List<ServerPlayer> players) {
         GateInstance.Keyed k = g.keyed();
         long now = level.getServer().overworld().getGameTime();
         k.clearTicks = k.clockStarted() ? Math.max(0, now - k.runStartedAt) : 0;
         GateData.get(level.getServer()).setDirty();
         for (ServerPlayer p : players) {
-            DungeonKeys.data(p).clear(g.rank(), k.clearTicks, k.chain);
+            KeyRunData d = DungeonKeys.data(p);
+            boolean newBest = d.clear(g.rank(), k.clearTicks, k.chain);
             DungeonKeys.sync(p);
+            PacketDistributor.sendToPlayer(p, new KeyRunPayload(KeyRunPayload.CLEARED, g.rank().ordinal(), k.chain, k.runStartedAt,
+                    k.clearTicks, d.best[g.rank().tier()], newBest ? KeyRunPayload.NEW_BEST : 0, g.theme().dungeonName()));
         }
     }
 
@@ -80,18 +86,10 @@ public final class KeyedRuns {
     }
 
     /**
-     * Once the cleared banner is up: the run's time under it (a keyed run), and if the player carries a key of the
-     * cave's rank, the prompt to turn it for the next run right here.
+     * Once the cleared banner is up: if the player carries a key of the cave's rank, the prompt to turn it for the next
+     * run right here (it shows when the banner is done).
      */
     public static void afterClear(ServerPlayer p, GateInstance g) {
-        if (g.isKeyed()) {
-            GateInstance.Keyed k = g.keyed();
-            KeyRunData d = DungeonKeys.data(p);
-            long best = d.best[g.rank().tier()];
-            boolean newBest = d.lastRank == g.rank().tier() && d.lastTicks == k.clearTicks && d.lastBest;
-            PacketDistributor.sendToPlayer(p, new KeyRunPayload(KeyRunPayload.CLEARED, g.rank().ordinal(), k.chain, k.runStartedAt,
-                    k.clearTicks, best, newBest ? KeyRunPayload.NEW_BEST : 0, g.theme().dungeonName()));
-        }
         offerRerun(p, g);
     }
 

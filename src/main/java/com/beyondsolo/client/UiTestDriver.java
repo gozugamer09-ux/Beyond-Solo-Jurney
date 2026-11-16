@@ -67,6 +67,7 @@ import java.util.Deque;
  * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
  * gatesgo                              press the GATES page's TURN button
  * rerun                                press the re-run prompt's key (the accept key)
+ * reload                               reload resource packs (like F3+T), after editing build/resources/main
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -204,6 +205,7 @@ public final class UiTestDriver {
             case "gates" -> com.beyondsolo.client.key.GatesTab.show(Integer.parseInt(arg));
             case "gatesgo" -> com.beyondsolo.client.key.GatesTab.press();
             case "rerun" -> com.beyondsolo.client.key.KeyClient.pressRerun();
+            case "reload" -> mc.reloadResourcePacks();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }

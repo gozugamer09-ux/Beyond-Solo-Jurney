@@ -268,7 +268,13 @@ def seal_light(ascendant):
 
 # ================================================================================================ models
 
-def item_layers(textures, emissive=(), parent="neoforge:item/default", overrides=None):
+# How a key sits in the hand in first person (client.key.KeyClientEvents undoes it while a key turns: keep them equal).
+# Smaller and more upright than an ordinary item, so the whole key shows, bow in hand and bit up.
+HELD_FIRST_PERSON = {"rotation": [0, -90, 35], "translation": [1.28, 5.38, 0.77], "scale": [0.4, 0.4, 0.4]}
+HELD = "beyondsolo:item/key/key_held"
+
+
+def item_layers(textures, emissive=(), parent=HELD, overrides=None):
     model = {"parent": parent, "loader": "neoforge:item_layers",
              "textures": {f"layer{i}": t for i, t in enumerate(textures)}}
     if emissive:
@@ -286,6 +292,8 @@ def write_json(path, data, indent=2):
 
 
 def write_models():
+    write_json(f"{MODELS}/key/key_held.json", {"parent": "neoforge:item/default",
+                                                "display": {"firstperson_righthand": HELD_FIRST_PERSON}})
     for t, r in enumerate(RANKS):
         r = r.lower()
         key = f"beyondsolo:item/key/key_{r}"
@@ -538,7 +546,7 @@ TEXT = {
     "item.beyondsolo.dungeon_key_s": "S-Rank Dungeon Key",
     "craft.beyondsolo.cat.keys": "KEYS",
 
-    "key.beyondsolo.tip.rank": "Opens a %s-Rank gate",
+    "key.beyondsolo.tip.rank": "Opens a gate of rank %s",
     "key.beyondsolo.tip.sigil": "Sealed: its gate ends with %s",
     "key.beyondsolo.tip.sigil_ascendant": "Ascendant seal: %s waits at its end, ascended",
     "key.beyondsolo.tip.ascendant": "Ascendant: its boss comes ascended",
@@ -546,7 +554,7 @@ TEXT = {
     "key.beyondsolo.tip.use": "Hold use to turn it. A gate nobody enters gives the key back.",
 
     "key.beyondsolo.refuse.asleep": "The key won't turn. Only an awakened hunter can open a gate.",
-    "key.beyondsolo.refuse.rank": "A %s-Rank key is too heavy for you yet: rank %s needed.",
+    "key.beyondsolo.refuse.rank": "This %s-Rank key is too heavy for you yet: rank %s needed.",
     "key.beyondsolo.refuse.place": "The System won't open a gate here.",
     "key.beyondsolo.refuse.uncleared": "This gate's boss still stands. Clear it first.",
     "key.beyondsolo.refuse.waiting": "Your last gate is still open, waiting for you.",
@@ -574,7 +582,7 @@ TEXT = {
     "key.beyondsolo.tab.ring": "KEY RING",
     "key.beyondsolo.tab.empty": "No keys yet.",
     "key.beyondsolo.tab.empty_hint": "Bosses and elite creatures drop them, the shop sells E to C keys, and the CRAFT tab forges one around a boss core.",
-    "key.beyondsolo.tab.opens": "Opens a %s-Rank gate",
+    "key.beyondsolo.tab.opens": "Opens a gate of rank %s",
     "key.beyondsolo.tab.boss": "Ends with %s",
     "key.beyondsolo.tab.boss_ascended": "Ends with %s, ascended",
     "key.beyondsolo.tab.boss_random": "Its boss is the gate's own",
@@ -588,7 +596,7 @@ TEXT = {
     "key.beyondsolo.tab.cleared": "%s cleared",
     "key.beyondsolo.tab.best": "Best %s",
     "key.beyondsolo.tab.no_best": "No clear yet",
-    "key.beyondsolo.tab.totals": "%s keys turned  ·  %s runs cleared  ·  longest chain x%s",
+    "key.beyondsolo.tab.totals": "Keys turned %s  ·  Clears %s  ·  Longest chain x%s",
     "key.beyondsolo.tab.last": "Last run: %s-Rank in %s",
     "key.beyondsolo.tab.in_run": "RUN UNDER WAY",
 }

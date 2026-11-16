@@ -23,6 +23,9 @@ import java.util.List;
  * forms a few steps ahead, cracks, gives, and a gate of the key's rank opens there. Let go early and nothing is lost.
  */
 public class DungeonKeyItem extends Item {
+    /** After a turn, keys of the rank rest a moment, so a hold that goes on past the turn doesn't start the next one. */
+    public static final int REST_TICKS = 20;
+
     private final PlayerRank rank;
 
     public DungeonKeyItem(PlayerRank rank, Properties properties) {
@@ -91,6 +94,7 @@ public class DungeonKeyItem extends Item {
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
+        if (entity instanceof Player player) player.getCooldowns().addCooldown(this, REST_TICKS);
         if (!level.isClientSide && entity instanceof ServerPlayer p && DungeonKeys.finish(p, stack)) stack.consume(1, p);
         return stack;
     }

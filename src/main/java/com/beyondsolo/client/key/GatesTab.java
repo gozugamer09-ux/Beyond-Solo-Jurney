@@ -256,7 +256,7 @@ public class GatesTab implements SystemTab {
         if (gr != null) {
             float bw = 74, bh = 16;
             float bx = x + w - 8 - bw, by = y + h - 8 - bh;
-            DungeonKeys.Refusal why = DungeonKeys.refusal(ClientSystemData.get(), gr.stack);
+            DungeonKeys.Refusal why = KeyClient.refusal(gr.stack);
             if (why != null) {
                 Component reason = Component.translatable(why.key(), gr.rank().displayName(),
                         PlayerRank.values()[Math.max(0, gr.rank().tier() - DungeonKeys.RANK_REACH)].displayName());
@@ -337,7 +337,7 @@ public class GatesTab implements SystemTab {
     }
 
     private static void turn(Group gr) {
-        if (DungeonKeys.refusal(ClientSystemData.get(), gr.stack) != null || KeyClient.menuTurning()) return;
+        if (KeyClient.refusal(gr.stack) != null || KeyClient.menuTurning()) return;
         KeyClient.turn(gr.slot);
         SystemScreen.playClick();
         // close the window: the lock forms a few steps ahead

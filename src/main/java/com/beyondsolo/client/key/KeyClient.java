@@ -54,9 +54,16 @@ public final class KeyClient {
     /** Ticks outside the gate depths, to drop a run whose end was missed. */
     private static int awayTicks;
 
-    /** Hooks the shared key rules up to what the client knows. Called once at client setup. */
+    /**
+     * Hooks the shared key rules up to what the client knows (rank, awakening, and a keyed run whose boss still
+     * stands). Called once at client setup. The server has the last word.
+     */
     static void setup() {
-        DungeonKeys.clientCheck = (player, stack) -> DungeonKeys.refusal(ClientSystemData.get(), stack);
+        DungeonKeys.clientCheck = (player, stack) -> {
+            DungeonKeys.Refusal r = DungeonKeys.refusal(ClientSystemData.get(), stack);
+            if (r == null && inRun && !cleared && player.level().dimension().equals(GateService.DIMENSION)) r = DungeonKeys.Refusal.UNCLEARED;
+            return r;
+        };
     }
 
     // ================================================================ from the server
@@ -238,7 +245,7 @@ public final class KeyClient {
         return Anim.since(clearedAt);
     }
 
-    /** True for a few seconds after a keyed run was cleared (the banner shows its time). */
+    /** True for a few seconds after a keyed run's boss fell (the cleared banner that follows shows its time). */
     public static boolean justCleared() {
         return cleared && Anim.since(clearedAt) < 12f;
     }
@@ -275,6 +282,12 @@ public final class KeyClient {
     /** True while the local player is turning a key from the menu or the prompt. */
     public static boolean menuTurning() {
         return Anim.since(menuTurnAt) < DungeonKeys.USE_TICKS / 20f + 0.4f;
+    }
+
+    /** Why the local player can't turn this key right now, as far as the client can tell (null: it should turn). */
+    static @org.jetbrains.annotations.Nullable DungeonKeys.Refusal refusal(ItemStack stack) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player == null ? DungeonKeys.Refusal.ASLEEP : DungeonKeys.clientCheck.apply(mc.player, stack);
     }
 
     /** The inventory slot of a key of this rank, or -1. */

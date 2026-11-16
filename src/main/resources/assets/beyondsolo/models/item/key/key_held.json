@@ -1,0 +1,22 @@
+{
+  "parent": "neoforge:item/default",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        -90,
+        35
+      ],
+      "translation": [
+        1.28,
+        5.38,
+        0.77
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    }
+  }
+}

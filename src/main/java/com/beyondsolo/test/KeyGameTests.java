@@ -277,6 +277,24 @@ public final class KeyGameTests {
     }
 
     @GameTest(template = ARENA)
+    public static void aGateThatIsGoneMakesRoomForTheNext(GameTestHelper helper) {
+        ServerPlayer p = hunter(helper, PlayerRank.E);
+        clearArena(helper);
+        MinecraftServer server = helper.getLevel().getServer();
+        GateBlockEntity door = DungeonKeys.open(p, DungeonKeys.key(PlayerRank.E), ahead(helper));
+        GateInstance g = GateData.get(server).get(door.gateId());
+        helper.assertTrue(DungeonKeys.findSpot(p) == null, "no second gate on top of one that stands");
+        KeyedRuns.giveUp(server, g, p);
+        helper.assertTrue(DungeonKeys.findSpot(p) == null, "nor while it closes");
+        // its closing is over: the door is gone, though its record lingers until the wiper is done with it
+        helper.getLevel().removeBlock(g.gatePos(), false);
+        helper.assertTrue(!g.slotFreed() && GateData.get(server).get(g.id()) == g, "the record lingers");
+        DungeonKeys.Spot spot = DungeonKeys.findSpot(p);
+        helper.assertTrue(spot != null && spot.pos().equals(g.gatePos()), "but the spot is free again: " + (spot == null ? null : spot.pos()));
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
     public static void recordsKeepTheBestTimes(GameTestHelper helper) {
         KeyRunData d = new KeyRunData();
         helper.assertTrue(d.clear(PlayerRank.D, 2400, 1), "the first clear is a best");
