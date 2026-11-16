@@ -183,6 +183,17 @@ SKILLS.update({
     "bone_armor": "shield", "spirit_swarm": "ghost", "curse_of_frailty": "heart-break", "deaths_embrace": "skull", "requiem": "music-notes",
     "star_bolt": "star", "comet": "shooting-star", "stellar_mind": "brain", "event_horizon": "circle-half-tilt", "constellation": "graph",
     "cosmic_flow": "infinity", "supernova": "star-four", "astral_aegis": "shield-star", "zenith": "sun", "genesis_ray": "sparkle",
+    # guardian subclass sets
+    "hammer_of_dawn": "hammer", "consecrate": "hands-praying", "zeal": "heartbeat", "shield_of_faith": "shield-plus", "radiant_charge": "sun-horizon",
+    "aura_of_resolve": "users-three", "lay_on_hands": "hand-palm", "divine_verdict": "gavel", "martyr": "cross", "dawnbreaker": "sun",
+    "shield_slam": "shield-chevron", "rampart": "wall", "heavy_plating": "shield-checkered", "iron_tether": "link", "brace": "shield-warning",
+    "garrison": "castle-turret", "tremor_march": "footprints", "shield_toss": "arrows-split", "spiked_bulwark": "asterisk", "citadel": "vault",
+    "rune_strike": "pentagram", "null_field": "circle-dashed", "mana_weave": "graph", "mirror_ward": "arrows-left-right", "warding_bolt": "lightning",
+    "runic_armor": "seal", "binding_glyph": "keyhole", "purge": "eraser", "spell_eater": "shield-slash", "arcanum": "hexagon",
+    "searing_brand": "fire-simple", "vengeful_leap": "arrow-bend-right-up", "grudge": "eye", "cinder_chain": "link-break", "wrath": "flame",
+    "ashen_hide": "campfire", "eye_for_an_eye": "scales", "funeral_pyre": "fire", "blood_debt": "drop", "day_of_reckoning": "meteor",
+    "stone_fist": "boxing-glove", "bedrock_skin": "cube", "titanic_frame": "barbell", "landslide": "mountains", "monolith": "columns",
+    "deep_roots": "tree", "grasp_of_the_earth": "hand-grabbing", "stonewake": "arrows-out", "mountain_heart": "heart", "pillars_of_creation": "triangle",
 })
 
 

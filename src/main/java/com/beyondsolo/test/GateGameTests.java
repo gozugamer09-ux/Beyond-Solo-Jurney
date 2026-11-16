@@ -32,7 +32,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
@@ -219,9 +218,10 @@ public final class GateGameTests {
         GateInstance g = instance(helper, PlayerRank.A);
         Mob mob = GateService.spawnMonster(helper.getLevel(), g, EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
         helper.assertTrue(mob != null && mob.getPersistentData().contains(GateService.MOB_TAG), "tagged as a gate monster");
-        // creatures come in random sizes, and their health with them: judge the rank's share alone
-        mob.getAttribute(Attributes.MAX_HEALTH).removeModifier(BeyondSolo.id("size_health"));
-        helper.assertTrue(mob.getMaxHealth() > 20 * (1 + GateTheme.A.mobHealthBonus()) - 0.5, "tougher by rank: " + mob.getMaxHealth());
+        // the size roll moves health too (a small one has less), so the rank's health is measured at the size it rolled
+        float size = com.beyondsolo.enemy.Enemies.sizeOf(mob);
+        helper.assertTrue(mob.getMaxHealth() > 20 * (1 + GateTheme.A.mobHealthBonus()) * (1 + (size - 1) * 0.8f) - 0.5,
+                "tougher by rank: " + mob.getMaxHealth() + " at size " + size);
         Zombie target = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1));
         mob.doHurtTarget(target);
         helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "an A-rank gate's monsters burn");
