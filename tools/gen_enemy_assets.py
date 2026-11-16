@@ -14,7 +14,7 @@ Gate monsters (idle, walk, attack, death; one texture per element affinity, plai
 - gloomfang (cave hound), broodling (small spider), shardback (crystal-backed beetle), hollow_acolyte (robed
   caster), ashen_sentinel (shield knight), emberwisp (floating burning skull)
 
-Run from the repo root:  python3 tools/gen_enemy_assets.py
+Run from the repo root:  python3 tools/gen_enemy_assets.py            (or only some: ... gen_enemy_assets.py alpha wyrm)
 Needs: pillow, numpy.
 
 Conventions (as the other generators): 16 pixels are one block and the front of a model is -z. A positive x
@@ -32,6 +32,7 @@ from gen_gate_assets import (ANIM, GEO, PALETTES, RANKS, T, TEX, atlas, cube, ea
                              geometry, keyframes, noise, tile_crystal, tile_eye, window, write_json)
 
 import paint_skins  # noqa: E402
+import solid_skins  # noqa: E402
 
 # tiles (every model's atlas has the same eight)
 HIDE, DARK, PLATE, TRIM, GLOW, EYE, BONE, CLOTH = range(8)
@@ -41,6 +42,9 @@ PAINTED = True
 
 # models drawn bigger than they are built
 MODEL_SCALE = {"boss_wyrm": 1.3}
+
+# models built at a scale of their design (the hounds): model units per design unit, for the painters in solid_skins
+UNITS = {}
 
 AFFINITIES = {
     "plain": (205, 210, 225),
@@ -183,9 +187,17 @@ class Model:
         self.uvs = uvs
         self.bones = []
 
-    def c(self, origin, size, tile, **kw):
+    def c(self, origin, size, tile, tag=None, skip=None, part=None, **kw):
+        """A cube. tag, part: what it is, for the painters in solid_skins; skip: faces that are never seen (not
+        drawn and given no room on the texture)."""
         made = cube(origin, size, tile, self.uvs, **kw)
         made["_mat"] = tile
+        if tag is not None:
+            made["_tag"] = tag
+        if skip:
+            made["_skip"] = tuple(skip)
+        if part is not None:
+            made["_part"] = part
         # a hair inside the tile, so neighbouring tiles never bleed in along the edges
         for face in made["uv"].values():
             face["uv"] = [face["uv"][0] + 0.25, face["uv"][1] + 0.25]
@@ -260,14 +272,18 @@ def write_geo(name, model):
         d["visible_bounds_width"] *= k
         d["visible_bounds_height"] *= k
     d = geo["description"]
-    if isinstance(d["texture_width"], paint_skins.Deferred):
+    if isinstance(d["texture_width"], paint_skins.Deferred) and name in solid_skins.PAINTERS:
+        w, h, density = solid_skins.paint(name, geo["bones"], d["texture_width"], os.path.join(TEX, "entity"), UNITS.get(name, 1.0) * k)
+        d["texture_width"], d["texture_height"] = w, h
+        print(f"  {name}: {w}x{h} atlas, {density} texels per unit (painted on the model)")
+    elif isinstance(d["texture_width"], paint_skins.Deferred):
         size, density = paint_skins.paint(name, geo["bones"], d["texture_width"], os.path.join(TEX, "entity"))
         d["texture_width"] = d["texture_height"] = size
         print(f"  {name}: {size}px atlas, {density} texels per unit")
-    else:
-        for b in geo["bones"]:
-            for c in b.get("cubes", []):
-                c.pop("_mat", None)
+    for b in geo["bones"]:
+        for c in b.get("cubes", []):
+            for key in ("_mat", "_tag", "_skip", "_part"):
+                c.pop(key, None)
     write_json(os.path.join(GEO, "entity", f"{name}.geo.json"), model)
 
 
@@ -790,76 +806,189 @@ def magus():
 
 # --------------------------------------------------------------------------------------------- wyrm
 
+# the wyrm's wing in its two poses, for the left wing (the right mirrors y and z): (arm, finger) rotations, and how
+# far each membrane is gathered along the body when folded
+WING_FOLD = ((0, -54, -100), (0, -56, 0))
+WING_OPEN = ((0, 6, -24), (0, -20, 6))
+WING_GATHER = (0.3, 0.5)
+
+
 def wyrm():
+    """A four-legged drake: a neck held in an S, haunches, a row of spines, a bladed tail and wings that lie folded
+    along the back until it rears or beats them. Built in design units (drawn 1.3 times bigger, MODEL_SCALE) and
+    painted on the model by solid_skins.paint_wyrm, which goes by the tags and coordinates used here. The bones'
+    rest rotations are the standing pose (the game adds an animation's rotation to them), so the animations below
+    are all movements away from that pose."""
     name = "boss_wyrm"
     uvs, size = save_textures(name, [(r, r) for r in RANKS], lambda rng, r: tiles_for(
         rng, rank_tint((150, 64, 40), r, 0.3), rank_tint((170, 120, 80), r, 0.2), (210, 170, 110), rank_glow(r),
         bone=(222, 210, 186), cloth=rank_tint((112, 48, 40), r, 0.3), spots=True), 600)
     m = Model(uvs)
     c = m.c
-    m.bone("root", None, [0, 0, 0])
-    m.bone("body", "root", [0, 22, 0], [
-        c([-10, 14, -14], [20, 15, 30], HIDE),
-        c([-8.5, 12.5, -12], [17, 3, 26], PLATE),
-        c([-2, 28, -12], [4, 3, 26], BONE),
-        c([-9, 27, -12], [18, 2, 24], DARK),
-    ])
-    for i, z in enumerate((-10, -4, 2, 8)):
-        m.bones[-1]["cubes"].append(c([-1, 29, z], [2, 4 - (i % 2), 3], BONE, pivot=[0, 30, z + 1], rotation=[-25, 0, 0]))
-    m.bone("neck", "body", [0, 24, -14], [
-        c([-5, 19, -26], [10, 10, 13], HIDE),
-        c([-4, 18, -25], [8, 2, 11], PLATE),
-        c([-1, 28, -25], [2, 3, 10], BONE),
-    ], rotation=[-18, 0, 0])
-    m.bone("head", "neck", [0, 24, -26], [
-        c([-6, 20, -38], [12, 8, 13], HIDE),
-        c([-5, 22, -44], [10, 5, 7], HIDE),
-        c([-5.5, 26.5, -38], [11, 2, 12], DARK),
-        c([-5.2, 25, -36.5], [2.5, 1.6, 0.6], EYE), c([2.7, 25, -36.5], [2.5, 1.6, 0.6], EYE),
-        c([-6.5, 26, -30], [3, 3, 10], BONE, pivot=[-5, 27, -27], rotation=[-30, -15, 0]),
-        c([3.5, 26, -30], [3, 3, 10], BONE, pivot=[5, 27, -27], rotation=[-30, 15, 0]),
-        c([-5, 21.5, -44.6], [10, 0.8, 0.6], GLOW),
-    ], rotation=[12, 0, 0])
-    m.bone("jaw", "head", [0, 21, -30], [
-        c([-5, 17.5, -43], [10, 3, 13], DARK),
-        c([-4.5, 20.4, -42.5], [9, 1, 11], BONE),
-        c([-3.5, 18, -42.6], [7, 2, 0.6], GLOW),
-    ])
-    m.bone("tail", "body", [0, 23, 16], [c([-6, 18, 16], [12, 10, 14], HIDE), c([-1, 27.5, 17], [2, 2.5, 12], BONE)])
-    m.bone("tail2", "tail", [0, 23, 30], [c([-4.5, 19.5, 30], [9, 7, 14], HIDE), c([-0.8, 26, 31], [1.6, 2, 12], BONE)])
-    m.bone("tail3", "tail2", [0, 23, 44], [c([-3, 21, 44], [6, 5, 14], HIDE), c([-4.5, 21.5, 55], [9, 3, 5], GLOW)])
-    for side, sx in (("right", -1), ("left", 1)):
-        for leg, z in (("front", -8), ("hind", 10)):
-            hx = sx * 9
-            m.bone(f"{side}_{leg}", "body", [hx, 20, z], [
-                c([hx - 3.5 + sx * 1.5, 9, z - 4], [7, 13, 8], HIDE),
-                c([hx - 3.8 + sx * 1.5, 16, z - 4.3], [7.6, 3, 8.6], PLATE),
-            ])
-            m.bone(f"{side}_{leg}_low", f"{side}_{leg}", [hx + sx * 1.5, 10, z], [
-                c([hx - 2.5 + sx * 1.5, 1, z - 2.5], [5, 10, 5], DARK),
-                c([hx - 3 + sx * 1.5, 0, z - 6], [6, 2.5, 8], BONE),
-            ])
-        wx = sx * 9
-        m.bone(f"{side}_wing", "body", [wx, 28, -6], [
-            c([wx if sx > 0 else wx - 21, 27, -7.5], [21, 3, 3], BONE),
-        ])
-        # the membrane hangs from the wing arm; folded, the whole wing lies along the flank
-        m.bone(f"{side}_wing_tip", f"{side}_wing", [sx * 30, 28, -6], [
-            c([sx * 30 if sx > 0 else -52, 27.5, -7], [22, 2, 2], BONE),
-        ])
-        m.bone(f"{side}_membrane", f"{side}_wing", [wx, 28, -6], [
-            c([wx + 1 if sx > 0 else wx - 41, 27.6, -6], [40, 0.8, 20], CLOTH),
-        ])
-    write_geo(name, m.geo(name, size, 8, 5, 1.6))
 
-    def wings(open_k, flap=0.0):
-        """Folded (0): the wing arm swept back along the flank. Open (1): spread out and up."""
+    def spine(y, z, h, lean=-28, w=1.8, d=3.0, x=0.0):
+        """A back spine: two steps to a point, raked back."""
+        piv = [x, y, z]
+        return [c([x - w / 2, y - 0.7, z - d / 2], [w, h * 0.55 + 0.7, d], BONE, pivot=piv, rotation=[lean, 0, 0], tag="spine", part=0, skip=("down",)),
+                c([x - w * 0.3, y + h * 0.55, z - d * 0.17], [w * 0.6, h * 0.45, d * 0.6], BONE, pivot=piv, rotation=[lean, 0, 0], tag="spine", part=1,
+                  skip=("down",))]
+
+    m.bone("root", None, [0, 0, 0])
+    m.bone("body", "root", [0, 18, 0], [
+        c([-8.5, 11, -14], [17, 13, 30], HIDE, tag="torso", skip=("north",)),
+        c([-10, 12.5, -15.5], [20, 13.5, 12], HIDE, tag="hump"),
+        c([-9.5, 12, 5], [19, 12.5, 11.5], HIDE, tag="hips"),
+        # the plated underside, deeper between the forelegs
+        c([-6.5, 9.5, -15], [13, 2.5, 31], PLATE, tag="belly", skip=("up",)),
+        c([-7.2, 8.6, -15.6], [14.4, 4.4, 11], PLATE, tag="keel", skip=("up",)),
+        *spine(26, -12.6, 4.6), *spine(26, -7.4, 5.2), *spine(24, -1.6, 4.6), *spine(24, 3.4, 4.0),
+        *spine(24.5, 8.4, 3.6), *spine(24.5, 13.2, 3.2),
+    ])
+    m.bone("neck", "body", [0, 21, -14], [
+        c([-4.5, 16.5, -26], [9, 9, 16], HIDE, tag="neck", skip=("south",)),
+        *spine(25.5, -17.6, 3.6), *spine(25.5, -22.4, 3.2),
+    ], rotation=[-48, 0, 0])
+    m.bone("neck2", "neck", [0, 21, -25], [
+        c([-4, 17, -35.5], [8, 8, 12], HIDE, tag="neck", part=1, skip=("south",)),
+        *spine(25, -27.6, 2.9), *spine(25, -32.2, 2.5),
+    ], rotation=[22, 0, 0])
+
+    head = [
+        c([-6, 18, -46.5], [12, 8, 13.5], HIDE, tag="skull"),
+        c([-5, 18.5, -53.5], [10, 5.5, 7.5], HIDE, tag="snout", part=0, skip=("south",)),
+        c([-4, 18.5, -58], [8, 4.6, 5], HIDE, tag="snout", part=1, skip=("south",)),
+        # the horn on the nose
+        *spine(23.1, -55.2, 2.8, lean=-20, w=1.5, d=2.2),
+        # fangs: boxes whose sides are cut into teeth, overhanging the lower jaw
+        c([-4.95, 16.8, -53.45], [9.9, 1.8, 7.4], BONE, tag="teeth_up", part=0, skip=("south", "up", "down")),
+        c([-3.95, 16.8, -57.95], [7.9, 1.8, 4.95], BONE, tag="teeth_up", part=1, skip=("south", "up", "down")),
+    ]
+    for sx in (-1, 1):
+        # nostril, eye socket (the eye is painted on its outer and front faces) and the ridge over it
+        head.append(c([sx * 2.3 - 1.1, 22.5, -57.8], [2.2, 1.4, 2.8], DARK, tag="nostril", skip=("down",)))
+        head.append(c([sx * 6.2 - 0.6, 21.9, -45.9], [1.2, 2.9, 4.4], DARK, tag="eye", skip=("down",)))
+        head.append(c([sx * 4.5 - 2.5, 24.9, -47.2], [5, 2, 7.6], DARK, pivot=[sx * 4.5, 25.5, -43], rotation=[9, 0, sx * -9], tag="brow"))
+        # a short spike on the cheek, under the horn
+        for part, (w, d0, d1) in enumerate(((2.2, -37.5, 4.6), (1.3, -32.9, 3.2))):
+            head.append(c([sx * 5.6 - w / 2, 20.3 - w / 2, d0], [w, w, d1], BONE, pivot=[sx * 5.6, 20.3, -37.5], rotation=[6, sx * 26, 0],
+                          tag="horn", part=3 + part, skip=("north",)))
+    m.bone("head", "neck2", [0, 21, -34.5], head, rotation=[34, 0, 0])
+    for side, sx in (("right", -1), ("left", 1)):
+        # the horns: swept back and up, in two bones so they curve
+        m.bone(f"{side}_horn", "head", [sx * 4.3, 24.6, -36.2], [
+            c([sx * 4.3 - 1.6, 23.0, -37.2], [3.2, 3.2, 9], BONE, tag="horn", part=0, skip=("north",)),
+        ], rotation=[24, sx * 15, 0])
+        m.bone(f"{side}_horn_tip", f"{side}_horn", [sx * 4.3, 24.6, -28.6], [
+            c([sx * 4.3 - 1.1, 23.5, -29.4], [2.2, 2.2, 7.6], BONE, tag="horn", part=1, skip=("north",)),
+            c([sx * 4.3 - 0.6, 24.0, -21.8], [1.2, 1.2, 3.4], BONE, tag="horn", part=2, skip=("north",)),
+        ], rotation=[20, sx * -7, 0])
+    m.bone("jaw", "head", [0, 19, -38], [
+        c([-4.7, 15.6, -53.3], [9.4, 2.8, 15.8], HIDE, tag="jaw", part=0, skip=("south",)),
+        c([-3.7, 15.9, -57.6], [7.4, 2.5, 4.6], HIDE, tag="jaw", part=1, skip=("south",)),
+        c([-4.3, 18.2, -53.0], [8.6, 1.5, 9], BONE, tag="teeth_low", part=0, skip=("south", "up", "down")),
+        c([-3.3, 18.2, -57.3], [6.6, 1.5, 4.4], BONE, tag="teeth_low", part=1, skip=("south", "up", "down")),
+    ], rotation=[5, 0, 0])
+
+    m.bone("tail", "body", [0, 18, 16], [
+        c([-6, 12.5, 14.5], [12, 10.5, 15.5], HIDE, tag="tail", part=0, skip=("north",)),
+        *spine(23, 19.5, 3.0), *spine(23, 25.2, 2.7),
+    ], rotation=[-14, 0, 0])
+    m.bone("tail2", "tail", [0, 18, 30], [
+        c([-4.5, 14, 28.5], [9, 8, 15.5], HIDE, tag="tail", part=1, skip=("north",)),
+        *spine(22, 33.2, 2.4, w=1.6), *spine(22, 39, 2.1, w=1.6),
+    ], rotation=[5, 0, 0])
+    m.bone("tail3", "tail2", [0, 18, 44], [
+        c([-3, 15.5, 42.5], [6, 5.5, 13.5], HIDE, tag="tail", part=2, skip=("north",)),
+        c([-1.8, 16.4, 55.5], [3.6, 3.6, 7], HIDE, tag="tail", part=3, skip=("north",)),
+        *spine(21, 46.6, 1.9, w=1.4, d=2.4), *spine(21, 51.4, 1.6, w=1.4, d=2.4),
+        # the blade on the end: an upright and a flat sheet, cut to shape in the texture
+        c([0, 10.2, 53.5], [0, 16, 15], CLOTH, tag="blade", part=0, skip=("east",)),
+        c([-8, 18.2, 53.5], [16, 0, 15], CLOTH, tag="blade", part=1, skip=("down",)),
+    ], rotation=[10, 0, 0])
+
+    def foot(cx, y, z, sx):
+        out = [c([cx - 3.1, y, z - 5.6], [6.2, 2.6, 8.2], HIDE, tag="foot")]
+        for i in range(3):
+            tx = cx - 2.9 + i * 2.1
+            out.append(c([tx, y, z - 7.9], [1.6, 1.8, 2.6], BONE, tag="claw", part=0, skip=("south",)))
+            out.append(c([tx + 0.35, y, z - 9.4], [0.9, 1.1, 1.6], BONE, tag="claw", part=1, skip=("south",)))
+        # the dew claw behind
+        out.append(c([cx + sx * 1.6 - 0.6, y + 0.2, z + 2.2], [1.2, 1.3, 2.2], BONE, tag="claw", part=2, skip=("north",)))
+        return out
+
+    for side, sx in (("right", -1), ("left", 1)):
+        # front: the upper arm back to the elbow, the forearm forward to the foot
+        hx, z = sx * 9.3, -9.5
+        cx = hx + sx * 0.8
+        m.bone(f"{side}_front", "body", [hx, 18, z], [
+            c([cx - 3.2, 8.2, z - 4.1], [6.4, 12.6, 8.2], HIDE, tag="upper", part=0),
+            *spine(9.6, z + 3.6, 2.4, lean=-78, w=1.3, d=2.0, x=cx),          # the spur on the elbow
+        ], rotation=[22, 0, sx * -4])
+        m.bone(f"{side}_front_low", f"{side}_front", [cx, 9.4, z], [
+            c([cx - 2.3, -0.8, z - 2.3], [4.6, 10.8, 4.6], HIDE, tag="lower", part=0, skip=("up", "down")),
+        ], rotation=[-48, 0, 0])
+        m.bone(f"{side}_front_foot", f"{side}_front_low", [cx, 0, z], foot(cx, -1.55, z, sx), rotation=[26, 0, sx * 4])
+        # hind: the thigh forward to the knee, the shank back to the hock
+        hx, z = sx * 9.0, 10.5
+        cx = hx + sx * 0.9
+        m.bone(f"{side}_hind", "body", [hx, 18, z], [
+            c([cx - 3.4, 7.2, z - 4.7], [6.8, 14.2, 9.6], HIDE, tag="upper", part=1),
+        ], rotation=[-30, 0, sx * -4])
+        m.bone(f"{side}_hind_low", f"{side}_hind", [cx, 8.8, z], [
+            c([cx - 2.2, -1.8, z - 2.2], [4.4, 11.4, 4.4], HIDE, tag="lower", part=1, skip=("up", "down")),
+            *spine(8.4, z + 1.8, 2.2, lean=-70, w=1.2, d=1.8, x=cx),          # the spur on the hock
+        ], rotation=[58, 0, 0])
+        m.bone(f"{side}_hind_foot", f"{side}_hind_low", [cx, -1.0, z], foot(cx, -2.4, z, sx), rotation=[-28, 0, sx * 4])
+
+        # wings: the arm, then the long finger the membrane hangs from. The membranes are flat sheets (drawn from
+        # both sides) on bones of their own, so folding can gather them (their scale along the body).
+        wx = sx * 10
+        m.bone(f"{side}_wing", "body", [wx, 25.6, -8], [
+            c([wx if sx > 0 else wx - 10.6, 24.5, -9.2], [10.6, 2.2, 2.4], BONE, tag="wing_arm", part=0),
+        ], rotation=[WING_FOLD[0][0], sx * WING_FOLD[0][1], sx * WING_FOLD[0][2]])
+        ex = sx * 20
+        m.bone(f"{side}_wing_tip", f"{side}_wing", [ex, 25.6, -8], [
+            c([ex if sx > 0 else ex - 26, 24.85, -8.85], [26, 1.5, 1.7], BONE, tag="wing_arm", part=1),
+            c([ex - 0.75, 24.85, -11.4], [1.5, 1.5, 2.8], BONE, tag="wing_claw", skip=("south",)),
+        ], rotation=[WING_FOLD[1][0], sx * WING_FOLD[1][1], sx * WING_FOLD[1][2]])
+        m.bone(f"{side}_membrane", f"{side}_wing", [wx, 25.6, -8], [
+            c([wx if sx > 0 else wx - 12, 25.5, -8], [12, 0, 22], CLOTH, tag="membrane", part=0, skip=("down",)),
+        ])
+        m.bone(f"{side}_membrane_tip", f"{side}_wing_tip", [ex, 25.6, -8], [
+            c([ex if sx > 0 else ex - 27, 25.15, -8], [27, 0, 24], CLOTH, tag="membrane", part=1, skip=("down",)),
+        ])
+    write_geo(name, m.geo(name, size, 9, 6, 1.8))
+
+    def wings(open_k, flap=None):
+        """Folded (0, the rest pose) to spread (1); flap lifts (+) or beats down (-) the spread wing."""
+        out = {}
+        f = flap or (lambda t: 0.0)
+        for side, sx in (("right", -1), ("left", 1)):
+            def arm(t, sx=sx):
+                k = open_k(t)
+                return [(WING_OPEN[0][0] - WING_FOLD[0][0]) * k, sx * (WING_OPEN[0][1] - WING_FOLD[0][1]) * k,
+                        sx * ((WING_OPEN[0][2] - WING_FOLD[0][2]) * k - 26 * f(t))]
+
+            def tip(t, sx=sx):
+                k = open_k(t)
+                return [(WING_OPEN[1][0] - WING_FOLD[1][0]) * k, sx * (WING_OPEN[1][1] - WING_FOLD[1][1]) * k,
+                        sx * ((WING_OPEN[1][2] - WING_FOLD[1][2]) * k - 10 * f(t))]
+            out[f"{side}_wing"] = rot(arm)
+            out[f"{side}_wing_tip"] = rot(tip)
+            out[f"{side}_membrane"] = {"scale": lambda t: [1, 1, WING_GATHER[0] + (1 - WING_GATHER[0]) * min(1.0, max(0.0, open_k(t)))]}
+            out[f"{side}_membrane_tip"] = {"scale": lambda t: [1, 1, WING_GATHER[1] + (1 - WING_GATHER[1]) * min(1.0, max(0.0, open_k(t)))]}
+        return out
+
+    def legs(fn):
+        """fn(t, phase) -> (swing of the whole leg, how far it is lifted 0..1)."""
         out = {}
         for side, sx in (("right", -1), ("left", 1)):
-            f = flap if callable(flap) else (lambda t: 0.0)
-            out[f"{side}_wing"] = rot(lambda t, sx=sx, f=f: [0, -sx * (75 * (1 - open_k(t))), -sx * (-10 + 40 * open_k(t) + 25 * f(t))])
-            out[f"{side}_wing_tip"] = rot(lambda t, sx=sx: [0, -sx * 60 * (1 - open_k(t)), 0])
-            out[f"{side}_membrane"] = rot(lambda t, sx=sx: [0, 0, sx * (-12 * (1 - open_k(t)))])
+            for leg, ph, bend in (("front", 0.0, -1), ("hind", 0.5, 1)):
+                p = ph + (0 if sx < 0 else 0.5)
+                out[f"{side}_{leg}"] = rot(lambda t, p=p: [fn(t, p)[0], 0, 0])
+                out[f"{side}_{leg}_low"] = rot(lambda t, p=p, bend=bend: [bend * 26 * fn(t, p)[1], 0, 0])
+                # the foot stays level
+                out[f"{side}_{leg}_foot"] = rot(lambda t, p=p, bend=bend: [-fn(t, p)[0] - bend * 26 * fn(t, p)[1] + 14 * fn(t, p)[1], 0, 0])
         return out
 
     folded = lambda t: 0.0  # noqa: E731
@@ -867,31 +996,24 @@ def wyrm():
     L = 3.0
     A["idle"] = anim(L, True, {
         "body": {"position": lambda t: [0, 0.5 * wave(t, L), 0]},
-        "neck": rot(lambda t: [-18 + 3 * wave(t, L), 0, 0]),
-        "head": rot(lambda t: [12 - 2 * wave(t, L), 4 * wave(t, L * 2), 0]),
-        "jaw": rot(lambda t: [0, 0, 0]),
-        "tail": rot(lambda t: [0, 10 * wave(t, L), 0]), "tail2": rot(lambda t: [0, 14 * wave(t, L, -0.15), 0]),
-        "tail3": rot(lambda t: [0, 18 * wave(t, L, -0.3), 0]),
-        **wings(folded),
+        "neck": rot(lambda t: [2.5 * wave(t, L), 0, 0]),
+        "neck2": rot(lambda t: [-2 * wave(t, L, -0.1), 0, 0]),
+        "head": rot(lambda t: [-1.5 * wave(t, L, -0.2), 4 * wave(t, L * 2), 0]),
+        "jaw": rot(lambda t: [2 + 2 * wave(t, L, 0.25), 0, 0]),
+        "tail": rot(lambda t: [0, 9 * wave(t, L), 0]), "tail2": rot(lambda t: [0, 12 * wave(t, L, -0.15), 0]),
+        "tail3": rot(lambda t: [0, 15 * wave(t, L, -0.3), 0]),
+        **wings(lambda t: 0.03 + 0.03 * wave(t, L)),
     }, 0.1)
     L = 1.4
-
-    def legs(fn):
-        out = {}
-        for side, sx in (("right", -1), ("left", 1)):
-            for leg, ph in (("front", 0.0), ("hind", 0.5)):
-                p = ph + (0 if sx < 0 else 0.5)
-                out[f"{side}_{leg}"] = rot(lambda t, p=p: [fn(t, p)[0], 0, 0])
-                out[f"{side}_{leg}_low"] = rot(lambda t, p=p: [fn(t, p)[1], 0, 0])
-        return out
     A["walk"] = anim(L, True, {
         "body": {"position": lambda t: [0, -0.8 * abs(wave(t, L / 2)), 0], "rotation": lambda t: [0, 3 * wave(t, L), 2 * wave(t, L)]},
-        "neck": rot(lambda t: [-14 + 4 * wave(t, L / 2), -4 * wave(t, L), 0]),
-        "head": rot(lambda t: [10, 3 * wave(t, L), 0]),
+        "neck": rot(lambda t: [3 * wave(t, L / 2), -4 * wave(t, L), 0]),
+        "neck2": rot(lambda t: [-2 * wave(t, L / 2), 0, 0]),
+        "head": rot(lambda t: [-2, 3 * wave(t, L), 0]),
         "tail": rot(lambda t: [0, -12 * wave(t, L), 0]), "tail2": rot(lambda t: [0, -16 * wave(t, L, -0.15), 0]),
         "tail3": rot(lambda t: [0, -20 * wave(t, L, -0.3), 0]),
-        **legs(lambda t, p: (24 * wave(t, L, p), -20 * max(0, wave(t, L, p + 0.25)))),
-        **wings(folded),
+        **legs(lambda t, p: (22 * wave(t, L, p), max(0.0, wave(t, L, p + 0.25)))),
+        **wings(lambda t: 0.04 + 0.03 * wave(t, L / 2)),
     })
     # intro (3.5 s): rears up, wings thrown open, a roar to the ceiling, comes down with a thud at 3.0 s
     L = 3.5
@@ -904,19 +1026,20 @@ def wyrm():
 
     def roar(t):
         return window(t, 1.3, 1.5) * (1 - window(t, 2.4, 2.7))
-    flap = lambda t: 0.3 * math.sin(t * 9) * roar(t)  # noqa: E731
     A["intro"] = anim(L, False, {
-        "body": {"rotation": lambda t: [-38 * rear(t), 0, 0], "position": lambda t: [0, 6 * rear(t), 8 * rear(t)]},
-        "neck": rot(lambda t: [-18 - 30 * rear(t) + 2 * math.sin(t * 40) * roar(t), 0, 0]),
-        "head": rot(lambda t: [12 - 20 * roar(t), 0, 0]),
-        "jaw": rot(lambda t: [35 * roar(t), 0, 0]),
-        "right_front": rot(lambda t: [-50 * rear(t), 0, -10 * rear(t)]), "left_front": rot(lambda t: [-50 * rear(t), 0, 10 * rear(t)]),
-        "right_front_low": rot(lambda t: [60 * rear(t), 0, 0]), "left_front_low": rot(lambda t: [60 * rear(t), 0, 0]),
-        "right_hind": rot(lambda t: [38 * rear(t), 0, 0]), "left_hind": rot(lambda t: [38 * rear(t), 0, 0]),
-        "tail": rot(lambda t: [20 * rear(t), 0, 0]),
-        **wings(spread, flap),
+        "body": {"rotation": lambda t: [-36 * rear(t), 0, 0], "position": lambda t: [0, 4 * rear(t), 7 * rear(t)]},
+        "neck": rot(lambda t: [14 * rear(t) + 2 * math.sin(t * 40) * roar(t), 0, 0]),
+        "neck2": rot(lambda t: [-10 * roar(t), 0, 0]),
+        "head": rot(lambda t: [-26 * roar(t), 0, 0]),
+        "jaw": rot(lambda t: [32 * roar(t), 0, 0]),
+        "right_front": rot(lambda t: [-34 * rear(t), 0, -8 * rear(t)]), "left_front": rot(lambda t: [-34 * rear(t), 0, 8 * rear(t)]),
+        "right_front_low": rot(lambda t: [-26 * rear(t), 0, 0]), "left_front_low": rot(lambda t: [-26 * rear(t), 0, 0]),
+        "right_front_foot": rot(lambda t: [50 * rear(t), 0, 0]), "left_front_foot": rot(lambda t: [50 * rear(t), 0, 0]),
+        "right_hind": rot(lambda t: [36 * rear(t), 0, 0]), "left_hind": rot(lambda t: [36 * rear(t), 0, 0]),
+        "tail": rot(lambda t: [26 * rear(t), 0, 0]), "tail2": rot(lambda t: [8 * rear(t), 0, 0]),
+        **wings(spread, lambda t: 0.3 * math.sin(t * 9) * roar(t)),
     })
-    # breath (2.6 s): the neck draws back, then thrusts low, jaw wide, held from 0.8 to 2.2 s
+    # breath (2.6 s): the neck draws back, then thrusts out low, jaw wide, held from 0.8 to 2.2 s
     L = 2.6
 
     def draw(t):
@@ -925,13 +1048,14 @@ def wyrm():
     def blast(t):
         return ease_out_back(window(t, 0.6, 0.85), 1.2) * (1 - ease_in_out(window(t, 2.2, 2.6)))
     A["breath"] = anim(L, False, {
-        "neck": rot(lambda t: [-18 - 30 * draw(t) + 22 * blast(t), 6 * math.sin(t * 3) * blast(t), 0]),
-        "head": rot(lambda t: [12 - 25 * draw(t) + 6 * blast(t), 0, 0]),
-        "jaw": rot(lambda t: [20 * draw(t) + 40 * blast(t), 0, 0]),
-        "body": rot(lambda t: [-6 * draw(t) + 6 * blast(t), 0, 0]),
+        "neck": rot(lambda t: [-16 * draw(t) + 34 * blast(t), 6 * math.sin(t * 3) * blast(t), 0]),
+        "neck2": rot(lambda t: [10 * draw(t) - 12 * blast(t), 0, 0]),
+        "head": rot(lambda t: [8 * draw(t) - 24 * blast(t), 0, 0]),
+        "jaw": rot(lambda t: [14 * draw(t) + 36 * blast(t), 0, 0]),
+        "body": rot(lambda t: [-5 * draw(t) + 5 * blast(t), 0, 0]),
         **wings(lambda t: 0.4 * blast(t)),
     })
-    # tail sweep (1.5 s): body coils, then the tail whips round at 0.7 s
+    # tail sweep (1.5 s): the body coils, then the tail whips round at 0.7 s
     L = 1.5
 
     def coil(t):
@@ -941,13 +1065,13 @@ def wyrm():
         return ease_in(window(t, 0.55, 0.75)) * (1 - ease_in_out(window(t, 0.95, 1.5)))
     A["tail_sweep"] = anim(L, False, {
         "body": rot(lambda t: [0, 30 * coil(t) - 45 * whip(t), 0]),
-        "tail": rot(lambda t: [0, 35 * coil(t) - 55 * whip(t), 0]),
+        "tail": rot(lambda t: [6 * whip(t), 35 * coil(t) - 55 * whip(t), 0]),
         "tail2": rot(lambda t: [0, 30 * coil(t) - 50 * whip(t), 0]),
         "tail3": rot(lambda t: [0, 25 * coil(t) - 45 * whip(t), 0]),
-        "neck": rot(lambda t: [-18, -20 * coil(t) + 30 * whip(t), 0]),
-        **wings(folded),
+        "neck": rot(lambda t: [0, -20 * coil(t) + 30 * whip(t), 0]),
+        **wings(lambda t: 0.25 * whip(t)),
     })
-    # wing buffet (1.6 s): wings rise, then sweep forward and down at 0.75 s
+    # wing buffet (1.6 s): the wings rise, then sweep forward and down at 0.75 s
     L = 1.6
 
     def rise(t):
@@ -956,10 +1080,13 @@ def wyrm():
     def beat(t):
         return ease_in(window(t, 0.6, 0.8)) * (1 - ease_in_out(window(t, 1.0, 1.6)))
     A["buffet"] = anim(L, False, {
-        "body": {"rotation": lambda t: [-15 * rise(t) + 8 * beat(t), 0, 0], "position": lambda t: [0, 3 * rise(t), 0]},
-        **wings(lambda t: max(rise(t), beat(t)), lambda t: 1.2 * rise(t) - 1.6 * beat(t)),
-        "neck": rot(lambda t: [-18 - 15 * rise(t), 0, 0]),
+        "body": {"rotation": lambda t: [-13 * rise(t) + 7 * beat(t), 0, 0], "position": lambda t: [0, 2.5 * rise(t), 0]},
+        **wings(lambda t: max(rise(t), beat(t)), lambda t: 1.1 * rise(t) - 1.5 * beat(t)),
+        "neck": rot(lambda t: [-8 * rise(t) + 10 * beat(t), 0, 0]),
+        "head": rot(lambda t: [10 * rise(t) - 6 * beat(t), 0, 0]),
         "jaw": rot(lambda t: [25 * beat(t), 0, 0]),
+        "right_hind": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]), "left_hind": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]),
+        "right_front": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]), "left_front": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]),
     })
     # death (3.5 s): staggers, the legs buckle, it crashes to the floor on its side, wings limp
     L = 3.5
@@ -970,14 +1097,16 @@ def wyrm():
     def roll(t):
         return ease_in_out(window(t, 1.3, 2.4))
     A["death"] = anim(L, "hold", {
-        "root": {"position": lambda t: [0, -9 * buckle(t), 0], "rotation": lambda t: [0, 0, 70 * roll(t)]},
-        "body": rot(lambda t: [-20 * window(t, 0, 0.5) * (1 - buckle(t)), 0, 0]),
-        "neck": rot(lambda t: [-18 - 30 * window(t, 0, 0.5) * (1 - buckle(t)) + 40 * roll(t), 0, -25 * roll(t)]),
-        "head": rot(lambda t: [12 + 20 * roll(t), 0, 0]),
-        "jaw": rot(lambda t: [30 * window(t, 0, 0.5) * (1 - window(t, 1.0, 1.4)) + 10 * roll(t), 0, 0]),
-        "tail": rot(lambda t: [0, 20 * roll(t), 0]), "tail2": rot(lambda t: [0, 20 * roll(t), 0]),
-        **{f"{s}_{leg}": rot(lambda t: [-40 * buckle(t), 0, 0]) for s in ("right", "left") for leg in ("front", "hind")},
-        **wings(lambda t: 0.5 * roll(t)),
+        "root": {"position": lambda t: [0, -7 * buckle(t) + 3 * roll(t), 0], "rotation": lambda t: [0, 0, 78 * roll(t)]},
+        "body": rot(lambda t: [-18 * window(t, 0, 0.5) * (1 - buckle(t)), 0, 0]),
+        "neck": rot(lambda t: [-14 * window(t, 0, 0.5) * (1 - buckle(t)) + 50 * roll(t), 0, -12 * roll(t)]),
+        "neck2": rot(lambda t: [-16 * roll(t), 0, 0]),
+        "head": rot(lambda t: [-20 * roll(t), 0, 0]),
+        "jaw": rot(lambda t: [30 * window(t, 0, 0.5) * (1 - window(t, 1.0, 1.4)) + 12 * roll(t), 0, 0]),
+        "tail": rot(lambda t: [10 * roll(t), 20 * roll(t), 0]), "tail2": rot(lambda t: [0, 20 * roll(t), 0]),
+        **{f"{s}_{leg}": rot(lambda t, sgn=sgn: [sgn * 30 * buckle(t), 0, 0]) for s in ("right", "left") for leg, sgn in (("front", -1), ("hind", 1))},
+        **{f"{s}_{leg}_low": rot(lambda t, sgn=sgn: [sgn * 34 * buckle(t), 0, 0]) for s in ("right", "left") for leg, sgn in (("front", -1), ("hind", 1))},
+        **wings(lambda t: 0.45 * roll(t)),
     })
     write_anims(name, A)
 
@@ -985,40 +1114,97 @@ def wyrm():
 # --------------------------------------------------------------------------------------------- alpha (and gloomfang, its small kin)
 
 def hound(name, uvs, size, scale, mane=True, sizes=None):
-    """A lean hound. scale 1 = the alpha (about 2.4 blocks tall at the shoulder crest)."""
+    """A lean hound. scale 1 = the alpha (about 2.4 blocks tall at the shoulder crest). Painted on the model by
+    solid_skins.paint_hound, which goes by the tags and the design units used here."""
     s = scale
+    UNITS[name] = s
     m = Model(uvs)
     c = lambda o, z, tile, **kw: m.c([v * s for v in o], [v * s for v in z], tile, **{k: ([v * s for v in val] if k == "pivot" else val) for k, val in kw.items()})  # noqa: E731
     P = lambda v: [x * s for x in v]  # noqa: E731
+
+    def shard(x, y, z, w, h, rx, rz):
+        """A crystal: a shaft and a narrower point, leaning back (and out)."""
+        piv = [x, y + 0.8, z]
+        return [c([x - w / 2, y, z - w / 2], [w, h, w], GLOW, pivot=piv, rotation=[rx, 0, rz], tag="crystal", part=0, skip=("down",)),
+                c([x - w * 0.31, y + h, z - w * 0.31], [w * 0.62, h * 0.55, w * 0.62], GLOW, pivot=piv, rotation=[rx, 0, rz],
+                  tag="crystal", part=1, skip=("down",))]
+
     m.bone("root", None, [0, 0, 0])
-    m.bone("body", "root", P([0, 20, 0]), [
-        c([-6, 15, -12], [12, 11, 14], HIDE),
-        c([-5, 15.5, 2], [10, 9, 12], HIDE),
-        c([-6.3, 22, -12], [12.6, 3, 10], DARK),
-    ] + ([
-        c([-1.5, 25, -12], [3, 7, 3], GLOW, pivot=[0, 26, -10], rotation=[-35, 0, 0]),
-        c([-4.5, 24, -9], [2.5, 6, 2.5], GLOW, pivot=[-3, 25, -8], rotation=[-40, 0, 25]),
-        c([2, 24, -9], [2.5, 6, 2.5], GLOW, pivot=[3, 25, -8], rotation=[-40, 0, -25]),
-        c([-1, 24, -4], [2, 5, 2], GLOW, pivot=[0, 25, -3], rotation=[-45, 0, 0]),
-        c([-1, 23, 2], [2, 4, 2], GLOW, pivot=[0, 24, 3], rotation=[-50, 0, 0]),
-    ] if mane else [c([-1, 24, -10], [2, 3, 10], BONE)]))
-    m.bone("head", "body", P([0, 24, -12]), [
-        c([-4.5, 20, -21], [9, 8, 9], HIDE),
-        c([-3, 20, -27], [6, 5, 6.5], HIDE),
-        c([-2.7, 18.5, -26.5], [5.4, 1.6, 6], BONE),
-        c([-3.6, 25, -20.8], [2.2, 1.4, 0.6], EYE), c([1.4, 25, -20.8], [2.2, 1.4, 0.6], EYE),
-        c([-4.5, 27, -16], [2.5, 5, 2.5], DARK, pivot=[-3.5, 28, -15], rotation=[-20, 0, -20]),
-        c([2, 27, -16], [2.5, 5, 2.5], DARK, pivot=[3.5, 28, -15], rotation=[-20, 0, 20]),
+    body = [
+        c([-6, 14.5, -12], [12, 11.5, 13], HIDE, tag="chest"),
+        c([-5, 16, 1], [10, 9.5, 12], HIDE, tag="rear", skip=("north",)),
+        # the mane: a collar of long fur over the neck and chest, ragged behind and below
+        c([-6.8, 13.6, -13.5], [13.6, 13.2, 5], HIDE, tag="ruff", skip=("south", "down")),
+    ]
+    for sx in (-1, 1):
+        # long belly fur: a thin ragged sheet hanging under each side
+        body.append(c([sx * 5.2 - 0.3, 12.2, -11.5], [0.6, 4.2, 24], HIDE, tag="fringe", skip=("up", "down", "north", "south")))
+    if mane:
+        body += shard(0, 25.2, -10.4, 3.2, 6.2, -30, 0)
+        body += shard(-3.3, 25.0, -8.0, 2.6, 5.0, -36, -24) + shard(3.3, 25.0, -8.0, 2.6, 5.0, -36, 24)
+        body += shard(0, 25.2, -4.6, 2.6, 4.8, -40, 0)
+        body += shard(-2.9, 25.0, -1.8, 2.0, 3.4, -44, -28) + shard(2.9, 25.0, -1.8, 2.0, 3.4, -44, 28)
+        body += shard(0, 24.7, 2.2, 2.2, 3.6, -46, 0)
+    m.bone("body", "root", P([0, 20, 0]), body)
+
+    head = [
+        c([-4.5, 20, -21], [9, 8, 9.5], HIDE, tag="skull"),
+        c([-2.8, 20, -28], [5.6, 4.6, 7.5], HIDE, tag="snout", skip=("south",)),
+        c([-1.6, 22.7, -28.8], [3.2, 2.2, 1.5], DARK, tag="nose", skip=("south", "down")),
+        # fangs: a box whose sides are cut into teeth
+        c([-2.95, 18.7, -27.9], [5.9, 1.5, 6.9], BONE, tag="teeth_up", skip=("south", "up", "down")),
+    ]
+    for sx in (-1, 1):
+        # brows that slant down to the nose
+        head.append(c([sx * 2.45 - 1.95, 26.5, -21.5], [3.9, 1.7, 3.2], DARK, pivot=[sx * 2.45, 27.3, -20], rotation=[0, 0, sx * -12], tag="brow"))
+        # ears: three steps to a point, leaning back and out
+        ex, piv, turn = sx * 3.1, [sx * 3.1, 27.5, -14.5], [-20, 0, sx * 16]
+        head += [
+            c([ex - 1.5, 27.3, -15.6], [3, 2.4, 2.2], DARK, pivot=piv, rotation=turn, tag="ear", part=0, skip=("down",)),
+            c([ex - 1.1, 29.7, -15.4], [2.2, 2.0, 1.8], DARK, pivot=piv, rotation=turn, tag="ear", part=1, skip=("down",)),
+            c([ex - 0.6, 31.7, -15.2], [1.2, 1.5, 1.4], DARK, pivot=piv, rotation=turn, tag="ear", part=2, skip=("down",)),
+        ]
+        # cheek ruff: a thin ragged sheet of fur standing off the jaw
+        head.append(c([sx * 4.5 - 0.35, 19.4, -17.5], [0.7, 7.2, 6.5], HIDE, pivot=[sx * 4.5, 23, -17.5], rotation=[0, sx * 22, 0],
+                      tag="cheek", skip=("south", "down")))
+    m.bone("head", "body", P([0, 24, -12]), head)
+    m.bone("jaw", "head", P([0, 20, -20]), [
+        c([-2.45, 17.6, -27.4], [4.9, 2.2, 7.9], HIDE, tag="jaw", skip=("south",)),
+        c([-2.2, 19.4, -27.2], [4.4, 1.3, 5.6], BONE, tag="teeth_low", skip=("south", "up", "down")),
     ])
-    m.bone("jaw", "head", P([0, 20, -20]), [c([-2.6, 17, -26.6], [5.2, 2.2, 6.5], DARK), c([-2.2, 19, -26.2], [4.4, 0.8, 1], BONE)])
-    m.bone("tail", "body", P([0, 24, 13]), [c([-1.5, 22, 13], [3, 3, 12], HIDE)] + ([c([-1, 23.5, 22], [2, 2, 5], GLOW)] if mane else []),
-           rotation=[30, 0, 0])
+    m.bone("tail", "body", P([0, 24, 13]), [
+        c([-1.7, 22.3, 12.5], [3.4, 3.4, 5], HIDE, tag="tail", skip=("north",)),
+        c([-2.3, 21.7, 17], [4.6, 4.6, 7.2], HIDE, tag="tail"),
+        c([-1.6, 22.4, 24], [3.2, 3.2, 3.6], HIDE, tag="tail", skip=("north",)),
+        # the brush under the tail
+        c([-0.3, 19.4, 13.5], [0.6, 3.4, 13], HIDE, tag="brush", skip=("up", "down", "north", "south")),
+    ], rotation=[30, 0, 0])
+
+    def paw(hx, y, z):
+        return [c([hx - 2.1, y, z - 3.6], [4.2, 2, 5], HIDE, tag="paw")] + [
+            c([hx - 1.9 + i * 1.4, y, z - 4.5], [1, 1.1, 1.3], DARK, tag="claw", skip=("south",)) for i in range(3)]
+
     for side, sx in (("right", -1), ("left", 1)):
-        for leg, z in (("front", -8), ("hind", 9)):
-            hx = sx * 4.5
-            m.bone(f"{side}_{leg}", "body", P([hx, 18, z]), [c([hx - 2, 9, z - 2], [4, 11, 4], HIDE)])
-            m.bone(f"{side}_{leg}_low", f"{side}_{leg}", P([hx, 10, z]), [
-                c([hx - 1.5, 1, z - 1.5], [3, 9, 3], DARK), c([hx - 2, 0, z - 3.5], [4, 2, 4.5], DARK)])
+        hx = sx * 4.5
+        # front: a straight leg under a heavy shoulder
+        z = -8
+        m.bone(f"{side}_front", "body", P([hx, 18, z]), [
+            c([hx - 2.5, 15.2, z - 3.2], [5, 6, 6.4], HIDE, tag="shoulder"),
+            c([hx - 2.2, 9, z - 2.3], [4.4, 7, 4.6], HIDE, tag="leg_up", skip=("up",)),
+            # feathering down the back of the leg
+            c([hx - 0.3, 8.6, z + 1.9], [0.6, 8, 2.6], HIDE, tag="feather", skip=("up", "down", "north", "south")),
+        ])
+        m.bone(f"{side}_front_low", f"{side}_front", P([hx, 10, z]),
+               [c([hx - 1.6, 1.2, z - 1.6], [3.2, 9.3, 3.2], HIDE, tag="leg_low", skip=("up", "down"))] + paw(hx, 0, z))
+        # hind: the thigh forward and the shank back, as a dog stands (the walk and the rest add to this)
+        z = 9
+        m.bone(f"{side}_hind", "body", P([hx, 18, z]), [
+            c([hx - 2.7, 9.5, z - 3.6], [5.4, 10.5, 7.4], HIDE, tag="thigh"),
+        ], rotation=[-20, 0, 0])
+        m.bone(f"{side}_hind_low", f"{side}_hind", P([hx, 10, z]), [
+            c([hx - 1.6, -0.9, z - 1.6], [3.2, 11.5, 3.2], HIDE, tag="leg_low", skip=("up", "down")),
+        ], rotation=[45, 0, 0])
+        m.bone(f"{side}_hind_paw", f"{side}_hind_low", P([hx, -0.3, z]), paw(hx, -1.5, z), rotation=[-25, 0, 0])
     return m
 
 
@@ -1038,14 +1224,14 @@ def hound_anims(name, run_period=0.8, intro=True, big=True):
         "body": {"position": lambda t: [0, 0.3 * wave(t, L), 0]},
         "head": rot(lambda t: [3 * wave(t, L), 6 * wave(t, L * 2), 0]),
         "jaw": rot(lambda t: [4 + 3 * wave(t, L / 2), 0, 0]),
-        "tail": rot(lambda t: [30, 12 * wave(t, L), 0]),
+        "tail": rot(lambda t: [0, 12 * wave(t, L), 0]),
     }, 0.1)
     L = run_period
     A["walk"] = anim(L, True, {
         "body": {"position": lambda t: [0, -0.8 * abs(wave(t, L / 2)), 0], "rotation": lambda t: [3 * wave(t, L), 0, 0]},
         "head": rot(lambda t: [-3 * wave(t, L), 0, 0]),
         "jaw": rot(lambda t: [8, 0, 0]),
-        "tail": rot(lambda t: [10 + 8 * wave(t, L), 6 * wave(t, L / 2), 0]),
+        "tail": rot(lambda t: [-16 + 8 * wave(t, L), 6 * wave(t, L / 2), 0]),
         **legs(lambda t, p: (35 * wave(t, L, p), -25 * max(0, wave(t, L, p + 0.25)))),
     })
     # bite (0.8 s)
@@ -1076,7 +1262,7 @@ def hound_anims(name, run_period=0.8, intro=True, big=True):
         "jaw": rot(lambda t: [35 * air(t), 0, 0]),
         "right_front": rot(lambda t: [-70 * air(t) + 30 * crouch(t), 0, 0]), "left_front": rot(lambda t: [-70 * air(t) + 30 * crouch(t), 0, 0]),
         "right_hind": rot(lambda t: [60 * air(t) - 30 * crouch(t), 0, 0]), "left_hind": rot(lambda t: [60 * air(t) - 30 * crouch(t), 0, 0]),
-        "tail": rot(lambda t: [30 - 25 * air(t), 0, 0]),
+        "tail": rot(lambda t: [-25 * air(t), 0, 0]),
     })
     # howl (2.4 s): sits back, muzzle to the ceiling
     L = 2.4
@@ -1124,7 +1310,7 @@ def hound_anims(name, run_period=0.8, intro=True, big=True):
         "head": rot(lambda t: [-25 * window(t, 0, 0.5 * k) * (1 - fall(t)) + 20 * fall(t), 0, 0]),
         "jaw": rot(lambda t: [25 * fall(t), 0, 0]),
         **{f"{s}_{leg}": rot(lambda t, sgn=sgn: [sgn * 25 * fall(t), 0, 0]) for s in ("right", "left") for leg, sgn in (("front", -1), ("hind", 1))},
-        "tail": rot(lambda t: [30 - 25 * fall(t), 0, 0]),
+        "tail": rot(lambda t: [-25 * fall(t), 0, 0]),
     }, 0.05 if big else 0.025)
     write_anims(name, A)
 
@@ -1404,18 +1590,12 @@ def main():
         os.makedirs(os.path.join(GEO, d), exist_ok=True)
         os.makedirs(os.path.join(ANIM, d), exist_ok=True)
         os.makedirs(os.path.join(TEX, d), exist_ok=True)
-    broodmother()
-    knight()
-    magus()
-    wyrm()
-    alpha()
-    gloomfang()
-    broodling()
-    shardback()
-    hollow_acolyte()
-    ashen_sentinel()
-    emberwisp()
-    telegraphs_and_eggs()
+    makers = [broodmother, knight, magus, wyrm, alpha, gloomfang, broodling, shardback, hollow_acolyte, ashen_sentinel, emberwisp,
+              telegraphs_and_eggs]
+    only = sys.argv[1:]     # e.g. "alpha gloomfang" while working on the hounds
+    for make in makers:
+        if not only or make.__name__ in only:
+            make()
     print("enemy assets written")
 
 
