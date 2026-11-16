@@ -54,6 +54,14 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
   spell power to skill spells. Gate caches roll weapon grades by the gate's rank.
 - **Armor sets:** Hunter (light, less exhaustion), Knight (heavy plate, blood resistance), Duskforged (fire, poison
   and crimson resistance). Wearing all four pieces adds a set bonus.
+- **The armory: 45 class armor sets.** Every class has a set at every gate rank and a divine one: plain starter
+  sets from village requests, and sets of every gate creature and boss (Gloomstalker, Shardshell, Hollow Vanguard,
+  Sigilweaver, Brood Empress, Wyrmlord and more). Two pieces give a small buff, four a little more and a perk of
+  their own (Tower Guard, Pounce, Storm Sigil, Saint's Grace, Dragon's Blood...), but only for the class the set is
+  made for. Each set needs a level (D 10 up to S 50, divine 60) and pieces drop slowly: a creature leaves one a few
+  times in a thousand, a boss about every other kill, a divine piece once in a hundred S-rank bosses. Divine sets
+  are bound to their class, and each divine weapon has a passive of its own (Ruin, Vanishing Edge, Insatiable,
+  Unyielding, Rootbound Life, Astral Quiver).
 - **Elements.** Hits fill an element's buildup on the target; when it is full, something happens. It works on
   players the same way: some mobs carry an element (blazes burn, cave spiders and bogged poison, wither skeletons
   and evokers bring crimson, vindicators, ravagers and spiders make you bleed).

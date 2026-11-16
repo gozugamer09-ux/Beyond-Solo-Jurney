@@ -19,6 +19,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -98,18 +99,19 @@ public final class GearCommand {
     private static int bossLoot(ServerPlayer p, String rankName, int n) {
         PlayerRank rank = PlayerRank.byName(rankName);
         if (rank == null) return 0;
-        for (int i = 0; i < n; i++) for (ItemStack s : BossLoot.roll(rank, p.getRandom())) if (!p.getInventory().add(s)) p.drop(s, false);
+        for (int i = 0; i < n; i++) {
+            List<ItemStack> loot = new java.util.ArrayList<>(com.beyondsolo.armory.ArmorDrops.bossPieces(
+                    com.beyondsolo.gate.BossKind.BRUTE, rank, true, p.getRandom()));
+            loot.addAll(BossLoot.roll(rank, p.getRandom()));
+            for (ItemStack s : loot) if (!p.getInventory().add(s)) p.drop(s, false);
+        }
         return 1;
     }
 
     private static int wearSet(ServerPlayer p, String name) {
-        var pieces = GearModule.SET_PIECES.get(name);
-        if (pieces == null) {
-            ArmorSets.Set set = ArmorSets.byName(name);
-            if (set == null) return 0;
-            for (var item : com.beyondsolo.registry.ModItems.ARMOR) if (item.get().set() == set) equip(p, new ItemStack(item.get()));
-            return 1;
-        }
+        ArmorSets.Set set = ArmorSets.byName(name);
+        var pieces = set == null ? null : com.beyondsolo.armory.ArmoryModule.piecesOf(set);
+        if (pieces == null) return 0;
         for (var item : pieces) equip(p, new ItemStack(item.get()));
         return 1;
     }
