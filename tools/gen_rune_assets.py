@@ -683,6 +683,19 @@ class Pen:
         rr = r * self.s
         self.d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=fill)
 
+    def svg(self, name, x, y, size):
+        """A Phosphor icon, its view box {@code size} units wide, centred on (x, y)."""
+        import io
+        import cairosvg
+        px = int(size * self.s)
+        png = cairosvg.svg2png(url=os.path.join(ui.ICON_SRC, name + ".svg"), output_width=px, output_height=px)
+        alpha = Image.open(io.BytesIO(png)).convert("RGBA").split()[3].point(lambda v: 255 if v >= 128 else 0)
+        cx, cy = self.at(x, y)
+        layer = Image.new("L", self.img.size, 0)
+        layer.paste(alpha, (int(cx - px / 2), int(cy - px / 2)))
+        self.img = Image.fromarray(np.maximum(np.asarray(self.img), np.asarray(layer)))
+        self.d = ImageDraw.Draw(self.img)
+
     def ring(self, x, y, r, w):
         self.circle(x, y, r + w / 2)
         self.circle(x, y, r - w / 2, fill=0)
@@ -709,7 +722,8 @@ def icon_tower_shield(p):
     p.poly(shield_outline(-0.68, 0.68, -0.94, -0.58, 0.96))
     p.poly(shield_outline(-0.52, 0.52, -0.77, -0.45, 0.8), fill=0)
     p.line([(0, -0.62), (0, 0.84)], 0.13)
-    p.line([(-0.5, 0.08), (0.5, 0.08)], 0.11)
+    p.circle(0, 0.06, 0.27)
+    p.circle(0, 0.06, 0.12, fill=0)
 
 
 def icon_wisp(p):
@@ -757,9 +771,18 @@ def icon_slashes(p):
 
 
 def icon_sigils(p):
-    for x, y, r, w, dot in ((0.36, 0.4, 0.44, 0.12, 0.13), (-0.44, -0.1, 0.3, 0.11, 0.09), (0.16, -0.64, 0.2, 0.1, 0.07)):
+    for x, y, r, w in ((0.34, 0.4, 0.46, 0.11), (-0.46, -0.12, 0.31, 0.1), (0.2, -0.66, 0.22, 0.09)):
         p.ring(x, y, r, w)
-        p.circle(x, y, dot)
+        k = r * 0.55
+        p.poly([(x, y - k), (x + k * 0.62, y), (x, y + k), (x - k * 0.62, y)])
+
+
+def icon_breath(p):
+    """A flame and the roar rolling out of it."""
+    p.svg("fire", -0.3, 0.0, 1.25)
+    for r, w in ((0.78, 0.12), (1.12, 0.12)):
+        pts = [(-0.3 + r * math.cos(math.radians(a)), r * math.sin(math.radians(a))) for a in np.linspace(-42, 42, 16)]
+        p.line(pts, w)
 
 
 def icon_svg(name):
@@ -778,8 +801,7 @@ ART_ICONS = {
     "dread_presence": lambda: icon_svg("eyes"),
     "phantom_flurry": icon_slashes,
     "sigil_cascade": icon_sigils,
-    # the flame turned on its side: breath
-    "wyrmfire_roar": lambda: np.rot90(icon_svg("fire"), k=-1),
+    "wyrmfire_roar": icon_breath,
     "quickened_pulse": lambda: icon_svg("gauge"),
     "iron_resolve": lambda: icon_svg("shield-checkered"),
 }
