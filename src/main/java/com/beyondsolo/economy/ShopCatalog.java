@@ -140,6 +140,10 @@ public final class ShopCatalog {
         // special
         add(m, new Entry("skill_tome", Category.SPECIAL, com.beyondsolo.skill.SkillTomeItem::unread, 1500, PlayerRank.D, 1, Special.NONE));
         add(m, new Entry("sealed_rune", Category.SPECIAL, () -> com.beyondsolo.rune.Runes.sealed(PlayerRank.D), 2000, PlayerRank.D, 1, Special.NONE));
+        // dungeon keys: a run whenever you like, a few a day (higher keys come from gates and the forge)
+        add(m, new Entry("dungeon_key_e", Category.SPECIAL, () -> com.beyondsolo.key.DungeonKeys.key(PlayerRank.E), 450, PlayerRank.E, 3, Special.NONE));
+        add(m, new Entry("dungeon_key_d", Category.SPECIAL, () -> com.beyondsolo.key.DungeonKeys.key(PlayerRank.D), 1200, PlayerRank.D, 2, Special.NONE));
+        add(m, new Entry("dungeon_key_c", Category.SPECIAL, () -> com.beyondsolo.key.DungeonKeys.key(PlayerRank.C), 3200, PlayerRank.C, 1, Special.NONE));
         for (var e : com.beyondsolo.rune.Engraving.values()) {
             add(m, new Entry("rune_of_" + e.id(), Category.SPECIAL, () -> new ItemStack(e.item()), 3500, PlayerRank.C, 1, Special.NONE));
         }

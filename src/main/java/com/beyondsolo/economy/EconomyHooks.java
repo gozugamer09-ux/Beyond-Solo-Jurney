@@ -109,8 +109,13 @@ public final class EconomyHooks {
 
     /** Called by the gate when its boss falls, for everyone inside. */
     public static void gateCleared(ServerPlayer p, PlayerRank rank) {
+        gateCleared(p, rank, 1f);
+    }
+
+    /** The same, with the gold scaled (a chain of keyed runs pays a little more for each run in it). */
+    public static void gateCleared(ServerPlayer p, PlayerRank rank, float bonus) {
         Economy.countClear(p, rank);
-        if (SystemAPI.hasSystem(p)) Economy.add(p, GATE_GOLD[rank.tier()], Economy.Reason.GATE);
+        if (SystemAPI.hasSystem(p)) Economy.add(p, Math.round(GATE_GOLD[rank.tier()] * (double) bonus), Economy.Reason.GATE);
     }
 
     @SubscribeEvent

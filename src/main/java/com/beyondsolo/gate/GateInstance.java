@@ -45,6 +45,10 @@ public final class GateInstance {
     @Nullable private BossKind bossOverride;
     /** -1: from the seed, 0: not ascended, 1: ascended. */
     private int ascendedOverride = -1;
+    /** Set for a gate opened with a dungeon key: who turned it, where the run goes home to, the run's clock. */
+    @Nullable private Keyed keyed;
+    /** The cave was wiped back to rock and its slot handed to another gate ({@link GateWiper}). */
+    private boolean slotFreed;
 
     private transient DungeonLayout layout;
 
@@ -101,6 +105,13 @@ public final class GateInstance {
     }
 
     public void setBossAscended(boolean ascended) { this.ascendedOverride = ascended ? 1 : 0; }
+
+    /** True for a gate opened with a dungeon key (see {@code key.DungeonKeys}). */
+    public boolean isKeyed() { return keyed != null; }
+    @Nullable public Keyed keyed() { return keyed; }
+    public void setKeyed(@Nullable Keyed keyed) { this.keyed = keyed; }
+    public boolean slotFreed() { return slotFreed; }
+    public void setSlotFreed(boolean freed) { this.slotFreed = freed; }
 
     /** The boss's name as the System says it. */
     public net.minecraft.network.chat.Component bossName() {
@@ -170,6 +181,8 @@ public final class GateInstance {
         tag.putInt("checkpoint", checkpoint);
         if (bossOverride != null) tag.putString("bossKind", bossOverride.id);
         tag.putInt("ascended", ascendedOverride);
+        if (keyed != null) tag.put("keyed", keyed.save());
+        tag.putBoolean("slotFreed", slotFreed);
         return tag;
     }
 
@@ -195,6 +208,98 @@ public final class GateInstance {
         g.checkpoint = tag.getInt("checkpoint");
         if (tag.contains("bossKind")) g.bossOverride = BossKind.byId(tag.getString("bossKind"));
         g.ascendedOverride = tag.contains("ascended") ? tag.getInt("ascended") : -1;
+        if (tag.contains("keyed")) g.keyed = Keyed.load(tag.getCompound("keyed"));
+        g.slotFreed = tag.getBoolean("slotFreed");
         return g;
+    }
+
+    /**
+     * A run through a gate opened with a dungeon key. The gate in the world is only a door: it waits for its holder
+     * (and anyone with them), seals itself behind the first one through, and the way out leads back to where the key
+     * was turned ({@link #returnPos}), even when the run was opened from inside another cleared cave (a chain).
+     */
+    public static final class Keyed {
+        public final UUID owner;
+        /** 1 for a run opened in the world, one more for each run opened straight from the last one's cleared cave. */
+        public final int chain;
+        public final ResourceKey<Level> returnDim;
+        public final net.minecraft.world.phys.Vec3 returnPos;
+        public final float returnYaw;
+        /** The key's seal: the boss it was bound to (or null), and whether that boss comes ascended. */
+        @Nullable public final BossKind sigil;
+        public final boolean ascendant;
+        /** Game time the gate opened in the world. */
+        public final long openedAt;
+        /** Ticks the gate has stood unused while its holder was online (it gives up after a while, see key.KeyedRuns). */
+        public int waited;
+        /** Game time the first player went through, -1 until then. The door seals a little after. */
+        public long firstEntryAt = -1;
+        /** Game time the run's clock started (the first arrival inside), -1 until then. */
+        public long runStartedAt = -1;
+        /** Ticks from the first arrival to the boss's fall, -1 until cleared. */
+        public long clearTicks = -1;
+        /** The door in the world has been closed (sealed behind the party, or given up). */
+        public boolean doorClosed;
+        /** The key went back to its holder because nobody went through. */
+        public boolean refunded;
+        /** Players inside the cave right now, those who logged out in there included. */
+        public final java.util.Set<UUID> inside = new java.util.HashSet<>();
+
+        public Keyed(UUID owner, int chain, ResourceKey<Level> returnDim, net.minecraft.world.phys.Vec3 returnPos, float returnYaw,
+                     @Nullable BossKind sigil, boolean ascendant, long openedAt) {
+            this.owner = owner;
+            this.chain = Math.max(1, chain);
+            this.returnDim = returnDim;
+            this.returnPos = returnPos;
+            this.returnYaw = returnYaw;
+            this.sigil = sigil;
+            this.ascendant = ascendant;
+            this.openedAt = openedAt;
+        }
+
+        /** True once anyone has gone through the door. */
+        public boolean entered() {
+            return firstEntryAt >= 0;
+        }
+
+        CompoundTag save() {
+            CompoundTag t = new CompoundTag();
+            t.putUUID("owner", owner);
+            t.putInt("chain", chain);
+            t.putString("dim", returnDim.location().toString());
+            t.putDouble("x", returnPos.x);
+            t.putDouble("y", returnPos.y);
+            t.putDouble("z", returnPos.z);
+            t.putFloat("yaw", returnYaw);
+            if (sigil != null) t.putString("sigil", sigil.id);
+            t.putBoolean("ascendant", ascendant);
+            t.putLong("openedAt", openedAt);
+            t.putInt("waited", waited);
+            t.putLong("firstEntry", firstEntryAt);
+            t.putLong("runStarted", runStartedAt);
+            t.putLong("clearTicks", clearTicks);
+            t.putBoolean("doorClosed", doorClosed);
+            t.putBoolean("refunded", refunded);
+            net.minecraft.nbt.ListTag in = new net.minecraft.nbt.ListTag();
+            for (UUID id : inside) in.add(NbtUtils.createUUID(id));
+            t.put("inside", in);
+            return t;
+        }
+
+        static Keyed load(CompoundTag t) {
+            Keyed k = new Keyed(t.getUUID("owner"), t.getInt("chain"),
+                    ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(t.getString("dim"))),
+                    new net.minecraft.world.phys.Vec3(t.getDouble("x"), t.getDouble("y"), t.getDouble("z")), t.getFloat("yaw"),
+                    t.contains("sigil") ? BossKind.byId(t.getString("sigil")) : null, t.getBoolean("ascendant"), t.getLong("openedAt"));
+            k.waited = t.getInt("waited");
+            k.firstEntryAt = t.contains("firstEntry") ? t.getLong("firstEntry") : -1;
+            k.runStartedAt = t.contains("runStarted") ? t.getLong("runStarted") : -1;
+            k.clearTicks = t.contains("clearTicks") ? t.getLong("clearTicks") : -1;
+            k.doorClosed = t.getBoolean("doorClosed");
+            k.refunded = t.getBoolean("refunded");
+            net.minecraft.nbt.ListTag in = t.getList("inside", net.minecraft.nbt.Tag.TAG_INT_ARRAY);
+            for (int i = 0; i < in.size(); i++) k.inside.add(NbtUtils.loadUUID(in.get(i)));
+            return k;
+        }
     }
 }
