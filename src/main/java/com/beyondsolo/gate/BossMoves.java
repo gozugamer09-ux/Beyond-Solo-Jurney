@@ -375,7 +375,8 @@ public final class BossMoves {
             } else b.getNavigation().stop();
             return;
         }
-        double reach = b.kind() == BossKind.BROODMOTHER || b.kind() == BossKind.WYRM ? 3.0 : 3.2;
+        // the wyrm's neck reaches well past its hitbox, so it stops further off and its snout stays out of the target's face
+        double reach = b.kind() == BossKind.WYRM ? 3.8 : b.kind() == BossKind.BROODMOTHER ? 3.0 : 3.2;
         if (dist > reach) b.getNavigation().moveTo(target, speed);
         else b.getNavigation().stop();
     }

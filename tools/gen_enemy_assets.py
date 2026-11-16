@@ -1015,7 +1015,8 @@ def wyrm():
         **legs(lambda t, p: (22 * wave(t, L, p), max(0.0, wave(t, L, p + 0.25)))),
         **wings(lambda t: 0.04 + 0.03 * wave(t, L / 2)),
     })
-    # intro (3.5 s): rears up, wings thrown open, a roar to the ceiling, comes down with a thud at 3.0 s
+    # intro (3.5 s): rears up with its neck arched over, wings thrown wide, roars down at whoever woke it, and comes
+    # down with a thud at 3.0 s
     L = 3.5
 
     def rear(t):
@@ -1028,16 +1029,16 @@ def wyrm():
         return window(t, 1.3, 1.5) * (1 - window(t, 2.4, 2.7))
     A["intro"] = anim(L, False, {
         "body": {"rotation": lambda t: [-36 * rear(t), 0, 0], "position": lambda t: [0, 4 * rear(t), 7 * rear(t)]},
-        "neck": rot(lambda t: [14 * rear(t) + 2 * math.sin(t * 40) * roar(t), 0, 0]),
-        "neck2": rot(lambda t: [-10 * roar(t), 0, 0]),
-        "head": rot(lambda t: [-26 * roar(t), 0, 0]),
-        "jaw": rot(lambda t: [32 * roar(t), 0, 0]),
+        "neck": rot(lambda t: [22 * rear(t) + 2 * math.sin(t * 40) * roar(t), 0, 0]),
+        "neck2": rot(lambda t: [14 * rear(t) - 5 * roar(t), 0, 0]),
+        "head": rot(lambda t: [22 * rear(t) - 12 * roar(t), 3 * math.sin(t * 31) * roar(t), 0]),
+        "jaw": rot(lambda t: [25 * roar(t), 0, 0]),
         "right_front": rot(lambda t: [-34 * rear(t), 0, -8 * rear(t)]), "left_front": rot(lambda t: [-34 * rear(t), 0, 8 * rear(t)]),
         "right_front_low": rot(lambda t: [-26 * rear(t), 0, 0]), "left_front_low": rot(lambda t: [-26 * rear(t), 0, 0]),
         "right_front_foot": rot(lambda t: [50 * rear(t), 0, 0]), "left_front_foot": rot(lambda t: [50 * rear(t), 0, 0]),
         "right_hind": rot(lambda t: [36 * rear(t), 0, 0]), "left_hind": rot(lambda t: [36 * rear(t), 0, 0]),
         "tail": rot(lambda t: [26 * rear(t), 0, 0]), "tail2": rot(lambda t: [8 * rear(t), 0, 0]),
-        **wings(spread, lambda t: 0.9 * min(1.0, max(0.0, spread(t))) + 0.3 * math.sin(t * 9) * roar(t)),
+        **wings(spread, lambda t: 0.45 * min(1.0, max(0.0, spread(t))) + 0.3 * math.sin(t * 9) * roar(t)),
     })
     # breath (2.6 s): the neck draws back, then thrusts out low, jaw wide, held from 0.8 to 2.2 s
     L = 2.6
@@ -1051,7 +1052,7 @@ def wyrm():
         "neck": rot(lambda t: [-16 * draw(t) + 34 * blast(t), 6 * math.sin(t * 3) * blast(t), 0]),
         "neck2": rot(lambda t: [10 * draw(t) - 12 * blast(t), 0, 0]),
         "head": rot(lambda t: [8 * draw(t) - 24 * blast(t), 0, 0]),
-        "jaw": rot(lambda t: [14 * draw(t) + 36 * blast(t), 0, 0]),
+        "jaw": rot(lambda t: [8 * draw(t) + 23 * blast(t), 0, 0]),
         "body": rot(lambda t: [-5 * draw(t) + 5 * blast(t), 0, 0]),
         **wings(lambda t: 0.4 * blast(t)),
     })
@@ -1084,7 +1085,7 @@ def wyrm():
         **wings(lambda t: max(rise(t), beat(t)), lambda t: 1.1 * rise(t) - 1.5 * beat(t)),
         "neck": rot(lambda t: [-8 * rise(t) + 10 * beat(t), 0, 0]),
         "head": rot(lambda t: [10 * rise(t) - 6 * beat(t), 0, 0]),
-        "jaw": rot(lambda t: [25 * beat(t), 0, 0]),
+        "jaw": rot(lambda t: [20 * beat(t), 0, 0]),
         "right_hind": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]), "left_hind": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]),
         "right_front": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]), "left_front": rot(lambda t: [13 * rise(t) - 7 * beat(t), 0, 0]),
     })
