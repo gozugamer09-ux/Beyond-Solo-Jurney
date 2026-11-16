@@ -329,7 +329,7 @@ def _pack(rects, width):
     return pos, y + shelf
 
 
-SIZES = ((128, 128), (256, 128), (256, 256), (512, 256), (512, 512), (1024, 512), (1024, 1024), (2048, 1024), (2048, 2048))
+SIZES = ((128, 128), (256, 128), (256, 256), (512, 256), (512, 512), (1024, 512), (1024, 768), (1024, 1024), (2048, 1024), (2048, 2048))
 
 # name -> dict(painter, palette, density, unit, levels); filled in below and by gen_enemy_assets (unit)
 PAINTERS = {}
@@ -840,6 +840,8 @@ def wyrm_palette(base):
     tan = mix(plate, (240, 206, 140), 0.55)
     ash = mix((30, 26, 30), hide, 0.10)
     skin = mix(cloth, (60, 14, 20), 0.35)
+    warmth = min(1.0, max(0.0, (glow[0] - glow[2]) / 255.0))
+    heart = mix((255, 255, 255), (255, 206, 104), warmth)                  # what the glow turns to where it is hottest
     return {
         "ash": [mul(ash, 0.22), cool(ash, 0.6), ash, mix(ash, (120, 104, 104), 0.5), (156, 140, 136)],
         "red": [cool(red, 0.2), cool(red, 0.5), red, mix(red, ember, 0.45), mix(ember, (255, 214, 150), 0.3)],
@@ -848,7 +850,7 @@ def wyrm_palette(base):
         "horn": [(22, 16, 16), (64, 50, 44), mix(bone, (120, 100, 84), 0.6), bone, (255, 250, 236)],
         "black": [(3, 2, 4), (12, 9, 12), (30, 24, 28), (62, 52, 56), (110, 98, 100)],
         "glow": [mul(glow, 0.34), mul(glow, 0.72), glow, mix(glow, (255, 255, 255), 0.5), mix(glow, (255, 255, 255), 0.88)],
-        "hot": [mul(glow, 0.26), mul(glow, 0.6), glow, mix(glow, (255, 246, 214), 0.5), (255, 252, 236)],
+        "hot": [mul(glow, 0.3), mul(glow, 0.64), glow, mix(glow, heart, 0.6), mix(heart, (255, 255, 246), 0.55)],
         "mouth": [(20, 4, 6), (64, 10, 12), mix((120, 20, 16), glow, 0.35), mix(glow, (255, 240, 200), 0.3), (255, 250, 230)],
         "skin": [mul(skin, 0.3), mul(skin, 0.62), skin, mix(skin, ember, 0.5), mix(ember, (255, 226, 170), 0.45)],
     }
@@ -860,7 +862,7 @@ def _wing_shape(pp, qq, part):
     if part == 1:
         th = np.degrees(np.arctan2(qq, np.maximum(pp, 1e-6)))
         r = np.hypot(pp, qq)
-        fingers = ((0.0, 26.0), (24.6, 26.4), (48.8, 26.6), (73.4, 24.5), (90.0, 22.0))
+        fingers = ((0.0, 30.0), (24.6, 30.5), (48.8, 30.7), (73.4, 28.3), (90.0, 25.2))
         rmax = np.zeros(r.shape)
         for (a0, r0), (a1, r1) in zip(fingers, fingers[1:]):
             s = np.clip((th - a0) / (a1 - a0), 0, 1)
@@ -870,8 +872,8 @@ def _wing_shape(pp, qq, part):
             d = np.abs(np.sin(np.radians(th - a))) * r
             strut = np.minimum(strut, np.where((r < r0) & (np.abs(th - a) < 60), d, 99.0))
         return (r < rmax) & (pp >= 0) & (qq >= 0), r / np.maximum(rmax, 1e-6), strut, r
-    k = np.clip(pp / 10, 0, 1)
-    qmax = 17 + 5 * k - 2.4 * np.sin(np.pi * k)
+    k = np.clip(pp / 12, 0, 1)
+    qmax = 19.4 + 5.8 * k - 2.8 * np.sin(np.pi * k)
     return qq < qmax, qq / qmax, np.full(pp.shape, 99.0), qq
 
 
@@ -887,7 +889,7 @@ def _wyrm_heat(X, Y, Z, low):
     low: 0 on the back .. 1 at the belly."""
     n = fbm3(X * 0.15 + 5.3, Y * 0.15 + 9.1, Z * 0.12 + 1.7, 77, 3)
     front = sstep(-2, -20, Z) * (1 - 0.7 * sstep(-38, -46, Z))        # from the chest up the throat, not the face
-    return np.clip(n * 0.9 + 0.42 * front * low + 0.16 * (1 - low) - 0.05, 0, 1)
+    return np.clip(n * 0.9 + 0.36 * front * low ** 1.6 + 0.11 * (1 - low) ** 2 - 0.04, 0, 1)
 
 
 def _wyrm_scales(p, f, a, b, size, seed, zone, heat=None, glow_at=0.60, tone=0.5):
@@ -902,27 +904,33 @@ def _wyrm_scales(p, f, a, b, size, seed, zone, heat=None, glow_at=0.60, tone=0.5
     if plate is not None:
         p.over("plate", t + 0.06, plate)
     if heat is not None:
-        hot = np.clip((heat(cells) - glow_at) / 0.10, 0, 1)
-        seam = cells["seam"] * hot
-        p.glow("hot", 0.30, np.clip(hot * (0.30 - 0.5 * np.abs(cells["v"] - 0.9)), 0, 0.3))     # a warm tint near the seam
-        p.glow("hot", 0.52 + 0.4 * sstep(0.5, 1.0, seam), seam > 0.42)
+        hot = np.clip((heat(cells) - glow_at) / 0.14, 0, 1)
+        seam = cells["seam"] * (0.45 + 0.55 * hot) * (hot > 0)
+        p.glow("hot", 0.30, np.clip(hot * (0.32 - 0.5 * np.abs(cells["v"] - 0.9)), 0, 0.32))    # a warm tint near the seam
+        p.glow("hot", 0.42 + 0.26 * hot + 0.3 * sstep(0.55, 1.0, seam), seam > 0.42)
     return cells
 
 
-def _scutes(p, f, along, across, half, seed, hot=0.0, length=2.7):
-    """Belly plates: bands across the body, each lit along its leading edge. hot (0..1): the seams glow."""
+def _scutes(p, f, along, across, half, seed, hot=0.0, length=2.7, mask=None):
+    """Belly plates: bands across the body, each lit along its leading edge. hot (0..1): the seams glow, brightest
+    along the body's middle line. mask: only there (over what is painted already)."""
     k = np.floor(along / length)
     t = along / length - k
     rnd = hash01(seed, k.astype(np.int64))
-    tone = 0.56 + (rnd - 0.5) * 0.12 + 0.16 * sstep(0.34, 0.0, t) - 0.22 * sstep(0.62, 0.92, t)
-    tone = tone - 0.12 * sstep(0.45, 1.0, np.abs(across) / max(half, 1e-6))
+    side = np.abs(across) / max(half, 1e-6)
+    tone = 0.56 + (rnd - 0.5) * 0.12 + 0.16 * sstep(0.34, 0.0, t) - 0.20 * sstep(0.60, 0.92, t)
+    tone = tone - 0.16 * sstep(0.4, 1.0, side) + 0.05 * sstep(0.3, 0.0, side)
     tone = tone + (vnoise2(across * 1.3, along * 0.5, seed + 3) - 0.5) * 0.10
-    p.fill("plate", tone)
-    seam = t > 0.90
-    p.over("black", 0.16, seam)
-    h = np.broadcast_to(np.asarray(hot, float), along.shape)
-    p.glow("hot", 0.34, np.clip(sstep(0.66, 0.9, t) * h * 0.34, 0, 0.34))
-    p.glow("hot", 0.62 + 0.3 * (t > 0.95), seam & (h > 0.5))
+    m = np.ones(along.shape, bool) if mask is None else mask
+    if mask is None:
+        p.fill("plate", tone)
+    else:
+        p.over("plate", tone, m)
+    seam = (t > 0.90) & m
+    p.over("black", 0.2, seam)
+    h = np.broadcast_to(np.asarray(hot, float), along.shape) * (0.55 + 0.45 * rnd) * (1 - 0.75 * sstep(0.35, 1.0, side))
+    p.glow("hot", 0.34, np.clip(sstep(0.62, 0.9, t) * h * 0.36, 0, 0.36) * m)
+    p.glow("hot", 0.46 + 0.5 * h * (t > 0.94), seam & (h > 0.34))
     return t
 
 
@@ -957,7 +965,7 @@ def paint_wyrm(f, p):
     if tag in ("torso", "hump", "hips", "neck", "tail"):
         plated = tag in ("neck", "tail")              # these carry their own belly plates; the body has a slab of them
         size = {"torso": 2.5, "hump": 2.5, "hips": 2.5, "neck": 2.0, "tail": (2.3, 2.0, 1.7, 1.4)[part] if tag == "tail" else 2.0}[tag]
-        hot_tail = sstep(40, 56, Z) * 0.5
+        hot_tail = sstep(38, 56, Z) * 0.26
 
         def zone(cells, coord):
             hc = (cells[coord] - f.bottom) / span if coord else None
@@ -979,13 +987,15 @@ def paint_wyrm(f, p):
 
             cells = _wyrm_scales(p, f, Y, Z, size, 300, zones, heat)
             if plated:
-                band = hn < 0.2 + 0.035 * np.cos((Z / 2.7 % 1) * 2 * math.pi)
-                tone = 0.5 + 0.12 * sstep(0.34, 0.0, Z / 2.7 % 1) - 0.2 * sstep(0.62, 0.92, Z / 2.7 % 1)
-                p.over("plate", tone - 0.1 * sstep(0.2, 0.0, hn), band)
-                seam = band & ((Z / 2.7 % 1) > 0.9)
-                p.over("black", 0.16, seam)
+                t = Z / 2.7 % 1
+                band = hn < 0.2 - 0.07 * (2 * t - 1) ** 4                 # every plate's end is rounded
+                tone = 0.5 + 0.12 * sstep(0.34, 0.0, t) - 0.16 * sstep(0.62, 0.92, t)
+                p.over("plate", tone - 0.14 * sstep(0.2, 0.0, hn), band)
+                seam = band & (t > 0.9)
+                p.over("black", 0.26, seam)
+                p.over("black", 0.18, (hn < 0.2 + 0.025 - 0.07 * (2 * t - 1) ** 4) & ~band)      # the shadow line over the plates
                 throat = sstep(-8, -20, Z) if tag == "neck" else 0.0
-                p.glow("hot", 0.62, seam & (np.broadcast_to(throat, X.shape) > 0.5))
+                p.glow("hot", 0.5, seam & (np.broadcast_to(throat, X.shape) > 0.5) & (hn < 0.1))
             # the body's own light and shade
             p.shade(0.10 * sstep(0.55, 1.0, hn) - 0.16 * sstep(0.3, 0.0, hn))
             p.shade(0.10, Y > f.top - 1.5 * f.texel)
@@ -1017,6 +1027,11 @@ def paint_wyrm(f, p):
 
             _wyrm_scales(p, f, X, -Y, size, 303, zones, heat)
             p.shade(0.08 * sstep(0.55, 1.0, hn) - 0.16 * sstep(0.3, 0.0, hn) - (0.10 if face == "south" else 0.0))
+            if tag == "hump" and face == "north":
+                strip = (ax < 4.6 + 0.5 * np.cos((-Y / 2.2 % 1) * 2 * math.pi)) & (Y < 20.5)
+                p.shade(-0.2, (ax < 5.6) & (Y < 21.0))
+                _scutes(p, f, -Y, X, 4.8, 304, 1.0, length=2.2, mask=strip)
+                p.shade(-0.22 * sstep(21.5, 17.5, Y) * (ax < 4.4), strip)                          # the neck's shadow
         return
 
     if tag in ("belly", "keel"):
@@ -1027,8 +1042,14 @@ def paint_wyrm(f, p):
         elif f.side:
             _scutes(p, f, Z, np.zeros(X.shape), 1.0, 302, hot)
             p.shade(-0.14 * sstep(f.top - 0.2, f.bottom, Y) + 0.06)
+        elif face == "north" and tag == "keel":
+            strip = ax < 4.6 + 0.5 * np.cos((-Y / 2.2 % 1) * 2 * math.pi)
+            _wyrm_scales(p, f, X, -Y, 2.0, 305, lambda cells: (none, full, None))
+            p.shade(-0.14)
+            p.shade(-0.2, ax < 5.6)
+            _scutes(p, f, -Y, X, 4.8, 304, 1.0, length=2.2, mask=strip)
         else:
-            _scutes(p, f, -Y * 1.6, X, f.s[0] / 2, 304, 1.0 if face == "north" else 0.0, length=2.2)
+            _scutes(p, f, -Y * 1.6, X, f.s[0] / 2, 304, 0.0, length=2.2)
         return
 
     if tag == "spine":
@@ -1142,7 +1163,9 @@ def paint_wyrm(f, p):
         if face == "down":
             p.shade(-0.3)
         if face == "up":
-            p.over("horn", 0.5, ((Z * 0.9) % 1.9 < 0.5) & (np.abs(X - f.cx) < f.s[0] * 0.3))   # knobs of horn along the ridge
+            cells = scale_cells(X, Z, 1.25, 321)
+            p.fill("ash", 0.5 + cells["tone"])
+            p.over("horn", 0.34 + 0.2 * f.V, (f.U > 0.84) if f.cx > 0 else (f.U < 0.16))           # the worn outer rim
         return
 
     if tag == "horn":
@@ -1268,7 +1291,7 @@ def paint_wyrm(f, p):
         return
 
     if tag == "membrane":
-        pp = ax - (10.0 if part == 0 else 20.0)
+        pp = ax - (10.0 if part == 0 else 22.0)
         qq = Z + 8.0
         inside, k, strut, r = _wing_shape(pp, qq, part)
         vein = np.abs(fbm2(pp * 0.34 + 3.0, qq * 0.34 + (7.0 if part else 1.0), 350, 2) - 0.5)
@@ -1277,7 +1300,7 @@ def paint_wyrm(f, p):
         tone = tone - 0.14 * sstep(0.035, 0.012, vein) * sstep(0.2, 0.5, k)                   # veins
         tone = tone - 0.16 * sstep(0.955, 1.0, k)                                             # the hem
         p.fill("skin", tone)
-        w = 0.5 + 0.35 * (1 - np.clip(r / 26.0, 0, 1))
+        w = 0.5 + 0.4 * (1 - np.clip(r / 30.0, 0, 1))
         p.over("ash", 0.3 + 0.16 * sstep(w, 0.0, strut), strut < w)                            # the fingers
         p.over("ash", 0.32, qq < 0.9)                                                         # along the arm
         tear = (fbm2(pp * 0.5 + 9.0, qq * 0.5 + 2.0, 352, 2) > 0.70) & (k > 0.72) & (strut > 1.2)

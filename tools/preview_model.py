@@ -287,7 +287,7 @@ def sheet(name, views=("fl", "left", "front", "br", "top", "face"), size=520, an
         cam = dict(VIEWS[v])
         tgt = list(target) if target else [centre[0], centre[1], centre[2]]
         d = radius / math.tan(math.radians(38) / 2) * 1.05 / zoom
-        if v == "face":
+        if v == "face" and not target:
             # close on the head: the front third of the model
             tgt = [centre[0], hi[1] - (hi[1] - lo[1]) * 0.3, lo[2] + (hi[2] - lo[2]) * 0.18]
             d *= 0.45
@@ -313,9 +313,11 @@ def main():
     ap.add_argument("--dark", action="store_true", help="as in a dark cave: only the glow stays bright")
     ap.add_argument("--zoom", type=float, default=1.0)
     ap.add_argument("--cols", type=int, default=3)
+    ap.add_argument("--target", help="x,y,z in model units to look at instead of the model's middle (with --zoom, for close-ups)")
     ap.add_argument("--out")
     a = ap.parse_args()
-    print(sheet(a.name, tuple(a.views.split(",")), a.size, a.anim, a.time, a.dark, a.zoom, a.cols, out=a.out))
+    target = [float(v) for v in a.target.split(",")] if a.target else None
+    print(sheet(a.name, tuple(a.views.split(",")), a.size, a.anim, a.time, a.dark, a.zoom, a.cols, target=target, out=a.out))
 
 
 if __name__ == "__main__":

@@ -944,18 +944,18 @@ def wyrm():
         # both sides) on bones of their own, so folding can gather them (their scale along the body).
         wx = sx * 10
         m.bone(f"{side}_wing", "body", [wx, 25.6, -8], [
-            c([wx if sx > 0 else wx - 10.6, 24.5, -9.2], [10.6, 2.2, 2.4], BONE, tag="wing_arm", part=0),
+            c([wx if sx > 0 else wx - 12.6, 24.5, -9.2], [12.6, 2.2, 2.4], BONE, tag="wing_arm", part=0),
         ], rotation=[WING_FOLD[0][0], sx * WING_FOLD[0][1], sx * WING_FOLD[0][2]])
-        ex = sx * 20
+        ex = sx * 22
         m.bone(f"{side}_wing_tip", f"{side}_wing", [ex, 25.6, -8], [
-            c([ex if sx > 0 else ex - 26, 24.85, -8.85], [26, 1.5, 1.7], BONE, tag="wing_arm", part=1),
+            c([ex if sx > 0 else ex - 30, 24.85, -8.85], [30, 1.5, 1.7], BONE, tag="wing_arm", part=1),
             c([ex - 0.75, 24.85, -11.4], [1.5, 1.5, 2.8], BONE, tag="wing_claw", skip=("south",)),
         ], rotation=[WING_FOLD[1][0], sx * WING_FOLD[1][1], sx * WING_FOLD[1][2]])
         m.bone(f"{side}_membrane", f"{side}_wing", [wx, 25.6, -8], [
-            c([wx if sx > 0 else wx - 12, 25.5, -8], [12, 0, 22], CLOTH, tag="membrane", part=0, skip=("down",)),
+            c([wx if sx > 0 else wx - 14, 25.5, -8], [14, 0, 25], CLOTH, tag="membrane", part=0, skip=("down",)),
         ])
         m.bone(f"{side}_membrane_tip", f"{side}_wing_tip", [ex, 25.6, -8], [
-            c([ex if sx > 0 else ex - 27, 25.15, -8], [27, 0, 24], CLOTH, tag="membrane", part=1, skip=("down",)),
+            c([ex if sx > 0 else ex - 31, 25.15, -8], [31, 0, 28], CLOTH, tag="membrane", part=1, skip=("down",)),
         ])
     write_geo(name, m.geo(name, size, 9, 6, 1.8))
 
@@ -1037,7 +1037,7 @@ def wyrm():
         "right_front_foot": rot(lambda t: [50 * rear(t), 0, 0]), "left_front_foot": rot(lambda t: [50 * rear(t), 0, 0]),
         "right_hind": rot(lambda t: [36 * rear(t), 0, 0]), "left_hind": rot(lambda t: [36 * rear(t), 0, 0]),
         "tail": rot(lambda t: [26 * rear(t), 0, 0]), "tail2": rot(lambda t: [8 * rear(t), 0, 0]),
-        **wings(spread, lambda t: 0.3 * math.sin(t * 9) * roar(t)),
+        **wings(spread, lambda t: 0.9 * min(1.0, max(0.0, spread(t))) + 0.3 * math.sin(t * 9) * roar(t)),
     })
     # breath (2.6 s): the neck draws back, then thrusts out low, jaw wide, held from 0.8 to 2.2 s
     L = 2.6
