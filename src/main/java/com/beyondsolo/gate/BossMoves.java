@@ -375,7 +375,8 @@ public final class BossMoves {
             } else b.getNavigation().stop();
             return;
         }
-        double reach = b.kind() == BossKind.BROODMOTHER || b.kind() == BossKind.WYRM ? 3.0 : 3.2;
+        // the wyrm's neck reaches well past its hitbox, so it stops further off and its snout stays out of the target's face
+        double reach = b.kind() == BossKind.WYRM ? 3.8 : b.kind() == BossKind.BROODMOTHER ? 3.0 : 3.2;
         if (dist > reach) b.getNavigation().moveTo(target, speed);
         else b.getNavigation().stop();
     }
@@ -484,7 +485,8 @@ public final class BossMoves {
 
     private static void breathParticles(GateBossEntity b, Vec3 dir, float range, float halfDeg) {
         if (!(b.level() instanceof ServerLevel sl)) return;
-        Vec3 mouth = b.position().add(dir.scale(b.getBbWidth() / 2 + 1.2)).add(0, b.getBbHeight() * 0.55, 0);
+        // where the wyrm's open jaws are while its neck is thrust out (see the breath animation in gen_enemy_assets.py)
+        Vec3 mouth = b.position().add(dir.scale(b.getBbWidth() * 1.05)).add(0, b.getBbHeight() * 0.36, 0);
         for (int k = 0; k < 8; k++) {
             double ang = (b.getRandom().nextDouble() * 2 - 1) * halfDeg * Mth.DEG_TO_RAD;
             Vec3 v = dir.yRot((float) ang).add(0, -0.12, 0).normalize();

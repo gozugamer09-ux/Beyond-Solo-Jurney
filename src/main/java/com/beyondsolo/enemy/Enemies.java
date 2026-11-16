@@ -101,9 +101,13 @@ public final class Enemies {
         return 0.85f + 0.3f * r.nextFloat();
     }
 
-    /** Sets a creature's size roll: its scale, and its health, damage and pace with it. */
+    /**
+     * Sets a creature's size roll: its scale, and its health, damage and pace with it. Size 1 puts it back to its
+     * kind's own size. The scale modifier stays on even then: it is also the mark that this creature's size has been
+     * decided, so {@link #apply} does not roll another one.
+     */
     public static void applySize(Mob mob, float size) {
-        mod(mob, Attributes.SCALE, "size_roll", size - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        set(mob, Attributes.SCALE, "size_roll", size - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, true);
         mod(mob, Attributes.MAX_HEALTH, "size_health", (size - 1) * 0.8, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.ATTACK_DAMAGE, "size_damage", (size - 1) * 0.4, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.MOVEMENT_SPEED, "size_pace", (1 - size) * 0.25, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
@@ -117,13 +121,19 @@ public final class Enemies {
         return m == null ? 1f : 1f + (float) m.amount();
     }
 
+    /** Sets the modifier {@code id} to {@code amount}. An amount of zero takes an earlier one off and adds nothing. */
     private static void mod(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr, String id, double amount,
                             AttributeModifier.Operation op) {
-        if (Math.abs(amount) < 1e-4) return;
+        set(mob, attr, id, amount, op, false);
+    }
+
+    private static void set(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr, String id, double amount,
+                            AttributeModifier.Operation op, boolean keepZero) {
         AttributeInstance inst = mob.getAttribute(attr);
         if (inst == null) return;
+        // the old one goes first, whatever the new amount is: setting a value to nothing has to undo the earlier one
         inst.removeModifier(BeyondSolo.id(id));
-        inst.addPermanentModifier(new AttributeModifier(BeyondSolo.id(id), amount, op));
+        if (keepZero || Math.abs(amount) >= 1e-4) inst.addPermanentModifier(new AttributeModifier(BeyondSolo.id(id), amount, op));
     }
 
     /** The rank a roster creature was made for, or null. */
