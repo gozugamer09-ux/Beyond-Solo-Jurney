@@ -98,6 +98,8 @@ public final class SkillWorldFx {
                 case BEAM -> lasting + 0.2f;
                 case ORB -> Math.max(0.4f, lasting);
                 case THUNDER -> 0.55f;
+                case SHIELD, CHAIN -> Math.max(0.3f, lasting);
+                case HAMMER, DISCUS -> Math.max(0.1f, lasting) + 0.05f;
             };
         }
     }
@@ -295,10 +297,15 @@ public final class SkillWorldFx {
                 }
             }
             case GEYSER -> {
+                // what flies up with the jets: embers (duration 0), the ground itself (1) or motes of light (2)
+                BlockState ground = level.getBlockState(BlockPos.containing(p.x(), p.y() - 0.5, p.z()));
+                ParticleOptions chunk = p.duration() == 2 ? ParticleTypes.END_ROD
+                        : p.duration() == 1 ? (ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground))
+                        : ParticleTypes.LAVA;
                 for (int i = 0; i < 46; i++) {
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     double sp = RANDOM.nextDouble() * 0.16;
-                    level.addParticle(i % 5 == 0 ? ParticleTypes.LAVA : dust, p.x() + rnd(0.3), p.y() + 0.2 + RANDOM.nextDouble() * p.size() * 0.5, p.z() + rnd(0.3),
+                    level.addParticle(i % 5 == 0 ? chunk : dust, p.x() + rnd(0.3), p.y() + 0.2 + RANDOM.nextDouble() * p.size() * 0.5, p.z() + rnd(0.3),
                             Math.cos(a) * sp, 0.25 + RANDOM.nextDouble() * 0.35, Math.sin(a) * sp);
                 }
             }
@@ -921,16 +928,18 @@ public final class SkillWorldFx {
                 case BLADES -> {
                     int n = 6;
                     Vec3 here = at;
+                    // their owner sees them faintly in first person: they pass right in front of the eyes
+                    float seen = self ? hold * 0.3f : hold;
                     for (int i = 0; i < n; i++) {
                         float ang = time * 0.42f + i * Mth.TWO_PI / n;
                         float bob = 0.2f * Mth.sin(time * 0.2f + i * 1.3f);
                         Vec3 mid = new Vec3(Mth.cos(ang) * p.size(), 1.05f + bob, Mth.sin(ang) * p.size());
                         // each blade points along its path, tip a little down
                         Vec3 dir = new Vec3(-Mth.sin(ang), -0.35f, Mth.cos(ang)).normalize().scale(0.75f);
-                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.3f, c, hold * 1.1f);
-                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.1f, 0xFFFFFF, hold);
+                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.3f, c, seen * 1.1f);
+                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.1f, 0xFFFFFF, seen);
                         Vec3 trail = new Vec3(Mth.cos(ang - 0.5f) * p.size(), 1.05f + bob, Mth.sin(ang - 0.5f) * p.size());
-                        streak(pose, buffers, camera, here, trail, mid.subtract(dir), 0.16f, c, hold * 0.4f);
+                        streak(pose, buffers, camera, here, trail, mid.subtract(dir), 0.16f, c, seen * 0.4f);
                     }
                     disc(pose, buffers, RING, 0.06f, p.size() * 1.05f, -time * 6, c, hold * 0.6f);
                     if (!self) disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.6f, time * 5, light, hold * 0.45f);
@@ -1008,6 +1017,80 @@ public final class SkillWorldFx {
                     disc(pose, buffers, GLOW, 0.05f, p.size(), 0, c, fade * 0.8f);
                     dotTex(pose, buffers, camera, BURST, 0, 0.4f, 0, 1f + 2f * out, light, fade, fx.seed % 360);
                 }
+                case SHIELD -> {
+                    float yaw = e != null ? e.getViewYRot(partial) : fx.yaw;
+                    float pop = 1 - (1 - Mth.clamp(age / 0.1f, 0, 1)) * (1 - Mth.clamp(age / 0.1f, 0, 1));
+                    // up at once, so that even a half-second shield is seen; a very short one is a bash, thrust forward
+                    float up = Mth.clamp(age / 0.1f, 0, 1) * Mth.clamp((life - age) / Math.min(0.5f, life * 0.5f), 0, 1);
+                    boolean bash = p.duration() < 10;
+                    // its owner looks through it: in first person only a faint rim is left, so the fight stays in view
+                    if (self) up *= 0.3f;
+                    Vec3 front = Vec3.directionFromRotation(0, yaw).scale(bash ? 0.95 + 1.1 * out : 0.95);
+                    pose.pushPose();
+                    pose.translate(front.x, 1.0, front.z);
+                    pose.mulPose(Axis.YP.rotationDegrees(-yaw));
+                    pose.mulPose(Axis.XP.rotationDegrees(90));
+                    if (!self) disc(pose, buffers, GLOW, 0, p.size() * 0.95f * pop, 0, c, up * 0.55f);
+                    disc(pose, buffers, RING, 0.01f, p.size() * pop, 0, light, up * 1.1f);
+                    disc(pose, buffers, RING, 0.02f, p.size() * 0.62f * pop, 0, c, up * 0.9f);
+                    if (!self) disc(pose, buffers, BURST, 0.03f, p.size() * 0.5f * pop, 45, light, up * (0.5f + 0.2f * Mth.sin(time * 0.4f)));
+                    pose.popPose();
+                }
+                case HAMMER -> {
+                    // thrown from where the caster stood, tumbling head over haft; a big one is lobbed high and comes down hard
+                    Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
+                    Vec3 from = fx.origin.add(-look.z * 0.4, 1.35, look.x * 0.4).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    float flight = Math.max(0.1f, p.duration() / 20f);
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    float big = p.size();
+                    float arc = 0.3f + 1.1f * big;
+                    Vec3 pos = from.lerp(to, k).add(0, Mth.sin(k * Mth.PI) * arc, 0);
+                    // it tumbles in the plane of the screen: thrown straight away from the viewer, a true tumble would be
+                    // seen edge-on, as a line. It ends head down, on the mark.
+                    Vector3f cl = camera.getLeftVector(), cu = camera.getUpVector();
+                    Vec3 left = new Vec3(cl.x(), cl.y(), cl.z()), upward = new Vec3(cu.x(), cu.y(), cu.z());
+                    float spin = -Mth.HALF_PI + (1 - k) * Mth.TWO_PI * (big >= 2.5f ? 1 : 2);
+                    Vec3 axis = left.scale(Mth.cos(spin)).add(upward.scale(Mth.sin(spin)));
+                    Vec3 cross = left.scale(-Mth.sin(spin)).add(upward.scale(Mth.cos(spin)));
+                    Vec3 butt = pos.subtract(axis.scale(0.6 * big)), head = pos.add(axis.scale(0.6 * big));
+                    float a = age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.05f, 0, 1);
+                    float kb = Math.max(0, k - 0.15f);
+                    streak(pose, buffers, camera, at, from.lerp(to, kb).add(0, Mth.sin(kb * Mth.PI) * arc, 0), pos, 0.25f * big, c, a * 0.45f);
+                    streak(pose, buffers, camera, at, butt, head, 0.2f * big, light, a);
+                    streak(pose, buffers, camera, at, head.subtract(cross.scale(0.45 * big)), head.add(cross.scale(0.45 * big)), 0.6f * big, c, a * 1.2f);
+                    streak(pose, buffers, camera, at, head.subtract(cross.scale(0.38 * big)), head.add(cross.scale(0.38 * big)), 0.3f * big, 0xFFFFFF, a);
+                    dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.8f * big, c, a * 0.6f);
+                }
+                case DISCUS -> {
+                    // edge-on a flat disc would vanish, so it is drawn facing the camera and spun
+                    Vec3 from = fx.origin.add(0, e != null ? e.getBbHeight() * 0.6 : 1, 0).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    float flight = Math.max(0.1f, p.duration() / 20f);
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    Vec3 pos = from.lerp(to, k);
+                    float a = age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.05f, 0, 1);
+                    streak(pose, buffers, camera, at, from.lerp(to, Math.max(0, k - 0.35f)), pos, 0.3f * p.size(), c, a * 0.5f);
+                    dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.6f * p.size(), c, a * 0.5f);
+                    dotTex(pose, buffers, camera, RING, (float) pos.x, (float) pos.y, (float) pos.z, 0.55f * p.size(), light, a * 1.2f, 0);
+                    dotTex(pose, buffers, camera, RING, (float) pos.x, (float) pos.y, (float) pos.z, 0.32f * p.size(), c, a, 0);
+                    dotTex(pose, buffers, camera, BURST, (float) pos.x, (float) pos.y, (float) pos.z, 0.34f * p.size(), 0xFFFFFF, a * 0.8f, time * 30);
+                }
+                case CHAIN -> {
+                    Vec3 from = (e != null ? e.getPosition(partial).add(0, e.getBbHeight() * 0.6, 0) : fx.origin).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    double len = to.subtract(from).length();
+                    int links = Math.max(2, (int) (len / 0.55));
+                    float reach = Mth.clamp(age / 0.15f, 0, 1);
+                    streak(pose, buffers, camera, at, from, from.lerp(to, reach), 0.07f * p.size(), c, hold * 0.8f);
+                    for (int i = 0; i <= links * reach; i++) {
+                        double k = i / (double) links;
+                        // the chain hangs a little in the middle
+                        Vec3 g = from.lerp(to, k).add(0, -Math.sin(k * Math.PI) * Math.min(0.6, len * 0.05), 0);
+                        dot(pose, buffers, camera, (float) g.x, (float) g.y, (float) g.z, p.size() * (i % 2 == 0 ? 0.16f : 0.1f), i % 2 == 0 ? light : c, hold);
+                    }
+                    dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, p.size() * 0.6f, light, hold * reach, time * 5);
+                }
                 case GEYSER -> {
                     Vec3 cc = fx.target().subtract(at);
                     pose.translate(cc.x, cc.y, cc.z);
@@ -1048,7 +1131,6 @@ public final class SkillWorldFx {
                         streak(pose, buffers, camera, base, a1, b1, 0.3f, c, hold * 0.9f);
                         streak(pose, buffers, camera, base, a1, b1, 0.1f, 0xFFFFFF, hold * 0.6f);
                     }
-                    disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.55f, time * 1.5f, c, hold * 0.6f);
                     disc(pose, buffers, GLOW, 0.03f, p.size(), 0, c, hold * 0.35f);
                 }
                 case VEIL -> {
