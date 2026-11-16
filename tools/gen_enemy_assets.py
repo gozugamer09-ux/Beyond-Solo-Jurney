@@ -885,6 +885,9 @@ def wyrm():
     m.bone("jaw", "head", [0, 19, -38], [
         c([-4.7, 15.6, -53.3], [9.4, 2.8, 15.8], HIDE, tag="jaw", part=0, skip=("south",)),
         c([-3.7, 15.9, -57.6], [7.4, 2.5, 4.6], HIDE, tag="jaw", part=1, skip=("south",)),
+        # the jowl: the jaw is deep at the hinge and thin at the tip, so it reads as a jaw and not a plank when it gapes
+        c([-4.3, 14.0, -47.6], [8.6, 1.8, 9.8], HIDE, tag="jaw", part=2, skip=("up",)),
+        c([-3.8, 12.9, -43.4], [7.6, 1.3, 5.6], HIDE, tag="jaw", part=3, skip=("up",)),
         c([-4.3, 18.2, -53.0], [8.6, 1.5, 9], BONE, tag="teeth_low", part=0, skip=("south", "up", "down")),
         c([-3.3, 18.2, -57.3], [6.6, 1.5, 4.4], BONE, tag="teeth_low", part=1, skip=("south", "up", "down")),
     ], rotation=[5, 0, 0])

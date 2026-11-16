@@ -1085,8 +1085,9 @@ def paint_wyrm(f, p):
                 p.shade(0.08 * sstep(21, 25, Y) - 0.10 * sstep(20.2, 18.4, Y))
                 p.over("black", 0.14, Y < 18.5 + 0.55 + 0.25 * np.sin(Z * 1.9))          # the lip
             else:
-                p.shade(-0.06)
-                p.over("black", 0.14, Y > f.top - 0.5)
+                p.shade(-0.06 - 0.05 * (part >= 2))
+                if part < 2:
+                    p.over("black", 0.14, Y > f.top - 0.5)
             if tag == "skull":
                 p.shade(-0.26 * sstep(1.4, 0.0, np.hypot((Z + 43.7) / 1.5, (Y - 23.3) / 1.0) - 1.0) * 0.6)   # the hollow round the eye
                 p.shade(-0.14 * sstep(-36.5, -33.2, Z))                                    # under the horn and frill
@@ -1129,7 +1130,7 @@ def paint_wyrm(f, p):
             if face == "north" and upper:
                 p.shade(-0.12 * sstep(21.0, 18.6, Y))
                 p.over("black", 0.14, Y < 18.5 + 0.55)
-            if face == "north" and tag == "jaw":
+            if face == "north" and tag == "jaw" and part < 2:
                 p.over("black", 0.14, Y > f.top - 0.5)
             if face == "south":
                 p.shade(-0.18)
