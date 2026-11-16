@@ -241,6 +241,9 @@ public final class NpcQuests {
         }
         b.penalty(12, 15);
         if ((kind == NpcQuestKind.CLEAR || kind == NpcQuestKind.ESCORT) && r.nextFloat() < 0.3f) b.fixed().statPoints(1);
+        // now and then, a piece of the craftsman's own starter armor
+        ItemStack armor = com.beyondsolo.armory.ArmorDrops.questPiece(profession(giver), kind == NpcQuestKind.CLEAR || kind == NpcQuestKind.ESCORT, r);
+        if (!armor.isEmpty()) b.item(armor);
         return b.extra(extra).build();
     }
 
