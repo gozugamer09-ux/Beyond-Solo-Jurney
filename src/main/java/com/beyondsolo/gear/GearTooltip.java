@@ -122,7 +122,7 @@ public final class GearTooltip {
         }
     }
 
-    /** "Signature loot of the Oathless Paladin (A-rank gate)", "Rare drop from Gloomfangs in D-rank gates and up"... */
+    /** "Signature loot: Oathless Paladin (A-rank gate)", "Rare drop from Gloomfangs in D-rank gates and up"... */
     public static @Nullable Component source(ArmorSets.Set set) {
         String src = set.source;
         if (src == null) return null;
