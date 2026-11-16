@@ -157,6 +157,23 @@ public final class HealerPathGameTests {
         });
     }
 
+    /** Grasping Vines sets what it seizes down at the keeper's feet: not short of them, and not past them. */
+    @GameTest(template = ARENA)
+    public static void graspingVinesDragToTheFeet(GameTestHelper helper) {
+        ServerPlayer p = healer(helper, Subclass.GROVEKEEPER);
+        SkillAPI.learn(p, HealerPath.GRASPING_VINES, 1, OTHER);
+        Zombie z = zombie(helper, p, new BlockPos(5, 2, 1));
+        refill(p);
+        double start = z.getX() - p.getX();
+        helper.assertTrue(SkillAPI.cast(p, HealerPath.GRASPING_VINES), "Grasping Vines casts");
+        helper.runAfterDelay(30, () -> {
+            double ahead = z.getX() - p.getX();
+            helper.assertTrue(ahead > 0.9 && ahead < 2.3, "dragged from " + start + " blocks to the keeper's feet: " + ahead);
+            helper.assertTrue(Math.abs(z.getZ() - p.getZ()) < 0.5, "straight in: " + (z.getZ() - p.getZ()));
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = ARENA)
     public static void healerPassivesAndPrices(GameTestHelper helper) {
         // mana and attribute passives

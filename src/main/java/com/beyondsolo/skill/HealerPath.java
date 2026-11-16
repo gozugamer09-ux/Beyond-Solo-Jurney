@@ -92,7 +92,7 @@ public final class HealerPath {
     private static final BlockState[] MUSHROOMS = {Blocks.RED_MUSHROOM.defaultBlockState(), Blocks.BROWN_MUSHROOM.defaultBlockState()};
     private static final BlockParticleOption LEAF = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.AZALEA_LEAVES.defaultBlockState());
     private static final BlockParticleOption GORE = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.REDSTONE_BLOCK.defaultBlockState());
-    private static final DustParticleOptions SPORE = new DustParticleOptions(new Vector3f(0.72f, 0.80f, 0.36f), 1.6f);
+    private static final DustParticleOptions SPORE = new DustParticleOptions(new Vector3f(0.72f, 0.80f, 0.36f), 2.2f);
     private static final DustParticleOptions BLOOD = new DustParticleOptions(new Vector3f(0.75f, 0.08f, 0.14f), 1.1f);
 
     // ================================================================ shared
@@ -414,7 +414,7 @@ public final class HealerPath {
             Player hurt = mostWounded(near(level, at, 7));
             if (hurt != null && hurt.getHealth() < hurt.getMaxHealth()) {
                 mend(p, hurt, sproutHeal(l) + wit(p, 0.03f));
-                fx(hurt, Kind.STREAM, s.color(), at.add(0, 0.6, 0), 0.5f, 10);
+                fx(hurt, Kind.STREAM, s.color(), at.add(0, 0.6, 0), 0.8f, 10);
             }
             for (LivingEntity e : foes(p, at, 2.5)) hit(p, s, e, 2 * m(l, tier(p)) + wit(p, 0.05f));
         });
@@ -473,8 +473,8 @@ public final class HealerPath {
             repeat(p, 80, 40, () -> marker(level, cap, spot));
         }
         repeat(p, 120, 10, () -> {
-            level.sendParticles(SPORE, at.x, at.y + 0.7, at.z, 6, 1.8, 0.4, 1.8, 0);
-            level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 1, at.z, 6, 2, 0.6, 2, 0);
+            level.sendParticles(SPORE, at.x, at.y + 0.8, at.z, 12, 1.9, 0.5, 1.9, 0);
+            level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 1, at.z, 8, 2, 0.6, 2, 0);
             for (LivingEntity e : foes(p, at, 4)) {
                 magic(p, s, e, 1.5f * m(l, tier(p)) + wit(p, 0.04f));
                 Statuses.apply(e, DamageElement.POISON, 4 + l * 0.5f, p);
@@ -494,7 +494,8 @@ public final class HealerPath {
         ServerLevel level = p.serverLevel();
         for (LivingEntity e : seized.subList(0, Math.min(5, seized.size()))) {
             hit(p, s, e, 6 * m(l, tier(p)) + wit(p, 0.2f));
-            pull(e, p.position(), 1.2);
+            // dragged to the keeper's feet, not through them
+            pull(e, p.position().add(flat(e.position().subtract(p.position()), p).scale(1.6)), 2.0);
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 5));
             Statuses.apply(e, DamageElement.POISON, 8 + l, p);
             leaves(level, mid(e), 8, 0.3);
@@ -771,7 +772,7 @@ public final class HealerPath {
         for (Player ally : allies(p, 8)) {
             if (ally == p) continue;
             mend(p, ally, given);
-            fx(ally, Kind.STREAM, s.color(), p.position().add(0, 1.1, 0), 0.6f, 12);
+            fx(ally, Kind.STREAM, s.color(), p.position().add(0, 1.1, 0), 0.9f, 12);
         }
         SkillAPI.setBuff(p, BUFF_BLOOD_PRICE, 160);
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1f, 1.5f);
@@ -810,7 +811,7 @@ public final class HealerPath {
                 drawn += Math.max(0, before - e.getHealth());
                 Buildups.add(e, Buildups.BLOOD, 5, p);
                 // a thread of blood from each of them
-                fx(p, Kind.STREAM, s.color(), mid(e), 0.6f, 10);
+                fx(p, Kind.STREAM, s.color(), mid(e), 0.9f, 10);
             }
             if (drawn > 0) {
                 mend(p, p, drawn * 0.4f);

@@ -1265,17 +1265,25 @@ public final class SkillWorldFx {
                     if (dist < 0.3) break;
                     float a = Mth.clamp(age / 0.08f, 0, 1) * Mth.clamp((life - age) / 0.15f, 0, 1);
                     double arch = Math.min(0.9, dist * 0.14);
+                    // a faint thread along the whole arch, so the drops read as one stream
+                    Vec3 last = src;
+                    for (int i = 1; i <= 8; i++) {
+                        float u = i / 8f;
+                        Vec3 next = src.lerp(dst, u).add(0, Math.sin(u * Math.PI) * arch, 0);
+                        streak(pose, buffers, camera, at, last, next, 0.14f * p.size(), c, a * 0.3f);
+                        last = next;
+                    }
                     int n = Mth.clamp((int) (dist * 1.2), 4, 9);
                     for (int i = 0; i < n; i++) {
                         float k = (i / (float) n + age * 1.6f) % 1f;
-                        float k0 = Math.max(0, k - 0.09f);
+                        float k0 = Math.max(0, k - 0.12f);
                         Vec3 pos = src.lerp(dst, k).add(0, Math.sin(k * Math.PI) * arch, 0);
                         Vec3 tail = src.lerp(dst, k0).add(0, Math.sin(k0 * Math.PI) * arch, 0);
                         float swell = 0.6f + 0.4f * Mth.sin(k * Mth.PI);
-                        streak(pose, buffers, camera, at, tail, pos, 0.2f * p.size() * swell, c, a * 0.8f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.2f * p.size() * swell, light, a);
+                        streak(pose, buffers, camera, at, tail, pos, 0.3f * p.size() * swell, c, a * 0.9f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.3f * p.size() * swell, light, a);
                     }
-                    dot(pose, buffers, camera, (float) dst.x, (float) dst.y, (float) dst.z, 0.5f * p.size(), c, a * 0.45f);
+                    dot(pose, buffers, camera, (float) dst.x, (float) dst.y, (float) dst.z, 0.6f * p.size(), c, a * 0.5f);
                 }
                 case ORBIT -> {
                     if (e == null) break;

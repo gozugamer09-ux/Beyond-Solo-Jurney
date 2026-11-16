@@ -252,7 +252,9 @@ final class SubclassKit {
         Vec3 d = to.subtract(e.position());
         double len = d.length();
         if (len < 1.2) return;
-        Vec3 v = d.normalize().scale(Math.min(strength, len * 0.35));
+        // a creature thrown along the ground like this travels about four and a half times its first tick, so this
+        // lands it on the point; a weaker pull than that only brings it part of the way
+        Vec3 v = d.normalize().scale(Math.min(strength, len * 0.22));
         e.setDeltaMovement(v.x, Math.max(0.25, v.y + 0.2), v.z);
         e.hurtMarked = true;
     }
