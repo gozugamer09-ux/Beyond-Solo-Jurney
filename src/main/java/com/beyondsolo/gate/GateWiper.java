@@ -91,7 +91,10 @@ public final class GateWiper {
                 // keep going
             }
         }
+        // another cave being wiped in the background carries on where it was
+        Job running = job;
         finish(dungeon, data, g);
+        job = running;
         return true;
     }
 

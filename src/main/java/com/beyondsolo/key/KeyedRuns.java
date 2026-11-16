@@ -36,7 +36,7 @@ public final class KeyedRuns {
     /** Called by the gate when a player arrives in a keyed cave. */
     public static void arrived(ServerPlayer p, GateInstance g) {
         GateInstance.Keyed k = g.keyed();
-        if (k.runStartedAt < 0) k.runStartedAt = p.server.overworld().getGameTime();
+        if (!k.clockStarted()) k.runStartedAt = p.server.overworld().getGameTime();
         k.inside.add(p.getUUID());
         GateData.get(p.server).setDirty();
         start(p, g);
@@ -66,7 +66,7 @@ public final class KeyedRuns {
     public static void cleared(ServerLevel level, GateInstance g, List<ServerPlayer> players) {
         GateInstance.Keyed k = g.keyed();
         long now = level.getServer().overworld().getGameTime();
-        k.clearTicks = k.runStartedAt < 0 ? 0 : now - k.runStartedAt;
+        k.clearTicks = k.clockStarted() ? Math.max(0, now - k.runStartedAt) : 0;
         GateData.get(level.getServer()).setDirty();
         for (ServerPlayer p : players) {
             DungeonKeys.data(p).clear(g.rank(), k.clearTicks, k.chain);

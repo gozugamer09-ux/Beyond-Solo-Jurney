@@ -219,6 +219,9 @@ public final class GateInstance {
      * was turned ({@link #returnPos}), even when the run was opened from inside another cleared cave (a chain).
      */
     public static final class Keyed {
+        /** A time that has not come yet (any real game time, even one counted back from, is greater). */
+        public static final long NEVER = Long.MIN_VALUE;
+
         public final UUID owner;
         /** 1 for a run opened in the world, one more for each run opened straight from the last one's cleared cave. */
         public final int chain;
@@ -232,10 +235,10 @@ public final class GateInstance {
         public final long openedAt;
         /** Ticks the gate has stood unused while its holder was online (it gives up after a while, see key.KeyedRuns). */
         public int waited;
-        /** Game time the first player went through, -1 until then. The door seals a little after. */
-        public long firstEntryAt = -1;
-        /** Game time the run's clock started (the first arrival inside), -1 until then. */
-        public long runStartedAt = -1;
+        /** Game time the first player went through, {@link #NEVER} until then. The door seals a little after. */
+        public long firstEntryAt = NEVER;
+        /** Game time the run's clock started (the first arrival inside), {@link #NEVER} until then. */
+        public long runStartedAt = NEVER;
         /** Ticks from the first arrival to the boss's fall, -1 until cleared. */
         public long clearTicks = -1;
         /** The door in the world has been closed (sealed behind the party, or given up). */
@@ -259,7 +262,12 @@ public final class GateInstance {
 
         /** True once anyone has gone through the door. */
         public boolean entered() {
-            return firstEntryAt >= 0;
+            return firstEntryAt != NEVER;
+        }
+
+        /** True once the run's clock is running (someone arrived inside). */
+        public boolean clockStarted() {
+            return runStartedAt != NEVER;
         }
 
         CompoundTag save() {
@@ -275,8 +283,8 @@ public final class GateInstance {
             t.putBoolean("ascendant", ascendant);
             t.putLong("openedAt", openedAt);
             t.putInt("waited", waited);
-            t.putLong("firstEntry", firstEntryAt);
-            t.putLong("runStarted", runStartedAt);
+            if (firstEntryAt != NEVER) t.putLong("firstEntry", firstEntryAt);
+            if (runStartedAt != NEVER) t.putLong("runStarted", runStartedAt);
             t.putLong("clearTicks", clearTicks);
             t.putBoolean("doorClosed", doorClosed);
             t.putBoolean("refunded", refunded);
@@ -292,8 +300,8 @@ public final class GateInstance {
                     new net.minecraft.world.phys.Vec3(t.getDouble("x"), t.getDouble("y"), t.getDouble("z")), t.getFloat("yaw"),
                     t.contains("sigil") ? BossKind.byId(t.getString("sigil")) : null, t.getBoolean("ascendant"), t.getLong("openedAt"));
             k.waited = t.getInt("waited");
-            k.firstEntryAt = t.contains("firstEntry") ? t.getLong("firstEntry") : -1;
-            k.runStartedAt = t.contains("runStarted") ? t.getLong("runStarted") : -1;
+            k.firstEntryAt = t.contains("firstEntry") ? t.getLong("firstEntry") : NEVER;
+            k.runStartedAt = t.contains("runStarted") ? t.getLong("runStarted") : NEVER;
             k.clearTicks = t.contains("clearTicks") ? t.getLong("clearTicks") : -1;
             k.doorClosed = t.getBoolean("doorClosed");
             k.refunded = t.getBoolean("refunded");
