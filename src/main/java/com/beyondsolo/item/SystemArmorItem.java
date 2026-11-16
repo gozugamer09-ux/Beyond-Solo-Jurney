@@ -4,13 +4,19 @@ import com.beyondsolo.BeyondSolo;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 
 import java.util.List;
@@ -64,6 +70,23 @@ public class SystemArmorItem extends ArmorItem {
     @Override
     public boolean isFoil(ItemStack stack) {
         return com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade()).atLeast(ItemGrade.MYTHIC) || super.isFoil(stack);
+    }
+
+    /** Pieces a hunter is not ready for (too low a level, or a divine piece of another class) won't go on. */
+    @Override
+    public boolean canEquip(ItemStack stack, EquipmentSlot armorType, LivingEntity entity) {
+        if (!super.canEquip(stack, armorType, entity)) return false;
+        return !(entity instanceof Player p) || ArmorSets.refusal(p, set) == null;
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        Component why = ArmorSets.refusal(player, set);
+        if (why != null) {
+            if (!level.isClientSide) player.displayClientMessage(why.copy().withStyle(ChatFormatting.RED), true);
+            return InteractionResultHolder.fail(player.getItemInHand(hand));
+        }
+        return super.use(level, player, hand);
     }
 
     @Override

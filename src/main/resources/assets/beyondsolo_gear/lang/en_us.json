@@ -89,7 +89,7 @@
   "gear.beyondsolo.refined.armor": "+%s armor",
   "gear.beyondsolo.refined.damage": "+%s%% damage",
   "gear.beyondsolo.infused": "✦ Infused with %s",
-  "gear.beyondsolo.signature_of": "Signature loot of the %s (%s-rank gate)",
+  "gear.beyondsolo.signature_of": "Signature loot: %s (%s-rank gate)",
   "notify.beyondsolo.gear.signature.title": "Signature loot: %s",
   "notify.beyondsolo.forge.great.title": "Refined to +%s",
   "notify.beyondsolo.forge.great.body": "%s grows stronger. Few hunters' gear ever gets this far.",

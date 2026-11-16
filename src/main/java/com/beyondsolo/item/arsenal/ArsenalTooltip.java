@@ -67,6 +67,7 @@ public final class ArsenalTooltip {
                         .withStyle(ChatFormatting.DARK_GRAY));
             }
         }
+        com.beyondsolo.armory.DivinePassives.tooltip(w, lines);
         lines.add(Component.translatable("tooltip.beyondsolo.weight." + weightClass).withStyle(ChatFormatting.GRAY));
 
         String lore = stack.getDescriptionId() + ".lore";

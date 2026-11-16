@@ -54,7 +54,8 @@ public final class ElementalHits {
         return DamageElement.PHYSICAL;
     }
 
-    static boolean isProc(DamageSource source) {
+    /** Damage dealt by an element status itself (a burn tick, venom, a crimson or blood burst), not by a hit. */
+    public static boolean isProc(DamageSource source) {
         return source.is(CombatDamage.FIRE) || source.is(CombatDamage.POISON) || source.is(CombatDamage.CRIMSON) || source.is(CombatDamage.BLOOD);
     }
 

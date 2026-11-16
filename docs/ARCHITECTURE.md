@@ -27,6 +27,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
+| `armory` | The class armor sets: the catalogue (`ArmorCatalog`), their items and ARMORY tab (`ArmoryModule`), set perks (`SetPerks`), the divine weapons' passives (`DivinePassives`), drop rules (`ArmorDrops`), the level and class checks and set pop-ups (`ArmoryEvents`) (see "The armory: class armor sets") |
 | `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
 | `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
 | `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
@@ -579,13 +580,14 @@ Textures come from `tools/gen_gear_assets.py`.
 - **Infusions** (`Infusions`, `ForgeService.infuse`): an element crystal plus gold sets a weapon's element. 15 % of the
   hit lands again as that element through `SkillCombat.strike`, so it applies auras and triggers the skill system's
   reactions for every class; arrows carry the bow's infusion (`Infusions.tagArrow`).
-- **Armor sets** (`item/ArmorSets`): every set has a 2-piece and a 4-piece bonus and may carry a perk. Boss sets
-  (`BossSets`, one per gate rank E..S: Stonehide, Mirefang, Rimeguard, Gloomreaver, Emberwrought, Sovereign) add
+- **Armor sets** (`item/ArmorSets`): every set has a 2-piece and a 4-piece bonus and may carry a perk. The brute's
+  sets (`BossSets`, one per gate rank E..S: Stonehide, Mirefang, Rimeguard, Gloomreaver, Emberwrought, Sovereign) add
   perks (`SetEffects`: Unbroken, Venom Skin, Frost Aegis, Night's Edge, Living Flame, Crimson Dominion) and an
-  innate element for un-infused weapons.
-- **Boss signature loot** (`BossLoot`): each rank's boss table drops its set pieces, a chance at its weighted signature
-  weapons, refining stones, crystals and (C and up) ward seals. `GateLoot` adds it to the reward cache, which calls out
-  signature drops with a pop-up (`BossLoot.isSignature(stack, rank)`).
+  innate element for un-infused weapons. They are class sets now, like the armory's (see "The armory").
+- **Boss signature loot** (`BossLoot`): each rank's table has a chance at its weighted signature weapons, refining
+  stones, crystals and (C and up) ward seals. Set pieces are no longer in it: they come from `armory/ArmorDrops`
+  through `GateLoot.BossLootEvent`. `GateLoot` adds both to the reward cache, which calls out signature drops with a
+  pop-up (`BossLoot.isSignature(stack, rank)`: the rank's weapons, any boss set piece, any divine piece).
 - **Forge tab** (`client/gear/ForgeTab`, order 125 in the System window): pick gear, REFINE or INFUSE, see chances and
   costs; the ring charges with hammer strikes, then plays success rays and a +N stamp, cracks and a shake, the ward
   hexagon, or the infusion spiral. The shop sells refining stones, ward seals and crystals (category FORGE);
@@ -593,6 +595,56 @@ Textures come from `tools/gen_gear_assets.py`.
 - **Commands** (`/system gear ...`, level 2): info, roll &lt;grade&gt;, enhance &lt;0-10&gt;, refine [ward], infuse
   &lt;element|none&gt;, bossloot &lt;rank&gt; [n], set &lt;name&gt;, materials. UI driver: `screen forge`,
   `forge <slot> [refine|infuse] [element] [ward|noward]`, `forgego`.
+
+## The armory: class armor sets
+
+Code in `armory/`; `ArmoryModule.init` registers the items, one armor material per set (`ArmorMaterial.Layer(<set>)`
+for the worn texture) and the ARMORY creative tab. Lang lives in `assets/beyondsolo_armory/lang` (written by
+`tools/armory_lang.py`); icons, worn layers and item models come from `tools/gen_armory_assets.py` on top of
+`tools/hd_armor.py` (`--sheet <png>` writes a contact sheet of every icon).
+
+- **The catalogue** (`ArmorCatalog`): 39 sets on top of the brute's six, 45 class sets in all, every one made for a
+  single class. Each class has a set at every gate rank E..S and a divine set. Sources: the villages (one plain
+  common set per class, `villager:<set>`), every gate creature (`creature:<kind>`, one to three sets across the ranks
+  it lives in), every boss (`boss:<kind>`) and `divine`. Grade follows source and rank (`ArmorCatalog.gradeFor`:
+  village common; creatures common to legendary; bosses rare to mythic; divine). A set is heavy, medium or light
+  (`Build`): its armor values (`ArmoryModule.VALUES`, by rank and build, never above netherite until A rank) and how
+  much more tiring sprinting gets.
+- **Small buffs, for one class** (`ArmorSets.attuned`): two pieces give one or two stats, four a little more and the
+  set's perk. Only an awakened hunter of the set's class draws them out; anyone else just gets the armor (the
+  2-piece line says so). Creatures always draw them out. Stats include the two new attributes
+  `beyondsolo:mana_efficiency` (skills cost less mana, cap 50%) and `beyondsolo:skill_haste` (shorter cooldowns,
+  cap 40%), applied in `Runes.manaCost` / `Runes.cooldown` (`ModAttributes.manaFactor` / `hasteFactor`), so the
+  skill bar shows the real numbers.
+- **Level gates** (`ArmorSets.refusal`): E 1, D 10, C 20, B 30, A 40, S 50, divine 60 (`ArmorSets.levelFor`).
+  Divine pieces are also bound to their class. `SystemArmorItem.canEquip` and `use` refuse with the reason;
+  `ArmoryEvents` puts back anything that got on some other way (dispensers, commands) every second, and works the
+  bonuses out again when the class changes. Creative players are never refused.
+- **Perks** (`SetPerks`, 33): four-piece mechanics for the armory's creature, boss and divine sets (village sets are
+  stats only). Offence: Venom Fangs, Hunter's Mark, Cinder Burst, Pounce, Webshot, Prism Charge, Pyre Burst, Hollow
+  Echo, Moonlit Hunt, Alpha's Howl, Vanguard Cleave, Storm Sigil, Frostbite Arrows, Empress Venom, Ashfall, Phantom
+  Blade, Arcane Cascade, Dragon's Blood. Defence and support: Crystal Spines, Bone Ward, Tower Guard, Saint's Grace,
+  Ashen Bulwark, Cradle Silk, Rime Bloom, Oath of Iron, Starbinding. Divine: Warlord's Fury, Shadow Veil, Arcane
+  Overflow, Sanctuary, Overflowing Grace, Windwalker. Pounce, Phantom Blade and Windwalker listen to Combat Roll
+  (`ArmoryEvents.RollHook`, only when the mod is there). Effects stay light: sparks, a ring, a sound.
+- **Divine weapon passives** (`DivinePassives`): each divine weapon has a passive of its own while its class holds
+  it, on top of its traits and signature art: Ruinbringer: Ruin (the fifth mark detonates), Calamity Fang: Vanishing
+  Edge (a kill hides you, next strike +80%), Eye of the Insatiable: Insatiable (+3% spell damage per kill, up to 10),
+  Colossus Aegis: Unyielding (a killing blow leaves you at 1 health, every 90 s), World Tree Branch: Rootbound Life
+  (allies under 30% are caught and healed), Starfall Longbow: Astral Quiver (every 4th full draw is a star arrow).
+  The tooltip shows it under the signature art.
+- **Drops** (`ArmorDrops`), slow on purpose: gate creatures killed by a hunter with the System leave a piece of one
+  of their kind's sets 0.6% of the time (veteran 1.2%, elite 5%, champion 10%). Sets of the gate's own rank come up
+  most, each rank away halves it, never more than one rank above; the killer's own class 2.5 times as often.
+  Bosses: a piece of one of their sets, 50% (E) to 75% (S) a kill, an ascended boss always one and 35% a second;
+  the brute leaves its rank's set. Divine pieces: 1% from an S-rank boss (3% ascended), 0.5% from an ascended A-rank
+  one. Village requests: the giver's craft's starter set (`ArmorCatalog.PROFESSIONS`), 12% of requests, 25% for
+  clearing a nest or an escort. Pieces roll bonus stats and may come out a grade higher (`GearRolls.dropGrade`).
+- **Tooltips** (`GearTooltip`): the set name, its class, the level it needs (red when too low), the 2- and 4-piece
+  bonuses with the perk, where it drops, and for divine pieces that they are bound. The 2-piece line over the hotbar
+  and the 4-piece System pop-up (`ArmoryEvents.equipped`) say what just switched on.
+- **Commands**: `/system gear set <name>` puts on any set; `/system gear bossloot <rank> [n]` now includes the brute's
+  pieces as an ascended kill would.
 
 ## Enemy roster and boss pool
 
@@ -781,7 +833,8 @@ checks use zombies.
 `test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.
 `test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
 `test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.
-`test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
+`test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables (and the brute's set pieces moving to the armory), sell value against refine cost, and boss sets carrying their element.
 `test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
+`test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
