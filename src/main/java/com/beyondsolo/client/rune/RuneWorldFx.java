@@ -250,7 +250,8 @@ public final class RuneWorldFx {
                 for (int i = 0; i < n; i++) {
                     level.addParticle(ParticleTypes.WHITE_ASH, base.x + rnd(0.7), base.y + RANDOM.nextDouble() * 2.2, base.z + rnd(0.7), 0, 0.02, 0);
                 }
-                if (p.duration() == 0) {
+                // flames this close to the bearer's own eyes would be drawn huge
+                if (p.duration() == 0 && !selfView(e)) {
                     for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.SMALL_FLAME, base.x + rnd(0.5), base.y + 0.6 + RANDOM.nextDouble() * 1.2, base.z + rnd(0.5), 0, 0.02, 0);
                 }
             }
@@ -354,7 +355,7 @@ public final class RuneWorldFx {
                 case WALL -> {
                     if (p.duration() > 0 && e != null && age < fx.lasting() && RANDOM.nextInt(3) == 0) {
                         Vec3 base = e.position().add(Vec3.directionFromRotation(0, e.getYRot()).scale(0.85));
-                        level.addParticle(RANDOM.nextBoolean() ? ParticleTypes.WHITE_ASH : ParticleTypes.SMALL_FLAME,
+                        level.addParticle(selfView(e) || RANDOM.nextBoolean() ? ParticleTypes.WHITE_ASH : ParticleTypes.SMALL_FLAME,
                                 base.x + rnd(0.65), base.y + 0.1 + RANDOM.nextDouble() * 2.1, base.z + rnd(0.65), 0, 0.015, 0);
                     }
                 }
@@ -395,15 +396,17 @@ public final class RuneWorldFx {
                 }
                 case BREATH -> {
                     if (age < fx.lasting() && e != null) {
-                        Vec3 mouth = e.getEyePosition().add(fx.dir().scale(selfView(e) ? 1.3 : 0.6));
+                        // flame sprites close to the roarer's own eyes would be drawn huge: from there they start further out
+                        boolean self = selfView(e);
+                        Vec3 mouth = e.getEyePosition().add(fx.dir().scale(self ? 2.6 : 0.6));
                         Vec3 d = fx.dir();
-                        for (int i = 0; i < 7; i++) {
+                        for (int i = 0, n = self ? 4 : 7; i < n; i++) {
                             double s = 0.45 + RANDOM.nextDouble() * 0.45;
                             level.addParticle(RANDOM.nextInt(3) == 0 ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME, mouth.x, mouth.y, mouth.z,
                                     d.x * s + rnd(0.12), d.y * s + rnd(0.1), d.z * s + rnd(0.12));
                         }
                         if (RANDOM.nextBoolean()) {
-                            Vec3 q = mouth.add(d.scale((selfView(e) ? 4 : 2) + RANDOM.nextDouble() * p.size() * 0.6));
+                            Vec3 q = mouth.add(d.scale((self ? 4 : 2) + RANDOM.nextDouble() * p.size() * 0.6));
                             level.addParticle(ParticleTypes.LARGE_SMOKE, q.x + rnd(0.8), q.y + rnd(0.5), q.z + rnd(0.8), 0, 0.03, 0);
                         }
                     }
