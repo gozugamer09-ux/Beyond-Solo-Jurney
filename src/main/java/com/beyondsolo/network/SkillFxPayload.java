@@ -92,7 +92,15 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** A sphere of light hanging at (x,y,z) for {@code duration} ticks; size = its radius. */
         ORB,
         /** A thunderbolt from the sky onto (x,y,z); size = the radius it scorches. */
-        THUNDER
+        THUNDER,
+        /** A shield of light held in front of the entity for {@code duration} ticks; size = its radius. */
+        SHIELD,
+        /** A chain of links from the entity to (x,y,z) for {@code duration} ticks; size = the size of a link. */
+        CHAIN,
+        /** A hammer of light thrown end over end from the entity to (x,y,z) in {@code duration} ticks; size 1 is hand-sized, big ones are lobbed high. */
+        HAMMER,
+        /** A thrown shield: a spinning disc from the entity to (x,y,z) in {@code duration} ticks; size = its scale. */
+        DISCUS
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));
