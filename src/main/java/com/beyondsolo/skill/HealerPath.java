@@ -1043,10 +1043,15 @@ public final class HealerPath {
         repeat(p, 300, 20, () -> {
             for (Player ally : allies(p, 12)) mend(p, ally, avatarHeal(l) + wit(p, 0.04f));
         });
+        // the pillars walk outward: the nearest foe first, then the next nearest, and round again
+        Set<LivingEntity> struck = new HashSet<>();
         repeat(p, 300, 40, () -> {
-            List<LivingEntity> foes = foes(p, p.position(), 14);
+            List<LivingEntity> foes = new ArrayList<>(foes(p, p.position(), 14));
             if (foes.isEmpty()) return;
-            LivingEntity e = foes.get(p.getRandom().nextInt(foes.size()));
+            foes.sort(Comparator.comparingDouble(e -> e.distanceToSqr(p)));
+            if (struck.containsAll(foes)) struck.clear();
+            LivingEntity e = foes.stream().filter(f -> !struck.contains(f)).findFirst().orElseThrow();
+            struck.add(e);
             fxAt(level, Kind.PILLAR, s.color(), e.position(), 1.4f, 8);
             later(p, 8, () -> {
                 if (!e.isAlive()) return;

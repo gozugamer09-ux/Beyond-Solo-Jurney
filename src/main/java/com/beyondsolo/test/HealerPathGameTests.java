@@ -165,11 +165,17 @@ public final class HealerPathGameTests {
         Zombie z = zombie(helper, p, new BlockPos(5, 2, 1));
         refill(p);
         double start = z.getX() - p.getX();
-        helper.assertTrue(SkillAPI.cast(p, HealerPath.GRASPING_VINES), "Grasping Vines casts");
-        helper.runAfterDelay(30, () -> {
+        // a creature is thrown further in the tick it appears, before it has found its feet: let it stand first
+        helper.runAfterDelay(5, () -> {
+            helper.assertTrue(z.onGround(), "the zombie stands on the floor");
+            helper.assertTrue(SkillAPI.cast(p, HealerPath.GRASPING_VINES), "Grasping Vines casts");
+        });
+        helper.runAfterDelay(35, () -> {
             double ahead = z.getX() - p.getX();
-            helper.assertTrue(ahead > 0.9 && ahead < 2.3, "dragged from " + start + " blocks to the keeper's feet: " + ahead);
-            helper.assertTrue(Math.abs(z.getZ() - p.getZ()) < 0.5, "straight in: " + (z.getZ() - p.getZ()));
+            double aside = z.getZ() - p.getZ();
+            z.discard();
+            helper.assertTrue(ahead > 1.1 && ahead < 2.1, "dragged from " + start + " blocks to the keeper's feet: " + ahead);
+            helper.assertTrue(Math.abs(aside) < 0.5, "straight in: " + aside);
             helper.succeed();
         });
     }

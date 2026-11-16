@@ -1056,5 +1056,5 @@
   "skill.beyondsolo.radiant_soul.desc": "+%s maximum mana, and you regain %s more mana every second.",
   "skill.beyondsolo.avatar_of_dawn": "Avatar of Dawn",
   "skill.beyondsolo.avatar_of_dawn.flavour": "Behold.",
-  "skill.beyondsolo.avatar_of_dawn.desc": "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes a foe within 14 blocks for %s damage, and every second allies within 12 blocks are mended for %s."
+  "skill.beyondsolo.avatar_of_dawn.desc": "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes the foes within 14 blocks in turn, nearest first, for %s damage, and every second allies within 12 blocks are mended for %s."
 }
