@@ -34,6 +34,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -42,7 +43,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.damagesource.DamageContainer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -161,7 +164,7 @@ public final class RuneGameTests {
         helper.assertTrue(SkillAPI.level(p, RuneArts.HUNTERS_HOWL) == 1 + Runes.RAISE_LEVELS, "and raises it by " + Runes.RAISE_LEVELS);
         helper.assertTrue(Runes.data(p).absorbed() == 2, "two stones absorbed");
         // a class rune of the player's own class
-        Skill own = Skills.forClass(PlayerClass.WARRIOR).stream().filter(s -> s.grade().tier() <= PlayerRank.D.tier() && !SkillAPI.knows(p, s))
+        Skill own = Skills.forClass(PlayerClass.WARRIOR).stream().filter(s -> s.owner() == PlayerClass.WARRIOR && s.grade().tier() <= PlayerRank.D.tier() && !SkillAPI.knows(p, s))
                 .findFirst().orElseThrow();
         helper.assertTrue(Runes.absorb(p, Runes.of(own)), "a warrior's rune takes on a warrior");
         helper.assertTrue(SkillAPI.knows(p, own), "and teaches " + own.path());
@@ -176,7 +179,7 @@ public final class RuneGameTests {
         helper.assertTrue(Runes.refusal(p, Runes.of(RuneArts.CINDER_WISP)) == null, "a D stone is within reach");
         helper.assertTrue(Runes.rankNeeded(PlayerRank.S) == PlayerRank.A, "an S stone needs an A-rank");
         // another class's rune
-        Skill mage = Skills.forClass(PlayerClass.MAGE).stream().filter(s -> s.grade() == PlayerRank.E).findFirst().orElseThrow();
+        Skill mage = Skills.forClass(PlayerClass.MAGE).stream().filter(s -> s.owner() == PlayerClass.MAGE && s.grade() == PlayerRank.E).findFirst().orElseThrow();
         helper.assertTrue(Runes.refusal(p, Runes.of(mage)) == Runes.Refusal.CLASS, "a mage's rune won't answer a warrior");
         helper.assertTrue(!Runes.absorb(p, Runes.of(mage)) && !SkillAPI.knows(p, mage), "and teaches nothing");
         // mastered
@@ -260,45 +263,49 @@ public final class RuneGameTests {
 
     @GameTest(template = ARENA)
     public static void guardsBluntBlows(GameTestHelper helper) {
+        // fake players can't be hurt, so the blows go straight to the damage event the guards listen to
         ServerPlayer p = hunter(helper, PlayerRank.C, PlayerClass.WARRIOR);
         Zombie z = zombie(helper, p, new BlockPos(3, 2, 1));
         p.getAttribute(Attributes.MAX_HEALTH).setBaseValue(400);
         p.setHealth(400);
         // a blow from the front, as it is
-        p.invulnerableTime = 0;
-        p.hurt(p.damageSources().mobAttack(z), 20);
-        float plain = 400 - p.getHealth();
-        helper.assertTrue(plain > 0, "the blow landed");
+        float plain = incoming(p, p.damageSources().mobAttack(z), 20);
+        helper.assertTrue(plain > 0, "the blow lands");
         // behind the ashen shield
         SkillAPI.learn(p, RuneArts.ASHEN_BULWARK, 1, SkillEvent.Source.RUNE);
         refill(p);
         helper.assertTrue(SkillAPI.cast(p, RuneArts.ASHEN_BULWARK), "the shield goes up");
-        p.setHealth(400);
         float zombieBefore = z.getHealth();
-        p.invulnerableTime = 0;
-        p.hurt(p.damageSources().mobAttack(z), 20);
-        float shielded = 400 - p.getHealth();
+        float shielded = incoming(p, p.damageSources().mobAttack(z), 20);
         float expected = plain * (1 - RuneArts.bulwarkBlock(1) / 100f);
-        helper.assertTrue(Math.abs(shielded - expected) < 0.6f, "the shield takes " + RuneArts.bulwarkBlock(1) + "%: " + shielded + " vs " + expected);
+        helper.assertTrue(Math.abs(shielded - expected) < 0.05f, "the shield takes " + RuneArts.bulwarkBlock(1) + "%: " + shielded + " vs " + expected);
         helper.assertTrue(z.getHealth() < zombieBefore, "and throws some of it back");
+        // a blow from behind gets past it
+        Zombie behind = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(1, 2, 3));
+        behind.moveTo(p.getX() - p.getLookAngle().x * 3, p.getY(), p.getZ() - p.getLookAngle().z * 3);
+        helper.assertTrue(Math.abs(incoming(p, p.damageSources().mobAttack(behind), 20) - plain) < 0.05f, "not from behind");
+        behind.discard();
         SkillAPI.clearBuff(p, RuneArts.BUFF_BULWARK);
         // Iron Resolve, only when low
         SkillAPI.learn(p, RuneArts.IRON_RESOLVE, 1, SkillEvent.Source.RUNE);
         p.setHealth(400);
-        p.invulnerableTime = 0;
-        p.hurt(p.damageSources().mobAttack(z), 20);
-        helper.assertTrue(Math.abs((400 - p.getHealth()) - plain) < 0.1f, "no resolve at full health");
+        helper.assertTrue(Math.abs(incoming(p, p.damageSources().mobAttack(z), 20) - plain) < 0.05f, "no resolve at full health");
         p.setHealth(100);
-        p.invulnerableTime = 0;
-        p.hurt(p.damageSources().mobAttack(z), 20);
-        float low = 100 - p.getHealth();
+        float low = incoming(p, p.damageSources().mobAttack(z), 20);
         float resolved = plain * (1 - RuneArts.resolveBlock(1) / 100f);
-        helper.assertTrue(Math.abs(low - resolved) < 0.6f, "resolve takes " + RuneArts.resolveBlock(1) + "% when low: " + low + " vs " + resolved);
+        helper.assertTrue(Math.abs(low - resolved) < 0.05f, "resolve takes " + RuneArts.resolveBlock(1) + "% when low: " + low + " vs " + resolved);
         // Crystal Carapace hardens the skin
         double armor = p.getAttributeValue(Attributes.ARMOR);
         SkillAPI.learn(p, RuneArts.CRYSTAL_CARAPACE, 5, SkillEvent.Source.RUNE);
         helper.assertTrue(p.getAttributeValue(Attributes.ARMOR) > armor + 2.9, "carapace armour");
         helper.succeed();
+    }
+
+    /** What is left of a blow after the damage event's listeners (the rune guards among them). */
+    private static float incoming(ServerPlayer p, DamageSource source, float amount) {
+        LivingIncomingDamageEvent event = new LivingIncomingDamageEvent(p, new DamageContainer(source, amount));
+        NeoForge.EVENT_BUS.post(event);
+        return event.isCanceled() ? 0 : event.getAmount();
     }
 
     // ------------------------------------------------------------------ engravings
