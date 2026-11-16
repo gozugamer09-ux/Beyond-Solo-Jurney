@@ -32,23 +32,43 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class RuneClientEvents {
-    /** First person: while absorbing, the stone is raised to the middle of the view, trembling and turning. */
+    /**
+     * First person: while absorbing, the stone is lifted from the hand to the middle of the view, a little low, and
+     * turned to face the eye, where it trembles and swells with light until it shatters. The item's own first-person
+     * transform ({@code neoforge:item/default}: turned 90 degrees, tilted 25, scaled 0.68) still follows this one, so
+     * it is undone step by step as the stone rises.
+     */
     static final IClientItemExtensions HAND = new IClientItemExtensions() {
         @Override
         public boolean applyForgeHandTransform(PoseStack pose, LocalPlayer player, HumanoidArm arm, ItemStack stack, float partial, float equip, float swing) {
             if (!player.isUsingItem() || player.getUseItem() != stack) return false;
             int side = arm == HumanoidArm.RIGHT ? 1 : -1;
             float p = Mth.clamp((player.getTicksUsingItem() + partial) / Runes.USE_TICKS, 0, 1);
-            float raise = Anim.outCubic(Mth.clamp(p * 3.5f, 0, 1));
-            pose.translate(side * 0.56f * (1 - 0.8f * raise), -0.52f + 0.17f * raise, -0.72f + 0.04f * raise);
+            float r = Anim.inOutCubic(Mth.clamp(p * 3f, 0, 1));
             float time = player.tickCount + partial;
-            float shake = 0.014f * p * p;
-            pose.translate(Mth.sin(time * 2.9f) * shake, Mth.cos(time * 3.7f) * shake, 0);
-            pose.mulPose(Axis.YP.rotationDegrees(side * 12 * (1 - raise) + p * p * 70));
-            pose.mulPose(Axis.ZP.rotationDegrees(side * -8 * raise));
+            // where it is held: from the hand (vanilla's held-item spot) to the middle of the view
+            float x = Mth.lerp(r, side * 0.56f, 0);
+            float y = Mth.lerp(r, -0.52f, -0.255f) + 0.012f * Mth.sin(time * 0.21f) * r;
+            float z = Mth.lerp(r, -0.72f, -0.8f) + 0.06f * p * p * p;
+            float shake = 0.006f * p * p;
+            pose.translate(x + Mth.sin(time * 2.9f) * shake, y + Mth.cos(time * 3.7f) * shake, z);
+            // a slow sway, then a tremble as it cracks
+            float tremble = 5f * p * p;
+            pose.mulPose(Axis.YP.rotationDegrees(side * 9f * Mth.sin(time * 0.17f) * r + Mth.sin(time * 3.3f) * tremble));
+            pose.mulPose(Axis.ZP.rotationDegrees(Mth.cos(time * 2.6f) * tremble * 0.6f));
+            // about a third of the view high, swelling a little before it bursts
+            float size = Mth.lerp(r, 1f, 0.33f * (1 + 0.1f * p * p * p) / ITEM_SCALE);
+            pose.scale(size, size, size);
+            // undo the item's own first-person turn, tilt and offset as it rises
+            pose.mulPose(Axis.ZP.rotationDegrees(-side * ITEM_TILT * r));
+            pose.mulPose(Axis.YP.rotationDegrees(side * ITEM_TURN * r));
+            pose.translate(-side * ITEM_OFFSET[0] * r, -ITEM_OFFSET[1] * r, -ITEM_OFFSET[2] * r);
             return true;
         }
     };
+    /** The first-person transform of {@code neoforge:item/default}, which the stone's parts inherit. */
+    private static final float ITEM_TURN = 90, ITEM_TILT = 25, ITEM_SCALE = 0.68f;
+    private static final float[] ITEM_OFFSET = {1.13f / 16, 3.2f / 16, 1.13f / 16};
 
     @SubscribeEvent
     static void setup(FMLClientSetupEvent event) {

@@ -30,6 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -162,6 +163,12 @@ public final class RuneWorldFx {
         return (RANDOM.nextDouble() - 0.5) * 2 * s;
     }
 
+    /** True for the local player seen from their own eyes: particles at their head would only be blots on the view. */
+    private static boolean selfView(@Nullable Entity e) {
+        Minecraft mc = Minecraft.getInstance();
+        return e != null && e == mc.player && mc.options.getCameraType().isFirstPerson();
+    }
+
     /** Where a player holds a stone they are absorbing (in the world, for others and third person). */
     static Vec3 stoneAt(Entity e, float partial) {
         Minecraft mc = Minecraft.getInstance();
@@ -188,6 +195,7 @@ public final class RuneWorldFx {
         Vec3 at = fx.origin;
         switch (p.kind()) {
             case SHATTER -> {
+                if (e == Minecraft.getInstance().player && Minecraft.getInstance().options.getCameraType().isFirstPerson()) break; // on the screen
                 Vec3 stone = e != null ? stoneAt(e, 1) : at.add(0, 1.2, 0);
                 ItemParticleOption shard = new ItemParticleOption(ParticleTypes.ITEM, shardStack(p));
                 for (int i = 0; i < 26; i++) {
@@ -213,8 +221,10 @@ public final class RuneWorldFx {
                 for (int i = 0; i < 12; i++) level.addParticle(dust, chest.x + rnd(0.5), chest.y + rnd(0.6), chest.z + rnd(0.5), 0, 0.02, 0);
             }
             case HOWL -> {
-                Vec3 mouth = at.add(0, 1.55, 0).add(fx.dir().multiply(1, 0, 1).scale(0.9));
-                level.addParticle(ParticleTypes.GUST, mouth.x, mouth.y, mouth.z, 0, 0, 0);
+                // seen through the howler's own eyes the gust would fill the view: it starts further out
+                boolean self = selfView(e);
+                Vec3 mouth = at.add(0, 1.55, 0).add(fx.dir().multiply(1, 0, 1).scale(self ? 2.2 : 0.9));
+                if (!self) level.addParticle(ParticleTypes.GUST, mouth.x, mouth.y, mouth.z, 0, 0, 0);
                 for (int i = 0; i < 10; i++) {
                     Vec3 v = fx.dir().scale(0.35 + RANDOM.nextDouble() * 0.3);
                     level.addParticle(ParticleTypes.CLOUD, mouth.x, mouth.y, mouth.z, v.x + rnd(0.08), rnd(0.04), v.z + rnd(0.08));
@@ -257,7 +267,7 @@ public final class RuneWorldFx {
                     double a = i / 14.0 * Math.PI * 2;
                     level.addParticle(ParticleTypes.POOF, to.x + Math.cos(a) * 1.2, to.y + 0.2, to.z + Math.sin(a) * 1.2, Math.cos(a) * 0.18, 0.02, Math.sin(a) * 0.18);
                 }
-                level.addParticle(ParticleTypes.EXPLOSION, to.x, to.y + 0.5, to.z, 0, 0, 0);
+                if (!selfView(e)) level.addParticle(ParticleTypes.EXPLOSION, to.x, to.y + 0.5, to.z, 0, 0, 0);
             }
             case WEB -> {
                 Vec3 to = fx.point();
@@ -266,12 +276,15 @@ public final class RuneWorldFx {
             case DREAD -> {
                 DustParticleOptions blood = new DustParticleOptions(rgb(c, 0f), 1.6f);
                 for (int i = 0; i < 26; i++) {
-                    double a = RANDOM.nextDouble() * Math.PI * 2, r = 0.8 + RANDOM.nextDouble() * 1.4;
+                    double a = RANDOM.nextDouble() * Math.PI * 2, r = (selfView(e) ? 1.8 : 0.8) + RANDOM.nextDouble() * 1.4;
                     level.addParticle(blood, at.x + Math.cos(a) * r, at.y + 0.2 + RANDOM.nextDouble() * 1.6, at.z + Math.sin(a) * r, 0, 0, 0);
                 }
-                for (int i = 0; i < 12; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(1), at.y + 0.1, at.z + rnd(1), rnd(0.08), 0.01, rnd(0.08));
+                if (!selfView(e)) {
+                    for (int i = 0; i < 12; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(1), at.y + 0.1, at.z + rnd(1), rnd(0.08), 0.01, rnd(0.08));
+                }
             }
             case BREATH -> {
+                if (selfView(e)) break; // a puff at the mouth would fill the roarer's own view
                 Vec3 mouth = at.add(0, e != null ? e.getEyeHeight() : 1.6, 0);
                 for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, mouth.x + rnd(0.3), mouth.y + rnd(0.2), mouth.z + rnd(0.3), 0, 0.05, 0);
             }
@@ -306,15 +319,17 @@ public final class RuneWorldFx {
             ItemStack stack = pl.getUseItem();
             int c = Runes.colorOf(stack);
             float progress = Mth.clamp(pl.getTicksUsingItem() / (float) Runes.USE_TICKS, 0, 1);
+            // the local player's own stone in first person is on the screen (RuneOverlay): particles this close
+            // to the eye would only be big blots
+            if (pl == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
             Vec3 stone = stoneAt(pl, 1);
-            boolean firstPerson = pl == mc.player && mc.options.getCameraType().isFirstPerson();
-            int letters = firstPerson ? 1 : 2 + Math.round(progress * 2);
+            int letters = 2 + Math.round(progress * 2);
             for (int i = 0; i < letters; i++) {
-                double a = RANDOM.nextDouble() * Math.PI * 2, r = (firstPerson ? 0.7 : 1.1) + RANDOM.nextDouble() * 0.7;
+                double a = RANDOM.nextDouble() * Math.PI * 2, r = 1.1 + RANDOM.nextDouble() * 0.7;
                 double h = rnd(0.7);
                 level.addParticle(ParticleTypes.ENCHANT, stone.x, stone.y + 1.2, stone.z, Math.cos(a) * r, h - 1.2, Math.sin(a) * r);
             }
-            if (!firstPerson && RANDOM.nextFloat() < 0.25f + 0.5f * progress) {
+            if (RANDOM.nextFloat() < 0.25f + 0.5f * progress) {
                 DustParticleOptions dust = new DustParticleOptions(rgb(c, 0.3f), 0.5f + 0.4f * progress);
                 level.addParticle(dust, stone.x + rnd(0.18), stone.y + rnd(0.18), stone.z + rnd(0.18), 0, 0.01, 0);
             }
@@ -322,8 +337,9 @@ public final class RuneWorldFx {
             int done = CRACKS.getOrDefault(pl.getId(), 0);
             if (cracks > done) {
                 CRACKS.put(pl.getId(), cracks);
-                BlockParticleOption chips = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DEEPSLATE_TILES.defaultBlockState());
-                for (int i = 0; i < 8; i++) level.addParticle(chips, stone.x, stone.y, stone.z, rnd(0.12), 0.08 + RANDOM.nextDouble() * 0.1, rnd(0.12));
+                // chips of the stone itself
+                ItemParticleOption chips = new ItemParticleOption(ParticleTypes.ITEM, Runes.sealed(Runes.gradeOf(stack)));
+                for (int i = 0; i < 6; i++) level.addParticle(chips, stone.x, stone.y, stone.z, rnd(0.1), 0.06 + RANDOM.nextDouble() * 0.08, rnd(0.1));
                 DustParticleOptions spark = new DustParticleOptions(rgb(c, 0.5f), 0.7f);
                 for (int i = 0; i < 6; i++) level.addParticle(spark, stone.x + rnd(0.12), stone.y + rnd(0.12), stone.z + rnd(0.12), 0, 0, 0);
             }
@@ -364,7 +380,8 @@ public final class RuneWorldFx {
                     while (fx.stage < cuts && age >= (2 + 2 * fx.stage) / 20f) {
                         if (e != null) {
                             level.addParticle(ParticleTypes.SWEEP_ATTACK, e.getX() + rnd(0.3), e.getY() + e.getBbHeight() * (0.3 + RANDOM.nextDouble() * 0.5), e.getZ() + rnd(0.3), 0, 0, 0);
-                            level.addParticle(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), rnd(0.4), rnd(0.3), rnd(0.4));
+                            // sparks stay by the creature, not in the cutter's eyes
+                            level.addParticle(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), rnd(0.15), rnd(0.12), rnd(0.15));
                         }
                         fx.stage++;
                     }
@@ -378,7 +395,7 @@ public final class RuneWorldFx {
                 }
                 case BREATH -> {
                     if (age < fx.lasting() && e != null) {
-                        Vec3 mouth = e.getEyePosition().add(fx.dir().scale(0.6));
+                        Vec3 mouth = e.getEyePosition().add(fx.dir().scale(selfView(e) ? 1.3 : 0.6));
                         Vec3 d = fx.dir();
                         for (int i = 0; i < 7; i++) {
                             double s = 0.45 + RANDOM.nextDouble() * 0.45;
@@ -386,7 +403,7 @@ public final class RuneWorldFx {
                                     d.x * s + rnd(0.12), d.y * s + rnd(0.1), d.z * s + rnd(0.12));
                         }
                         if (RANDOM.nextBoolean()) {
-                            Vec3 q = mouth.add(d.scale(2 + RANDOM.nextDouble() * p.size() * 0.7));
+                            Vec3 q = mouth.add(d.scale((selfView(e) ? 4 : 2) + RANDOM.nextDouble() * p.size() * 0.6));
                             level.addParticle(ParticleTypes.LARGE_SMOKE, q.x + rnd(0.8), q.y + rnd(0.5), q.z + rnd(0.8), 0, 0.03, 0);
                         }
                     }
@@ -786,7 +803,9 @@ public final class RuneWorldFx {
     /** Wyrmfire: a cone of flame rolling out of the caster's mouth. */
     private static void breath(PoseStack pose, MultiBufferSource buffers, Camera camera, Fx fx, Entity e, Vec3 at, float partial, float age, int c) {
         Vec3 d = fx.dir();
-        Vec3 mouth = (e != null ? e.getEyePosition(partial) : fx.origin.add(0, 1.6, 0)).subtract(at).add(d.scale(0.6));
+        // through the roarer's own eyes the fire starts a little further out, so it doesn't swallow the view
+        boolean self = selfView(e);
+        Vec3 mouth = (e != null ? e.getEyePosition(partial) : fx.origin.add(0, 1.6, 0)).subtract(at).add(d.scale(self ? 1.4 : 0.6));
         Vec3 up = Math.abs(d.y) > 0.95 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
         Vec3 s1 = d.cross(up).normalize();
         Vec3 s2 = d.cross(s1).normalize();
@@ -809,7 +828,7 @@ public final class RuneWorldFx {
         }
         if (age < breath) {
             float flick = 0.8f + 0.2f * Mth.sin(age * 70);
-            dotTex(pose, buffers, camera, BURST, (float) mouth.x, (float) mouth.y, (float) mouth.z, 0.7f * flick, 0xFFE0A0, 0.9f, age * 400);
+            dotTex(pose, buffers, camera, BURST, (float) mouth.x, (float) mouth.y, (float) mouth.z, (self ? 0.3f : 0.7f) * flick, 0xFFE0A0, self ? 0.6f : 0.9f, age * 400);
         }
         // the roar's ring
         float k = Mth.clamp(age / 0.6f, 0, 1);

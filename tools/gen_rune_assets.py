@@ -834,12 +834,12 @@ def write_icons():
 ANIMATIONS = {
     # the stone raised to the chest in both hands, the body tensing over it as it cracks (Runes.USE_TICKS = 40)
     "rune_channel": emote("rune_channel", "Hold a rune stone to the chest as it cracks", 46, 60, {
-        "rightArm": [(4, {"pitch": -62, "yaw": -30}), (18, {"pitch": -72, "yaw": -33}), (32, {"pitch": -80, "yaw": -35}),
-                     (35, {"pitch": -77, "yaw": -34}), (37, {"pitch": -83, "yaw": -36}), (39, {"pitch": -78, "yaw": -34}),
-                     (41, {"pitch": -84, "yaw": -36}), (43, {"pitch": -79, "yaw": -35}), (46, {"pitch": -82, "yaw": -35})],
-        "leftArm": [(4, {"pitch": -62, "yaw": 30}), (18, {"pitch": -72, "yaw": 33}), (32, {"pitch": -80, "yaw": 35}),
-                    (35, {"pitch": -83, "yaw": 36}), (37, {"pitch": -77, "yaw": 34}), (39, {"pitch": -84, "yaw": 36}),
-                    (41, {"pitch": -78, "yaw": 34}), (43, {"pitch": -83, "yaw": 36}), (46, {"pitch": -80, "yaw": 35})],
+        "rightArm": [(4, {"pitch": -50, "yaw": -38}), (18, {"pitch": -55, "yaw": -41}), (32, {"pitch": -60, "yaw": -44}),
+                     (35, {"pitch": -57, "yaw": -43}), (37, {"pitch": -63, "yaw": -45}), (39, {"pitch": -58, "yaw": -43}),
+                     (41, {"pitch": -64, "yaw": -45}), (43, {"pitch": -59, "yaw": -44}), (46, {"pitch": -62, "yaw": -44})],
+        "leftArm": [(4, {"pitch": -50, "yaw": 38}), (18, {"pitch": -55, "yaw": 41}), (32, {"pitch": -60, "yaw": 44}),
+                    (35, {"pitch": -63, "yaw": 45}), (37, {"pitch": -57, "yaw": 43}), (39, {"pitch": -64, "yaw": 45}),
+                    (41, {"pitch": -58, "yaw": 43}), (43, {"pitch": -63, "yaw": 45}), (46, {"pitch": -60, "yaw": 44})],
         "torso": [(4, {"pitch": -4}), (18, {"pitch": -7}), (32, {"pitch": -11}), (46, {"pitch": -12})],
         "head": [(4, {"pitch": 20}), (18, {"pitch": 16}), (32, {"pitch": 10}), (46, {"pitch": 8})],
         "rightLeg": [(4, {"roll": 4}), (32, {"roll": 7}), (46, {"roll": 7})],

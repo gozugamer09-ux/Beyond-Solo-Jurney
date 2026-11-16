@@ -21,10 +21,11 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Random;
 
 /**
- * The absorb on the local player's screen (first person; third person sees {@link RuneWorldFx}): while the stone is
- * held a ring fills around the crosshair with the stone's glyph inside, light drifts in from the edges and the stone
- * cracks; when it shatters the screen flashes in its colour and streams of light pour down into the player before
- * the System names what was learned ({@code SkillOverlay} waits for it). A refused stone puffs grey.
+ * The absorb on the local player's screen: while the stone is held a ring fills around the crosshair with the
+ * stone's glyph inside (not in the front view, where the crosshair sits on the player's chest); in first person
+ * light also drifts in from the edges to the stone in the hands, and when it shatters the screen flashes in its colour
+ * and streams of light pour down into the player before the System names what was learned ({@code SkillOverlay}
+ * waits for it). In third person the shatter is all in the world ({@link RuneWorldFx}). A refused stone puffs grey.
  */
 public final class RuneOverlay {
     /** The glyph icons (distance fields, made by tools/gen_rune_assets.py). */
@@ -33,6 +34,9 @@ public final class RuneOverlay {
     static {
         for (int i = 0; i < GLYPHS.length; i++) GLYPHS[i] = BeyondSolo.id("textures/gui/icon/rune_glyph_" + i + ".png");
     }
+
+    /** How far down the screen the stone is held in first person (see {@code RuneClientEvents.HAND}). */
+    private static final float STONE_Y = 0.725f;
 
     private static double shatterAt = -100;
     private static int shatterColor;
@@ -73,14 +77,15 @@ public final class RuneOverlay {
         if (mc.player == null || mc.options.hideGui) return;
         float w = g.guiWidth(), h = g.guiHeight();
         boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        boolean facing = mc.options.getCameraType().isMirrored();
 
         if (mc.player.isUsingItem() && Runes.isRune(mc.player.getUseItem())) {
-            channel(g, mc.player.getUseItem(), (mc.player.getTicksUsingItem() + delta.getGameTimeDeltaPartialTick(false)) / Runes.USE_TICKS, w, h, firstPerson);
+            if (!facing) channel(g, mc.player.getUseItem(), (mc.player.getTicksUsingItem() + delta.getGameTimeDeltaPartialTick(false)) / Runes.USE_TICKS, w, h, firstPerson);
         } else {
             cracks = 0;
         }
         float s = Anim.since(shatterAt);
-        if (s < 1.6f) shattered(g, s, w, h);
+        if (s < 1.6f && firstPerson) shattered(g, s, w, h);
         float e = Anim.since(engravedAt);
         if (e < 1.2f) engravedFlash(g, e, w, h);
         float f = Anim.since(fizzleAt);
@@ -99,7 +104,7 @@ public final class RuneOverlay {
         Shapes.vignette(0, 0, w, h, 0.35f, 1.25f).fill(Gfx.alpha(c, 0.08f + 0.22f * progress)).draw(g);
 
         // light drifting in from the edges towards the stone in the hands
-        float sx = cx + w * 0.06f, sy = h * 0.8f;
+        float sx = cx, sy = h * STONE_Y;
         if (firstPerson) {
             Random r = new Random(7);
             float time = (float) Anim.now();
@@ -114,7 +119,7 @@ public final class RuneOverlay {
             }
             // the stone's own glow in the hands
             float pulse = 0.85f + 0.15f * Anim.pulse(0.6f);
-            Shapes.circle(sx, sy, 6 + 22 * progress).fill(0).glow(18 + 26 * progress, Gfx.alpha(c, (0.2f + 0.4f * progress) * pulse)).additive().draw(g);
+            Shapes.circle(sx, sy, 2).fill(0).glow(34 + 40 * progress, Gfx.alpha(c, (0.12f + 0.3f * progress) * pulse)).additive().draw(g);
         }
 
         // the ring around the crosshair, filling
@@ -144,7 +149,7 @@ public final class RuneOverlay {
         float ck = Anim.since(crackAt) / 0.35f;
         if (ck < 1) {
             Shapes.ring(cx, cy, r + 2 + 16 * Anim.outCubic(ck), 1.4f * (1 - ck) + 0.2f).fill(Gfx.alpha(0xFFFFFFFF, 1 - ck)).glow(4, Gfx.alpha(c, 0.7f * (1 - ck))).draw(g);
-            if (firstPerson) Shapes.circle(sx, sy, 30).fill(0).glow(40, Gfx.alpha(0xFFFFFFFF, 0.35f * (1 - ck))).additive().draw(g);
+            if (firstPerson) Shapes.circle(sx, sy, 2).fill(0).glow(60, Gfx.alpha(0xFFFFFFFF, 0.3f * (1 - ck))).additive().draw(g);
         }
     }
 
@@ -159,7 +164,7 @@ public final class RuneOverlay {
         Shapes.vignette(0, 0, w, h, 0.15f, 1.2f).fill(Gfx.alpha(c, 0.45f * tail)).draw(g);
 
         // the burst where the stone was
-        float sx = cx + w * 0.06f, sy = h * 0.8f;
+        float sx = cx, sy = h * STONE_Y;
         float b = Anim.outCubic(Anim.clamp01(t / 0.45f));
         if (b < 1) {
             Shapes.rays(sx, sy, 60 + 140 * b, 14).fillV(Gfx.alpha(light, 0.5f * (1 - b)), Gfx.alpha(c, 0.15f * (1 - b))).rotation((float) (shatterSeed % 100) / 100f + t * 0.05f).additive().draw(g);
@@ -171,7 +176,7 @@ public final class RuneOverlay {
         float ga = Anim.clamp01(t / 0.12f) * (1 - Anim.clamp01((t - 0.55f) / 0.45f));
         if (ga > 0) {
             float size = 22 + 10 * Anim.outBack(Anim.clamp01(t / 0.35f)) - 8 * gk;
-            Shapes.circle(cx, gy, size).fill(0).glow(size, Gfx.alpha(c, 0.4f * ga)).additive().draw(g);
+            Shapes.circle(cx, gy, 2).fill(0).glow(size * 1.8f, Gfx.alpha(c, 0.35f * ga)).additive().draw(g);
             Shapes.icon(GLYPHS[shatterGlyph], cx, gy, size).fill(Gfx.alpha(light, ga)).glow(5, Gfx.alpha(c, ga)).draw(g);
         }
         // streams of light pouring from all around down into the player (who is just below the view)
@@ -191,7 +196,7 @@ public final class RuneOverlay {
         }
         // a warm glow rising from below as the light settles
         float settle = Anim.clamp01((t - 0.55f) / 0.3f) * (1 - Anim.clamp01((t - 0.9f) / 0.7f));
-        if (settle > 0) Shapes.circle(cx, h + 10, w * 0.35f).fill(0).glow(w * 0.3f, Gfx.alpha(c, 0.45f * settle)).additive().draw(g);
+        if (settle > 0) Shapes.circle(cx, h + 20, 2).fill(0).glow(h * 0.75f, Gfx.alpha(c, 0.4f * settle)).additive().draw(g);
     }
 
     private static void engravedFlash(GuiGraphics g, float t, float w, float h) {

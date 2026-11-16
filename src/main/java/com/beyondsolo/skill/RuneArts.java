@@ -181,12 +181,12 @@ public final class RuneArts {
     static boolean huntersHowl(ServerPlayer p, Skill s, int l) {
         int ticks = Math.round(howlSeconds(l) * 20);
         for (Player ally : allies(p, 10)) {
-            ally.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, ticks, 1));
-            ally.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, ticks, 0));
+            ally.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, ticks, 1, false, false, true));
+            ally.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, ticks, 0, false, false, true));
         }
         for (LivingEntity e : foes(p, p.position(), 7)) {
-            e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 0));
-            e.addEffect(new MobEffectInstance(MobEffects.GLOWING, ticks, 0));
+            e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 0, false, false));
+            e.addEffect(new MobEffectInstance(MobEffects.GLOWING, ticks, 0, false, false));
         }
         sound(p, SoundEvents.WOLF_HOWL, 1.3f, 0.8f);
         sound(p, SoundEvents.RAVAGER_ROAR, 0.35f, 1.6f);
@@ -231,7 +231,7 @@ public final class RuneArts {
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.5f);
         for (LivingEntity e : struck) {
             magic(p, s, e, dmg);
-            e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
+            e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0, false, false));
             SystemAPI.restoreMana(p, lanceMana(l));
         }
         return true;
@@ -284,7 +284,7 @@ public final class RuneArts {
                 launch(e, 0.75);
             }
             repeat(p, 60, 10, () -> {
-                for (LivingEntity e : foes(p, land, 4.5)) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 14, 1));
+                for (LivingEntity e : foes(p, land, 4.5)) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 14, 1, false, false));
             });
         });
         return true;
@@ -322,10 +322,10 @@ public final class RuneArts {
         RuneFx.play(p, Kind.DREAD, s.color(), p.position(), 12, 0);
         sound(p, SoundEvents.ELDER_GUARDIAN_CURSE, 0.5f, 0.55f);
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1.4f, 0.6f);
-        p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, ticks, 0));
+        p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, ticks, 0, false, false, true));
         for (LivingEntity e : foes(p, p.position(), 12)) {
-            e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, ticks, 1));
-            e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 1));
+            e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, ticks, 1, false, false));
+            e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 1, false, false));
             if (!(e instanceof DungeonBoss) && e.getMaxHealth() <= lesser) {
                 SubclassActions.stun(e, 30);
                 push(e, p.position(), 0.45, 0.12);
@@ -340,7 +340,7 @@ public final class RuneArts {
         LivingEntity target = aim(p, 12, x -> canHit(p, x));
         if (target == null) return false;
         Vec3 from = p.position();
-        blinkTo(p, target, false);
+        blinkNear(p, target, 1.7);
         int cuts = flurryCuts(l);
         float dmg = 1.7f * m(l, tier(p)) + stat(p, Stat.STR, 0.06f);
         RuneFx.play(target, Kind.FLURRY, s.color(), from, Vec3.ZERO, target.getBbHeight(), 2 + cuts * 2, cuts);
@@ -358,6 +358,20 @@ public final class RuneArts {
             });
         }
         return true;
+    }
+
+    /**
+     * Like {@code SubclassKit.blinkTo}, but stopping {@code gap} blocks short of the creature's side: the flurry's cuts
+     * are phantoms, and the cutter's view stays clear of the creature. Falls back to the usual spot when blocked.
+     */
+    private static void blinkNear(ServerPlayer p, LivingEntity target, double gap) {
+        Vec3 from = p.position();
+        Vec3 dest = target.position().add(flat(from.subtract(target.position()), p).scale(target.getBbWidth() / 2 + gap));
+        if (!p.level().noCollision(p, p.getBoundingBox().move(dest.subtract(from)))) {
+            blinkTo(p, target, false);
+            return;
+        }
+        SubclassActions.teleport(p, dest, target);
     }
 
     /** Sigils burn under the nearest foes and burst a moment later. */
@@ -390,7 +404,7 @@ public final class RuneArts {
         RuneFx.play(p, Kind.BREATH, s.color(), p.getEyePosition(), p.getLookAngle(), 10, 16, 0);
         sound(p, SoundEvents.ENDER_DRAGON_GROWL, 1f, 1.25f);
         sound(p, SoundEvents.BLAZE_SHOOT, 1f, 0.5f);
-        p.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 200, 0));
+        p.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 200, 0, false, false, true));
         p.clearFire();
         for (LivingEntity e : foes(p, p.position(), 16)) {
             boolean boss = e instanceof DungeonBoss;
