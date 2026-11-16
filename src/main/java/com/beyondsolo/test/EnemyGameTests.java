@@ -93,6 +93,30 @@ public final class EnemyGameTests {
             helper.assertTrue(elite.getAttributeValue(Attributes.ARMOR) > plain.getAttributeValue(Attributes.ARMOR), kind + " armoured affix adds armour");
             helper.assertTrue(Enemies.rankOf(elite) == PlayerRank.B, kind + " remembers its rank");
         }
+        // a size can be set again, and size 1 really puts the creature back (it once left the earlier roll on)
+        Mob sized = Enemies.spawn(level, PlayerRank.C, EnemyModule.type(MonsterKind.GLOOMFANG), at, EnemyTraits.NONE, -1);
+        helper.assertTrue(sized != null, "a gloomfang to resize spawns");
+        spawned.add(sized);
+        Enemies.applySize(sized, 1f);
+        double scale = sized.getAttributeValue(Attributes.SCALE);
+        float health = sized.getMaxHealth();
+        double damage = sized.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        double pace = sized.getAttributeValue(Attributes.MOVEMENT_SPEED);
+        Enemies.applySize(sized, 1.8f);
+        helper.assertTrue(Math.abs(Enemies.sizeOf(sized) - 1.8f) < 1e-3 && Math.abs(sized.getAttributeValue(Attributes.SCALE) - scale * 1.8) < 1e-3,
+                "a giant is 1.8 times the size: " + sized.getAttributeValue(Attributes.SCALE) + " from " + scale);
+        helper.assertTrue(sized.getMaxHealth() > health * 1.5f && sized.getAttributeValue(Attributes.ATTACK_DAMAGE) > damage * 1.2
+                && sized.getAttributeValue(Attributes.MOVEMENT_SPEED) < pace, "a giant is tougher, hits harder and is slower");
+        Enemies.applySize(sized, 0.6f);
+        helper.assertTrue(Math.abs(Enemies.sizeOf(sized) - 0.6f) < 1e-3 && sized.getMaxHealth() < health, "a new size replaces the old one: " + Enemies.sizeOf(sized));
+        Enemies.applySize(sized, 1f);
+        helper.assertTrue(Enemies.sizeOf(sized) == 1f && Math.abs(sized.getAttributeValue(Attributes.SCALE) - scale) < 1e-6
+                        && Math.abs(sized.getMaxHealth() - health) < 1e-3 && Math.abs(sized.getAttributeValue(Attributes.ATTACK_DAMAGE) - damage) < 1e-6
+                        && Math.abs(sized.getAttributeValue(Attributes.MOVEMENT_SPEED) - pace) < 1e-6,
+                "size 1 puts scale, health, damage and pace back: scale " + sized.getAttributeValue(Attributes.SCALE) + " health " + sized.getMaxHealth());
+        // ... and a creature whose size was set keeps it when its traits are applied again
+        for (int i = 0; i < 40; i++) Enemies.apply(sized, PlayerRank.C, EnemyTraits.NONE);
+        helper.assertTrue(Enemies.sizeOf(sized) == 1f, "a size that was set is not rolled again: " + Enemies.sizeOf(sized));
         // sizes: from half to double, mostly near the usual, giants rare
         net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(42);
         int giants = 0, small = 0, usual = 0;
