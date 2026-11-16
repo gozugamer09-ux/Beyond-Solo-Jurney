@@ -62,12 +62,13 @@ import java.util.Deque;
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
+ * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
+ *                                      ./gradlew processResources first to see changed models, animations or textures)
  * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
  * engravego                            press the engraving screen's CARVE button
  * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
  * gatesgo                              press the GATES page's TURN button
  * rerun                                press the re-run prompt's key (the accept key)
- * reload                               reload resource packs (like F3+T), after editing build/resources/main
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -103,6 +104,11 @@ public final class UiTestDriver {
         if (!ENABLED || mc.player == null) return;
         if (++pollTimer % 5 == 0) poll(mc);
         releaseKeys();
+        if (reloading != null) {
+            if (!reloading.isDone()) return;
+            reloading = null;
+            waitTicks = 10;   // a few frames with the new resources before anything looks at them
+        }
         if (waitTicks > 0) {
             waitTicks--;
         } else {
@@ -124,6 +130,8 @@ public final class UiTestDriver {
     }
 
     private static final java.util.Map<KeyMapping, Integer> HELD = new java.util.HashMap<>();
+    /** A resource reload started by the "reload" command. Nothing else runs until it is over. */
+    private static java.util.concurrent.CompletableFuture<Void> reloading;
 
     private static KeyMapping findKey(Minecraft mc, String name) {
         for (KeyMapping k : mc.options.keyMappings) {
@@ -205,7 +213,6 @@ public final class UiTestDriver {
             case "gates" -> com.beyondsolo.client.key.GatesTab.show(Integer.parseInt(arg));
             case "gatesgo" -> com.beyondsolo.client.key.GatesTab.press();
             case "rerun" -> com.beyondsolo.client.key.KeyClient.pressRerun();
-            case "reload" -> mc.reloadResourcePacks();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }
@@ -253,6 +260,10 @@ public final class UiTestDriver {
             }
             case "shot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(), message -> {});
             case "wait" -> waitTicks = Integer.parseInt(arg);
+            case "reload" -> {
+                reloading = mc.reloadResourcePacks();
+                waitTicks = 1;   // ends this tick's run of commands
+            }
             case "press" -> {
                 String[] a = arg.split(" ");
                 KeyMapping key = findKey(mc, a[0]);

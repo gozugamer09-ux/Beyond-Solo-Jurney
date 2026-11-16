@@ -14,6 +14,7 @@ tools/uitest/ui.sh "screen status" "wait 20" "shot status" "close"         # -> 
 tools/uitest/rcon.py "time set 13000" "weather clear"                      # server commands
 tools/uitest/record.sh reveal 5 "cmd system evaluate s mage" "wait 400"    # -> build/uitest/rec-reveal.mp4
 
+./gradlew processResources && tools/uitest/ui.sh "reload"                  # after a change to models, animations, textures
 tools/uitest/client.sh    # restart only the client, after a change to client code
 tools/uitest/stop.sh      # stop everything; after a change to server code, stop and start again
 ```

@@ -852,8 +852,7 @@ icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` 
   a lock with what its gate holds and TURN, and the records by rank. The System window's tab bar now shrinks its
   labels when there are too many tabs to fit.
 - **Commands** (`/system key ...`, level 2): give &lt;rank&gt; [n], sealed &lt;rank&gt; &lt;boss&gt; [ascendant], kit, turn,
-  runs, reset, expire, seal, wipe. UI driver: `screen gates`, `gates <n>`, `gatesgo`, `rerun` (and `reload`, which
-  reloads resources after an edit in `build/resources/main`).
+  runs, reset, expire, seal, wipe. UI driver: `screen gates`, `gates <n>`, `gatesgo`, `rerun`.
 
 ## World generation
 
