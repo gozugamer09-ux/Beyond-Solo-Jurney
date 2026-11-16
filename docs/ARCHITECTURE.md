@@ -29,6 +29,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
 | `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
 | `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
+| `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -695,6 +696,53 @@ Code in `penalty/` (server) and `client/penalty/` (client); `PenaltyModule.init`
 - **Commands** (`/system penalty ...`, level 2): sentence, now, jump arrive|fight|time <s>|survive|fail|surge [n]|erupt|champion,
   cancel, reset, status.
 
+## Rune stones
+
+Code in `rune/` (server) and `client/rune/` (client); the rune arts are skills, in `skill/RuneArts`. `RuneModule.init`
+registers the items, the `beyondsolo:rune_grade` data component (the skill rides on the tomes' `ModComponents.SKILL`),
+the `RuneData` attachment (kept through death), the RUNES creative tab and the payloads (`RuneFxPayload`, `RuneSyncPayload`,
+`RuneActionPayload`). Lang lives in `assets/beyondsolo_runes/lang`. Textures, models, glyphs, icons, light textures,
+the two poses and all the text come from `tools/gen_rune_assets.py` (`--preview <dir>` also writes contact sheets).
+
+- **The stone** (`RuneStoneItem`, one item): either **inscribed** with a skill (`Runes.of(skill)`, at the skill's
+  grade) or **sealed** (`Runes.sealed(rank)`). An inscribed stone holds a rune art (any class) or a class skill (a
+  *class rune*: only that class, or that subclass, can take it). A sealed stone settles on a skill when it shatters:
+  `Runes.pool` lists rune arts and the absorber's own class skills (not the job change's) no higher than its grade
+  and not mastered, rune arts and skills of the stone's own grade weighted up.
+- **Absorbing**: hold use for `USE_TICKS` (2 s). Too strong a stone (more than `RANK_REACH` grade above the rank), a
+  class rune of another class, a mastered skill, a sealed stone with nothing left or no System: the stone won't
+  answer (`Runes.refusal`, worked out on the client too so the channel never starts; the server decides). When it
+  shatters it teaches the skill at level 1, or raises a known one by `RAISE_LEVELS`; `SkillEvent.Source.RUNE`.
+  Letting go early loses nothing.
+- **Rune arts** (`skill/RuneArts`, 14): the essence of each gate creature and boss, plus two *deep* runes no creature
+  carries. Never unlocked by level and no tome rolls them (`Skill.rune()`); a class change keeps them. Gloomfang:
+  Hunter's Howl. Broodling: Skittering Brood. Shardback: Crystal Carapace (passive). Hollow Acolyte: Hollow Lance.
+  Ashen Sentinel: Ashen Bulwark. Emberwisp: Cinder Wisp. Bosses: Titan's Fall (Brute), Widow's Snare (Broodmother),
+  Dread Presence (Alpha), Phantom Flurry (Knight), Sigil Cascade (Magus, the only one with a cast circle), Wyrmfire
+  Roar (Wyrm). Deep: Quickened Pulse, Iron Resolve (passives). Their effects are `RuneFxPayload` kinds drawn by
+  `RuneWorldFx` (no circles or auras, light shapes instead: the web, the tower-shield ward, sigils, the lance).
+- **Engraving runes** (`Engraving`: Haste cooldown x0.8, Thrift mana x0.7, Might hits x1.2): using one opens
+  `RuneEngraveScreen` (known actives, numbers before and after, CARVE). One engraving per skill, a new one replaces
+  the old; stored in `RuneData`. `SkillAPI` reads `Runes.manaCost` / `Runes.cooldown`, `SkillActions.hit` multiplies by
+  `Runes.damageMultiplier`.
+- **Drops** (`RuneDrops`): gate creatures killed by a hunter with the System: their kind's rune (normal 0.4% up to
+  champion 8%), class runes and sealed runes from veterans, elites and champions; a rune above the creature's rank
+  halves its chance per grade. Bosses: their rune art (15%, 35% ascended), a sealed rune of the gate's rank (35%,
+  always when ascended), deep runes from A and S gates, all into the reward cache (`GateLoot.BossLootEvent`).
+- **Economy and crafting**: rune stones sell by grade (`Runes.SELL`, 80 for E up to 5000 for S), engraving runes 600.
+  The shop sells a sealed D-rank stone and the three engraving runes. CRAFT tab, RUNES (`RuneRecipes`): seal four E cores and a mana stone into
+  an E-rank stone, fuse three sealed stones (plus a core of the next rank, mana stones from B up) into one of the next
+  grade, and make the engraving runes. Recipes only take sealed stones, never inscribed ones.
+- **Looks**: `RuneStoneModel` replaces the item model after baking with one put together from 20 small models
+  (`item/rune/stone_<grade>`, `glyph_<n>`, `crack_<n>`, all `neoforge:item_layers` with blank padding layers so tint
+  index = layer), cached per grade, glyph and crack stage. The glyph and cracks are full-bright and tinted in the rune's
+  colour (`RuneClientEvents`). Six stones, one per grade: river pebble, mossy tablet, carved hexagon, obsidian gem,
+  gold-bound shield, crimson monolith. While held: the stone is raised and trembles (first-person hand transform), the
+  body takes `rune_channel` then `rune_release` (`RuneAnimator`), `RuneOverlay` fills a ring round the crosshair and
+  pours the light in before the System pop-up; other players see it as `RuneWorldFx`. A rune on the ground glows.
+- **Commands** (`/system rune ...`, level 2): give &lt;skill&gt;, sealed &lt;rank&gt;, engraving &lt;kind&gt;, kit, absorb,
+  engrave &lt;skill&gt; &lt;kind&gt;, clear, bossloot &lt;boss&gt;. UI driver: `engrave <skill>`, `engravego`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -736,3 +784,4 @@ checks use zombies.
 `test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
 `test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
+`test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.

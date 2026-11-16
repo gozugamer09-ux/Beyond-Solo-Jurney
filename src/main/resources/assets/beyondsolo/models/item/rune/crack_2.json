@@ -1,0 +1,18 @@
+{
+  "parent": "neoforge:item/default",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/rune/blank",
+    "layer1": "beyondsolo:item/rune/blank",
+    "layer2": "beyondsolo:item/rune/blank",
+    "layer3": "beyondsolo:item/rune/crack_2"
+  },
+  "neoforge_data": {
+    "layers": {
+      "3": {
+        "block_light": 15,
+        "sky_light": 15
+      }
+    }
+  }
+}

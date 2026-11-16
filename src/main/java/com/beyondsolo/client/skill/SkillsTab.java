@@ -155,6 +155,11 @@ public class SkillsTab implements SystemTab {
             SkillEmblem.draw(g, s, tx + tile / 2f, ty + tile / 2f, tile * 0.3f, isSel ? 0.5f : hover ? 0.3f : 0f, !have);
             if (have) {
                 SysFont.draw(g, String.valueOf(data.level(s.path())), tx + tile - 2.5f, ty + tile - 7, tile > 26 ? 6f : 5f, Gfx.mix(c, 0xFFFFFFFF, 0.6f), true, 1f);
+                var eng = com.beyondsolo.client.rune.RuneClient.data().engraving(s.path());
+                if (eng != null) {
+                    int ec = 0xFF000000 | eng.color;
+                    Shapes.icon(Icons.DIAMOND, tx + 5, ty + tile - 5, 6).fill(ec).glow(2, Gfx.alpha(ec, 0.7f)).draw(g);
+                }
                 var kn = data.get(s.path());
                 if (kn != null && now - kn.learnedAt() < 20 * 60 * 3) {
                     Shapes.circle(tx + tile - 4, ty + 4, 2.2f).fill(SystemTheme.GOLD).glow(2 + 2 * Anim.pulse(1f), Gfx.alpha(SystemTheme.GOLD, 0.7f)).draw(g);
@@ -180,10 +185,13 @@ public class SkillsTab implements SystemTab {
         float cy = y + 9;
         float chipX = tx;
         chipX += Ui.chip(g, chipX, cy, 10, Component.translatable(s.isActive() ? "skills.beyondsolo.active" : "skills.beyondsolo.passive").getString(), 6f, color, true) + 4;
-        String owner = s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
-        chipX += Ui.chip(g, chipX, cy, 10, owner, 6f, SystemTheme.TEXT_SOFT, false) + 4;
+        String owner = s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
+                : s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
+        chipX += Ui.chip(g, chipX, cy, 10, owner, 6f, s.rune() ? 0xFF7FE8C8 : SystemTheme.TEXT_SOFT, false) + 4;
         chipX += Ui.chip(g, chipX, cy, 10, Component.translatable("skills.beyondsolo.grade", s.grade().name()).getString(), 6f, SystemTheme.GOLD, false) + 4;
-        Ui.chip(g, chipX, cy, 10, s.element().displayName().getString(), 6f, Gfx.opaque(s.element().color()), false);
+        chipX += Ui.chip(g, chipX, cy, 10, s.element().displayName().getString(), 6f, Gfx.opaque(s.element().color()), false) + 4;
+        var engraving = have ? com.beyondsolo.client.rune.RuneClient.data().engraving(s.path()) : null;
+        if (engraving != null) Ui.chip(g, chipX, cy, 10, engraving.displayName().getString(), 6f, 0xFF000000 | engraving.color, true);
         cy += 14;
         SysFont.title(g, SysFont.fit(s.displayName().getString(), 12f, true, pw - 40), tx, cy, 12f, have ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT);
         cy += 18;
@@ -234,8 +242,11 @@ public class SkillsTab implements SystemTab {
         if (s.isActive()) {
             float sy = y + h - 18;
             float sx = px;
-            sx += stat(g, sx, sy, Icons.DROP, Component.translatable("skills.beyondsolo.mana", SkillActions.f(s.manaCost(level))).getString(), 0xFF62D4FF) + 6;
-            sx += stat(g, sx, sy, Icons.HOURGLASS, Component.translatable("skills.beyondsolo.cooldown", SkillActions.f(s.cooldown(level) / 20f)).getString(), SystemTheme.TEXT_SOFT) + 6;
+            var runes = com.beyondsolo.client.rune.RuneClient.data();
+            float mana = have ? com.beyondsolo.rune.Runes.manaCost(runes, s, level) : s.manaCost(level);
+            int cooldown = have ? com.beyondsolo.rune.Runes.cooldown(runes, s, level) : s.cooldown(level);
+            sx += stat(g, sx, sy, Icons.DROP, Component.translatable("skills.beyondsolo.mana", SkillActions.f(mana)).getString(), 0xFF62D4FF) + 6;
+            sx += stat(g, sx, sy, Icons.HOURGLASS, Component.translatable("skills.beyondsolo.cooldown", SkillActions.f(cooldown / 20f)).getString(), SystemTheme.TEXT_SOFT) + 6;
             if (have) {
                 float left = ClientSkills.cooldownSeconds(s, 0);
                 if (left > 0) stat(g, sx, sy, Icons.MOON, Component.translatable("skills.beyondsolo.recharging", SkillActions.f(left)).getString(), SystemTheme.FATIGUE_B);

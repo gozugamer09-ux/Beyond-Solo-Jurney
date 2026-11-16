@@ -64,6 +64,8 @@ import java.util.Deque;
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
  * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
  *                                      ./gradlew processResources first to see changed models, animations or textures)
+ * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
+ * engravego                            press the engraving screen's CARVE button
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -202,6 +204,8 @@ public final class UiTestDriver {
                 com.beyondsolo.client.crafting.CraftTab.show(a[0], a.length > 1 ? Integer.parseInt(a[1]) : 1);
             }
             case "craftgo" -> com.beyondsolo.client.crafting.CraftTab.press();
+            case "engrave" -> com.beyondsolo.client.rune.RuneEngraveScreen.select(arg);
+            case "engravego" -> com.beyondsolo.client.rune.RuneEngraveScreen.pressCarve();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }

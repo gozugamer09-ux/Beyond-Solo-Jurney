@@ -83,7 +83,8 @@ public final class SkillBar {
         boolean cooling = cd > 0;
         if (wasCooling[i] && !cooling) readyAt[i] = Anim.now();
         wasCooling[i] = cooling;
-        boolean noMana = sys.mana() < s.manaCost(level) && !Minecraft.getInstance().player.isCreative();
+        float mana = com.beyondsolo.rune.Runes.manaCost(com.beyondsolo.client.rune.RuneClient.data(), s, level);
+        boolean noMana = sys.mana() < mana && !Minecraft.getInstance().player.isCreative();
 
         float cast = 1 - Anim.outCubic(Anim.progress(castAt[i], 0.35f));
         float ready = 1 - Anim.progress(readyAt[i], 0.7f);
@@ -132,7 +133,7 @@ public final class SkillBar {
         Ui.keycap(g, x - 2, y - 5, 7, key, color);
         SysFont.draw(g, String.valueOf(level), x + SIZE - 1.5f, y + SIZE - 6.5f, 5.5f, Gfx.mix(color, 0xFFFFFFFF, 0.6f), true, 1f);
         if (noMana) {
-            SysFont.draw(g, String.valueOf(Math.round(s.manaCost(level))), x + SIZE + 1, y - 4.5f, 5.5f, 0xFF7FA0FF, true, 1f);
+            SysFont.draw(g, String.valueOf(Math.round(mana)), x + SIZE + 1, y - 4.5f, 5.5f, 0xFF7FA0FF, true, 1f);
         }
     }
 
