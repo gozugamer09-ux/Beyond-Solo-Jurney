@@ -37,6 +37,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -76,19 +77,24 @@ public final class RuneGameTests {
         p.moveTo(start.getX() + 0.5, start.getY(), start.getZ() + 0.5);
         QuestTestAccess.markStarted(p);
         SystemAPI.awaken(p, rank, c);
-        // no lucky critical hits: the tests compare damage numbers
-        var crit = p.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
+        noCrits(p);
+        return p;
+    }
+
+    /** No lucky critical hits, either way: the tests compare damage numbers. */
+    private static void noCrits(LivingEntity e) {
+        var crit = e.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
         if (crit != null) {
             crit.removeModifiers();
             crit.setBaseValue(-10);
         }
-        return p;
     }
 
     private static Zombie zombie(GameTestHelper helper, ServerPlayer p, BlockPos at) {
         Zombie z = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, at);
         z.getAttribute(Attributes.MAX_HEALTH).setBaseValue(2000);
         z.setHealth(2000);
+        noCrits(z);
         Vec3 d = z.getEyePosition().subtract(p.getEyePosition());
         float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90f;
         float pitch = (float) (-(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG));
@@ -283,6 +289,7 @@ public final class RuneGameTests {
         // a blow from behind gets past it
         Zombie behind = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(1, 2, 3));
         behind.moveTo(p.getX() - p.getLookAngle().x * 3, p.getY(), p.getZ() - p.getLookAngle().z * 3);
+        noCrits(behind);
         helper.assertTrue(Math.abs(incoming(p, p.damageSources().mobAttack(behind), 20) - plain) < 0.05f, "not from behind");
         behind.discard();
         SkillAPI.clearBuff(p, RuneArts.BUFF_BULWARK);
