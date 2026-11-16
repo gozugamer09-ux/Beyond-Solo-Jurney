@@ -213,11 +213,18 @@ public final class Skills {
         return Collections.unmodifiableList(new ArrayList<>(ALL.values()));
     }
 
-    /** Skills a class can ever hold: the shared ones and its own, advanced last. */
+    /** Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts are not listed (see {@link #runeArts}). */
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null) out.add(s);
-        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune()) out.add(s);
+        return out;
+    }
+
+    /** The rune arts: skills only rune stones teach, open to every class. */
+    public static List<Skill> runeArts() {
+        List<Skill> out = new ArrayList<>();
+        for (Skill s : ALL.values()) if (s.rune()) out.add(s);
         return out;
     }
 
@@ -281,6 +288,7 @@ public final class Skills {
     /** Touch the class so every skill is registered. */
     public static void init() {
         SubclassSkills.init();
+        RuneArts.init();
     }
 
     private Skills() {}

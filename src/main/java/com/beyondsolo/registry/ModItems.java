@@ -147,7 +147,7 @@ public final class ModItems {
                 REMEDIES.forEach(r -> out.accept(r.get()));
                 out.accept(com.beyondsolo.skill.SkillTomeItem.unread());
                 for (var skill : com.beyondsolo.skill.Skills.all()) {
-                    if (!skill.advanced()) out.accept(com.beyondsolo.skill.SkillTomeItem.of(skill));
+                    if (!skill.advanced() && !skill.rune()) out.accept(com.beyondsolo.skill.SkillTomeItem.of(skill));
                 }
             })
             .build());
