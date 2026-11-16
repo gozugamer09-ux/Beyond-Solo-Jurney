@@ -16,12 +16,13 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Each gate boss's signature loot, dropped into its reward cache on top of the normal loot for the rank:
+ * Each gate rank's signature loot, dropped into the boss's reward cache on top of the normal loot for the rank:
  * <ul>
- *   <li>pieces of its own armor set (one, a second 50% of the time from A rank up), never found anywhere else;</li>
- *   <li>a chance at one of its signature weapons (a short weighted table per boss);</li>
+ *   <li>a chance at one of its signature weapons (a short weighted table per rank);</li>
  *   <li>refining stones, an infusion crystal of its element, and ward seals from B rank up.</li>
  * </ul>
+ * Armor set pieces are not rolled here any more: every boss kind has its own sets, and a piece is a chance per kill
+ * ({@code armory.ArmorDrops}). The table still names the brute's set for its rank.
  */
 public final class BossLoot {
     /** One line of a boss's weapon table. */
@@ -70,13 +71,11 @@ public final class BossLoot {
         return GearRolls.roll(new ItemStack(t.weapons().get(0).item().get()), r);
     }
 
-    /** The boss's signature drops. The first stacks are the set pieces and weapon (what the cache calls out). */
+    /** The rank's signature drops. A weapon comes first when there is one (what the cache calls out). */
     public static List<ItemStack> roll(PlayerRank rank, RandomSource r) {
         Table t = table(rank);
         int tier = rank.tier();
         List<ItemStack> out = new ArrayList<>();
-        out.add(setPiece(t, r));
-        if (tier >= 4 && r.nextBoolean()) out.add(setPiece(t, r));
         if (r.nextFloat() < t.weaponChance()) out.add(weapon(t, r));
         out.add(new ItemStack(GearModule.REFINING_STONE.get(), 2 + tier + r.nextInt(2)));
         if (r.nextFloat() < 0.5f) out.add(new ItemStack(GearModule.CRYSTALS.get(t.element()).get()));
@@ -84,10 +83,13 @@ public final class BossLoot {
         return out;
     }
 
-    /** True if this stack is one of this boss's signature drops (its set pieces and its weapons), worth calling out. */
+    /**
+     * True if this stack is a signature drop worth calling out: one of this rank's weapons, or a piece of a boss's set
+     * or a divine set (only a boss's cache holds those).
+     */
     public static boolean isSignature(ItemStack stack, PlayerRank rank) {
         Table t = table(rank);
-        if (stack.getItem() instanceof SystemArmorItem a && a.set() == t.set()) return true;
+        if (stack.getItem() instanceof SystemArmorItem a && a.set().signature()) return true;
         for (Entry e : t.weapons()) if (stack.is(e.item().get())) return true;
         return false;
     }

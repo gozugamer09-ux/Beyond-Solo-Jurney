@@ -312,9 +312,9 @@ public final class Runes {
         return data(p).engraving(s.path());
     }
 
-    /** A skill's mana cost for this player, engraving included. */
+    /** A skill's mana cost for this player, engraving and mana efficiency (armor sets) included. */
     public static float manaCost(Player p, Skill s, int level) {
-        return manaCost(data(p), s, level);
+        return manaCost(data(p), s, level) * com.beyondsolo.combat.ModAttributes.manaFactor(p);
     }
 
     public static float manaCost(RuneData data, Skill s, int level) {
@@ -323,9 +323,11 @@ public final class Runes {
         return e == null ? cost : cost * e.mana;
     }
 
-    /** A skill's cooldown for this player in ticks, engraving included. */
+    /** A skill's cooldown for this player in ticks, engraving and skill haste (armor sets) included. */
     public static int cooldown(Player p, Skill s, int level) {
-        return cooldown(data(p), s, level);
+        int cd = cooldown(data(p), s, level);
+        float haste = com.beyondsolo.combat.ModAttributes.hasteFactor(p);
+        return haste >= 1f ? cd : Math.max(1, Math.round(cd * haste));
     }
 
     public static int cooldown(RuneData data, Skill s, int level) {

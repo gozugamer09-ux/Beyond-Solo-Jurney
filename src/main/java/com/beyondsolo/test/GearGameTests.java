@@ -1,10 +1,12 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.armory.ArmorDrops;
 import com.beyondsolo.combat.ModAttributes;
 import com.beyondsolo.economy.Economy;
 import com.beyondsolo.economy.SellPrices;
 import com.beyondsolo.economy.ShopCatalog;
+import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.gate.GateLoot;
 import com.beyondsolo.gear.BonusStat;
 import com.beyondsolo.gear.BonusStats;
@@ -281,18 +283,24 @@ public final class GearGameTests {
             int weapons = 0;
             for (int i = 0; i < 60; i++) {
                 List<ItemStack> loot = GateLoot.roll(rank, r);
-                ItemStack first = loot.get(0);
-                helper.assertTrue(first.getItem() instanceof SystemArmorItem a && a.set() == t.set(), rank + " cache leads with its set piece");
-                helper.assertTrue(ItemGrade.of(first).tier() >= t.set().grade.tier(), "set piece at least its grade");
                 for (ItemStack s : loot) {
                     for (BossLoot.Entry e : t.weapons()) if (s.is(e.item().get())) weapons++;
-                    if (s.getItem() instanceof SystemArmorItem a && a.set().boss != null) {
-                        helper.assertTrue(a.set() == t.set(), "only this boss's set drops here");
-                    }
+                    // set pieces only come from the armory's per-kill chance now, never from the rank's table
+                    helper.assertFalse(s.getItem() instanceof SystemArmorItem a && a.set().signature(), rank + " table rolls no set pieces");
                 }
                 helper.assertTrue(loot.stream().anyMatch(s -> s.is(GearModule.REFINING_STONE.get())), "refining stones");
             }
             helper.assertTrue(weapons >= 8 && weapons <= 45, rank + " signature weapons about a third of the time: " + weapons);
+            // the brute still leaves its rank's own set: an ascended one always does
+            List<ItemStack> pieces = ArmorDrops.bossPieces(BossKind.BRUTE, rank, true, r);
+            helper.assertTrue(pieces.stream().anyMatch(s -> s.getItem() instanceof SystemArmorItem a && a.set() == t.set()),
+                    rank + " brute leaves a " + t.set().name + " piece");
+            for (ItemStack s : pieces) {
+                if (s.getItem() instanceof SystemArmorItem a && a.set() == t.set()) {
+                    helper.assertTrue(ItemGrade.of(s).tier() >= t.set().grade.tier(), "set piece at least its grade");
+                    helper.assertTrue(BossLoot.isSignature(s, rank), "and called out");
+                }
+            }
         }
         helper.assertTrue(GearModule.bossArmor().size() == 24, "six sets of four");
         helper.succeed();

@@ -37,6 +37,27 @@ public final class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> SPELL_POWER = ATTRIBUTES.register("spell_power",
             () -> new RangedAttribute("attribute.beyondsolo.spell_power", 0, 0, 10).setSyncable(true));
 
+    /** Skills cost this fraction less mana (0.1 = 10% cheaper, at most {@link #MAX_MANA_EFFICIENCY}). Armor sets carry it. */
+    public static final DeferredHolder<Attribute, Attribute> MANA_EFFICIENCY = ATTRIBUTES.register("mana_efficiency",
+            () -> new RangedAttribute("attribute.beyondsolo.mana_efficiency", 0, 0, 1).setSyncable(true));
+    /** Skills recharge this fraction faster (0.1 = 10% shorter cooldowns, at most {@link #MAX_SKILL_HASTE}). Armor sets carry it. */
+    public static final DeferredHolder<Attribute, Attribute> SKILL_HASTE = ATTRIBUTES.register("skill_haste",
+            () -> new RangedAttribute("attribute.beyondsolo.skill_haste", 0, 0, 1).setSyncable(true));
+    public static final float MAX_MANA_EFFICIENCY = 0.5f;
+    public static final float MAX_SKILL_HASTE = 0.4f;
+
+    /** What a skill's mana cost is multiplied by for this caster (1 = full price). */
+    public static float manaFactor(LivingEntity entity) {
+        if (entity.getAttribute(MANA_EFFICIENCY) == null) return 1f;
+        return 1f - (float) Math.min(MAX_MANA_EFFICIENCY, entity.getAttributeValue(MANA_EFFICIENCY));
+    }
+
+    /** What a skill's cooldown is multiplied by for this caster (1 = full length). */
+    public static float hasteFactor(LivingEntity entity) {
+        if (entity.getAttribute(SKILL_HASTE) == null) return 1f;
+        return 1f - (float) Math.min(MAX_SKILL_HASTE, entity.getAttributeValue(SKILL_HASTE));
+    }
+
     private static DeferredHolder<Attribute, Attribute> resistance(String name) {
         return ATTRIBUTES.register(name, () -> new RangedAttribute("attribute.beyondsolo." + name, 0, 0, 1).setSyncable(true));
     }
@@ -61,7 +82,7 @@ public final class ModAttributes {
     static void addToEntities(EntityAttributeModificationEvent event) {
         for (EntityType<? extends LivingEntity> type : event.getTypes()) {
             for (Holder<Attribute> a : new Holder[]{FIRE_RESISTANCE, POISON_RESISTANCE, CRIMSON_RESISTANCE, BLOOD_RESISTANCE,
-                    EXHAUSTION_RESISTANCE, ELEMENTAL_POWER, SPELL_POWER}) {
+                    EXHAUSTION_RESISTANCE, ELEMENTAL_POWER, SPELL_POWER, MANA_EFFICIENCY, SKILL_HASTE}) {
                 if (!event.has(type, a)) event.add(type, a);
             }
         }
