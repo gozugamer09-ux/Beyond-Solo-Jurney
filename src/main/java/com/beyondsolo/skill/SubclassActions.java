@@ -534,7 +534,7 @@ public final class SubclassActions {
         }
         sound(p, SoundEvents.SOUL_ESCAPE.value(), 1f, 0.7f);
         sound(p, SoundEvents.WITHER_AMBIENT, 0.4f, 1.6f);
-        SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), p.position(), 6, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), p.position(), 6, 4);
         SkillFx.play(p, SkillFxPayload.Kind.HEAL, s.color(), p.position(), 1, 0);
         return true;
     }
@@ -593,7 +593,7 @@ public final class SubclassActions {
                     e.setDeltaMovement(away.x * 1.2, 0.8, away.z * 1.2);
                     e.hurtMarked = true;
                 }
-                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), center.add(0, -1, 0), 6, 0);
+                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), center.add(0, -1, 0), 6, 1);
                 level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, center.x, center.y, center.z, 1, 0, 0, 0, 0);
                 level.playSound(null, center.x, center.y, center.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.4f, 0.6f);
             });
@@ -718,13 +718,13 @@ public final class SubclassActions {
     public static boolean radiantBurst(ServerPlayer p, Skill s, int l) {
         float amount = radiantAmount(l, tier(p)) + stat(p, Stat.INT, 0.15f);
         for (Player ally : allies(p, 7)) {
-            ally.heal(amount);
+            ally.heal(HealerPath.healing(p, amount));
             SkillFx.play(ally, SkillFxPayload.Kind.HEAL, s.color(), ally.position(), 1, 0);
         }
         for (LivingEntity e : around(p, p.position(), 7, x -> isFoe(p, x))) hit(p, s, e, undead(e) ? amount * 1.6f : amount, true);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 1f, 1.5f);
         sound(p, SoundEvents.AMETHYST_CLUSTER_BREAK, 1f, 1.2f);
-        SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), p.position(), 7, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), p.position(), 7, 3);
         return true;
     }
 
@@ -740,7 +740,7 @@ public final class SubclassActions {
                 if (p.level() != level) return;
                 level.sendParticles(ParticleTypes.HAPPY_VILLAGER, center.x, center.y + 0.5, center.z, 12, 3, 0.4, 3, 0);
                 for (Player ally : level.getEntitiesOfClass(Player.class, new AABB(center, center).inflate(6), x -> x.position().distanceTo(center) <= 6)) {
-                    ally.heal(bloomHeal(l));
+                    ally.heal(HealerPath.healing(p, bloomHeal(l)));
                 }
                 for (LivingEntity e : around(p, center, 6, x -> isFoe(p, x))) {
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 3));
@@ -758,7 +758,7 @@ public final class SubclassActions {
         float heal = tideHeal(l, tier(p)) + stat(p, Stat.INT, 0.1f);
         for (Player ally : allies(p, 7)) {
             cleanse(ally);
-            ally.heal(heal);
+            ally.heal(HealerPath.healing(p, heal));
             ally.clearFire();
             SkillFx.play(ally, SkillFxPayload.Kind.HEAL, s.color(), ally.position(), 1.2f, 0);
         }
@@ -780,7 +780,7 @@ public final class SubclassActions {
         float before = target.getHealth();
         hit(p, s, target, dmg, true);
         Buildups.add(target, Buildups.BLOOD, 30 + 3 * l, p);
-        p.heal(Math.max(1, (before - target.getHealth()) * 0.5f));
+        p.heal(HealerPath.healing(p, Math.max(1, (before - target.getHealth()) * 0.5f)));
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1f, 1.3f);
         sound(p, SoundEvents.HONEY_DRINK, 1f, 0.6f);
         SkillFx.play(target, SkillFxPayload.Kind.BOLT, s.color(), p.position().add(0, 1, 0), 0.35f, 0);
@@ -823,7 +823,7 @@ public final class SubclassActions {
                 float dmg = dawnPillarDamage(l, tier(p)) + stat(p, Stat.INT, 0.2f);
                 hit(p, s, target, undead(target) ? dmg * 1.5f : dmg, true);
                 SkillFx.play(target, SkillFxPayload.Kind.HEAL, s.color(), target.position(), 1.6f, 0);
-                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), target.position(), 2, 0);
+                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), target.position(), 2, 3);
                 level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 0.35f, 1.9f);
             });
         }

@@ -8,6 +8,8 @@ import com.beyondsolo.system.Stat;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.util.ServerScheduler;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,6 +22,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -116,6 +119,14 @@ final class SubclassKit {
 
     static void fxAt(ServerLevel level, SkillFxPayload.Kind kind, int color, Vec3 at, float size, int duration) {
         SubclassActions.fxAt(level, kind, color, at, size, duration);
+    }
+
+    /**
+     * A tile of a block's texture standing on {@code at} for four seconds (a block marker particle): walls, pillars,
+     * flowers and trees that are seen but never built, so nothing is left behind in the world.
+     */
+    static void marker(ServerLevel level, BlockState state, Vec3 at) {
+        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK_MARKER, state), at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
     }
 
     // ================================================================ space

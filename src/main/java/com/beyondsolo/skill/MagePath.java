@@ -346,7 +346,7 @@ public final class MagePath {
         }
         sound(p, SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 1.5f);
         fx(p, Kind.ROAR, s.color(), at, 6, 0);
-        fx(p, Kind.NOVA, s.color(), at, 6, 0);
+        fx(p, Kind.NOVA, s.color(), at, 6, 1);
         fxAt(p.serverLevel(), Kind.THUNDER, s.color(), at, 4, 0);
         return true;
     }
@@ -452,7 +452,7 @@ public final class MagePath {
             sound(level, center, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.6f, 0.6f);
             sound(level, center, SoundEvents.LIGHTNING_BOLT_IMPACT, 1.4f, 0.7f);
             for (int i = 0; i < 3; i++) later(p, i * 2, () -> fxAt(level, Kind.THUNDER, s.color(), center, 8, 0));
-            fxAt(level, Kind.NOVA, s.color(), center, 8, 0);
+            fxAt(level, Kind.NOVA, s.color(), center, 8, 1);
             fxAt(level, Kind.ROAR, 0xFFFFFF, center, 10, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 8, 0);
             fxAt(level, Kind.QUAKE, s.color(), center, 10, 20);
@@ -596,7 +596,7 @@ public final class MagePath {
                     e.hurtMarked = true;
                     fx(e, Kind.SPLASH, s.color(), mid(e), 2, 0);
                 }
-                for (int j = -1; j <= 1; j++) fxAt(level, Kind.GEYSER, j == 0 ? 0xD0F0FF : s.color(), at.add(side.scale(j * 2.8)), 3.4f, 0);
+                for (int j = -1; j <= 1; j++) fxAt(level, Kind.GEYSER, j == 0 ? 0xD0F0FF : s.color(), at.add(side.scale(j * 2.8)), 3.4f, 3);
                 drench(level, at, 30, 3);
                 if (k % 3 == 0) sound(level, at, SoundEvents.GENERIC_SPLASH, 1f, 0.7f);
             });
@@ -632,14 +632,14 @@ public final class MagePath {
             if (p.position().distanceTo(center) > 10) p.heal(8 + 2 * l);
             sound(level, center, SoundEvents.GENERIC_EXPLODE.value(), 1.2f, 0.6f);
             sound(level, center, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1.6f, 0.5f);
-            fxAt(level, Kind.GEYSER, 0xD0F0FF, center, 12, 0);
-            fxAt(level, Kind.NOVA, s.color(), center, 10, 0);
+            fxAt(level, Kind.GEYSER, 0xD0F0FF, center, 12, 3);
+            fxAt(level, Kind.NOVA, s.color(), center, 10, 2);
             fxAt(level, Kind.ROAR, 0xFFFFFF, center, 10, 0);
             drench(level, center, 120, 5);
             for (int i = 0; i < 8; i++) {
                 double ang = i * Math.PI / 4;
                 Vec3 pt = ground(level, center.add(Math.cos(ang) * 6, 0, Math.sin(ang) * 6));
-                later(p, 1 + i, () -> fxAt(level, Kind.GEYSER, s.color(), pt, 6, 0));
+                later(p, 1 + i, () -> fxAt(level, Kind.GEYSER, s.color(), pt, 6, 3));
             }
         });
         return true;
@@ -718,10 +718,10 @@ public final class MagePath {
             }
             sound(level, at, SoundEvents.SKELETON_DEATH, 1f, 0.6f);
             sound(level, at, SoundEvents.WITHER_BREAK_BLOCK, 0.5f, 1.4f);
-            fxAt(level, Kind.GEYSER, BONE, at, 4, 0);
+            fxAt(level, Kind.GEYSER, BONE, at, 4, 1);
             for (int i = 0; i < 5; i++) {
                 double ang = i * Math.PI * 2 / 5;
-                fxAt(level, Kind.GEYSER, i % 2 == 0 ? BONE : s.color(), at.add(Math.cos(ang) * 2.4, 0, Math.sin(ang) * 2.4), 2.6f, 0);
+                fxAt(level, Kind.GEYSER, i % 2 == 0 ? BONE : s.color(), at.add(Math.cos(ang) * 2.4, 0, Math.sin(ang) * 2.4), 2.6f, 1);
             }
             level.sendParticles(ParticleTypes.WHITE_ASH, at.x, at.y + 1, at.z, 60, 1.5, 1, 1.5, 0.02);
         });
@@ -811,7 +811,7 @@ public final class MagePath {
                 if (e.getHealth() < e.getMaxHealth() * 0.2f) dmg *= 2;
                 magic(p, s, e, dmg);
                 e.addEffect(new MobEffectInstance(MobEffects.WITHER, 100, 1));
-                fxAt(level, Kind.GEYSER, s.color(), e.position(), 3.5f, 0);
+                fxAt(level, Kind.GEYSER, s.color(), e.position(), 3.5f, 4);
                 fx(p, Kind.BOLT, s.color(), mid(e), 0.3f, 0);
                 reaped++;
             }
@@ -822,7 +822,7 @@ public final class MagePath {
             }
             sound(level, center, SoundEvents.WITHER_DEATH, 0.5f, 1.3f);
             sound(level, center, SoundEvents.WARDEN_SONIC_BOOM, 1f, 0.6f);
-            fxAt(level, Kind.NOVA, s.color(), center, 12, 0);
+            fxAt(level, Kind.NOVA, s.color(), center, 12, 4);
             fxAt(level, Kind.ROAR, BONE, center, 12, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 12, 0);
             level.sendParticles(ParticleTypes.SOUL, center.x, center.y + 1, center.z, 40, 5, 1, 5, 0.05);
@@ -910,7 +910,7 @@ public final class MagePath {
         later(p, 20, () -> {
             for (LivingEntity e : foes(p, origin, 4)) magic(p, s, e, 14 * m(l, tier(p)) + wis(p, 0.3f));
             sound(level, origin, SoundEvents.GENERIC_EXPLODE.value(), 0.9f, 1.5f);
-            fxAt(level, Kind.NOVA, s.color(), origin, 4.5f, 0);
+            fxAt(level, Kind.NOVA, s.color(), origin, 4.5f, 1);
             fxAt(level, Kind.ROAR, 0xFFFFFF, origin, 4.5f, 0);
             stars(level, origin.add(0, 1, 0), 40, 1);
         });
@@ -935,8 +935,8 @@ public final class MagePath {
             for (LivingEntity e : stars) {
                 if (!e.isAlive()) continue;
                 magic(p, s, e, (8 + 2 * n) * m(l, tier(p)) + wis(p, 0.25f));
-                fxAt(level, Kind.NOVA, s.color(), e.position(), 2.2f, 0);
-                fxAt(level, Kind.GEYSER, s.color(), e.position(), 3, 0);
+                fxAt(level, Kind.NOVA, s.color(), e.position(), 2.2f, 3);
+                fxAt(level, Kind.GEYSER, s.color(), e.position(), 3, 2);
                 stars(level, mid(e), 12, 0.4);
             }
             sound(p, SoundEvents.AMETHYST_CLUSTER_BREAK, 2f, 0.6f);
@@ -992,7 +992,7 @@ public final class MagePath {
         repeat(p, 50, 4, () -> {
             Vec3[] ray = ray(p, 24);
             for (int i = 1; i <= 5; i++) fxAt(level, Kind.ORB, i % 2 == 0 ? 0xFFFFFF : s.color(), ray[0].lerp(ray[1], i / 5.0), 0.9f, 5);
-            fxAt(level, Kind.NOVA, s.color(), ground(level, ray[1]), 2.5f, 0);
+            fxAt(level, Kind.NOVA, s.color(), ground(level, ray[1]), 2.5f, 3);
         });
         repeat(p, 50, 5, () -> {
             Vec3[] ray = ray(p, 24);
@@ -1007,10 +1007,10 @@ public final class MagePath {
             for (LivingEntity e : foes(p, end, 6)) magic(p, s, e, 30 * m(l, tier(p)) + wis(p, 0.5f));
             sound(level, end, SoundEvents.GENERIC_EXPLODE.value(), 1.4f, 0.8f);
             sound(level, end, SoundEvents.WARDEN_SONIC_BOOM, 1f, 1.2f);
-            fxAt(level, Kind.NOVA, s.color(), end, 6, 0);
+            fxAt(level, Kind.NOVA, s.color(), end, 6, 3);
             fxAt(level, Kind.ROAR, 0xFFFFFF, end, 6, 0);
             fxAt(level, Kind.CRACK, s.color(), end, 6, 0);
-            fxAt(level, Kind.GEYSER, s.color(), end, 6, 0);
+            fxAt(level, Kind.GEYSER, s.color(), end, 6, 2);
             stars(level, end.add(0, 1, 0), 80, 2);
         });
         return true;

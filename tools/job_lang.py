@@ -404,6 +404,65 @@ SKILLS.update({
     "pillars_of_creation": ("Pillars of Creation", "The world, rearranged.", "Eight pillars of rock burst up in a ring around you, each for %s damage. Then the ground inside the ring gives way: %s damage, a 3 s stun and foes are thrown high within 10 blocks."),
 })
 
+# the Healer subclasses' own skill sets (HealerPath.java)
+SKILLS.update({
+    # lightbinder
+    "sunbeam": ("Sunbeam", "The sky takes aim.", "A shaft of sunlight falls on the creature you are looking at: %s damage, half again to the undead. You and allies within 8 blocks are mended for %s."),
+    "binding_light": ("Binding Light", "Hold still.", "Bonds of light hold the creature you are looking at for %s s and sear it for %s damage twice a second."),
+    "inner_radiance": ("Inner Radiance", "There is more where that came from.", "+%s maximum mana, and your healing is %s%% stronger."),
+    "motes_of_mercy": ("Motes of Mercy", "Small kindnesses, kept close.", "Three motes of light circle you and each ally within 8 blocks for 12 s. Each blow that lands on someone spends one of their motes to mend them for %s."),
+    "lantern_of_mercy": ("Lantern of Mercy", "Leave a light on.", "Hang a lantern of light where you are looking for 8 s. Every second it mends allies within 6 blocks for %s and sears the nearest foe within 8 for %s damage."),
+    "afterglow": ("Afterglow", "Kindness sharpens the next blow.", "For 5 s after one of your skills heals someone, you deal %s%% more damage."),
+    "solar_flare": ("Solar Flare", "Look away.", "A blinding flash: %s damage to foes within 7 blocks, half again to the undead, and they are blinded, slowed and weakened for 4 s. Allies in reach are mended for %s and see clearly again."),
+    "lightstep": ("Lightstep", "Gone in a blink of light.", "Become light and step to where you are looking, up to 10 blocks away. Foes near where you left take %s damage and are blinded; you and allies near where you arrive are mended for %s."),
+    "last_light": ("Last Light", "It does not go out.", "When a blow leaves you under 30%% health, light mends you for %s%% of your maximum health. Once a minute."),
+    "solstice": ("Solstice", "The longest day.", "Raise a sun over the battlefield for 10 s. Every second it burns foes within 12 blocks for %s damage, double to the undead, and mends allies for %s. Then it falls: %s damage, and allies are restored by 30%% of their health."),
+    # grovekeeper
+    "thorn_volley": ("Thorn Volley", "The forest has teeth.", "Throw a fan of thorns: %s damage to foes in front of you, and the venom starts to build."),
+    "healing_sprout": ("Healing Sprout", "Plant it, and it looks after you.", "Plant a sprout where you are looking. For 10 s it mends the most wounded ally within 7 blocks for %s every second, and pricks foes that come close for %s damage."),
+    "barkskin": ("Barkskin", "Rough, and all the better for it.", "+%s armour and +%s maximum health."),
+    "bramble_rush": ("Bramble Rush", "The ground reaches up.", "Brambles tear out of the ground in a line 10 blocks long: %s damage, foes are thrown up, slowed for 3 s and poisoned."),
+    "second_spring": ("Second Spring", "Everything grows back.", "Flowers open around you and each ally within 8 blocks: %s health at once, regeneration for %s s, and poison and wither are washed away."),
+    "briar_coat": ("Briar Coat", "Hug at your own risk.", "Creatures that strike you in melee take %s damage and are poisoned."),
+    "spore_cloud": ("Spore Cloud", "Breathe in.", "A ring of mushrooms bursts into spores where you are looking, for 6 s. Foes within 4 blocks take %s damage twice a second, are poisoned and weakened; allies in the cloud are slowly mended."),
+    "grasping_vines": ("Grasping Vines", "Come here.", "Vines seize up to 5 foes within 10 blocks: %s damage, they are dragged towards you, held for 3 s and poisoned."),
+    "toxic_bloom": ("Toxic Bloom", "What poisons them feeds you.", "You deal %s%% more damage to poisoned creatures."),
+    "elderwood": ("Elderwood", "Older than the gate. Older than the hunters.", "A great tree grows in front of you and stands for 12 s. Its roots strike foes within 10 blocks for %s damage and hold them for 5 s. Every second under its crown allies are mended for %s and cleansed of poison, and foes take %s damage."),
+    # spring oracle
+    "spring_bolt": ("Spring Bolt", "Cold, clear and to the point.", "Throw a bolt of spring water at the creature you are looking at: %s damage and it is slowed for 2 s. The most wounded ally within 8 blocks is mended for %s."),
+    "bubble_ward": ("Bubble Ward", "Safe as a pearl.", "Wrap the ally you are looking at (or yourself) in a bubble for 6 s: %s absorption, no fire can touch them, and they are mended for %s. When it bursts it mends allies and soaks foes around it."),
+    "clear_mind": ("Clear Mind", "Still water.", "You regain %s more mana every second."),
+    "fated_blow": ("Fated Blow", "It has already happened.", "Foretell a blow on the creature you are looking at. Three seconds later it lands: %s damage, plus %s%% of all the damage you dealt to it in the meantime."),
+    "premonition": ("Premonition", "You saw that coming.", "%s drops of water circle you for 12 s. Each one swallows a blow whole and mends you for %s as it bursts."),
+    "second_sight": ("Second Sight", "You know when the end is near.", "You deal %s%% more damage to creatures under 35%% health."),
+    "morning_mist": ("Morning Mist", "Hard to hit what you cannot find.", "Mist rises around you for 6 s. %s%% of the blows aimed at allies in it miss, and they are slowly mended. Foes in the mist are slowed and take %s damage every second."),
+    "gaze_of_fate": ("Gaze of Fate", "It sees how this ends.", "An eye of water opens over the spot you are looking at for 8 s. Foes within 8 blocks are revealed and take %s%% more damage from everyone, and %s damage at once."),
+    "foretold": ("Foretold", "The first one is always expected.", "The first blow each creature lands on you deals %s%% less damage."),
+    "eternal_spring": ("Eternal Spring", "It never runs dry.", "A great spring bursts from the ground in front of you for 12 s. Every second allies within 10 blocks are mended for %s, cleansed, and regain mana. Every third second a wave rolls out: %s damage, and foes are pushed back."),
+    # hemomancer
+    "crimson_lance": ("Crimson Lance", "A little of yours for a lot of theirs.", "A lance of blood through everything in a line 16 blocks long: %s damage, and they start to bleed. Costs %s health."),
+    "transfusion": ("Transfusion", "Take mine.", "Give %s%% of the health you have left. Allies within 8 blocks are mended for two and a half times as much, and for 8 s you deal %s%% more damage."),
+    "sanguine_pact": ("Sanguine Pact", "Everything you spill comes back.", "Your hits heal you for %s%% of the damage they deal."),
+    "open_wounds": ("Open Wounds", "It will not close.", "The creature you are looking at bleeds for 5 s: %s damage twice a second, and it is slowed. If it dies bleeding it bursts: %s damage to foes within 3 blocks, and you are mended."),
+    "exsanguinate": ("Exsanguinate", "Drink deep.", "For 3 s, draw the blood of every foe within 7 blocks: %s damage twice a second, and you are healed for %s%% of it."),
+    "red_thirst": ("Red Thirst", "You can smell it.", "You deal %s%% more damage to creatures that are bleeding or under half health."),
+    "crimson_thorns": ("Crimson Thorns", "Blood, hardened.", "Spikes of hardened blood burst up in a line 10 blocks long: %s damage, foes are thrown up and bleed heavily. Costs %s health."),
+    "blood_rite": ("Blood Rite", "Paid in full.", "Give %s%% of the health you have left. Foes within 8 blocks take %s damage plus twice what you paid, and if anything bled for it, what you paid returns over 5 s."),
+    "coagulate": ("Coagulate", "Scabs make good armour.", "For 5 s after you pay health for a skill, you take %s%% less damage."),
+    "blood_tempest": ("Blood Tempest", "Red sky.", "Give 30%% of the health you have left to call a rain of blood for 8 s. Foes within 10 blocks take %s damage twice a second and you are healed for 30%% of it. It ends in a burst: %s damage, and allies are restored by a quarter of their health."),
+    # dawn saint
+    "first_light": ("First Light", "The day begins with you.", "A beam of dawn through everything in a line 20 blocks long: %s damage, doubled for the undead. Allies in its path are mended for %s, and you for half of that."),
+    "benison": ("Benison", "Go with my blessing.", "Bless yourself and allies within 12 blocks: %s health at once, regeneration for 6 s, and under their halo they take %s%% less damage."),
+    "sanctity": ("Sanctity", "Hallowed, and it shows.", "Your healing is %s%% stronger and you deal %s%% more damage."),
+    "seraph_wings": ("Seraph Wings", "Rise.", "A beat of your wings throws back foes within 6 blocks for %s damage. For %s s you run faster, leap higher, fall gently, and allies near you are mended."),
+    "chakram_of_dawn": ("Chakram of Dawn", "It always comes back.", "Throw a disc of dawn that leaps between up to 6 foes: %s damage each, doubled for the undead. Every strike mends you a little, and when it returns allies within 6 blocks are mended for %s."),
+    "gilded_soul": ("Gilded Soul", "Gold does not tarnish.", "You take %s%% less damage."),
+    "rapture": ("Rapture", "Taken up. Put down hard.", "Up to 6 foes within 12 blocks are lifted in shafts of light and thrown back to the ground: %s damage, doubled for the undead, and a 2 s stun."),
+    "sanctum": ("Sanctum", "Not in here.", "Raise a sanctum around you for 5 s. Allies inside take %s%% less damage and are mended; foes are driven out and take %s damage every second they stay."),
+    "radiant_soul": ("Radiant Soul", "Brimming.", "+%s maximum mana, and you regain %s more mana every second."),
+    "avatar_of_dawn": ("Avatar of Dawn", "Behold.", "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes a foe within 14 blocks for %s damage, and every second allies within 12 blocks are mended for %s."),
+})
+
 
 def main():
     out = dict(TEXT)
