@@ -1,0 +1,22 @@
+{
+  "parent": "neoforge:item/default",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/key/key_c",
+    "layer1": "beyondsolo:item/key/seal_ascendant",
+    "layer2": "beyondsolo:item/key/key_c_light",
+    "layer3": "beyondsolo:item/key/seal_ascendant_light"
+  },
+  "neoforge_data": {
+    "layers": {
+      "2": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "3": {
+        "block_light": 15,
+        "sky_light": 15
+      }
+    }
+  }
+}

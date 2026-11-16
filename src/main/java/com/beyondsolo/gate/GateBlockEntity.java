@@ -185,6 +185,11 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         double ox = Math.cos(a) * rad * 0.8, oy = Math.sin(a) * rad;
         double side = (r.nextDouble() - 0.5) * 2.5;
         double x = c.x + (alongX ? ox : side), y = c.y + oy, z = c.z + (alongX ? side : ox);
+        if (gate.keyed) {
+            // a keyed gate draws in runic letters, as a lock does its key (they fly to the given point)
+            level.addParticle(ParticleTypes.ENCHANT, c.x, c.y, c.z, x - c.x, y - c.y, z - c.z);
+            return;
+        }
         level.addParticle(gate.sealed ? ParticleTypes.END_ROD : gate.rank.tier() >= 4 ? ParticleTypes.SMALL_FLAME : ParticleTypes.REVERSE_PORTAL,
                 x, y, z, (c.x - x) * 0.05, (c.y - y) * 0.05, (c.z - z) * 0.05);
     }

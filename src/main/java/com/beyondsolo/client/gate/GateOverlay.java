@@ -92,6 +92,11 @@ public final class GateOverlay {
         return current != null || cover > 0.01f;
     }
 
+    /** How far the boss bar is in (0..1): things at the top of the screen move down under it. */
+    public static float bossBarIn() {
+        return barIn;
+    }
+
     public static void addTrauma(float amount) {
         trauma = Math.min(1f, trauma + amount);
     }
@@ -434,7 +439,12 @@ public final class GateOverlay {
             float count = Anim.outCubic(Anim.window(t, 0.9f, 2.2f));
             if (count > 0) {
                 long xp = Math.round(m.p.value() * count);
-                Ui.chip(g, cx - 28, y + 40, 12, Component.translatable("gate.beyondsolo.overlay.xp", xp).getString(), 7f, SystemTheme.GOOD, true);
+                String xpText = Component.translatable("gate.beyondsolo.overlay.xp", xp).getString();
+                if (com.beyondsolo.client.key.KeyClient.justCleared()) {
+                    keyedChips(g, cx, y + 40, xpText, count);
+                } else {
+                    Ui.chip(g, cx - 28, y + 40, 12, xpText, 7f, SystemTheme.GOOD, true);
+                }
             }
             float hint = Anim.outCubic(Anim.window(t, 2.3f, 2.8f));
             if (hint > 0.01f) {
@@ -442,6 +452,34 @@ public final class GateOverlay {
             }
         }
         Gfx.setAlpha(old);
+    }
+
+    /** A keyed run's cleared banner: the XP, the run's time (gold for a new best) and its chain bonus, in a row. */
+    private static void keyedChips(GuiGraphics g, float cx, float y, String xpText, float count) {
+        String time = Component.translatable("key.beyondsolo.banner.time",
+                com.beyondsolo.client.key.KeyClient.time(com.beyondsolo.client.key.KeyClient.clearTicks())).getString();
+        int chain = com.beyondsolo.client.key.KeyClient.runChain();
+        String chainText = chain > 1 ? Component.translatable("key.beyondsolo.banner.chain", chain,
+                Math.round(com.beyondsolo.key.DungeonKeys.bonusFor(chain) * 100 - 100)).getString() : null;
+        boolean best = com.beyondsolo.client.key.KeyClient.newBest();
+        float h = 12, size = 7f;
+        float xw = SysFont.width(xpText, size, true) + h * 0.9f;
+        float tw = SysFont.width(time, size, true) + h * 0.9f;
+        float cw = chainText == null ? 0 : SysFont.width(chainText, size, true) + h * 0.9f;
+        float total = xw + 4 + tw + (chainText == null ? 0 : 4 + cw);
+        float x = cx - total / 2f;
+        x += Ui.chip(g, x, y, h, xpText, size, SystemTheme.GOOD, true) + 4;
+        float timeIn = Anim.outBack(Anim.clamp01((count - 0.4f) / 0.6f));
+        if (timeIn > 0.01f) {
+            g.pose().pushPose();
+            g.pose().translate(x + tw / 2f, y + h / 2f, 0);
+            g.pose().scale(timeIn, timeIn, 1);
+            Ui.chip(g, -tw / 2f, -h / 2f, h, time, size, best ? SystemTheme.GOLD : SystemTheme.ACCENT, best);
+            if (best) Shapes.pill(-tw / 2f, -h / 2f, tw, h).fill(0).glow(4 + 3 * Anim.pulse(1.4f), Gfx.alpha(SystemTheme.GOLD, 0.4f)).draw(g);
+            g.pose().popPose();
+        }
+        x += tw + 4;
+        if (chainText != null && count >= 1f) Ui.chip(g, x, y, h, chainText, size, SystemTheme.ACCENT_BRIGHT, false);
     }
 
     /** Text that types itself in, with a bright caret at the end while it types. */
