@@ -1,0 +1,64 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "mantle",
+   "part": "body",
+   "origin": [
+    -6,
+    -1.75,
+    -3.75
+   ],
+   "size": [
+    12,
+    4,
+    7.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.15
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.25
+   ],
+   "uv": [
+    39,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  }
+ ]
+}

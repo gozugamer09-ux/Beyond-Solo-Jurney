@@ -1,0 +1,164 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "sleg0",
+   "part": "body",
+   "origin": [
+    -0.5,
+    -8.0,
+    -0.5
+   ],
+   "size": [
+    1,
+    8.0,
+    1
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -2.0,
+    2.5,
+    2.6
+   ],
+   "rotation": [
+    -35,
+    -20,
+    -50
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "sleg0_l",
+   "part": "body",
+   "origin": [
+    -0.5,
+    -8.0,
+    -0.5
+   ],
+   "size": [
+    1,
+    8.0,
+    1
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    2.0,
+    2.5,
+    2.6
+   ],
+   "rotation": [
+    -35,
+    20,
+    50
+   ],
+   "mirror": true,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "sleg1",
+   "part": "body",
+   "origin": [
+    -0.5,
+    -8.0,
+    -0.5
+   ],
+   "size": [
+    1,
+    8.0,
+    1
+   ],
+   "uv": [
+    4,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -2.0,
+    5.5,
+    2.6
+   ],
+   "rotation": [
+    -23,
+    -20,
+    -28
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "sleg1_l",
+   "part": "body",
+   "origin": [
+    -0.5,
+    -8.0,
+    -0.5
+   ],
+   "size": [
+    1,
+    8.0,
+    1
+   ],
+   "uv": [
+    4,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    2.0,
+    5.5,
+    2.6
+   ],
+   "rotation": [
+    -23,
+    20,
+    28
+   ],
+   "mirror": true,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.15
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.25
+   ],
+   "uv": [
+    8,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  }
+ ]
+}
