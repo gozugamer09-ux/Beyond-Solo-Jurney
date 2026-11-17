@@ -120,6 +120,11 @@ public final class GateOverlay {
         return barIn;
     }
 
+    /** The entity id of the boss whose bar is up (its name is on the bar, not over its head), or -1. */
+    public static int barBossId() {
+        return barIn > 0.3f ? bossId : -1;
+    }
+
     public static void addTrauma(float amount) {
         trauma = Math.min(1f, trauma + amount);
     }
@@ -594,7 +599,9 @@ public final class GateOverlay {
         // the Arbiter has no rank to show
         boolean ranked = !(boss instanceof com.beyondsolo.awakening.ArbiterEntity);
         if (ranked) Ui.rankEmblem(g, db.rank(), x + 7, y + 8, 5.5f, 0);
-        SysFont.draw(g, boss.getDisplayName(), x + (ranked ? 17 : 6), y + 3.5f, 8f, 0xFFFFFFFF, true, 0f);
+        // its name in how it stands against this hunter: white weaker, orange about their level, red far stronger
+        SysFont.draw(g, boss.getDisplayName(), x + (ranked ? 17 : 6), y + 3.5f, 8f,
+                com.beyondsolo.client.enemy.EnemyHud.nameColor(boss, 0xFFFFFFFF), true, 0f);
         if (enraged) {
             float since = Anim.since(enragedAt);
             float pop = since < 0.5f ? Anim.outBack(Anim.window(since, 0, 0.4f)) : 1f;

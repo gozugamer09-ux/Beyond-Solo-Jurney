@@ -187,6 +187,8 @@ public final class EnemyHooks {
                     var hp = m.getAttribute(Attributes.MAX_HEALTH);
                     if (hp != null) hp.addPermanentModifier(new AttributeModifier(BeyondSolo.id("split"), -0.6, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
                     m.setHealth(m.getMaxHealth());
+                    // a half is weaker than a whole one
+                    HiddenLevel.refresh(m);
                     if (m instanceof Mob mm && victim.getLastHurtByMob() != null) mm.setTarget(victim.getLastHurtByMob());
                 }
             }
@@ -219,19 +221,24 @@ public final class EnemyHooks {
         event.getDrops().add(new ItemEntity(e.level(), e.getX(), e.getY() + 0.5, e.getZ(), stack));
     }
 
+    /** A player starts seeing a System creature: its traits and hidden level go to them (its aura, its name over its head). */
     @SubscribeEvent
     static void startTracking(PlayerEvent.StartTracking event) {
-        if (event.getEntity() instanceof ServerPlayer player && event.getTarget() instanceof LivingEntity e && EnemyTraits.has(e)) {
-            EnemyTraits t = EnemyTraits.of(e);
-            if (t.notable()) PacketDistributor.sendToPlayer(player, new EnemyTraitsPayload(e.getId(), t.affinity().ordinal(), t.variant().ordinal(), t.affixMask()));
+        if (event.getEntity() instanceof ServerPlayer player && event.getTarget() instanceof LivingEntity e && HiddenLevel.has(e)) {
+            PacketDistributor.sendToPlayer(player, payload(e));
+            HiddenLevel.introduce(player);
         }
     }
 
-    /** Tells everyone who can see it about a creature's traits (when they are set after it appeared). */
+    /** Tells everyone who can see it about a creature's traits and hidden level (when they change after it appeared). */
     public static void broadcast(LivingEntity e) {
-        if (e.level().isClientSide || !EnemyTraits.has(e)) return;
+        if (e.level().isClientSide || !HiddenLevel.has(e)) return;
+        PacketDistributor.sendToPlayersTrackingEntity(e, payload(e));
+    }
+
+    private static EnemyTraitsPayload payload(LivingEntity e) {
         EnemyTraits t = EnemyTraits.of(e);
-        PacketDistributor.sendToPlayersTrackingEntity(e, new EnemyTraitsPayload(e.getId(), t.affinity().ordinal(), t.variant().ordinal(), t.affixMask()));
+        return new EnemyTraitsPayload(e.getId(), t.affinity().ordinal(), t.variant().ordinal(), t.affixMask(), HiddenLevel.of(e));
     }
 
     private EnemyHooks() {}
