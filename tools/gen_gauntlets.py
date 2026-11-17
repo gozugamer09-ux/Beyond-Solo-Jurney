@@ -105,8 +105,20 @@ def worn_display():
     # The left hand gets the same values: the game negates the y/z rotation and x translation of a left-hand
     # transform by itself, which moves the model across onto the left arm. The first-person hands use the same
     # chain (client/combat/WornGauntlets.java draws the arm and hangs the gauntlet on it the way the layer does).
-    return {k: dict(tr) for k in ("thirdperson_righthand", "thirdperson_lefthand", "firstperson_righthand",
-                                  "firstperson_lefthand")}
+    out = {k: dict(tr) for k in ("thirdperson_righthand", "thirdperson_lefthand", "firstperson_righthand",
+                                 "firstperson_lefthand")}
+    # Dropped: a raised fist, the cuff on the ground. The item model reports no transforms of its own
+    # (neoforge:separate_transforms), so the dropped-item renderer lifts it a quarter of a block: the translation
+    # takes that back and stands the cuff's rim (model y GROUND_RIM, turned upside down about the middle) on the
+    # ground.
+    s = GROUND_SCALE
+    out["ground"] = {"rotation": [180, 0, 0], "translation": [0, round((GROUND_RIM - 8.0) * s - 4.0 + 0.5, 3), 0],
+                     "scale": [s, s, s]}
+    return out
+
+
+GROUND_SCALE = 0.8
+GROUND_RIM = 11.5     # model y of the elbow end of the cuff (arm y 2.5)
 
 
 # ------------------------------------------------------------------------------------------------- designs
