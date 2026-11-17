@@ -89,29 +89,57 @@ public class CraftTab implements SystemTab {
         if (SystemRecipes.get(chosen) == null || SystemRecipes.get(chosen).category() != category) {
             chosen = recipes.isEmpty() ? "" : recipes.get(0).id();
         }
-        categories(g, x, y, mouseX, mouseY);
-        list(g, recipes, player.getInventory().items, x, y + 18, h - 18, mouseX, mouseY);
+        float top = categories(g, x, y, mouseX, mouseY) + 5;
+        list(g, recipes, player.getInventory().items, x, y + top, h - top, mouseX, mouseY);
         float dx = x + LIST_W + 8;
         SystemRecipes.Recipe r = SystemRecipes.get(chosen);
         if (r != null) detail(g, r, player.getInventory().items, dx, y, x + w - dx, h, mouseX, mouseY);
     }
 
-    private void categories(GuiGraphics g, float x, float y, int mouseX, int mouseY) {
-        float px = x;
+    /**
+     * Draws the category chips and returns how tall they are. They share one row when every word fits at a readable
+     * size, each chip as wide as its word; longer words (Spanish "POCIONES", "NÚCLEOS") get two rows instead.
+     */
+    private float categories(GuiGraphics g, float x, float y, int mouseX, int mouseY) {
         SystemRecipes.Category[] all = SystemRecipes.Category.values();
-        float pw = (LIST_W - 3 * (all.length - 1)) / all.length;
-        for (SystemRecipes.Category c : all) {
-            boolean on = c == category;
-            boolean hover = !on && Ui.inside(mouseX, mouseY, px, y, pw, 13);
-            int col = catColor(c);
-            Shapes.pill(px, y, pw, 13).fill(Gfx.alpha(col, on ? 0.28f : hover ? 0.12f : 0.05f))
-                    .border(0.75f, Gfx.alpha(col, on ? 0.95f : 0.35f)).glow(on ? 4 : 0, Gfx.alpha(col, 0.3f)).draw(g);
-            String label = Component.translatable("craft.beyondsolo.cat." + c.name().toLowerCase()).getString();
-            SysFont.spaced(g, SysFont.fit(label, 5.6f, true, pw - 4), px + pw / 2f, SysFont.centerY(y, 13, 5.6f), 5.6f,
-                    on ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 0.6f, 0.5f);
-            hits.add(new Object[]{"cat", px, y, pw, 13f, c});
-            px += pw + 3;
+        String[] labels = new String[all.length];
+        for (int i = 0; i < all.length; i++) {
+            labels[i] = Component.translatable("craft.beyondsolo.cat." + all[i].name().toLowerCase()).getString();
         }
+        float gap = 3;
+        float size = 5.6f;
+        float[] wide = new float[all.length];
+        float sum = 0;
+        boolean oneRow = false;
+        for (int step = 0; step <= 2 && !oneRow; step++) {
+            size = 5.6f - 0.2f * step;
+            sum = 0;
+            for (int i = 0; i < all.length; i++) sum += wide[i] = SysFont.spacedWidth(labels[i], size, true, 0.6f) + 4;
+            oneRow = sum <= LIST_W - gap * (all.length - 1);
+        }
+        if (!oneRow) size = 5.6f;
+        int perRow = oneRow ? all.length : (all.length + 1) / 2;
+        float even = (LIST_W - gap * (perRow - 1)) / perRow;
+        float spare = oneRow ? (LIST_W - gap * (all.length - 1) - sum) / all.length : 0;
+        float px = x, py = y;
+        for (int i = 0; i < all.length; i++) {
+            if (i > 0 && i % perRow == 0) {
+                px = x;
+                py += 13 + 2;
+            }
+            SystemRecipes.Category c = all[i];
+            float pw = oneRow ? wide[i] + spare : even;
+            boolean on = c == category;
+            boolean hover = !on && Ui.inside(mouseX, mouseY, px, py, pw, 13);
+            int col = catColor(c);
+            Shapes.pill(px, py, pw, 13).fill(Gfx.alpha(col, on ? 0.28f : hover ? 0.12f : 0.05f))
+                    .border(0.75f, Gfx.alpha(col, on ? 0.95f : 0.35f)).glow(on ? 4 : 0, Gfx.alpha(col, 0.3f)).draw(g);
+            SysFont.spaced(g, SysFont.fit(labels[i], size, true, pw - 4), px + pw / 2f, SysFont.centerY(py, 13, size), size,
+                    on ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 0.6f, 0.5f);
+            hits.add(new Object[]{"cat", px, py, pw, 13f, c});
+            px += pw + gap;
+        }
+        return py + 13 - y;
     }
 
     private static int catColor(SystemRecipes.Category c) {
