@@ -219,6 +219,12 @@ public final class GateService {
 
     // ------------------------------------------------------------------ noticing gates
 
+    /** True if the player has come within 40 blocks of this gate since the server started ({@link #noticeNearby}). */
+    public static boolean noticed(ServerPlayer player, UUID gate) {
+        Set<UUID> seen = NOTICED.get(player.getUUID());
+        return seen != null && seen.contains(gate);
+    }
+
     /** Players who come close to a gate for the first time are told about it (and warned if it is above them). */
     public static void noticeNearby(ServerLevel level, GateBlockEntity gate) {
         // a keyed gate was opened on purpose, by someone standing right there; a sealed one is nobody's business
@@ -262,6 +268,8 @@ public final class GateService {
             player.hurtMarked = true;
             return;
         }
+        // a red gate in waiting turns red for an awakened hunter; one that has turned lets its party follow, then seals
+        if (com.beyondsolo.redgate.RedGates.enter(player, gate, g)) return;
         if (level.getServer().getLevel(DIMENSION) == null) {
             BeyondSolo.LOGGER.error("The gate dimension {} is missing; is the mod's datapack loaded?", DIMENSION.location());
             return;
@@ -299,6 +307,8 @@ public final class GateService {
     }
 
     public static void beginExit(ServerPlayer player, GateBlockEntity gate) {
+        // a red gate's way out lets its hunters go only once its hold is broken
+        if (com.beyondsolo.redgate.RedGates.exit(player, gate)) return;
         if (busy(player)) return;
         GateInstance g = GateData.get(player.server).bySlotPos(player.blockPosition());
         if (g == null) return;
@@ -968,10 +978,6 @@ public final class GateService {
             }
         }
         return best;
-    }
-
-    static boolean naturalSpawnsOn() {
-        return Config.GATE_SPAWN_CHANCE.get() > 0;
     }
 
     private GateService() {}

@@ -15,6 +15,8 @@ public final class GateModels {
     private static final ResourceLocation[] BOSS_TEXTURES = textures("textures/entity/gate_boss_");
 
     private static final ResourceLocation SEALED_TEXTURE = BeyondSolo.id("textures/block/gate_sealed.png");
+    /** A red gate's rock: veins and crystals run blood red (redgate.RedGates). */
+    private static final ResourceLocation RED_TEXTURE = BeyondSolo.id("textures/block/gate_red.png");
 
     private static ResourceLocation[] textures(String prefix) {
         ResourceLocation[] out = new ResourceLocation[PlayerRank.values().length];
@@ -30,6 +32,7 @@ public final class GateModels {
         @Override
         public ResourceLocation getTextureResource(GateBlockEntity gate) {
             if (gate.isSealed()) return SEALED_TEXTURE;
+            if (gate.redness(0) > 0.5f) return RED_TEXTURE;
             // the way out of a cave is always the System's own blue
             return GATE_TEXTURES[gate.isExit() ? PlayerRank.C.ordinal() : gate.rank().ordinal()];
         }

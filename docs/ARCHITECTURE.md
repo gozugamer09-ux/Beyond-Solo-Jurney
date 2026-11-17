@@ -343,7 +343,7 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
 | `GateBossEntity` | GeckoLib boss: dormant until someone enters the arena, then a roar intro; swipe and slam attacks with the gate's element; enrages under half health (adds, faster); long death animation |
 | `RewardCacheBlock(Entity)` | Falls in a beam of light, lands, opens with a lid animation and bursts out `GateLoot` |
-| `GateFeature`, `GateSpawner` | World-gen (`worldgen/placed_feature/gate.json`, rarity 1 in 220 chunks) and gates tearing open near players (config `gates.openChancePerMinute`). Both roll the rank at random (`GateService.randomRank`, weights `gates.rankWeights`, E most common, S 4 in 100): never by the player's rank or the distance from spawn |
+| `GateFeature`, `GateSpawner` | World-gen (`worldgen/placed_feature/gate.json`, rarity 1 in 220 chunks) and gates tearing open near players. Both roll the rank at random (`GateService.randomRank`, weights `gates.rankWeights`, E most common, S 4 in 100): never by the player's rank or the distance from spawn. The spawner runs a minute for each overworld player (`GateSpawner.minute`, outcomes in `GateSpawner.Outcome`): a gate within `NEAR` (160) blocks the player has not seen (not within 40 blocks of it, not told of it) is pointed out first (System alert, or a grey line of thought for players without the System); else, while fewer than `gates.maxOpenNearby` (2) are open around them, one opens 40-80 blocks away by chance (`gates.openChancePerMinute`) or for sure after `gates.guaranteeMinutes` (6) quiet minutes (`ModAttachments.GATE_QUIET`, -1 before the first). A player's first gate opens at their first minute (30 s after joining at the earliest), 22-36 blocks in front of them. Never within `SPACING` (32) of another gate. Players without the System get D-rank gates only, one at a time (`awakening.gateChancePerMinute`, `awakening.gateGuaranteeMinutes` 3); players with the System but not evaluated get none (gates refuse them) and one `gate.locked` alert a session. `/system gate spawner [now]` shows what it sees around you (and runs your minute now). Until 0.1.2 any open gate within 160 blocks, seen or not, held back every new one and nothing came for sure: the 0.1.1 playtest waited over ten minutes beside an unseen world-gen gate |
 
 Instances sit `SLOT_SPACING` (2048) blocks apart along x in the gate dimension; `GateData.bySlotPos` finds the gate
 for a position there. A cleared cave closes once nobody is left in it, and its gate in the world collapses.
@@ -392,7 +392,7 @@ a player anything that belongs to the System; check `isAwakened` for anything th
 
 | Stage (`AwakeningData.Stage`) | What happens |
 | --- | --- |
-| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's room instead of off a cavern (a gate whose own layout has no room there, a boss on an island over a chasm say, is laid out as caverns instead: `DungeonLayout.shapeForDoor`). Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
+| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`, for sure every `awakening.gateGuaranteeMinutes`; the first one in front of them within a minute and a half) or points out a D-rank one standing near. Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's room instead of off a cavern (a gate whose own layout has no room there, a boss on an island over a chasm say, is laid out as caverns instead: `DungeonLayout.shapeForDoor`). Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
 | `CALLED` | Set by `AwakeningService.gateCleared` when the boss of the cave that hides their door falls with them inside. `REVEAL_DELAY` later (the boss has crumbled, the exit is not open yet) `revealDoors` breaks the wall (no HIDDEN DUNGEON moment, no XP: knocks and Pulse Scan get nothing from this wall) and opens a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`, `temple` set) for each called player in the chamber (`DepthsBuild.sealedDoor`), with `trialHome` set to the cave's own home. While it stands the cave's exit turns them back (`heldBack`, checked in `GateService.beginExit`). Out of the gate depths without going through (they fell, logged out and the cave closed), the call lapses back to `DORMANT` (`tether`, `leftGate`); a door opened out in the world (`/system trial call` outside a cave, old saves) still pulls them back past `awakening.tetherRadius`. Only the owner can enter |
 | `TRIAL` | Inside. The door shuts behind them (`arrived`). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonDecor.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
 | `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black; to `trialHome`, in front of the gate they first went into, or for a door out in the world, in front of it), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
@@ -1067,6 +1067,65 @@ registers the payloads (`BreakPayload`, `GateSensePayload`). A gate's clock is a
   `unstable`, `imminent`, `clock <seconds>`, `now`, `boss`, `suppress`, `sense [level]`. All numbers are first
   guesses for the balancing pass.
 
+## Red gates
+
+Code in `redgate/` (server) and `client/redgate/` (client); lang in `assets/beyondsolo_redgates/lang`. `RedGateModule`
+registers the payload (`RedGatePayload`), the hunter's record (`RedRecord`, an attachment: cleared, escaped, fallen,
+nights, most days) and the config (`RedGateConfig`, `redgates.*`). A red gate's run is a `RedGate` in `RedGateData` (saved with the
+world), keyed by its gate's id.
+
+- **Which gates** (`RedGates.latent`): any gate, any rank, about one in sixteen (`redgates.chance`, 0.06), decided by
+  its seed so the answer never changes. Never an awakening trial or a keyed gate. The first one through decides: an
+  awakened hunter turns it red (`enter`, from `GateService.beginEnter`); someone without the System defuses it for
+  good. `/system redgate force` makes the nearest gate turn red.
+- **Turning red** (`start`): the gate block turns red (`GateBlockEntity` red time, `GateRenderer`/`GateModels` draw it
+  in blood), the run takes a slot (`RedWorld.SLOT_SPACING`, 4096 blocks apart in `beyondsolo:red_gate`; the game-test
+  server has no datapack dimensions, so tests lay the slots out in the overworld down `TEST_LANE_Z`), and what waits
+  inside is a rank above the gate's (now and then two; S stays S). For `redgates.openSeconds` (8) the rest of a party
+  can follow; then it SEALS: the gate in the world turns everyone away, the way out inside turns its hunters back
+  (`exit`), and the gate's break clock is held (`holding`, read by `DungeonBreaks`). Other systems ask `occupied`
+  before pulling a hunter away (penalty zone, job trial, surprise quests).
+- **The Red Winter** (`RedWorld`, `RedWorldBuilder`): a snow world of spruce woods, ice spires and frozen seas (its own
+  biome and noise settings, both `beyondsolo:red_winter`). Each run's patch is shaped a step per tick: the breach where hunters land (black
+  stones, cracked tiles, red veins, two campfires, the way out sealed and burning red), the master's keep about a
+  hundred blocks off (ice and deepslate walls, six towers, a throne, a spire with a red light that shows from the
+  breach) and `CAMPS` (5) camps in the snow. Each of these sites stands on its own mound (`site`): a skirt slopes from
+  its edge down into the land round it, so the keep never ends up on a pillar in a frozen sea. The patch ends at `EDGE`
+  (200 blocks from the breach): the blizzard there is a wall that pushes hunters back, and throws back anyone who gets
+  24 blocks past it.
+- **Time** (`RedGate.insideTime`): runs `redgates.timeRate` (8) times faster while anyone is inside. Night
+  (`NIGHT_START`..`NIGHT_END`) brings raids (`raid`: the land's own creatures 20 to 28 blocks out, after one hunter,
+  angrier than outside: `fury`, +25% health, +15% damage), dawn sends them back into the snow, blizzards blow in now
+  and then. Creatures come from the run's own mix (`mix`: frost-touched, our own kinds only, no vanilla mobs).
+- **Cold** (`cold`, every second, off with `redgates.cold`): out in the open at night or in a blizzard a hunter
+  chills (0..`MAX_CHILL`); past `FROST_RIM` (70) vanilla's frost creeps in from the screen's edges, and frozen through,
+  vanilla freezing takes over. A fire close by (`warmth`: a lit campfire,
+  flames, lava, magma, a lit furnace) warms them; a roof overhead cuts the chill to a quarter. Past `EDGE` the wind
+  chills them faster.
+- **Camps and keep:** a pack rises round a camp's fire as hunters come within `CAMP_REACH`; once it is dead its stash
+  is theirs (a quest objective). The keep's guard turns out within `KEEP_REACH`; the master (`masterKind`: a boss
+  that lives at the inside rank, `GateBossEntity.configure`) wakes within `WAKE_REACH` with its intro, and calls two
+  adds when enraged.
+- **The end:** the master's fall (`masterFell`) releases it: the seal breaks, raiders scatter, a red reward cache
+  (`RewardCacheBlockEntity`, twice its rank's loot, often a key) comes down where it fell, a way out opens there, and
+  everyone inside gets `redgates.rewardMultiplier` (2) times a gate of the inside rank in XP and gold, the quest done
+  and a clear on their record. Out they go, and the gate closes. If `redgates.releaseDay` (8) is set, the dawn of that
+  day breaks the hold too (no reward). A hunter who dies inside (`playerFell`) is out of it and wakes where they
+  respawn, their quest failed and a fall on their record; once everyone it took has fallen (`failed`), the red fades,
+  it is an ordinary gate again (defused) and its break clock starts at its last minute.
+- **Looks** (`client.redgate`): `RedGateClient` keeps the state the server sends and the inside clock (it sets the
+  sky's time and the snowfall). `RedGateOverlay`: the System's WARNING window (glitches in, types its lines, the seal
+  ring counting down then locking), the inside capsule (sun and moon dial, day and release day, clock and rate, the cold
+  bar, camps and kills, a compass to the master or the way out), the capsule outside for anyone near a red gate,
+  banners (night, dawn, raid, blizzard, camp taken, freezing, edge, released) and the summary card once home.
+  `RedGateClientEvents`: the dimension's sky, the red cast of the fog at night and the white-out of a blizzard.
+  `GateOverlay` draws red gates' moments in blood (`GatePayload.RED`). Its moments and the warning wait while a world
+  loads behind its own screen (`GateOverlay.loading`): otherwise the card coming home played out unseen behind
+  "Loading terrain" whenever the chunks at home took a few seconds, and the summary waited on the cover after it.
+- **Commands** (`/system redgate ...`, level 2): `force`, `gate [rank]`, `now [rank]`, `build`, `jump <to> [n]` (night,
+  dawn, day n, time n, raid, blizzard [s], calm, seal, release, clear, chill n, or to the breach, keep, a camp, its
+  master), `leave`, `end`, `status`. All numbers are first guesses for the balancing pass.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1144,6 +1203,7 @@ checks use zombies.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
 `test/DepthsGameTests` (in the original cave of each gate's rank, so every run tests the same) covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
+`test/RedGateGameTests` covers: about one gate in sixteen waiting to turn red (always the same answer; never a trial or a keyed gate; a defused one never, a forced one always), what waits inside being one or two ranks up with a master of that rank and only our own frost-touched creatures, the payload's round trip, someone without the System defusing it for good, entering (the gate turning red, arriving by the red way out with the emergency quest, the break clock held, sealing, the way out and the gate turning hunters back, ending), the master's fall (the seal broken, a red cache, the clear paid and on the record, the way out letting them go, the gate closing), the clock running faster, nights bringing raids of angrier creatures after the hunter that go at dawn, the cold biting in the open at night and a fire warming, and the last hunter falling (quest failed, the red fading, an ordinary gate at its last minute before it breaks).
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
