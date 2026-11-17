@@ -148,13 +148,30 @@ public final class GateService {
         return gate;
     }
 
-    /** The rank of a gate made by world generation: deeper ranks further from the world's centre. */
-    public static PlayerRank worldgenRank(BlockPos pos, RandomSource r) {
-        double d = Math.sqrt((double) pos.getX() * pos.getX() + (double) pos.getZ() * pos.getZ());
-        int base = (int) (d / 1400);
-        int roll = r.nextInt(10);
-        int tier = base + (roll < 3 ? -1 : roll < 8 ? 0 : 1) + (r.nextInt(25) == 0 ? 2 : 0);
-        return PlayerRank.values()[Mth.clamp(tier, 0, PlayerRank.values().length - 1)];
+    /**
+     * A new gate's rank, rolled at random: any gate can be any rank, wherever it opens and whoever is near (gates pay
+     * no mind to the hunters around them). Low ranks are the common ones; the weights are {@code gates.rankWeights}.
+     */
+    public static PlayerRank randomRank(RandomSource r) {
+        return randomRank(r, Config.GATE_RANK_WEIGHTS.get());
+    }
+
+    /** As above, with the weights given (E to S; a missing one counts as 0, and all 0 makes every rank as likely). */
+    public static PlayerRank randomRank(RandomSource r, List<? extends Integer> weights) {
+        PlayerRank[] ranks = PlayerRank.values();
+        int total = 0;
+        for (int i = 0; i < ranks.length; i++) total += weight(weights, i);
+        if (total <= 0) return ranks[r.nextInt(ranks.length)];
+        int roll = r.nextInt(total);
+        for (int i = 0; i < ranks.length; i++) {
+            roll -= weight(weights, i);
+            if (roll < 0) return ranks[i];
+        }
+        return ranks[0];
+    }
+
+    private static int weight(List<? extends Integer> weights, int i) {
+        return i < weights.size() && weights.get(i) != null ? Math.max(0, weights.get(i)) : 0;
     }
 
     /** Opens the gate of a dungeon key ({@code key.DungeonKeys}): a door into a fresh cave of the key's rank. */
@@ -226,8 +243,10 @@ public final class GateService {
         GateInstance g = GateData.get(level.getServer()).get(gate.gateId());
         if (g == null || g.state() != GateInstance.State.OPEN || (g.isKeyed() && g.keyed().doorClosed)) return;
         // a sealed gate is for the one it opened for; someone the System has bound must be evaluated first.
-        // Players without the System walk into gates freely: that is how they earn it.
+        // Players without the System walk into gates freely: that is how they earn it. A gate that has broken has
+        // spilled its cave out here: its boss is the way to close it now.
         String refusal = g.isTrial() && !player.getUUID().equals(g.owner()) ? "message.beyondsolo.gate.sealed_other"
+                : g.breakState().broken() ? "message.beyondsolo.gate.broken"
                 : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated" : null;
         if (refusal != null) {
             if (COOLDOWN.getOrDefault(player.getUUID(), 0L) <= level.getGameTime()) {
@@ -423,7 +442,8 @@ public final class GateService {
         ServerLevel dungeon = player.serverLevel();
         GateData data = GateData.get(player.server);
         GateInstance g = data.bySlotPos(player.blockPosition());
-        if (g == null || g.state() == GateInstance.State.CLOSED) {
+        // a cave whose gate has broken has spilled out into the world: nobody is left standing in it
+        if (g == null || g.state() == GateInstance.State.CLOSED || g.breakState().hasBroken()) {
             // the job change trial also takes place in this dimension, in its own halls
             if (!inTransit(player) && !com.beyondsolo.job.JobTrial.inTrial(player)) sendHome(player);
             return;
@@ -784,7 +804,7 @@ public final class GateService {
         GateInstance g = GateData.get(p.server).bySlotPos(p.blockPosition());
         CompoundTag tag = p.getPersistentData();
         UUID was = tag.hasUUID(IN_GATE_TAG) ? tag.getUUID(IN_GATE_TAG) : null;
-        if (g != null && g.state() != GateInstance.State.CLOSED && (was == null || was.equals(g.id()))) {
+        if (g != null && g.state() != GateInstance.State.CLOSED && !g.breakState().hasBroken() && (was == null || was.equals(g.id()))) {
             if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.rejoined(p, g);
             return;
         }

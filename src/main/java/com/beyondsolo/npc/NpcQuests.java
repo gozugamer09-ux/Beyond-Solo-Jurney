@@ -282,7 +282,7 @@ public final class NpcQuests {
     }
 
     /** Compass direction for the quest text. Angle as in atan2(z, x): +x east, +z south. */
-    static Component direction(float angle) {
+    public static Component direction(float angle) {
         String[] dirs = {"e", "se", "s", "sw", "w", "nw", "n", "ne"};
         int i = Math.floorMod(Math.round(angle / (Mth.TWO_PI / 8)), 8);
         return Component.translatable("npc.beyondsolo.dir." + dirs[i]);

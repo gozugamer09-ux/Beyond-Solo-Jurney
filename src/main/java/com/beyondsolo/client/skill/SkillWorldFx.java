@@ -2,6 +2,7 @@ package com.beyondsolo.client.skill;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.combat.CombatWorldFx;
+import com.beyondsolo.client.render.CameraParticles;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.network.SkillFxPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -229,6 +230,9 @@ public final class SkillWorldFx {
             case NOVA -> {
                 // what the ring throws: flames (duration 0), sparks (1), spray (2), motes of light (3) or soul fire (4)
                 int n = p.duration() == 0 ? 60 : 36;
+                // seen through the caster's own eyes the ring starts a few steps out, where it reads as a ring and not
+                // as a wall of flame at the feet; the lava pops stay with everyone else's view of it
+                double from = self ? 2.4 : 0.6;
                 for (int i = 0; i < n; i++) {
                     double a = i / (double) n * Math.PI * 2;
                     double sp = 0.25 + RANDOM.nextDouble() * 0.15;
@@ -240,10 +244,12 @@ public final class SkillWorldFx {
                         default -> i % 3 == 0 ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME;
                     };
                     // a splash only flies sideways when it is given no lift of its own
-                    level.addParticle(thrown, o.x + Math.cos(a) * 0.6, o.y + 0.3, o.z + Math.sin(a) * 0.6,
+                    CameraParticles.add(level, thrown, o.x + Math.cos(a) * from, o.y + 0.3, o.z + Math.sin(a) * from,
                             Math.cos(a) * sp, p.duration() == 2 ? 0 : 0.02, Math.sin(a) * sp);
                 }
-                if (p.duration() == 0) for (int i = 0; i < 8; i++) level.addParticle(ParticleTypes.LAVA, o.x, o.y + 0.5, o.z, 0, 0, 0);
+                if (p.duration() == 0 && !self) {
+                    for (int i = 0; i < 8; i++) CameraParticles.add(level, ParticleTypes.LAVA, o.x, o.y + 0.5, o.z, 0, 0, 0);
+                }
             }
             case HEAL -> {
                 for (int i = 0; i < 18; i++) {
