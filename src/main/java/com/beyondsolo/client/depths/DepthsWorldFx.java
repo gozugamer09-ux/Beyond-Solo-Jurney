@@ -7,6 +7,7 @@ import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.depths.GateWeather;
 import com.beyondsolo.depths.HiddenSealBlock;
 import com.beyondsolo.depths.TrapCoreBlock;
+import com.beyondsolo.gate.GateService;
 import com.beyondsolo.network.DepthsFxPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -286,6 +287,11 @@ public final class DepthsWorldFx {
     static void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
+        if (!mc.level.dimension().equals(GateService.DIMENSION)) {
+            // every moment here happens in a cave: none of them follows the player out
+            MOMENTS.clear();
+            return;
+        }
         float t = now(0);
         for (Moment m : MOMENTS) {
             float age = t - m.start;

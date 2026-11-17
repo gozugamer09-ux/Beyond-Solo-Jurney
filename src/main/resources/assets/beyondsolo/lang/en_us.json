@@ -479,6 +479,7 @@
   "quest_objective.beyondsolo.gate_clear": "Clear a Gate",
   "command.beyondsolo.gate.none": "No gate nearby.",
   "command.beyondsolo.gate.not_inside": "You are not inside a gate.",
+  "command.beyondsolo.gate.no_exit": "The way out is not open yet.",
   "command.beyondsolo.gate.done": "Done.",
   "command.beyondsolo.gate.unknown": "There is no realm or layout called %s.",
   "command.beyondsolo.gate.info": "%s (%s) · %s · Rank %s · %s rooms, %s passages, %s open spaces · boss: %s · element: %s · seed %s",

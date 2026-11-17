@@ -102,7 +102,7 @@ nearest crystal if there is one), `/system awaken [rank] [class]` (same result, 
 `/system exhaustion <percent>`, `/system notify <text>`, `/system buildup <targets> <element> <amount>`,
 `/system status <targets> <deep_burn|venom|heavy_venom|crimson_brand> [stacks]`,
 `/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it),
-`/system gate spawn [rank] [realm|any] [shape]` (a gate in front of you), `/system gate enter|info|boss|wake|kill`.
+`/system gate spawn [rank] [realm|any] [shape]` (a gate in front of you), `/system gate enter|info|boss|wake|kill|exit`.
 
 Config: `config/beyondsolo-common.toml` (`awakening.required` turns the trial off so players start with
 the System, spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,

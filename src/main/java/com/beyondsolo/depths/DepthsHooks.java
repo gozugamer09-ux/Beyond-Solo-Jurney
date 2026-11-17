@@ -7,12 +7,14 @@ import com.beyondsolo.gate.GateData;
 import com.beyondsolo.gate.GateInstance;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.network.DepthsPayload;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -22,6 +24,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,11 +32,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Runs the depths. Every half second: each player's screen is told when they come into a cave (its weather and rank)
- * or leave it, and every cave with a party in it gets its weather, hidden chamber and traps ticked. A crimson haze
- * makes the cave's creatures hit harder and heal off what they hit. Logging in sends the weakness log.
+ * or leave it, and every cave with a party in it gets its weather, hidden chamber and traps ticked. Going out of the
+ * gate dimension (the exit, a fall, a command) or coming back from a fall tells the screen at once that the cave is
+ * behind it. A crimson haze makes the cave's creatures hit harder and heal off what they hit. Logging in sends the
+ * weakness log.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class DepthsHooks {
@@ -44,6 +50,8 @@ public final class DepthsHooks {
 
     /** The cave each player's screen was last told about (absent: none). */
     private static final Map<UUID, Shown> SHOWN = new HashMap<>();
+    /** Game tests listening in on what a player's screen is told (test players drop everything sent to them). */
+    private static final Map<UUID, Consumer<DepthsPayload>> LISTENERS = new HashMap<>();
 
     private record Shown(UUID gate, int weather) {}
 
@@ -60,7 +68,7 @@ public final class DepthsHooks {
         ServerLevel dungeon = GateService.dungeon(server);
         Map<GateInstance, List<ServerPlayer>> parties = new LinkedHashMap<>();
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            GateInstance g = dungeon != null && p.level() == dungeon ? caveOf(data, p) : null;
+            GateInstance g = caveOf(data, dungeon, p);
             show(p, g);
             if (g != null && p.isAlive() && !p.isSpectator()) parties.computeIfAbsent(g, k -> new ArrayList<>()).add(p);
         }
@@ -75,29 +83,52 @@ public final class DepthsHooks {
         }
     }
 
-    /** The built, open cave a player in the gate dimension is standing in, or null. */
-    private static GateInstance caveOf(GateData data, ServerPlayer p) {
-        if (GateData.slotAt(p.blockPosition()) < 1) return null;
+    /** The built, open cave a player is standing in, or null (outside the gate dimension too). */
+    @Nullable
+    private static GateInstance caveOf(GateData data, @Nullable ServerLevel dungeon, ServerPlayer p) {
+        if (dungeon == null || p.level() != dungeon || GateData.slotAt(p.blockPosition()) < 1) return null;
         GateInstance g = data.bySlotPos(p.blockPosition());
         if (g == null || !g.built() || g.state() == GateInstance.State.CLOSED) return null;
         return g;
     }
 
+    /** What one player's screen is told on a beat, as {@link #tick} does for everyone in the player list. */
+    static void beat(ServerPlayer p) {
+        show(p, caveOf(GateData.get(p.server), GateService.dungeon(p.server), p));
+    }
+
     /** Tells a player's screen about the cave they are in, when it changes (or its weather does). */
-    private static void show(ServerPlayer p, GateInstance g) {
-        Shown was = SHOWN.get(p.getUUID());
+    private static void show(ServerPlayer p, @Nullable GateInstance g) {
         if (g == null) {
-            if (was != null) {
-                SHOWN.remove(p.getUUID());
-                PacketDistributor.sendToPlayer(p, DepthsPayload.state(-1, 0));
-            }
+            leftCave(p);
             return;
         }
+        Shown was = SHOWN.get(p.getUUID());
         int weather = g.depths().weather(g).ordinal();
         if (was != null && was.gate().equals(g.id()) && was.weather() == weather) return;
         SHOWN.put(p.getUUID(), new Shown(g.id(), weather));
-        PacketDistributor.sendToPlayer(p, DepthsPayload.state(weather, g.rank().ordinal()));
+        tell(p, DepthsPayload.state(weather, g.rank().ordinal()));
         TrapRooms.resync(p, g);
+    }
+
+    /**
+     * Tells a player's screen that the cave it was last told about is behind it (its weather, its chip, its banners
+     * and traps all go), if it was told about one. A cave they are in (or come back into) is told again on the next beat.
+     */
+    static void leftCave(ServerPlayer p) {
+        if (SHOWN.remove(p.getUUID()) != null) tell(p, DepthsPayload.state(-1, 0));
+    }
+
+    private static void tell(ServerPlayer p, DepthsPayload payload) {
+        PacketDistributor.sendToPlayer(p, payload);
+        Consumer<DepthsPayload> listener = LISTENERS.get(p.getUUID());
+        if (listener != null) listener.accept(payload);
+    }
+
+    /** For game tests: hears what a player's screen is told about the cave it is in (null stops listening). */
+    static void listen(UUID player, @Nullable Consumer<DepthsPayload> listener) {
+        if (listener == null) LISTENERS.remove(player);
+        else LISTENERS.put(player, listener);
     }
 
     /** Forgets what a player's screen was told (it is sent again on the next beat). */
@@ -139,14 +170,34 @@ public final class DepthsHooks {
 
     @SubscribeEvent
     static void onDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        // the screen forgets the cave on the way through; tell it again on arrival
-        if (event.getEntity() instanceof ServerPlayer p) SHOWN.remove(p.getUUID());
+        if (event.getEntity() instanceof ServerPlayer p) changedDimension(p, event.getFrom());
+    }
+
+    /**
+     * Through to another dimension: the screen does not forget a cave by itself on the way, so it is told now that the
+     * cave is behind it (a cave it arrives in is told on the next beat). Out of the gate dimension, the frost a frost
+     * gale left creeping in at the edge of the screen thaws at once.
+     */
+    private static void changedDimension(ServerPlayer p, ResourceKey<Level> from) {
+        leftCave(p);
+        if (from.equals(GateService.DIMENSION) && !p.level().dimension().equals(GateService.DIMENSION)) p.setTicksFrozen(0);
+    }
+
+    @SubscribeEvent
+    static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) respawned(p);
+    }
+
+    /** Back from a fall in a cave: out in the world without its weather (or in a cave again, told on the next beat). */
+    static void respawned(ServerPlayer p) {
+        leftCave(p);
     }
 
     @SubscribeEvent
     static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         UUID id = event.getEntity().getUUID();
         SHOWN.remove(id);
+        LISTENERS.remove(id);
         HiddenRooms.forget(id);
         TrapRooms.forget(id);
     }
@@ -154,6 +205,7 @@ public final class DepthsHooks {
     @SubscribeEvent
     static void onStopped(ServerStoppedEvent event) {
         SHOWN.clear();
+        LISTENERS.clear();
         HitTags.clear();
         HiddenRooms.clear();
         TrapRooms.clear();
