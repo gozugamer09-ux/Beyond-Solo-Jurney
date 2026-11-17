@@ -637,11 +637,16 @@ public final class TowerGameTests {
         return v;
     }
 
-    /** Whether a blow landed; then the dummy is made whole and still again (a NoAI mob keeps a knockback's push forever, which would lead his decree astray). */
+    /**
+     * Whether a blow landed; then the dummy is made whole, still and open to the next blow again (a NoAI mob keeps a
+     * knockback's push forever, which would lead his decree astray; and a blow within half a second of a harder one is
+     * shrugged off, as the lance's first spear was right after the leap).
+     */
     private static boolean hurtAndHealed(LivingEntity e) {
         boolean hurt = e.getHealth() < e.getMaxHealth();
         e.setHealth(e.getMaxHealth());
         e.setDeltaMovement(Vec3.ZERO);
+        e.invulnerableTime = 0;
         return hurt;
     }
 
