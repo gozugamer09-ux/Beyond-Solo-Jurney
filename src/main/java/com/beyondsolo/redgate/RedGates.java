@@ -920,9 +920,10 @@ public final class RedGates {
         }
     }
 
-    static void spawnMaster(ServerLevel level, RedGate run, BlockPos spot) {
+    @Nullable
+    static GateBossEntity spawnMaster(ServerLevel level, RedGate run, BlockPos spot) {
         GateBossEntity boss = ModEntities.GATE_BOSS.get().create(level);
-        if (boss == null) return;
+        if (boss == null) return null;
         BlockPos at = stand(level, spot);
         float yaw = RedWorldBuilder.keepFront(run).toYRot();
         boss.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0f);
@@ -935,6 +936,7 @@ public final class RedGates {
         level.addFreshEntity(boss);
         run.boss = boss.getUUID();
         run.bossSpawned = true;
+        return boss;
     }
 
     /** Its master fell: the way out opens, the raiders scatter, and the red cache comes down where it stood. */
@@ -1016,7 +1018,7 @@ public final class RedGates {
      * Every half second: out in the open at night a hunter chills, in a blizzard fast; under a roof, in leather, or
      * wet the cold bites less or more; by a fire it goes. Frozen through, vanilla's freezing takes over.
      */
-    private static void cold(ServerLevel level, RedGate run, ServerPlayer p) {
+    static void cold(ServerLevel level, RedGate run, ServerPlayer p) {
         UUID id = p.getUUID();
         int chill = CHILL.getOrDefault(id, 0);
         if (!RedGateConfig.cold() || p.isCreative() || p.isSpectator()) {
@@ -1201,7 +1203,7 @@ public final class RedGates {
     }
 
     /** A hunter fell in a red gate: out of it (they wake where they respawn); the last of them, and it has failed. */
-    private static void playerFell(ServerPlayer p) {
+    static void playerFell(ServerPlayer p) {
         RedGate run = runOf(p.server, p);
         if (run == null || run.state == RedGate.State.ENDED || !run.insideNow.contains(p.getUUID())) return;
         MinecraftServer server = p.server;
@@ -1590,8 +1592,10 @@ public final class RedGates {
                 buildNow(p.server, run);
                 BlockPos spot = RedWorldBuilder.bossSpot(run);
                 level.getChunk(spot);
-                if (!run.bossSpawned) spawnMaster(level, run, spot);
-                if (!(run.boss != null && level.getEntity(run.boss) instanceof GateBossEntity boss)) return false;
+                // (a master spawned in a chunk nobody is near can't be looked up, but it can still fall)
+                GateBossEntity boss = run.boss != null && level.getEntity(run.boss) instanceof GateBossEntity b ? b : null;
+                if (boss == null && !run.bossSpawned) boss = spawnMaster(level, run, spot);
+                if (boss == null) return false;
                 boss.kill();
             }
             case "chill" -> setChill(p, n);
