@@ -219,6 +219,12 @@ public final class GateService {
 
     // ------------------------------------------------------------------ noticing gates
 
+    /** True if the player has come within 40 blocks of this gate since the server started ({@link #noticeNearby}). */
+    public static boolean noticed(ServerPlayer player, UUID gate) {
+        Set<UUID> seen = NOTICED.get(player.getUUID());
+        return seen != null && seen.contains(gate);
+    }
+
     /** Players who come close to a gate for the first time are told about it (and warned if it is above them). */
     public static void noticeNearby(ServerLevel level, GateBlockEntity gate) {
         // a keyed gate was opened on purpose, by someone standing right there; a sealed one is nobody's business
@@ -968,10 +974,6 @@ public final class GateService {
             }
         }
         return best;
-    }
-
-    static boolean naturalSpawnsOn() {
-        return Config.GATE_SPAWN_CHANCE.get() > 0;
     }
 
     private GateService() {}

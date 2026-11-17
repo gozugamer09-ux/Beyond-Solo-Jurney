@@ -72,8 +72,14 @@ public final class Config {
 
     // --- Gates ---
     public static final ModConfigSpec.DoubleValue GATE_SPAWN_CHANCE = B
-            .comment("Chance, checked once a minute for each evaluated player in the overworld, that a gate opens 40-80 blocks away (never near another open gate). 0 turns it off; world generation still places gates.")
+            .comment("Chance, checked once a minute for each evaluated player in the overworld, that a gate opens 40-80 blocks away. 0 turns gates opening near players off; world generation still places gates.")
             .defineInRange("gates.openChancePerMinute", 0.08, 0.0, 1.0);
+    public static final ModConfigSpec.IntValue GATE_GUARANTEE_MINUTES = B
+            .comment("Minutes in the overworld a player can go without a gate opening near them (or one already standing near being pointed out to them) before the next one opens for sure. A player's very first gate opens within about a minute and a half. 0 = only the chance above.")
+            .defineInRange("gates.guaranteeMinutes", 6, 0, 1440);
+    public static final ModConfigSpec.IntValue GATE_MAX_NEARBY = B
+            .comment("How many open gates may stand within 160 blocks of a player before no more open around them. A gate standing there that they have not seen yet (world generation puts them out of sight) is pointed out to them instead of a new one opening.")
+            .defineInRange("gates.maxOpenNearby", 2, 1, 16);
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends Integer>> GATE_RANK_WEIGHTS = B
             .comment("How often a new gate is each rank, E to S (six weights). A gate's rank is rolled at random wherever it opens and whoever is near: it never follows the player's rank or the distance from spawn. The default makes E-rank gates the most common and S-rank gates rare (4 in 100).")
             .defineList("gates.rankWeights", java.util.List.of(30, 25, 20, 13, 8, 4), () -> 10, o -> o instanceof Integer i && i >= 0);
@@ -89,8 +95,11 @@ public final class Config {
             .comment("How far (blocks) the sealed gate lets its player walk away before pulling them back.")
             .defineInRange("awakening.tetherRadius", 18, 6, 64);
     public static final ModConfigSpec.DoubleValue PRE_SYSTEM_GATE_CHANCE = B
-            .comment("Chance, checked once a minute for each player without the System, that a D-rank gate opens near them (if no gate is open close by). Keeps the first gate findable.")
+            .comment("Chance, checked once a minute for each player without the System, that a D-rank gate opens near them (if no D-rank gate is open close by). Keeps the first gate findable. 0 turns it off.")
             .defineInRange("awakening.gateChancePerMinute", 0.12, 0.0, 1.0);
+    public static final ModConfigSpec.IntValue PRE_SYSTEM_GATE_GUARANTEE = B
+            .comment("Like gates.guaranteeMinutes, for players without the System and their D-rank gates. Their first one opens in front of them within about a minute and a half.")
+            .defineInRange("awakening.gateGuaranteeMinutes", 3, 0, 1440);
 
     // --- Re-evaluation ---
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends Integer>> RANK_THRESHOLDS = B
