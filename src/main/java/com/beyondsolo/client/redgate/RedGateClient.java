@@ -154,8 +154,9 @@ public final class RedGateClient {
                 flash(ev);
                 // the black after going through lifts on the warning, not on a name card
                 GateOverlay.lift();
-                // other pop-ups wait while the System's warning is up
+                // other pop-ups make way and wait while the System's warning is up
                 hold(true);
+                NotificationManager.hideShowing();
                 sound(SoundEvents.BEACON_DEACTIVATE, 0.5f, 0.9f);
                 sound(SoundEvents.WARDEN_HEARTBEAT, 0.8f, 1f);
             }
@@ -174,7 +175,8 @@ public final class RedGateClient {
                 nightAt = Anim.now();
                 queue(ev, day, 0);
             }
-            case RedGatePayload.EV_DAWN -> queue(ev, day, 0);
+            // the dawn that begins the next day (the clock turns the day over at six, an hour later)
+            case RedGatePayload.EV_DAWN -> queue(ev, day + 1, 0);
             case RedGatePayload.EV_CAMP -> queue(ev, camps, campsTotal);
             case RedGatePayload.EV_RAID, RedGatePayload.EV_EDGE, RedGatePayload.EV_BLIZZARD, RedGatePayload.EV_RELEASED -> {
                 flash(ev);
@@ -196,18 +198,24 @@ public final class RedGateClient {
         BANNERS.addLast(new Banner(ev, a, b));
     }
 
-    /** The banner showing now; the next goes up once it is done (none while the warning is up). */
+    /** The banner showing now; the next goes up once it is done (none while the warning or a gate moment is up). */
     @Nullable
     static Banner banner() {
         if (banner != null && banner.age() > banner.duration()) banner = null;
-        if (banner == null && !BANNERS.isEmpty() && !warningUp()) {
+        if (banner == null && !BANNERS.isEmpty() && !warningUp() && !GateOverlay.active()) {
             banner = BANNERS.pollFirst();
             banner.start = Anim.now();
         }
         return banner;
     }
 
-    static boolean warningUp() {
+    /** Every frame: while a world loads behind its screen, the warning waits for it (it would play out unseen). */
+    static void frame() {
+        if (GateOverlay.loading() && warningUp()) warningAt += Anim.dt();
+    }
+
+    /** True while the System's red warning has the screen (quest windows wait for it). */
+    public static boolean warningUp() {
         return Anim.since(warningAt) < WARNING_SECONDS;
     }
 

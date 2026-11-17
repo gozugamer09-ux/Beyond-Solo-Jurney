@@ -1076,14 +1076,17 @@ world), keyed by its gate's id.
   biome and noise settings, both `beyondsolo:red_winter`). Each run's patch is shaped a step per tick: the breach where hunters land (black
   stones, cracked tiles, red veins, two campfires, the way out sealed and burning red), the master's keep about a
   hundred blocks off (ice and deepslate walls, six towers, a throne, a spire with a red light that shows from the
-  breach) and `CAMPS` (5) camps in the snow. The patch ends at `EDGE` (200 blocks from the breach): the blizzard there
-  is a wall that pushes hunters back, and throws back anyone who gets 24 blocks past it.
+  breach) and `CAMPS` (5) camps in the snow. Each of these sites stands on its own mound (`site`): a skirt slopes from
+  its edge down into the land round it, so the keep never ends up on a pillar in a frozen sea. The patch ends at `EDGE`
+  (200 blocks from the breach): the blizzard there is a wall that pushes hunters back, and throws back anyone who gets
+  24 blocks past it.
 - **Time** (`RedGate.insideTime`): runs `redgates.timeRate` (8) times faster while anyone is inside. Night
   (`NIGHT_START`..`NIGHT_END`) brings raids (`raid`: the land's own creatures 20 to 28 blocks out, after one hunter,
   angrier than outside: `fury`, +25% health, +15% damage), dawn sends them back into the snow, blizzards blow in now
   and then. Creatures come from the run's own mix (`mix`: frost-touched, our own kinds only, no vanilla mobs).
 - **Cold** (`cold`, every second, off with `redgates.cold`): out in the open at night or in a blizzard a hunter
-  chills (0..`MAX_CHILL`); frozen through, vanilla freezing takes over. A fire close by (`warmth`: a lit campfire,
+  chills (0..`MAX_CHILL`); past `FROST_RIM` (70) vanilla's frost creeps in from the screen's edges, and frozen through,
+  vanilla freezing takes over. A fire close by (`warmth`: a lit campfire,
   flames, lava, magma, a lit furnace) warms them; a roof overhead cuts the chill to a quarter. Past `EDGE` the wind
   chills them faster.
 - **Camps and keep:** a pack rises round a camp's fire as hunters come within `CAMP_REACH`; once it is dead its stash
@@ -1103,7 +1106,9 @@ world), keyed by its gate's id.
   bar, camps and kills, a compass to the master or the way out), the capsule outside for anyone near a red gate,
   banners (night, dawn, raid, blizzard, camp taken, freezing, edge, released) and the summary card once home.
   `RedGateClientEvents`: the dimension's sky, the red cast of the fog at night and the white-out of a blizzard.
-  `GateOverlay` draws red gates' moments in blood (`GatePayload.RED`).
+  `GateOverlay` draws red gates' moments in blood (`GatePayload.RED`). Its moments and the warning wait while a world
+  loads behind its own screen (`GateOverlay.loading`): otherwise the card coming home played out unseen behind
+  "Loading terrain" whenever the chunks at home took a few seconds, and the summary waited on the cover after it.
 - **Commands** (`/system redgate ...`, level 2): `force`, `gate [rank]`, `now [rank]`, `build`, `jump <to> [n]` (night,
   dawn, day n, time n, raid, blizzard [s], calm, seal, release, clear, chill n, or to the breach, keep, a camp, its
   master), `leave`, `end`, `status`. All numbers are first guesses for the balancing pass.

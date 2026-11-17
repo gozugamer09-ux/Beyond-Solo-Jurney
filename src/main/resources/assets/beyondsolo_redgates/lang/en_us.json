@@ -68,5 +68,6 @@
   "quest.beyondsolo.red_gate": "Red Gate: %s-Rank",
   "quest.beyondsolo.red_gate.desc": "The gate turned red behind you and sealed. Defeat %s to break its hold, and take what its camps hoard.",
   "quest_objective.beyondsolo.red_gate_camps": "Take the camps of the Red Winter",
-  "quest_objective.beyondsolo.red_gate_master": "Defeat %s"
+  "quest_objective.beyondsolo.red_gate_master": "Defeat %s",
+  "redgate.beyondsolo.overlay.cleared": "RED GATE CLEARED"
 }

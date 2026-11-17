@@ -68,5 +68,6 @@
   "quest.beyondsolo.red_gate": "Portal Rojo: rango %s",
   "quest.beyondsolo.red_gate.desc": "El portal se volvió rojo a tu espalda y se selló. Derrota a %s para romper su dominio y llévate lo que guardan sus campamentos.",
   "quest_objective.beyondsolo.red_gate_camps": "Toma los campamentos del Invierno Rojo",
-  "quest_objective.beyondsolo.red_gate_master": "Derrota a %s"
+  "quest_objective.beyondsolo.red_gate_master": "Derrota a %s",
+  "redgate.beyondsolo.overlay.cleared": "PORTAL ROJO DESPEJADO"
 }

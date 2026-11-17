@@ -162,8 +162,27 @@ public final class GateOverlay {
         return true;
     }
 
+    /**
+     * A world is loading behind its own screen (after going through, or joining): nothing drawn here can be seen, so
+     * nothing here moves on. Without this the name card coming home (and the cover's lifting) played out unseen behind
+     * "Loading terrain" when the chunks at home took a few seconds.
+     */
+    public static boolean loading() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level == null || mc.player == null
+                || mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                || mc.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen;
+    }
+
     public static void frame() {
         float dt = Anim.dt();
+        if (loading()) {
+            // the moment showing (and the cover) wait for the world to show
+            if (current != null) startedAt += dt;
+            if (cover > 0) coverSince += dt;
+            if (liftedAt >= 0) liftedAt += dt;
+            return;
+        }
         trauma = Math.max(0f, trauma - dt * 1.1f);
         shakeTime += dt;
         if (current != null && current.p.kind() == GatePayload.BOSS_INTRO && Anim.since(startedAt) < 1.8f) lookAtBoss(dt);
@@ -323,7 +342,8 @@ public final class GateOverlay {
 
     /** Coming out on the other side: the cover lifts and the place is named. */
     private static void arrive(GuiGraphics g, int w, int h, float t, Moment m, boolean back) {
-        int color = back ? SystemTheme.ACCENT : rankColor(m);
+        // coming home from a red gate, the card keeps its red
+        int color = back && !red(m) ? SystemTheme.ACCENT : rankColor(m);
         float lift = 1 - Anim.outCubic(Anim.window(t, 0.1f, 1.1f));
         if (lift > 0.01f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(back ? 0xFFF4FBFF : 0xFF000000, lift)).draw(g);
         cover = 0;
@@ -454,7 +474,9 @@ public final class GateOverlay {
     }
 
     private static void cleared(GuiGraphics g, int w, int h, float t, Moment m) {
-        int gold = SystemTheme.GOLD;
+        // a red gate's clear is drawn in its blood red
+        boolean red = red(m);
+        int gold = red ? 0xFF000000 | com.beyondsolo.redgate.RedGates.RED : SystemTheme.GOLD;
         float exitK = Anim.window(t, m.duration - 0.6f, m.duration);
         float live = 1 - Anim.outCubic(exitK);
         float cx = w / 2f, y = h * 0.26f;
@@ -469,10 +491,10 @@ public final class GateOverlay {
         Ui.panel(g, -pw / 2f, -ph / 2f, pw, ph, 10, gold, 1f);
         g.pose().popPose();
         if (open > 0.95f) {
-            String head = Component.translatable("gate.beyondsolo.overlay.cleared").getString();
+            String head = Component.translatable(red ? "redgate.beyondsolo.overlay.cleared" : "gate.beyondsolo.overlay.cleared").getString();
             float hk = Anim.outCubic(Anim.window(t, 0.45f, 0.9f));
             float o2 = Gfx.fade(hk);
-            SysFont.spaced(g, head, cx, y + 10 - 4 * (1 - hk), 11f, 0xFFFFE6A8, true, 2.6f, 0.5f);
+            SysFont.spaced(g, head, cx, y + 10 - 4 * (1 - hk), 11f, red ? 0xFFFFC2C2 : 0xFFFFE6A8, true, 2.6f, 0.5f);
             Gfx.setAlpha(o2);
             SysFont.draw(g, m.p.title(), cx, y + 27, 7.5f, Gfx.alpha(SystemTheme.TEXT_SOFT, hk), false, 0.5f);
             float count = Anim.outCubic(Anim.window(t, 0.9f, 2.2f));

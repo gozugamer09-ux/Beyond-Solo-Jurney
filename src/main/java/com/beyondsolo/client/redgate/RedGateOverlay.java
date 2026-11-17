@@ -23,6 +23,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -148,7 +150,10 @@ public final class RedGateOverlay {
         float a = Mth.clamp(in * 1.4f, 0, 1) * (1 - Anim.outCubic(out));
         if (a <= 0.01f) return;
         boolean release = RedGateClient.releaseDay > 0;
-        float pw = Math.min(w - 24, 286), ph = release ? 108 : 96;
+        float pw = Math.min(w - 24, 286);
+        // the goal (its master's name can be long) wraps in the room left of the seal ring
+        List<String> goal = balanced(Component.translatable("redgate.beyondsolo.warning.goal", RedGateClient.boss).getString(), 8f, pw - 72);
+        float ph = 86 + 10.5f * goal.size() + (release ? 12 : 0);
         float x = (w - pw) / 2f, y = h * 0.18f - 20 * Anim.inCubic(out);
         float beat = heartbeat(age * 1.15f) * (1 - Anim.window(age, 3f, 5f));
         float glitch = age < 0.75f ? 1 - age / 0.75f : 0;
@@ -186,9 +191,10 @@ public final class RedGateOverlay {
         typed(g, tr("redgate.beyondsolo.warning.turned"), tx, ty, 7.6f, SystemTheme.TEXT, age, 0.8f);
         typed(g, tr("redgate.beyondsolo.warning.sealed"), tx, ty + 12, 7f, SystemTheme.TEXT_SOFT, age, 1.6f);
         typed(g, Component.translatable("redgate.beyondsolo.warning.time", RedGateClient.rate).getString(), tx, ty + 23, 7f, SystemTheme.TEXT_SOFT, age, 2.4f);
-        typed(g, Component.translatable("redgate.beyondsolo.warning.goal", RedGateClient.boss).getString(), tx, ty + 37, 8f, EMBER, age, 3.3f);
+        for (int i = 0; i < goal.size(); i++) typed(g, goal.get(i), tx, ty + 37 + 10.5f * i, 8f, EMBER, age, 3.3f + 0.6f * i);
         if (release) {
-            typed(g, Component.translatable("redgate.beyondsolo.warning.release", RedGateClient.releaseDay).getString(), tx, ty + 49, 7f, SystemTheme.TEXT_SOFT, age, 4.3f);
+            typed(g, Component.translatable("redgate.beyondsolo.warning.release", RedGateClient.releaseDay).getString(), tx,
+                    ty + 39 + 10.5f * goal.size(), 7f, SystemTheme.TEXT_SOFT, age, 3.9f + 0.6f * goal.size());
         }
 
         // the way out: a ring counting down while it is open, a lock snapping shut as it seals
@@ -649,6 +655,35 @@ public final class RedGateOverlay {
     }
 
     /** Text that types itself in, with a red caret while it types. */
+    /** As {@link #wrap}, but with the lines as even as they go (no lone word left on the last one). */
+    private static List<String> balanced(String s, float size, float max) {
+        List<String> best = wrap(s, size, max);
+        if (best.size() < 2) return best;
+        for (float m = max - 4; m > max * 0.5f; m -= 4) {
+            List<String> t = wrap(s, size, m);
+            if (t.size() > best.size()) break;
+            best = t;
+        }
+        return best;
+    }
+
+    /** Splits {@code s} into lines no wider than {@code max} at this size, words kept whole. */
+    private static List<String> wrap(String s, float size, float max) {
+        List<String> out = new ArrayList<>();
+        String cur = "";
+        for (String word : s.split(" ")) {
+            String next = cur.isEmpty() ? word : cur + " " + word;
+            if (!cur.isEmpty() && SysFont.width(next, size, false) > max) {
+                out.add(cur);
+                cur = word;
+            } else {
+                cur = next;
+            }
+        }
+        if (!cur.isEmpty()) out.add(cur);
+        return out;
+    }
+
     private static void typed(GuiGraphics g, String s, float x, float y, float size, int color, float age, float from) {
         if (age < from) return;
         SysFont.Line line = SysFont.line(s, size, false);

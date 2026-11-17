@@ -86,6 +86,11 @@ public final class NotificationManager {
         held = value;
     }
 
+    /** Sends off the pop-ups showing now (a moment that needs the whole screen, like a red gate's warning). */
+    public static void hideShowing() {
+        for (Popup p : ACTIVE) if (!p.hiding()) p.hide();
+    }
+
     public static void push(SystemNotification notification) {
         HISTORY.addFirst(new Entry(notification, System.currentTimeMillis()));
         while (HISTORY.size() > HISTORY_SIZE) HISTORY.removeLast();

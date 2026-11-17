@@ -129,6 +129,8 @@ public final class RedGates {
 
     /** Chill: 0 is warm, this is frozen through (vanilla's freezing takes over from there). */
     public static final int MAX_CHILL = 100;
+    /** From this chill on, vanilla's frost creeps in round the screen, and at {@link #MAX_CHILL} it bites. */
+    static final int FROST_RIM = 70;
     /** How close hunters come to a camp, the keep, and its master before they stir. */
     static final int CAMP_REACH = 30;
     static final int KEEP_REACH = 46;
@@ -204,13 +206,16 @@ public final class RedGates {
             BeyondSolo.LOGGER.error("The red gate dimension {} is missing; is the mod's datapack loaded?", RedWorld.DIMENSION.location());
             return false;
         }
-        run = start(server, gate, g);
+        run = start(server, gate, g, player.getUUID());
         join(player, run, gate);
         return true;
     }
 
-    /** The gate turns red: its run begins, the patch behind it starts being shaped, and everyone near sees it happen. */
-    static RedGate start(MinecraftServer server, GateBlockEntity gate, GateInstance g) {
+    /**
+     * The gate turns red: its run begins, the patch behind it starts being shaped, and everyone near sees it happen
+     * (but {@code first}, the hunter it turned for: the System's warning tells them once they are through).
+     */
+    static RedGate start(MinecraftServer server, GateBlockEntity gate, GateInstance g, @Nullable UUID first) {
         RedGateData data = RedGateData.get(server);
         ServerLevel world = (ServerLevel) gate.getLevel();
         long now = world.getGameTime();
@@ -229,6 +234,7 @@ public final class RedGates {
         world.playSound(null, pos, SoundEvents.WITHER_AMBIENT, SoundSource.HOSTILE, 1.5f, 0.5f);
         ParticleGuard.send(world, RED_DUST, c.x, c.y, c.z, 60, 1.6, 2.2, 1.6, 0.02);
         for (ServerPlayer p : world.getEntitiesOfClass(ServerPlayer.class, new AABB(pos).inflate(48))) {
+            if (p.getUUID().equals(first)) continue;
             PacketDistributor.sendToPlayer(p, outside(run, gate, RedGatePayload.EV_TURNED));
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
                     Component.translatable("notify.beyondsolo.redgate.turned.title"),
@@ -412,8 +418,9 @@ public final class RedGates {
         BlockPos b = BlockPos.containing(at);
         level.playSound(null, b, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.5f, 0.4f);
         level.playSound(null, b, SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 2f, 0.6f);
-        giveQuest(p, run);
+        // the warning first: the quest's own window waits until it has had its say
         PacketDistributor.sendToPlayer(p, inside(server, run, p, RedGatePayload.EV_WARNING));
+        giveQuest(p, run);
         return true;
     }
 
@@ -442,7 +449,7 @@ public final class RedGates {
         }
         COOLDOWN.put(id, p.level().getGameTime() + 80);
         PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.RETURN, GatePayload.RED + run.inside.ordinal(), -1, 0,
-                Component.translatable(cleared ? "gate.beyondsolo.cleared" : "redgate.beyondsolo.escaped"), dungeonName()));
+                Component.translatable(cleared ? "redgate.beyondsolo.overlay.cleared" : "redgate.beyondsolo.escaped"), dungeonName()));
         PacketDistributor.sendToPlayer(p, summary(run, cleared ? RedGatePayload.EV_SUMMARY_CLEARED : RedGatePayload.EV_SUMMARY_ESCAPED, xp));
         RedGateData.get(server).setDirty();
         if (run.insideNow.isEmpty() && !transitTo(run.gate)) end(server, run);
@@ -559,10 +566,12 @@ public final class RedGates {
             raid(level, run, inside);
         }
 
-        // the cold, every tick (vanilla thaws a little every tick)
+        // the cold, every tick (vanilla thaws a little every tick): vanilla's frost rim (and its freezing) only comes in
+        // the last stretch of the chill, before that the System's own frost at the edges shows it
         for (ServerPlayer p : inside) {
             int chill = CHILL.getOrDefault(p.getUUID(), 0);
-            p.setTicksFrozen(chill <= 0 ? 0 : Math.round(chill / (float) MAX_CHILL * p.getTicksRequiredToFreeze()) + 2);
+            p.setTicksFrozen(chill < FROST_RIM ? 0
+                    : Math.round((chill - FROST_RIM) / (float) (MAX_CHILL - FROST_RIM) * p.getTicksRequiredToFreeze()) + 2);
         }
 
         if ((now + run.slot) % 10 == 0) {
@@ -1534,7 +1543,7 @@ public final class RedGates {
         RedGateData data = RedGateData.get(p.server);
         if (data.get(g.id()) != null || RedWorld.level(p.server) == null) return null;
         data.force(g.id(), true);
-        RedGate run = start(p.server, gate, g);
+        RedGate run = start(p.server, gate, g, p.getUUID());
         run.party.add(p.getUUID());
         return arrive(p, run) ? run : null;
     }

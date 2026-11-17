@@ -64,6 +64,7 @@ public final class RedGateClientEvents {
         /** Every frame too, so the sky moves smoothly at the inside clock's pace. */
         @SubscribeEvent
         static void frame(RenderFrameEvent.Pre event) {
+            RedGateClient.frame();
             RedGateClient.applyWorld(event.getPartialTick().getGameTimeDeltaPartialTick(false));
         }
 

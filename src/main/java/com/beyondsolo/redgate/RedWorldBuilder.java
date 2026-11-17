@@ -95,12 +95,12 @@ final class RedWorldBuilder {
                 step = Step.ARRIVAL;
             }
             case ARRIVAL -> {
-                if (!ready(level, run.center, 14, now)) return;
+                if (!ready(level, run.center, 23, now)) return;
                 run.exit = arrival(level, run, run.center, front(run));
                 step = Step.KEEP_GROUND;
             }
             case KEEP_GROUND -> {
-                if (!ready(level, run.keep, 26, now)) return;
+                if (!ready(level, run.keep, 43, now)) return;
                 keepGround(level, run.keep, keepFront(run), run.seed);
                 step = Step.KEEP_WALLS;
             }
@@ -127,7 +127,7 @@ final class RedWorldBuilder {
                     return;
                 }
                 BlockPos c = at.pos;
-                if (!ready(level, c, 12, now)) return;
+                if (!ready(level, c, 19, now)) return;
                 camp(level, c, run.seed + camp * 7919L);
                 camp++;
             }
@@ -179,24 +179,33 @@ final class RedWorldBuilder {
 
     /**
      * Clears a round site to {@code height} blocks above its standing level (trees around it too) and lays its floor
-     * ({@code floor} gives the top block for an offset), filling any dip under it down to the ground.
+     * ({@code floor} gives the top block for an offset), filling any dip under it down to the ground. Where the ground
+     * falls away round it, a snowy slope of rock up to {@code skirt} blocks wide carries the site, so it stands on a hill
+     * rather than on a pillar.
      */
-    private static void site(ServerLevel level, BlockPos c, int radius, int height, BiFunction<Integer, Integer, BlockState> floor) {
+    private static void site(ServerLevel level, BlockPos c, int radius, int height, int skirt, BiFunction<Integer, Integer, BlockState> floor) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         BlockState air = Blocks.AIR.defaultBlockState();
         int y = c.getY();
-        int outer = radius + 5;
+        int outer = radius + Math.max(5, skirt);
         for (int dx = -outer; dx <= outer; dx++) {
             for (int dz = -outer; dz <= outer; dz++) {
                 double d = Math.sqrt(dx * dx + dz * dz);
                 if (d > outer + 0.5) continue;
                 int x = c.getX() + dx, z = c.getZ() + dz;
                 if (d > radius + 0.5) {
-                    // trees and spikes leaning over the edge go too
-                    for (int yy = y; yy < y + height + 14; yy++) {
-                        p.set(x, yy, z);
-                        BlockState s = level.getBlockState(p);
-                        if (s.is(BlockTags.LOGS) || s.is(BlockTags.LEAVES)) level.setBlock(p, air, FLAGS);
+                    if (d <= radius + 5.5) {
+                        // trees and spikes leaning over the edge go too
+                        for (int yy = y; yy < y + height + 14; yy++) {
+                            p.set(x, yy, z);
+                            BlockState s = level.getBlockState(p);
+                            if (s.is(BlockTags.LOGS) || s.is(BlockTags.LEAVES)) level.setBlock(p, air, FLAGS);
+                        }
+                    }
+                    if (d <= radius + skirt + 0.5) {
+                        // the slope: a block lower for every step out, give or take a lump
+                        double lump = 1.1 * (Mth.sin(x * 0.29f) + Mth.cos(z * 0.33f)) + 0.6 * ((x * 73856093 ^ z * 19349663) & 7) / 7.0;
+                        slope(level, p, x, z, y - 1 - (int) Math.floor((d - radius) * 0.9 + Math.max(0, lump)));
                     }
                     continue;
                 }
@@ -216,6 +225,32 @@ final class RedWorldBuilder {
                 }
             }
         }
+    }
+
+    /** Raises a column's ground to {@code top} (snow over rock, ice under water), if it lies lower than that. */
+    private static void slope(ServerLevel level, BlockPos.MutableBlockPos p, int x, int z, int top) {
+        p.set(x, top, z);
+        if (!fillable(level.getBlockState(p))) return;
+        int ground = top;
+        for (int bottom = top - 26; ground > bottom; ground--) {
+            p.set(x, ground - 1, z);
+            if (!fillable(level.getBlockState(p))) break;
+        }
+        for (int yy = ground; yy <= top; yy++) {
+            p.set(x, yy, z);
+            boolean wet = !level.getBlockState(p).getFluidState().isEmpty();
+            BlockState s = yy == top ? Blocks.SNOW_BLOCK.defaultBlockState()
+                    : wet ? Blocks.PACKED_ICE.defaultBlockState()
+                    : yy >= top - 2 ? ((x + yy + z) % 5 == 0 ? Blocks.STONE.defaultBlockState() : Blocks.SNOW_BLOCK.defaultBlockState())
+                    : ((x * 3 + yy * 7 + z) & 7) == 0 ? Blocks.ANDESITE.defaultBlockState() : Blocks.STONE.defaultBlockState();
+            level.setBlock(p, s, FLAGS);
+        }
+    }
+
+    /** Air, water, ice, snow, plants and trees: what a slope may be laid over. */
+    private static boolean fillable(BlockState s) {
+        return s.isAir() || s.canBeReplaced() || !s.getFluidState().isEmpty() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS)
+                || s.is(Blocks.ICE) || s.is(Blocks.POWDER_SNOW) || s.is(Blocks.SNOW);
     }
 
     /** A little fresh snow on bare ground here and there. */
@@ -257,7 +292,7 @@ final class RedWorldBuilder {
     static BlockPos arrival(ServerLevel level, RedGate run, BlockPos a, Direction front) {
         RandomSource r = RandomSource.create(run.seed ^ 0xB2EAC4L);
         long seed = run.seed;
-        site(level, a, 10, 10, (dx, dz) -> {
+        site(level, a, 10, 10, 12, (dx, dz) -> {
             double d = Math.sqrt(dx * dx + dz * dz);
             double k = n(a.getX() + dx, a.getZ() + dz, seed);
             if (d <= 4.6) return k > 0.6 ? st(Blocks.CRACKED_DEEPSLATE_TILES) : k > -0.3 ? st(Blocks.DEEPSLATE_TILES) : st(Blocks.POLISHED_DEEPSLATE);
@@ -321,7 +356,7 @@ final class RedWorldBuilder {
     // ------------------------------------------------------------------ the keep
 
     private static void keepGround(ServerLevel level, BlockPos c, Direction front, long seed) {
-        site(level, c, 22, 30, (dx, dz) -> {
+        site(level, c, 22, 30, 20, (dx, dz) -> {
             double d = Math.sqrt(dx * dx + dz * dz);
             int x = c.getX() + dx, z = c.getZ() + dz;
             double k = n(x, z, seed);
@@ -464,7 +499,7 @@ final class RedWorldBuilder {
 
     static void camp(ServerLevel level, BlockPos c, long seed) {
         RandomSource r = RandomSource.create(seed ^ 0xCA3F11L);
-        site(level, c, 9, 8, (dx, dz) -> {
+        site(level, c, 9, 8, 9, (dx, dz) -> {
             double d = Math.sqrt(dx * dx + dz * dz);
             double k = n(c.getX() + dx, c.getZ() + dz, seed);
             if (d <= 2.2) return st(Blocks.SPRUCE_PLANKS);
