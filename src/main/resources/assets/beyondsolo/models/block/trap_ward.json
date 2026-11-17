@@ -1,0 +1,54 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:translucent",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "beyondsolo:block/trap_ward",
+    "ward": "beyondsolo:block/trap_ward"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "texture": "#ward",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#ward",
+          "cullface": "south"
+        },
+        "east": {
+          "texture": "#ward",
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#ward",
+          "cullface": "west"
+        },
+        "up": {
+          "texture": "#ward",
+          "cullface": "up"
+        },
+        "down": {
+          "texture": "#ward",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}

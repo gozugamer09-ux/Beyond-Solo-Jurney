@@ -41,6 +41,16 @@ public final class GateInstance {
     @Nullable private UUID owner;
     /** Awakening trial: the furthest cavern the owner has reached (where they get up again after falling). */
     private int checkpoint;
+    /**
+     * Awakening trial opened since 0.1.1: the short temple ({@link DungeonLayout#temple}) instead of the long descent.
+     * Trials from older saves keep the plan their rock was carved to.
+     */
+    private boolean temple;
+    /**
+     * Awakening trial behind a door found in a cave: where its owner wakes once it is over (in front of that cave's gate
+     * in the world, kept here because the cave itself is gone by then). Null: in front of the sealed gate.
+     */
+    @Nullable private GateService.Home trialHome;
     /** Set by commands (and tests) to force a boss; otherwise the boss comes from the seed. */
     @Nullable private BossKind bossOverride;
     /** -1: from the seed, 0: not ascended, 1: ascended. */
@@ -49,6 +59,8 @@ public final class GateInstance {
     @Nullable private Keyed keyed;
     /** The cave was wiped back to rock and its slot handed to another gate ({@link GateWiper}). */
     private boolean slotFreed;
+    /** Weather, the hidden chamber, trap rooms and how far the party got with them ({@code depths} package). */
+    private com.beyondsolo.depths.GateDepths depths = com.beyondsolo.depths.GateDepths.fresh();
 
     private transient DungeonLayout layout;
 
@@ -70,6 +82,10 @@ public final class GateInstance {
     public void setOwner(@Nullable UUID owner) { this.owner = owner; this.layout = null; }
     public int checkpoint() { return checkpoint; }
     public void setCheckpoint(int room) { this.checkpoint = room; }
+    public boolean temple() { return temple; }
+    public void setTemple(boolean temple) { this.temple = temple; this.layout = null; }
+    @Nullable public GateService.Home trialHome() { return trialHome; }
+    public void setTrialHome(@Nullable GateService.Home home) { this.trialHome = home; }
     public long seed() { return seed; }
     public int slot() { return slot; }
     public ResourceKey<Level> gateDimension() { return gateDimension; }
@@ -112,6 +128,7 @@ public final class GateInstance {
     public void setKeyed(@Nullable Keyed keyed) { this.keyed = keyed; }
     public boolean slotFreed() { return slotFreed; }
     public void setSlotFreed(boolean freed) { this.slotFreed = freed; }
+    public com.beyondsolo.depths.GateDepths depths() { return depths; }
 
     /** The boss's name as the System says it. */
     public net.minecraft.network.chat.Component bossName() {
@@ -135,8 +152,18 @@ public final class GateInstance {
     }
 
     public DungeonLayout layout() {
-        if (layout == null) layout = DungeonLayout.plan(seed, theme());
+        if (layout == null) {
+            com.beyondsolo.depths.HiddenKind hidden = depths.hidden(this);
+            if (isTrial() && temple) layout = DungeonLayout.temple(seed);
+            else if (hidden == com.beyondsolo.depths.HiddenKind.SEALED) layout = DungeonLayout.planSealed(seed, theme());
+            else layout = DungeonLayout.plan(seed, theme(), hidden != null);
+        }
         return layout;
+    }
+
+    /** Plans the cave again (after its hidden chamber was forced). Only before it is built. */
+    public void replan() {
+        this.layout = null;
     }
 
     /** Where the cave's origin is in the gate dimension. */
@@ -179,10 +206,21 @@ public final class GateInstance {
         tag.putLong("clearedAt", clearedAt);
         if (owner != null) tag.putUUID("owner", owner);
         tag.putInt("checkpoint", checkpoint);
+        tag.putBoolean("temple", temple);
+        if (trialHome != null) {
+            CompoundTag home = new CompoundTag();
+            home.putString("dim", trialHome.dimension().location().toString());
+            home.putDouble("x", trialHome.pos().x);
+            home.putDouble("y", trialHome.pos().y);
+            home.putDouble("z", trialHome.pos().z);
+            home.putFloat("yaw", trialHome.yaw());
+            tag.put("trialHome", home);
+        }
         if (bossOverride != null) tag.putString("bossKind", bossOverride.id);
         tag.putInt("ascended", ascendedOverride);
         if (keyed != null) tag.put("keyed", keyed.save());
         tag.putBoolean("slotFreed", slotFreed);
+        tag.put("depths", depths.save());
         return tag;
     }
 
@@ -206,10 +244,17 @@ public final class GateInstance {
         g.clearedAt = tag.getLong("clearedAt");
         if (tag.hasUUID("owner")) g.owner = tag.getUUID("owner");
         g.checkpoint = tag.getInt("checkpoint");
+        g.temple = tag.getBoolean("temple");
+        if (tag.contains("trialHome")) {
+            CompoundTag home = tag.getCompound("trialHome");
+            g.trialHome = new GateService.Home(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(home.getString("dim"))),
+                    new net.minecraft.world.phys.Vec3(home.getDouble("x"), home.getDouble("y"), home.getDouble("z")), home.getFloat("yaw"));
+        }
         if (tag.contains("bossKind")) g.bossOverride = BossKind.byId(tag.getString("bossKind"));
         g.ascendedOverride = tag.contains("ascended") ? tag.getInt("ascended") : -1;
         if (tag.contains("keyed")) g.keyed = Keyed.load(tag.getCompound("keyed"));
         g.slotFreed = tag.getBoolean("slotFreed");
+        g.depths = tag.contains("depths") ? com.beyondsolo.depths.GateDepths.load(tag.getCompound("depths")) : com.beyondsolo.depths.GateDepths.legacy();
         return g;
     }
 

@@ -82,6 +82,9 @@ If you change an English line's meaning, fix the Spanish too: the test only chec
 | Ascended / Ascendant | Ascendente |
 | Hollow / Ashen / Gloom / Mire / Ember | Hueco / Ceniciento / Umbrío / Cenagal / Ascuas |
 | Gloomfang, Broodling, Shardback, Hollow Acolyte, Ashen Sentinel, Emberwisp | Sabueso Umbrío, Cría de la Prole, Lomo de Esquirlas, Acólito Hueco, Centinela Ceniciento, Ascua Fatua |
+| Gutterkin, Grave Thrall, Bone Archer, Rime Stalker, Tuskbrute, Tusk Shaman, Deepkin | Trasgo del Albañal, Siervo Sepulcral, Arquero de Hueso, Acechador Gélido, Bruto Colmilludo, Chamán Colmilludo, Morador Abisal |
+| Duskwing, Hive Drone, Brimling, Wailing Wraith, Static Drifter, Rimeclaw | Ala del Ocaso, Zángano de la Colmena, Diablillo de Azufre, Espectro Plañidero, Errante Estático, Zarpa Gélida |
+| Pit Ravager, Coilfang, Cragcrawler, Hive Reaver, Rune Colossus, Thorn Spitter | Devastador del Foso, Colmillo Enroscado, Reptador de Riscos, Segador de la Colmena, Coloso Rúnico, Escupespinas |
 | Shift + click | Mayús + clic |
 
 Subclasses, sets, bosses and skills already have names in `es_es.json`; search there before naming something new so

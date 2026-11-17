@@ -19,7 +19,8 @@ import java.util.Map;
  * Buildup framework. Register a {@link BuildupType}, then call {@link #add} when a hit applies it.
  * Works the same on players and mobs, so it hits both ways.
  *
- * <p>{@link #BLOOD}: at 100 buildup the target loses 10% of max health. {@link Statuses} adds burn (deep burn),
+ * <p>{@link #BLOOD}: at 100 buildup the target loses 10% of max health (5% for bosses and elites, see
+ * {@link Statuses#popCap}). {@link Statuses} adds burn (deep burn),
  * venom stacks and crimson the same way. The target's resistance to the element (see {@link ModAttributes})
  * shrinks every amount added.
  */
@@ -51,6 +52,10 @@ public final class Buildups {
     public static void add(LivingEntity target, BuildupType type, float amount, @Nullable Entity source) {
         if (target.level().isClientSide || !target.isAlive()) return;
         amount *= 1 - ModAttributes.resistance(target, type.element());
+        // a creature immune to an element never builds it up (a blaze can't take a deep burn)
+        if (!(target instanceof net.minecraft.world.entity.player.Player)
+                && com.beyondsolo.enemy.ElementalProfile.of(target).rating(com.beyondsolo.enemy.Affinity.skillElementOf(type.element()))
+                == com.beyondsolo.enemy.ElementalProfile.Rating.IMMUNE) return;
         if (amount <= 0) return;
         BuildupData data = target.getData(ModAttachments.BUILDUP);
         float value = data.get(type.id()) + amount;

@@ -4,17 +4,22 @@ import com.beyondsolo.BeyondSolo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.LightBlock;
 import net.minecraft.world.level.block.MultifaceBlock;
+import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -56,6 +61,11 @@ public final class DungeonBuilder {
         for (DungeonLayout.Tunnel t : layout.tunnels()) steps.add(new TunnelStep(t));
         for (DungeonLayout.Room room : layout.rooms()) steps.add(level -> {
             decorate(level, room);
+            return -1;
+        });
+        // the hidden chamber's wall and dressing, the trap rooms' cores and vents
+        steps.add(level -> {
+            com.beyondsolo.depths.DepthsBuild.build(level, gate);
             return -1;
         });
     }
@@ -251,7 +261,7 @@ public final class DungeonBuilder {
             BlockPos at = floorSpot(level, c, room, floor, r, 0.85f);
             if (at != null) level.setBlock(at, scatterState(), FLAGS);
         }
-        if (room.kind() != DungeonLayout.Kind.BOSS && room.kind() != DungeonLayout.Kind.ENTRANCE) {
+        if (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE) {
             int spikes = 3 + r.nextInt(4);
             for (int i = 0; i < spikes; i++) {
                 BlockPos at = floorSpot(level, c, room, floor, r, 0.7f);
@@ -269,9 +279,10 @@ public final class DungeonBuilder {
             for (int k = 1; k <= h; k++) placeIfAir(level, top.below(k), theme.mainWall());
         }
 
-        // mana veins in the walls of caverns and side caves
-        if (theme != GateTheme.TRIAL && (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE)) {
-            int veins = 1 + r.nextInt(room.kind() == DungeonLayout.Kind.SIDE ? 3 : 2);
+        // mana veins in the walls of caverns and side caves, and plenty in a hidden chamber
+        if (theme != GateTheme.TRIAL && (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE
+                || room.kind() == DungeonLayout.Kind.HIDDEN)) {
+            int veins = room.kind() == DungeonLayout.Kind.HIDDEN ? 3 + r.nextInt(2) : 1 + r.nextInt(room.kind() == DungeonLayout.Kind.SIDE ? 3 : 2);
             for (int i = 0; i < veins; i++) {
                 float a = r.nextFloat() * Mth.TWO_PI;
                 BlockPos hit = march(level, new BlockPos(c.getX(), floor + 1 + r.nextInt(3), c.getZ()), Mth.cos(a), 0, Mth.sin(a), room.reach() + 6);
@@ -327,7 +338,10 @@ public final class DungeonBuilder {
                 placeIfAir(level, p, k == h && r.nextBoolean() ? Blocks.SOUL_LANTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LanternBlock.HANGING, true) : Blocks.CHAIN.defaultBlockState());
             }
         }
-        if (room.kind() != DungeonLayout.Kind.BOSS) return;
+        if (room.kind() != DungeonLayout.Kind.BOSS) {
+            if (gate.temple() && room.kind() == DungeonLayout.Kind.CAVERN) tenets(level, room, c, floor);
+            return;
+        }
 
         // the floor: dark polished stone, two gold rings and gold spokes
         int rx = room.rx(), rz = room.rz();
@@ -379,6 +393,53 @@ public final class DungeonBuilder {
             float a = i * Mth.TWO_PI / 6;
             placeIfAir(level, new BlockPos(c.getX() + Math.round(Mth.cos(a) * rx * 0.45f), floor + 4, c.getZ() + Math.round(Mth.sin(a) * rz * 0.45f)), fill);
         }
+    }
+
+    /** Lang keys of the stele's lines ({@code .1} to {@code .3}): its heading, then one tenet per sign. */
+    public static final String TENETS_TITLE = "trial.beyondsolo.tenets.title";
+    public static final String TENET = "trial.beyondsolo.tenet.";
+
+    /**
+     * An awakening temple's antechamber: a white stele across the way down, facing whoever comes in, with the Arbiter's
+     * three tenets in gold. Each tenet is how to live through one of its attacks: the cleave in front of it, the ring
+     * that runs along the floor, the pillars that fall where its light marks the floor.
+     */
+    private void tenets(ServerLevel level, DungeonLayout.Room room, BlockPos c, int floor) {
+        BlockPos from = gate.world(layout.rooms().get(Math.max(0, room.index() - 1)).center());
+        Direction in = Direction.getNearest(from.getX() - c.getX(), 0, from.getZ() - c.getZ());
+        if (in.getAxis().isVertical()) in = Direction.NORTH;
+        // seen by someone coming in: their left is the stele's clockwise side
+        Direction left = in.getClockWise();
+        BlockPos base = new BlockPos(c.getX(), floor, c.getZ());
+        for (int s = -1; s <= 1; s++) {
+            BlockPos col = base.relative(left, s);
+            level.setBlock(col.below(), Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState(), FLAGS);
+            level.setBlock(col, Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState(), FLAGS);
+            level.setBlock(col.above(), (s == 0 ? Blocks.CHISELED_QUARTZ_BLOCK : Blocks.QUARTZ_BRICKS).defaultBlockState(), FLAGS);
+            level.setBlock(col.above(2), Blocks.QUARTZ_BRICKS.defaultBlockState(), FLAGS);
+            level.setBlock(col.above(3), (s == 0 ? Blocks.GILDED_BLACKSTONE : Blocks.CHISELED_QUARTZ_BLOCK).defaultBlockState(), FLAGS);
+            // the way in front of it stays clear to stand and read
+            for (int y = 0; y <= 3; y++) {
+                BlockPos front = col.above(y).relative(in);
+                if (!level.getBlockState(front).isAir()) level.setBlock(front, Blocks.CAVE_AIR.defaultBlockState(), FLAGS);
+            }
+        }
+        placeIfAir(level, base.above(4), Blocks.SOUL_LANTERN.defaultBlockState());
+        sign(level, base.above(2).relative(in), in, Component.empty(), TENETS_TITLE);
+        String[] numerals = {"I", "II", "III"};
+        for (int i = 0; i < 3; i++) {
+            sign(level, base.relative(left, 1 - i).above().relative(in), in, Component.literal(numerals[i]), TENET + (i + 1));
+        }
+    }
+
+    /** A waxed wall sign in glowing gold: a first line, then three lines of text from the lang file ({@code key.1} to {@code .3}). */
+    private static void sign(ServerLevel level, BlockPos at, Direction facing, Component first, String key) {
+        level.setBlock(at, Blocks.DARK_OAK_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, facing), FLAGS);
+        if (!(level.getBlockEntity(at) instanceof SignBlockEntity sign)) return;
+        SignText text = new SignText().setColor(DyeColor.YELLOW).setHasGlowingText(true).setMessage(0, first);
+        for (int i = 1; i <= 3; i++) text = text.setMessage(i, Component.translatable(key + "." + i));
+        sign.setText(text, true);
+        sign.setWaxed(true);
     }
 
     private ResourceKey<LootTable> sideLoot() {

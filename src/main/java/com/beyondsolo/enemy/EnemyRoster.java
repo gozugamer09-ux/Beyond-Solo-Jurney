@@ -12,11 +12,11 @@ import java.util.function.Supplier;
 /**
  * Which creatures live behind a gate of each rank, and how a single gate (or a dungeon break) picks its own mix.
  *
- * <p>Each rank has a weighted pool of vanilla monsters and the roster's own ({@link MonsterKind}). A gate draws
- * three or four kinds from its rank's pool (at least two of the roster's own) and one ruling affinity, both from its
- * seed, so two gates of the same rank feel different: a frostbound hound den, a venomous brood nest, a hall of
- * storm-wreathed sentinels and acolytes. Most of the gate's own creatures carry its affinity; vanilla monsters
- * sometimes do; elites and champions always carry one.
+ * <p>Each rank has a weighted pool of the gate's own creatures ({@link MonsterKind}); no vanilla monster lives in a
+ * gate. A gate draws three to five kinds from its rank's pool (always at least one that fights up close) and one
+ * ruling affinity, both from its seed, so two gates of the same rank feel different: a frostbound hound den, a
+ * venomous hive, a hall of storm-wreathed sentinels and acolytes. Most of its creatures carry its affinity; elites and
+ * champions always carry one.</p>
  */
 public final class EnemyRoster {
     public record Entry(Supplier<EntityType<?>> type, int weight, boolean own) {}
@@ -61,22 +61,33 @@ public final class EnemyRoster {
 
     static {
         for (int i = 0; i < PlayerRank.values().length; i++) POOLS.add(new ArrayList<>());
-        add(PlayerRank.E, v(EntityType.ZOMBIE, 4), v(EntityType.SPIDER, 3), v(EntityType.SKELETON, 3), own(MonsterKind.GLOOMFANG, 4), own(MonsterKind.BROODLING, 4));
-        add(PlayerRank.D, v(EntityType.HUSK, 3), v(EntityType.CAVE_SPIDER, 3), v(EntityType.SKELETON, 2), own(MonsterKind.GLOOMFANG, 4),
-                own(MonsterKind.BROODLING, 3), own(MonsterKind.SHARDBACK, 3), own(MonsterKind.EMBERWISP, 2));
-        add(PlayerRank.C, v(EntityType.STRAY, 3), v(EntityType.ZOMBIE, 2), v(EntityType.VINDICATOR, 2), own(MonsterKind.GLOOMFANG, 3),
-                own(MonsterKind.SHARDBACK, 3), own(MonsterKind.HOLLOW_ACOLYTE, 3), own(MonsterKind.ASHEN_SENTINEL, 2), own(MonsterKind.BROODLING, 2));
-        add(PlayerRank.B, v(EntityType.VINDICATOR, 3), v(EntityType.WITCH, 2), v(EntityType.CAVE_SPIDER, 2), own(MonsterKind.HOLLOW_ACOLYTE, 3),
-                own(MonsterKind.ASHEN_SENTINEL, 3), own(MonsterKind.SHARDBACK, 3), own(MonsterKind.EMBERWISP, 3), own(MonsterKind.BROODLING, 2));
-        add(PlayerRank.A, v(EntityType.WITHER_SKELETON, 3), v(EntityType.BLAZE, 2), v(EntityType.VINDICATOR, 2), own(MonsterKind.ASHEN_SENTINEL, 3),
-                own(MonsterKind.HOLLOW_ACOLYTE, 3), own(MonsterKind.EMBERWISP, 3), own(MonsterKind.GLOOMFANG, 3), own(MonsterKind.SHARDBACK, 2));
-        add(PlayerRank.S, v(EntityType.WITHER_SKELETON, 3), v(EntityType.EVOKER, 2), v(EntityType.BLAZE, 2), own(MonsterKind.ASHEN_SENTINEL, 4),
-                own(MonsterKind.HOLLOW_ACOLYTE, 3), own(MonsterKind.EMBERWISP, 3), own(MonsterKind.SHARDBACK, 3), own(MonsterKind.GLOOMFANG, 2));
+        add(PlayerRank.E, own(MonsterKind.GLOOMFANG, 4), own(MonsterKind.BROODLING, 4), own(MonsterKind.GUTTERKIN, 4), own(MonsterKind.GRAVE_THRALL, 3),
+                own(MonsterKind.BONE_ARCHER, 3), own(MonsterKind.HIVE_DRONE, 3), own(MonsterKind.DUSKWING, 2), own(MonsterKind.THORN_SPITTER, 2));
+        add(PlayerRank.D, own(MonsterKind.GLOOMFANG, 3), own(MonsterKind.BROODLING, 3), own(MonsterKind.GUTTERKIN, 3), own(MonsterKind.SHARDBACK, 3),
+                own(MonsterKind.GRAVE_THRALL, 3), own(MonsterKind.BONE_ARCHER, 3), own(MonsterKind.DEEPKIN, 3), own(MonsterKind.EMBERWISP, 2),
+                own(MonsterKind.DUSKWING, 2), own(MonsterKind.HIVE_DRONE, 2), own(MonsterKind.COILFANG, 2), own(MonsterKind.THORN_SPITTER, 2),
+                own(MonsterKind.BRIMLING, 2));
+        add(PlayerRank.C, own(MonsterKind.SHARDBACK, 3), own(MonsterKind.HOLLOW_ACOLYTE, 3), own(MonsterKind.RIME_STALKER, 3), own(MonsterKind.COILFANG, 3),
+                own(MonsterKind.GLOOMFANG, 2), own(MonsterKind.ASHEN_SENTINEL, 2), own(MonsterKind.BROODLING, 2), own(MonsterKind.TUSK_SHAMAN, 2),
+                own(MonsterKind.TUSKBRUTE, 2), own(MonsterKind.DEEPKIN, 2), own(MonsterKind.CRAGCRAWLER, 2), own(MonsterKind.STATIC_DRIFTER, 2),
+                own(MonsterKind.BRIMLING, 2), own(MonsterKind.BONE_ARCHER, 2), own(MonsterKind.GRAVE_THRALL, 2), own(MonsterKind.THORN_SPITTER, 1));
+        add(PlayerRank.B, own(MonsterKind.HOLLOW_ACOLYTE, 3), own(MonsterKind.ASHEN_SENTINEL, 3), own(MonsterKind.EMBERWISP, 3), own(MonsterKind.TUSKBRUTE, 3),
+                own(MonsterKind.HIVE_REAVER, 3), own(MonsterKind.WAILING_WRAITH, 3), own(MonsterKind.SHARDBACK, 2), own(MonsterKind.TUSK_SHAMAN, 2),
+                own(MonsterKind.RIME_STALKER, 2), own(MonsterKind.CRAGCRAWLER, 2), own(MonsterKind.STATIC_DRIFTER, 2), own(MonsterKind.PIT_RAVAGER, 2),
+                own(MonsterKind.RIMECLAW, 2), own(MonsterKind.BRIMLING, 2));
+        add(PlayerRank.A, own(MonsterKind.ASHEN_SENTINEL, 3), own(MonsterKind.RIME_STALKER, 3), own(MonsterKind.HIVE_REAVER, 3), own(MonsterKind.WAILING_WRAITH, 3),
+                own(MonsterKind.PIT_RAVAGER, 3), own(MonsterKind.RIMECLAW, 3), own(MonsterKind.HOLLOW_ACOLYTE, 2), own(MonsterKind.EMBERWISP, 2),
+                own(MonsterKind.GLOOMFANG, 2), own(MonsterKind.TUSKBRUTE, 2), own(MonsterKind.RUNE_COLOSSUS, 2), own(MonsterKind.STATIC_DRIFTER, 2),
+                own(MonsterKind.TUSK_SHAMAN, 2), own(MonsterKind.CRAGCRAWLER, 2));
+        add(PlayerRank.S, own(MonsterKind.ASHEN_SENTINEL, 3), own(MonsterKind.RIME_STALKER, 3), own(MonsterKind.HIVE_REAVER, 3), own(MonsterKind.WAILING_WRAITH, 3),
+                own(MonsterKind.PIT_RAVAGER, 3), own(MonsterKind.RIMECLAW, 3), own(MonsterKind.RUNE_COLOSSUS, 3), own(MonsterKind.HOLLOW_ACOLYTE, 2),
+                own(MonsterKind.EMBERWISP, 2), own(MonsterKind.SHARDBACK, 2), own(MonsterKind.TUSKBRUTE, 2), own(MonsterKind.BRIMLING, 2),
+                own(MonsterKind.STATIC_DRIFTER, 2));
     }
 
-    private static Entry v(EntityType<?> type, int weight) {
-        return new Entry(() -> type, weight, false);
-    }
+    /** The awakening trial's dead: thralls, archers and gutterkin, plain (its own light is the only element there). */
+    private static final Mix TRIAL = new Mix(List.of(own(MonsterKind.GRAVE_THRALL, 4), own(MonsterKind.BONE_ARCHER, 4), own(MonsterKind.GUTTERKIN, 2)),
+            Affinity.NONE);
 
     private static Entry own(MonsterKind kind, int weight) {
         return new Entry(() -> EnemyModule.type(kind), weight, true);
@@ -95,18 +106,20 @@ public final class EnemyRoster {
         return random(rank, RandomSource.create(seed ^ 0x5EED_BEA5_7L));
     }
 
+    /** The awakening trial's creatures. */
+    public static Mix trial() {
+        return TRIAL;
+    }
+
     /** A fresh mix for a rank (dungeon breaks, events). */
     public static Mix random(PlayerRank rank, RandomSource r) {
         List<Entry> pool = new ArrayList<>(pool(rank));
-        int kinds = rank.tier() >= 3 ? 4 : 3;
+        int kinds = Math.min(pool.size(), 3 + (rank.tier() >= 2 ? 1 : 0) + (r.nextInt(4) == 0 ? 1 : 0));
         List<Entry> chosen = new ArrayList<>();
-        // at least two of the roster's own creatures
-        List<Entry> own = pool.stream().filter(Entry::own).toList();
-        while (chosen.stream().filter(Entry::own).count() < 2 && chosen.size() < own.size()) {
-            Entry e = weighted(own, r);
-            if (!chosen.contains(e)) chosen.add(e);
-        }
-        while (chosen.size() < kinds && chosen.size() < pool.size()) {
+        // always one that fights up close: a cave of archers and spitters alone would be a turret gallery
+        List<Entry> front = pool.stream().filter(e -> isFront(e.type.get())).toList();
+        if (!front.isEmpty()) chosen.add(weighted(front, r));
+        while (chosen.size() < kinds) {
             Entry e = weighted(pool, r);
             if (!chosen.contains(e)) chosen.add(e);
         }
@@ -123,6 +136,23 @@ public final class EnemyRoster {
             }
         }
         return new Mix(List.copyOf(chosen), affinity);
+    }
+
+    /** Whether a creature of this type closes in and fights hand to hand. */
+    public static boolean isFront(EntityType<?> type) {
+        MonsterKind kind = kindOf(type);
+        if (kind == null) return true;
+        return switch (kind.style) {
+            case ARCHER, CASTER, TURRET, BOMBER, SWOOPER -> false;
+            default -> true;
+        };
+    }
+
+    /** The gate creature kind of an entity type, or null for anything else. */
+    @org.jetbrains.annotations.Nullable
+    public static MonsterKind kindOf(EntityType<?> type) {
+        for (MonsterKind k : MonsterKind.values()) if (EnemyModule.type(k) == type) return k;
+        return null;
     }
 
     static Entry weighted(List<Entry> entries, RandomSource r) {

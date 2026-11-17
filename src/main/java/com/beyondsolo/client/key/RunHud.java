@@ -149,6 +149,11 @@ public final class RunHud {
         Gfx.setAlpha(old);
     }
 
+    /** How far the run clock is in (0..1): the depths' chips sit under it. */
+    public static float clockShown() {
+        return Anim.outCubic(clockIn);
+    }
+
     /** True once the re-run prompt is up on screen (the accept key turns its key then). */
     static boolean promptShown() {
         return promptIn > 0.3f;
