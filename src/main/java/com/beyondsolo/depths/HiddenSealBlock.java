@@ -89,6 +89,11 @@ public class HiddenSealBlock extends Block {
         return super.playerWillDestroy(level, pos, state, player);
     }
 
+    /** True when a player's eyes are within two blocks of a spot: no vanilla particles that close to a camera. */
+    static boolean nearViewer(Level level, double x, double y, double z) {
+        return level.hasNearbyAlivePlayer(x, y - 1.6, z, 2.2);
+    }
+
     /** A faint violet mote now and then, out of a face that opens onto the cave. */
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
@@ -99,6 +104,7 @@ public class HiddenSealBlock extends Block {
         double x = pos.getX() + 0.5 + d.getStepX() * 0.55 + (d.getStepX() == 0 ? random.nextDouble() - 0.5 : 0) * 0.9;
         double y = pos.getY() + 0.5 + d.getStepY() * 0.55 + (d.getStepY() == 0 ? random.nextDouble() - 0.5 : 0) * 0.9;
         double z = pos.getZ() + 0.5 + d.getStepZ() * 0.55 + (d.getStepZ() == 0 ? random.nextDouble() - 0.5 : 0) * 0.9;
+        if (nearViewer(level, x, y, z)) return;
         level.addParticle(new DustParticleOptions(new Vector3f(0.72f, 0.55f, 1f), 0.55f), x, y, z,
                 d.getStepX() * 0.01, 0.012, d.getStepZ() * 0.01);
     }

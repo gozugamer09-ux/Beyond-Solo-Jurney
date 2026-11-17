@@ -13,7 +13,7 @@ import com.beyondsolo.skill.SkillCombat;
 import com.beyondsolo.skill.SkillElement;
 import com.beyondsolo.util.ServerScheduler;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -82,7 +82,7 @@ public final class WeatherService {
                 for (ServerPlayer p : players) {
                     if (exempt(p) || p.isInWater()) continue;
                     Statuses.apply(p, DamageElement.FIRE, 8f + 2f * tier, null);
-                    level.sendParticles(ParticleTypes.SMALL_FLAME, p.getX(), p.getY() + 0.2, p.getZ(), 6, 0.35, 0.1, 0.35, 0.01);
+                    toOthers(level, p, ParticleTypes.SMALL_FLAME, p.getX(), p.getY() + 0.2, p.getZ(), 6, 0.35, 0.1, 0.35, 0.01);
                 }
             }
             case BLIZZARD -> {
@@ -92,7 +92,7 @@ public final class WeatherService {
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 70, 0, true, false, true));
                     // frost creeps in at the edge of the screen, never far enough to freeze
                     p.setTicksFrozen(Math.min(p.getTicksRequiredToFreeze() - 2, p.getTicksFrozen() + 90));
-                    level.sendParticles(ParticleTypes.SNOWFLAKE, p.getX(), p.getY() + 1, p.getZ(), 10, 0.4, 0.5, 0.4, 0.02);
+                    toOthers(level, p, ParticleTypes.SNOWFLAKE, p.getX(), p.getY() + 1, p.getZ(), 10, 0.4, 0.5, 0.4, 0.02);
                 }
             }
             case MIASMA -> {
@@ -100,7 +100,7 @@ public final class WeatherService {
                 for (ServerPlayer p : players) {
                     if (exempt(p)) continue;
                     Statuses.apply(p, DamageElement.POISON, 6f + 2f * tier, null);
-                    level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, p.getX(), p.getY() + 1.6, p.getZ(), 8, 0.6, 0.4, 0.6, 0);
+                    toOthers(level, p, ParticleTypes.SPORE_BLOSSOM_AIR, p.getX(), p.getY() + 1.6, p.getZ(), 8, 0.6, 0.4, 0.6, 0);
                 }
             }
             case STORM -> {
@@ -123,6 +123,22 @@ public final class WeatherService {
         }
     }
 
+    /**
+     * Particles on a player, shown to everyone but that player: their own view gets the weather's air from the client
+     * (no vanilla particles right in front of a first-person camera).
+     */
+    private static void toOthers(ServerLevel level, ServerPlayer on, ParticleOptions type, double x, double y, double z,
+                                 int count, double dx, double dy, double dz, double speed) {
+        for (ServerPlayer other : level.players()) {
+            if (other != on) level.sendParticles(other, type, false, x, y, z, count, dx, dy, dz, speed);
+        }
+    }
+
+    /** A moment of the weather in the world, for everyone within 64 blocks. */
+    private static void fx(ServerLevel level, Vec3 at, DepthsFxPayload payload) {
+        for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(at, at).inflate(64))) PacketDistributor.sendToPlayer(p, payload);
+    }
+
     private static boolean exempt(Player p) {
         return p.isCreative() || p.isSpectator() || GateService.inTransit(p);
     }
@@ -133,11 +149,9 @@ public final class WeatherService {
         EnemyFx.telegraphCircle(level, at, radius, BOLT_WARNING, color);
         level.playSound(null, BlockPos.containing(at), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 0.5f, 1.9f);
         ServerScheduler.schedule(BOLT_WARNING, () -> {
-            DepthsFxPayload fx = new DepthsFxPayload(DepthsFxPayload.BOLT, (float) at.x, (float) at.y, (float) at.z, radius, 0, color);
-            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(at, at).inflate(64))) PacketDistributor.sendToPlayer(p, fx);
+            fx(level, at, new DepthsFxPayload(DepthsFxPayload.BOLT, (float) at.x, (float) at.y, (float) at.z, radius, 0, color));
             level.playSound(null, BlockPos.containing(at), SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.HOSTILE, 1.4f, 1.3f);
             level.playSound(null, BlockPos.containing(at), SoundEvents.TRIDENT_THUNDER.value(), SoundSource.HOSTILE, 0.7f, 1.6f);
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 0.3, at.z, 40, radius * 0.4, 0.2, radius * 0.4, 0.3);
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius + 1, 3, radius + 1),
                     e -> e.isAlive() && horizontal(e.position(), at) <= radius + e.getBbWidth() / 2)) {
                 if (e instanceof Player p && exempt(p)) continue;
@@ -169,11 +183,12 @@ public final class WeatherService {
         BlockState stone = g.theme().mainWall();
         EnemyFx.telegraphCircle(level, at, radius, ROCK_WARNING, GateWeather.TREMORS.color);
         double ceiling = ceiling(level, at);
-        level.sendParticles(new BlockParticleOption(ParticleTypes.FALLING_DUST, stone), at.x, ceiling - 0.2, at.z, 10, 0.5, 0, 0.5, 0);
+        int id = Block.getId(stone);
+        fx(level, at, new DepthsFxPayload(DepthsFxPayload.ROCK_WARN, (float) at.x, (float) ceiling - 0.2f, (float) at.z, radius, 0, id));
         ServerScheduler.schedule(ROCK_WARNING, () -> {
             BlockPos p = BlockPos.containing(at);
-            level.levelEvent(2001, p, Block.getId(stone));
-            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, stone), at.x, at.y + 0.3, at.z, 30, radius * 0.4, 0.2, radius * 0.4, 0.15);
+            fx(level, at, new DepthsFxPayload(DepthsFxPayload.ROCK, (float) at.x, (float) at.y, (float) at.z, radius, 0, id));
+            level.playSound(null, p, stone.getSoundType().getBreakSound(), SoundSource.HOSTILE, 1.0f, 0.8f);
             level.playSound(null, p, SoundEvents.DRIPSTONE_BLOCK_BREAK, SoundSource.HOSTILE, 1.2f, 0.6f);
             level.playSound(null, p, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 0.35f, 1.6f);
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(radius + 1, 3, radius + 1),

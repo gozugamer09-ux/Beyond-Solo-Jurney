@@ -17,7 +17,6 @@ import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.util.ServerScheduler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,7 +27,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -95,10 +93,6 @@ public final class HiddenRooms {
         float pitch = 0.55f + 0.12f * knocks;
         level.playSound(null, pos, SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.BLOCKS, 1.4f, pitch);
         level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT, SoundSource.BLOCKS, 1.1f, 0.6f + 0.1f * knocks);
-        if (state.getBlock() instanceof HiddenSealBlock) {
-            level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK,
-                    state.getValue(HiddenSealBlock.LOOK).mimic.defaultBlockState()), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.05);
-        }
         DepthsFxPayload fx = new DepthsFxPayload(DepthsFxPayload.KNOCK, pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, knocks, KNOCKS, VIOLET);
         for (ServerPlayer near : level.getEntitiesOfClass(ServerPlayer.class, new AABB(pos).inflate(32))) PacketDistributor.sendToPlayer(near, fx);
         if (knocks >= KNOCKS) {
@@ -174,7 +168,7 @@ public final class HiddenRooms {
             ServerScheduler.schedule(delay, () -> {
                 BlockState s = level.getBlockState(p);
                 if (!(s.getBlock() instanceof HiddenSealBlock)) return;
-                level.levelEvent(2001, p, Block.getId(s.getValue(HiddenSealBlock.LOOK).mimic.defaultBlockState()));
+                NearFx.crumble(level, p, s.getValue(HiddenSealBlock.LOOK).mimic.defaultBlockState());
                 level.setBlock(p, net.minecraft.world.level.block.Blocks.CAVE_AIR.defaultBlockState(), 3);
             });
         }

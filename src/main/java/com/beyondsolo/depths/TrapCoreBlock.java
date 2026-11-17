@@ -62,6 +62,7 @@ public class TrapCoreBlock extends Block {
         double x = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.5;
         double y = pos.getY() + 0.45 + random.nextDouble() * 0.5;
         double z = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.5;
+        if (HiddenSealBlock.nearViewer(level, x, y, z)) return;
         level.addParticle(new DustParticleOptions(new Vector3f(1f, 0.3f, 0.28f), 0.7f), x, y, z, 0, 0.03, 0);
         if (random.nextInt(5) == 0) level.addParticle(ParticleTypes.ELECTRIC_SPARK, x, y + 0.3, z, 0, 0.05, 0);
     }

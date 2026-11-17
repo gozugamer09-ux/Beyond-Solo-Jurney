@@ -154,7 +154,7 @@ public final class TrapRooms {
         level.playSound(null, BlockPos.containing(at), SoundEvents.POINTED_DRIPSTONE_DRIP_LAVA, SoundSource.HOSTILE, 1f, 0.6f);
         ServerScheduler.schedule(STRIKE_WARNING, () -> {
             EnemyFx.pillar(level, at, TrapKind.SPIKES.color, 1.1f, 1.8f);
-            level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, Blocks.POINTED_DRIPSTONE.defaultBlockState()),
+            NearFx.particles(level, new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, Blocks.POINTED_DRIPSTONE.defaultBlockState()),
                     at.x, at.y + 0.6, at.z, 20, 0.4, 0.5, 0.4, 0.1);
             level.playSound(null, BlockPos.containing(at), SoundEvents.POINTED_DRIPSTONE_LAND, SoundSource.HOSTILE, 1.4f, 0.7f);
             level.playSound(null, BlockPos.containing(at), SoundEvents.TRIDENT_HIT, SoundSource.HOSTILE, 1f, 0.6f);
@@ -174,11 +174,11 @@ public final class TrapRooms {
         float buildup = 14f + 3f * g.rank().tier();
         EnemyFx.telegraphCircle(level, at, 1.4f, STRIKE_WARNING, color);
         level.playSound(null, BlockPos.containing(at), SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 0.8f, 0.6f);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.2, at.z, 6, 0.2, 0.1, 0.2, 0.02);
+        NearFx.particles(level, ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.2, at.z, 6, 0.2, 0.1, 0.2, 0.02);
         ServerScheduler.schedule(STRIKE_WARNING, () -> {
             EnemyFx.pillar(level, at, color, 1.4f, 4.5f);
             level.playSound(null, BlockPos.containing(at), SoundEvents.BLAZE_SHOOT, SoundSource.HOSTILE, 1.1f, 0.5f);
-            level.sendParticles(element == DamageElement.FIRE ? ParticleTypes.FLAME : ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, 24, 0.3, 1.2, 0.3, 0.04);
+            NearFx.particles(level, element == DamageElement.FIRE ? ParticleTypes.FLAME : ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, 24, 0.3, 1.2, 0.3, 0.04);
             for (LivingEntity e : caught(level, at, 1.4f)) {
                 e.hurt(level.damageSources().magic(), damage);
                 Statuses.apply(e, element, buildup, null);
@@ -213,7 +213,7 @@ public final class TrapRooms {
             for (BlockPos p : BlockPos.betweenClosed(c.offset(-reach, -reach, -reach), c.offset(reach, reach, reach))) {
                 if (level.getBlockState(p).is(DepthsModule.TRAP_WARD.get())) {
                     level.setBlock(p, Blocks.CAVE_AIR.defaultBlockState(), 3);
-                    if (level.random.nextInt(3) == 0) level.sendParticles(ParticleTypes.END_ROD, p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5, 1, 0.2, 0.2, 0.2, 0.02);
+                    if (level.random.nextInt(3) == 0) NearFx.particles(level, ParticleTypes.END_ROD, p.getX() + 0.5, p.getY() + 0.5, p.getZ() + 0.5, 1, 0.2, 0.2, 0.2, 0.02);
                 }
             }
             level.playSound(null, c, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.BLOCKS, 1.2f, 1.1f);

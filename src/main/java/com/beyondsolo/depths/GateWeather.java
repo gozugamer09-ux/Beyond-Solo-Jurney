@@ -22,7 +22,7 @@ public enum GateWeather {
     MIST(0xC8D6E0, 0x8C98A2, 15f, SkillElement.WATER, 0.20f, SkillElement.FIRE, 0.15f, 1.10f),
     /** Searing heat: fire buildup while out of water. Fire is stronger, water steams away. */
     SCORCHING(0xFF8A3A, 0x4A1E0C, 34f, SkillElement.FIRE, 0.25f, SkillElement.WATER, 0.15f, 1.15f),
-    /** A frost gale: chill slows. Water and air are stronger, fire is smothered. */
+    /** A frost gale: chill slows. Water is stronger, fire is smothered. */
     BLIZZARD(0xDDF2FF, 0xAEBFD0, 22f, SkillElement.WATER, 0.25f, SkillElement.FIRE, 0.20f, 1.15f),
     /** A mana storm: bolts strike where they are marked. Lightning is stronger, earth is shaken. */
     STORM(0xB89CFF, 0x221A40, 36f, SkillElement.LIGHTNING, 0.30f, SkillElement.EARTH, 0.10f, 1.20f),

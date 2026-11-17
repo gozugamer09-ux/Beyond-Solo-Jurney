@@ -1,5 +1,6 @@
 package com.beyondsolo.depths;
 
+import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.gate.DungeonLayout;
 import com.beyondsolo.gate.GateInstance;
 import com.beyondsolo.gate.GateTheme;
@@ -248,11 +249,9 @@ public final class DepthsBuild {
 
     /** The floor block a vent of this gate is set into. */
     static BlockState ventBlock(GateTheme theme) {
-        return switch (theme.element) {
-            case FIRE -> Blocks.MAGMA_BLOCK.defaultBlockState();
-            case POISON -> Blocks.SCULK.defaultBlockState();
-            default -> Blocks.CRYING_OBSIDIAN.defaultBlockState();
-        };
+        if (theme.element == DamageElement.FIRE) return Blocks.MAGMA_BLOCK.defaultBlockState();
+        if (theme.element == DamageElement.POISON) return Blocks.SCULK.defaultBlockState();
+        return Blocks.CRYING_OBSIDIAN.defaultBlockState();
     }
 
     static void dressTrap(ServerLevel level, GateInstance g, DungeonLayout.Room room, TrapKind kind, RandomSource r) {

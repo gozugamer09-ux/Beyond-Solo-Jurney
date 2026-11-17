@@ -28,7 +28,8 @@ public class TrapWardBlock extends TransparentBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (random.nextInt(6) != 0) return;
-        level.addParticle(new DustParticleOptions(new Vector3f(1f, 0.32f, 0.3f), 0.6f),
-                pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(), pos.getZ() + random.nextDouble(), 0, 0.02, 0);
+        double x = pos.getX() + random.nextDouble(), y = pos.getY() + random.nextDouble(), z = pos.getZ() + random.nextDouble();
+        if (HiddenSealBlock.nearViewer(level, x, y, z)) return;
+        level.addParticle(new DustParticleOptions(new Vector3f(1f, 0.32f, 0.3f), 0.6f), x, y, z, 0, 0.02, 0);
     }
 }

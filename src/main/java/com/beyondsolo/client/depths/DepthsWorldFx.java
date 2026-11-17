@@ -4,6 +4,7 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.combat.CombatWorldFx;
 import com.beyondsolo.client.gate.GateOverlay;
 import com.beyondsolo.client.render.ModRenderTypes;
+import com.beyondsolo.depths.GateWeather;
 import com.beyondsolo.depths.HiddenSealBlock;
 import com.beyondsolo.depths.TrapCoreBlock;
 import com.beyondsolo.network.DepthsFxPayload;
@@ -16,12 +17,14 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -107,6 +110,12 @@ public final class DepthsWorldFx {
                     Vec3 o = at.add(rnd(0.55), rnd(0.55), rnd(0.55));
                     particle(mc.level, dust(color, 0.4f, 0.7f), o, rnd(0.03), 0.01, rnd(0.03));
                 }
+                // chips of the rock it passes for
+                BlockState wall = mc.level.getBlockState(BlockPos.containing(at));
+                if (wall.getBlock() instanceof HiddenSealBlock) {
+                    BlockParticleOption chips = new BlockParticleOption(ParticleTypes.BLOCK, wall.getValue(HiddenSealBlock.LOOK).mimic.defaultBlockState());
+                    for (int i = 0; i < 8; i++) particle(mc.level, chips, at.add(rnd(0.6), rnd(0.6), rnd(0.6)), rnd(0.05), 0.05, rnd(0.05));
+                }
             }
             case DepthsFxPayload.REVEAL -> {
                 Moment m = new Moment(p.kind(), at, p.a(), p.b(), color, t, Math.max(20, p.b() * 20));
@@ -159,6 +168,23 @@ public final class DepthsWorldFx {
                 }
             }
             case DepthsFxPayload.BLESS -> MOMENTS.add(new Moment(p.kind(), at, p.a(), p.b(), color, t, 60));
+            case DepthsFxPayload.ROCK_WARN -> {
+                BlockParticleOption dust = new BlockParticleOption(ParticleTypes.FALLING_DUST, Block.stateById(p.color()));
+                for (int i = 0; i < 10; i++) particle(mc.level, dust, at.add(rnd(0.5), 0, rnd(0.5)), 0, 0, 0);
+            }
+            case DepthsFxPayload.ROCK -> {
+                BlockState stone = Block.stateById(p.color());
+                MOMENTS.add(new Moment(p.kind(), at, p.a(), p.b(), GateWeather.TREMORS.color, t, 18));
+                BlockParticleOption chips = new BlockParticleOption(ParticleTypes.BLOCK, stone);
+                for (int i = 0; i < 34; i++) {
+                    Vec3 v = new Vec3(rnd(1), 0.5 + RANDOM.nextDouble(), rnd(1)).scale(0.12 + 0.1 * RANDOM.nextDouble());
+                    particle(mc.level, chips, at.add(rnd(p.a() * 0.4), 0.3, rnd(p.a() * 0.4)), v.x, v.y, v.z);
+                }
+                for (int i = 0; i < 8; i++) {
+                    particle(mc.level, ParticleTypes.POOF, at.add(rnd(p.a() * 0.5), 0.2, rnd(p.a() * 0.5)), rnd(0.04), 0.02, rnd(0.04));
+                }
+                if (mc.player != null && mc.player.position().distanceTo(at) < 5) GateOverlay.addTrauma(0.12f);
+            }
             default -> {
             }
         }
@@ -286,6 +312,7 @@ public final class DepthsWorldFx {
                 case DepthsFxPayload.SHATTER -> shatter(pose, buffers, camera, m, k);
                 case DepthsFxPayload.CORE_HIT -> coreHit(pose, buffers, camera, m, k);
                 case DepthsFxPayload.BLESS -> bless(pose, buffers, camera, m, age, k);
+                case DepthsFxPayload.ROCK -> rock(pose, buffers, camera, m, k);
                 default -> {
                 }
             }
@@ -412,6 +439,14 @@ public final class DepthsWorldFx {
         float strength = Mth.clamp(m.a / Math.max(1, m.b), 0.25f, 1f);
         dotAt(pose, buffers, camera, RING, Vec3.ZERO, 0.3f + 1.4f * out, mix(m.color, 0xFFFFFF, 0.4f), (0.5f + 0.5f * strength) * (1 - k), 0);
         dotAt(pose, buffers, camera, GLOW, Vec3.ZERO, 0.6f + 0.6f * strength, m.color, 0.7f * (1 - k), 0);
+    }
+
+    /** A falling rock lands: a ring of dust thrown out over the marked spot. */
+    private static void rock(PoseStack pose, MultiBufferSource buffers, Camera camera, Moment m, float k) {
+        float out = 1 - (1 - k) * (1 - k);
+        int pale = mix(m.color, 0xFFFFFF, 0.35f);
+        flat(pose, buffers.getBuffer(ModRenderTypes.lightTexture(RING)), 0.05f, m.a * (0.5f + 0.9f * out), 0, pale, 0.7f * (1 - k));
+        dotAt(pose, buffers, camera, GLOW, new Vec3(0, 0.3, 0), m.a * (0.7f + 0.5f * out), m.color, 0.45f * (1 - k), 0);
     }
 
     /** A column of light comes down on the one blessed and thins away. */
