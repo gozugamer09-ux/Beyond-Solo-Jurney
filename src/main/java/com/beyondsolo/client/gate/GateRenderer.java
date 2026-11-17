@@ -60,19 +60,21 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         super.render(gate, partialTick, pose, buffers, packedLight, packedOverlay);
         if (gate.getLevel() == null) return;
         float open = gate.openness(partialTick);
-        float time = (gate.getLevel().getGameTime() % 24000L) + partialTick;
+        long now = gate.getLevel().getGameTime();
+        float time = (now % 24000L) + partialTick;
         int rgb = gate.isExit() ? EXIT_COLOR : gate.isSealed() ? SEALED_COLOR : gate.rank().color();
-        // coming apart, its light runs red; broken, it is red through and through
-        float instability = gate.instability(partialTick);
+        // coming apart, its light runs red; broken, it is red through and through. How far gone it looks: plain to
+        // see from the moment it starts (a third of the way), and worse until it breaks
         boolean broken = gate.isBroken();
+        float look = broken ? 1f : gate.isUnstable() ? 0.3f + 0.7f * gate.instability(partialTick) : 0f;
         if (broken) rgb = GateFx.mix(rgb, BREAK_RED, 0.85f);
-        else if (instability > 0) rgb = GateFx.mix(rgb, BREAK_RED, 0.15f + 0.5f * instability);
+        else if (look > 0) rgb = GateFx.mix(rgb, BREAK_RED, 0.1f + 0.45f * look);
         int pale = GateFx.mix(rgb, 0xFFFFFF, 0.45f);
-        float spin = 1 + 1.2f * instability + (broken ? 0.6f : 0);
+        float spin = 1 + 1.2f * look + (broken ? 0.6f : 0);
         long seed = gate.getBlockPos().asLong();
         float flicker = 1;
         if (broken) flicker = 0.75f + 0.25f * noise((float) Math.floor(time * 0.5f) + seed % 97);
-        else if (instability > 0 && noise((float) Math.floor(time * 0.35f) + seed % 89) > 0.78f) flicker = 1 - 0.5f * instability;
+        else if (look > 0 && noise((float) Math.floor(time * 0.35f) + seed % 89) > 0.78f) flicker = 1 - 0.5f * look;
 
         // opening: a slit that grows tall first, then widens; closing runs it backwards
         float tall = Mth.clamp(open * 2.6f, 0f, 1f);
@@ -81,11 +83,13 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         float torn = broken ? 1.14f : 1f;
         float hx = GateBlockEntity.HALF_WIDTH * wide * torn;
         float hy = GateBlockEntity.HALF_HEIGHT * tall * torn;
-        float t0 = gate.openedAt() < 0 ? 999 : time - (gate.openedAt() % 24000L);
-        float tearFlash = Mth.clamp(1 - t0 / 30f, 0f, 1f) * (gate.openedAt() < 0 ? 0 : 1);
+        // ticks since it tore open, counted on the whole clock: counted on the time of day, a gate opened late in one
+        // day read as "just opened" all through the next morning, and its flash stayed lit
+        float t0 = gate.openedAt() < 0 ? 999 : GateBlockEntity.ticksSince(now, gate.openedAt(), partialTick);
+        float tearFlash = Mth.clamp(1 - t0 / 30f, 0f, 1f);
         float closeFlash = 0;
         if (gate.isClosing()) {
-            float tc = time - (gate.closingAt() % 24000L);
+            float tc = GateBlockEntity.ticksSince(now, gate.closingAt(), partialTick);
             closeFlash = Mth.clamp(1 - Math.abs(tc - GateBlockEntity.CLOSE_TICKS * 0.85f) / 8f, 0f, 1f);
         }
 
@@ -93,7 +97,7 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         pose.translate(0.5f, GateBlockEntity.CENTER_Y, 0.5f);
         if (gate.breakPhase() == GateBlockEntity.IMMINENT) {
             // its last minute: it trembles
-            float j = 0.03f + 0.05f * instability;
+            float j = 0.03f + 0.05f * look;
             pose.translate((noise(time * 0.9f + 3) - 0.5f) * j, (noise(time * 0.9f + 11) - 0.5f) * j, (noise(time * 0.9f + 19) - 0.5f) * j);
         }
         Direction f = gate.facing();
@@ -118,7 +122,12 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                 pose.pushPose();
                 pose.translate(0, 0, z);
                 GateFx.quad(glow, pose.last().pose(), hx * 0.42f, hy * 0.42f, broken ? 0xFFB0A0 : 0xFFFFFF, (0.25f + 0.15f * pulse) * flicker + tearFlash);
-                GateFx.quad(glow, pose.last().pose(), hx * 2.0f + 0.6f, hy * 1.7f + 0.6f, rgb, (0.32f + 0.12f * pulse + 0.2f * instability) * flicker + 0.6f * tearFlash);
+                GateFx.quad(glow, pose.last().pose(), hx * 2.0f + 0.6f, hy * 1.7f + 0.6f, rgb, (0.32f + 0.12f * pulse + 0.2f * look) * flicker + 0.6f * tearFlash);
+                if (look > 0) {
+                    // a red haze bleeding out around it, throbbing faster the nearer it is to breaking
+                    float throb = 0.7f + 0.3f * Mth.sin(time * (0.15f + 0.45f * look));
+                    GateFx.quad(glow, pose.last().pose(), hx * 2.4f + 0.9f, hy * 2.0f + 0.9f, BREAK_RED, (0.16f + 0.3f * look) * throb * flicker);
+                }
                 pose.popPose();
             }
             VertexConsumer ring = buffers.getBuffer(ModRenderTypes.lightTexture(RING));
@@ -128,18 +137,18 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                 GateFx.quad(ring, pose.last().pose(), hx * 1.12f, hy * 1.08f, pale, (0.65f + 0.25f * pulse) * flicker);
                 pose.popPose();
             }
-            if (instability > 0.01f) {
+            if (look > 0) {
                 // cracks of red light spreading out across the air around it
-                int stage = broken ? 2 : instability < 0.34f ? 0 : instability < 0.67f ? 1 : 2;
+                int stage = broken ? 2 : look < 0.5f ? 0 : look < 0.8f ? 1 : 2;
                 VertexConsumer crack = buffers.getBuffer(ModRenderTypes.lightTexture(CRACKS[stage]));
-                float size = GateBlockEntity.HALF_WIDTH * wide * (0.95f + 0.95f * instability) * (broken ? 1.3f : 1f);
+                float size = GateBlockEntity.HALF_WIDTH * wide * (1.0f + 0.9f * look) * (broken ? 1.3f : 1f);
                 float roll = (seed & 0xFF) * 1.4f;
-                float glint = 0.8f + 0.2f * Mth.sin(time * (0.15f + 0.35f * instability));
+                float glint = 0.8f + 0.2f * Mth.sin(time * (0.15f + 0.35f * look));
                 for (int side = 0; side < 2; side++) {
                     pose.pushPose();
                     pose.translate(0, 0, side == 0 ? 0.06f : -0.06f);
                     pose.mulPose(Axis.ZP.rotationDegrees(side == 0 ? roll : -roll));
-                    GateFx.quad(crack, pose.last().pose(), size, size, GateFx.mix(BREAK_RED, 0xFFFFFF, 0.3f), (0.3f + 0.6f * instability) * glint * flicker);
+                    GateFx.quad(crack, pose.last().pose(), size, size, GateFx.mix(BREAK_RED, 0xFFFFFF, 0.3f), (0.4f + 0.55f * look) * glint * flicker);
                     pose.popPose();
                 }
             }
@@ -184,8 +193,8 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
 
         // a beam over the gate, so it can be found from far away (a broken gate's stands thick and red)
         if (open > 0.5f && !gate.isExit() && !gate.isKeyed()) {
-            float inner = broken ? 0.11f : 0.04f + 0.03f * instability;
-            float outer = broken ? 0.24f : 0.09f + 0.06f * instability;
+            float inner = broken ? 0.11f : 0.04f + 0.03f * look;
+            float outer = broken ? 0.24f : 0.09f + 0.06f * look;
             pose.pushPose();
             pose.translate(0f, GateBlockEntity.CENTER_Y + 2.4f, 0f);
             BeaconRenderer.renderBeaconBeam(pose, buffers, BeaconRenderer.BEAM_LOCATION, partialTick, 1f, gate.getLevel().getGameTime(), 0, broken ? 192 : 96,

@@ -253,6 +253,17 @@ public final class GateGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = ARENA)
+    public static void gateTimesSurviveTheDayStartingOver(GameTestHelper helper) {
+        // opened late one day (tick 20000), looked at the next morning (tick 32248): 12248 ticks ago, not "just now",
+        // which is what the time of day said, and the gate's tear flash stayed lit all morning
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 20000, 0) == 12248f, "counted on the whole clock");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32238, 0.5f) == 10.5f, "a moment ago, with the partial tick");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32250, 0) == -2f, "a client a tick or two behind the server");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 90000, 0) > 1000, "a moment from the future counts as long ago");
+        helper.succeed();
+    }
+
     @GameTest(template = ARENA, timeoutTicks = 120)
     public static void clearedGateClosesInWorld(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.E);

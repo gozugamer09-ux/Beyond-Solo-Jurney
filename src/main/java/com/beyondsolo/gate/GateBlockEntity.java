@@ -178,12 +178,22 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         return new Vec3(worldPosition.getX() + 0.5 + f.getStepX() * 2.2, worldPosition.getY(), worldPosition.getZ() + 0.5 + f.getStepZ() * 2.2);
     }
 
+    /**
+     * Ticks from {@code then} to {@code now}, on the whole game clock (never the time of day, which starts over every
+     * 24000 ticks). A moment far in the future, from a clock that went back, counts as long ago.
+     */
+    public static float ticksSince(long now, long then, float partialTick) {
+        long d = now - then;
+        return d < -100 ? 999_999f : d + partialTick;
+    }
+
     /** 0..1 how far the gate has opened. */
     public float openness(float partialTick) {
         if (level == null) return 1f;
-        float t = level.getGameTime() + partialTick;
-        float open = openedAt < 0 ? 1f : Mth.clamp((t - openedAt) / OPEN_TICKS, 0f, 1f);
-        if (closingAt >= 0) open *= 1f - Mth.clamp((t - closingAt) / CLOSE_TICKS, 0f, 1f);
+        // differences taken on the whole numbers first: a float of the game time itself loses the ticks in an old world
+        long now = level.getGameTime();
+        float open = openedAt < 0 ? 1f : Mth.clamp((now - openedAt + partialTick) / OPEN_TICKS, 0f, 1f);
+        if (closingAt >= 0) open *= 1f - Mth.clamp((now - closingAt + partialTick) / CLOSE_TICKS, 0f, 1f);
         return open;
     }
 

@@ -467,6 +467,7 @@ public final class BossMoves {
             BlockPos p = BlockPos.containing(b.getX() + Math.cos(a) * r, b.getY(), b.getZ() + Math.sin(a) * r);
             for (int dy = 0; dy < 4 && !sl.getBlockState(p).isAir(); dy++) p = p.above();
             var m = Enemies.spawn(sl, b.rank(), EnemyModule.type(kind), p, new EnemyTraits(affinity, Variant.NORMAL, 0), theme);
+            com.beyondsolo.breaks.DungeonBreaks.adopt(b, m);
             if (m != null && b.getTarget() != null) m.setTarget(b.getTarget());
         }
     }

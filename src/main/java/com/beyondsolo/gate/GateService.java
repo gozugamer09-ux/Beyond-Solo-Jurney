@@ -569,6 +569,7 @@ public final class GateService {
             for (int dy = 0; dy < 4 && !level.getBlockState(p).isAir(); dy++) p = p.above();
             EntityType<?> type = mix.pick(level.random);
             Mob add = belongs(com.beyondsolo.enemy.Enemies.spawn(level, g.rank(), type, p, com.beyondsolo.enemy.Enemies.roll(g.rank(), mix, type, level.random, false, true), g.theme().ordinal()), g);
+            com.beyondsolo.breaks.DungeonBreaks.adopt(boss, add);
             if (add != null && boss.getTarget() != null) add.setTarget(boss.getTarget());
         }
         for (ServerPlayer p : playersIn(level, g)) {

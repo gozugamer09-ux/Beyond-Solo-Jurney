@@ -1,6 +1,6 @@
 {
   "break.beyondsolo.banner.break": "Dungeon Break",
-  "break.beyondsolo.banner.break_sub": "A %s-Rank gate has broken: %s",
+  "break.beyondsolo.banner.break_sub": "The %s-Rank gate to %s has broken",
   "break.beyondsolo.banner.boss_out": "has come through the %s-Rank break",
   "break.beyondsolo.banner.suppressed": "Dungeon Break Suppressed",
   "break.beyondsolo.banner.suppressed_sub": "The %s-Rank gate has collapsed.",
@@ -21,11 +21,11 @@
   "break.beyondsolo.hud.cardinal.s": "S",
   "break.beyondsolo.hud.cardinal.w": "W",
   "notify.beyondsolo.break.unstable.title": "Unstable Gate",
-  "notify.beyondsolo.break.unstable.body": "A %s-Rank gate %s blocks to the %s is coming apart. It will break in about %s minutes unless someone clears it.",
+  "notify.beyondsolo.break.unstable.body": "The %s-Rank gate %s blocks to the %s is coming apart. It will break in about %s minutes unless someone clears it.",
   "notify.beyondsolo.break.imminent.title": "Dungeon Break Imminent",
-  "notify.beyondsolo.break.imminent.body": "The %s-Rank gate %s blocks to the %s will break in %s seconds. Its monsters are coming out.",
+  "notify.beyondsolo.break.imminent.body": "The %s-Rank gate %s blocks to the %s will break in %s seconds. Its monsters are about to pour out.",
   "quest.beyondsolo.dungeon_break": "Suppress the %s-Rank Dungeon Break",
-  "quest.beyondsolo.dungeon_break.desc": "A %s-Rank gate has broken and its monsters are pouring out. Hold them back and defeat %s to close it.",
+  "quest.beyondsolo.dungeon_break.desc": "The %s-Rank gate nearby has broken and its monsters are pouring out. Hold them back and defeat %s to close it.",
   "quest_objective.beyondsolo.break_mobs": "Defeat monsters from the break",
   "quest_objective.beyondsolo.break_boss": "Defeat %s",
   "message.beyondsolo.gate.broken": "This gate has broken. Its monsters are out here now: defeat its boss to close it."

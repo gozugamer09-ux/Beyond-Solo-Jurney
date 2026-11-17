@@ -953,8 +953,9 @@ registers the payloads (`BreakPayload`, `GateSensePayload`). A gate's clock is a
   on their HUD), then IMMINENT for the last minute (a second warning), then BROKEN. Fair to the player: the clock waits
   while anyone is in the cave or on their way in (`GateService.playersIn`, `inTransitTo`); a gate nobody is near
   (`watched`: a living player within `WATCH`, the spot ticking, not peaceful) holds at one minute left and its last
-  minute only counts down in front of someone. The gate block gets the phase and times (`GateBlockEntity.setBreak`)
-  for its looks.
+  minute only counts down in front of someone. A gate whose block is gone from a loaded spot (taken out with a
+  command; players can't break one) has nothing left to break and stops counting. The gate block gets the phase and
+  times (`GateBlockEntity.setBreak`) for its looks.
 - **The break** (`breakOpen`): sounds, the BREAK moment for everyone within 200 blocks (shake by distance), the
   System's quest (`QUEST_TEMPLATE`, objectives `MOB_KEY` and `BOSS_KEY`) for everyone with the System within 96
   blocks: an emergency, started at once, when the break is at most one rank above them, offered otherwise; then the
@@ -963,8 +964,10 @@ registers the payloads (`BreakPayload`, `GateSensePayload`). A gate's clock is a
   `WAVE_TICKS` (20 s) while someone watches, up to `waves` in all and `cap` out at once; the boss comes through with
   wave `BOSS_WAVE` (3) (`bossOut`: `GateBossEntity.configure` + `wake()`, its own entrance up close, a banner
   further off). Everything that came out carries `BREAK_TAG` (the gate's id) and is leashed to the gate (`LEASH`, 40
-  blocks: walked back, or pulled back through the rift when far out). A boss lost without falling comes through again
-  after 30 s. A broken gate turns everyone away (`message.beyondsolo.gate.broken`).
+  blocks: walked back, or pulled back through the rift when far out). What they bring out later joins the break too
+  (`adopt`: the boss's summoned adds, its enrage adds, the halves of a creature that splits), so it is leashed and
+  crumbles with the rest. A boss lost without falling comes through again after 30 s. A broken gate turns everyone
+  away (`message.beyondsolo.gate.broken`).
 - **Suppression** (`suppress`, when the boss dies): the gate collapses (CLOSED), the rest of the break crumbles to
   ash (no loot), the boss's reward cache lands where it fell, and everyone within `SHARE` (64) of the boss or the gate gets
   `REWARD` (1.25) times the gate's clear XP and gold, the SUPPRESSED moment, and their break quest done. Break creatures that load back in
@@ -976,7 +979,7 @@ registers the payloads (`BreakPayload`, `GateSensePayload`). A gate's clock is a
   timer chip under the boss bar and run clock (amber, then red with a heartbeat in the last minute, crimson with
   monsters out and the boss once broken, dimmed with an hourglass while hunters inside hold it), the gate compass
   across the top while a pulse lasts (rank letters, red pulse for gates coming apart, labels with distance and
-  countdown), and the banners: the torn DUNGEON BREAK stamp, the boss's arrival, BREAK SUPPRESSED with its XP. Quest
+  countdown) with the same marker hanging over each sensed gate in view, and the banners: the torn DUNGEON BREAK stamp, the boss's arrival, BREAK SUPPRESSED with its XP. Quest
   windows wait for a break banner (`QuestOverlay` checks `bannerPending`). `BreakWorldFx`: the break's flash, pillar
   and shock rings, each wave's pulse, the boss's ash column, the red leak from a gate coming apart, and sensed gates
   as pillars of their rank's light seen through the ground (far ones drawn nearer along the same line, so fog doesn't

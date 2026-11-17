@@ -129,6 +129,8 @@ public final class DungeonBreaks {
                 continue;
             }
             if (!on || !canBreak(g)) continue;
+            // a gate taken out of the world by a command (players can't break one) has nothing left to break
+            if (world.isLoaded(g.gatePos()) && !(world.getBlockEntity(g.gatePos()) instanceof GateBlockEntity)) continue;
             boolean inside = dungeon != null && (!GateService.playersIn(dungeon, g).isEmpty() || GateService.inTransitTo(g.id()));
             step(world, data, g, world.getGameTime(), inside, watched(world, g.gatePos()));
             status(world, g, 0);
@@ -397,6 +399,21 @@ public final class DungeonBreaks {
     static void mark(Mob m, GateInstance g) {
         m.getPersistentData().putUUID(BREAK_TAG, g.id());
         m.restrictTo(g.gatePos(), LEASH);
+    }
+
+    /**
+     * A creature something of a break brought into the world (its boss's adds, a splitting creature's halves) belongs to
+     * the break too: kept to the gate, counted, and gone with the rest when the break ends.
+     */
+    public static void adopt(Entity parent, @Nullable Mob child) {
+        if (child == null || !parent.getPersistentData().hasUUID(BREAK_TAG) || !(child.level() instanceof ServerLevel level)) return;
+        GateInstance g = GateData.get(level.getServer()).get(parent.getPersistentData().getUUID(BREAK_TAG));
+        if (g != null && g.breakState().broken()) mark(child, g);
+    }
+
+    /** True if {@code e} came out of a dungeon break, any gate's. */
+    public static boolean fromBreak(Entity e) {
+        return e.getPersistentData().hasUUID(BREAK_TAG);
     }
 
     /** True if {@code e} came out of the break of {@code gate}. */

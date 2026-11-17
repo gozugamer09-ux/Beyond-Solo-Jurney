@@ -288,14 +288,14 @@ public final class BreakWorldFx {
             float scale = (float) (rel.length() > far ? far / rel.length() : 1);
             rel = rel.scale(scale);
             int color = color(e, t);
-            float width = (float) Math.max(0.5, d * 0.012) * scale;
+            float width = (float) Math.max(0.9, d * 0.016) * scale;
             float height = (float) Math.max(40, d * 0.35) * scale;
             float beat = 0.75f + 0.25f * Mth.sin(t * (e.state() == GateSensePayload.IMMINENT ? 0.6f : 0.2f));
             pose.pushPose();
             pose.translate(rel.x, rel.y, rel.z);
             // drawn at the real spot for the camera-facing turn, scaled to keep its size on screen
-            GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, base.x, base.z, width * 2.2f, height, color, 0.32f * alpha * beat);
-            GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, base.x, base.z, width * 0.7f, height * 0.85f, GateFx.mix(color, 0xFFFFFF, 0.5f), 0.55f * alpha);
+            GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, base.x, base.z, width * 2.2f, height, color, 0.42f * alpha * beat);
+            GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, base.x, base.z, width * 0.7f, height * 0.85f, GateFx.mix(color, 0xFFFFFF, 0.5f), 0.7f * alpha);
             float mid = GateBlockEntity.CENTER_Y * scale;
             float glow = (float) Math.max(1.6, d * 0.03) * scale;
             dotThrough(pose, buffers, camera, GLOW, new Vec3(0, mid, 0), glow * (0.9f + 0.2f * beat), color, 0.85f * alpha);

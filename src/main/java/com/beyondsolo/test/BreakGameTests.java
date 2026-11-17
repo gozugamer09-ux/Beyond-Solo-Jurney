@@ -17,6 +17,8 @@ import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestCategory;
 import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestTestAccess;
+import com.beyondsolo.quest.trigger.AmbushTrigger;
+import com.beyondsolo.quest.trigger.QuestTriggers;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.SystemAPI;
@@ -28,6 +30,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
@@ -203,8 +206,20 @@ public final class BreakGameTests {
         DungeonBreaks.breakOpen(level, data, g, level.getGameTime());
         GateBossEntity boss = DungeonBreaks.bossOut(level, data, g);
         helper.assertTrue(boss != null && b.bossOut(), "its boss is out");
+        // what its boss calls in belongs to the break too; a creature from nowhere doesn't
+        Mob add = EntityType.ZOMBIE.create(level);
+        add.moveTo(boss.getX() + 2, boss.getY(), boss.getZ());
+        level.addFreshEntity(add);
+        DungeonBreaks.adopt(boss, add);
+        Mob stray = EntityType.ZOMBIE.create(level);
+        stray.moveTo(boss.getX() - 2, boss.getY(), boss.getZ());
+        level.addFreshEntity(stray);
+        DungeonBreaks.adopt(EntityType.ZOMBIE.create(level), stray);
+        DungeonBreaks.adopt(add, null);
+        helper.assertTrue(DungeonBreaks.isOf(add, g.id()) && add.getRestrictRadius() == DungeonBreaks.LEASH, "the boss's add is kept to the gate");
+        helper.assertTrue(!DungeonBreaks.isOf(stray, g.id()), "a creature from nowhere isn't");
         int before = DungeonBreaks.monsters(level, g).size();
-        helper.assertTrue(before > 1, "monsters and boss out: " + before);
+        helper.assertTrue(before > 2, "monsters, an add and the boss out: " + before);
         Vec3[] fell = new Vec3[1];
         helper.startSequence()
                 .thenWaitUntil(() -> helper.assertTrue(boss.introTicks() <= 0, "its entrance is over"))
@@ -215,8 +230,12 @@ public final class BreakGameTests {
                     helper.assertTrue(g.state() == GateInstance.State.CLOSED && g.bossDefeated(), "its gate collapses");
                     helper.assertTrue(block(helper, g) == null || block(helper, g).isClosing(), "the gate closes in the world");
                 })
-                // what was left of its monsters crumbles to ash
-                .thenWaitUntil(() -> helper.assertTrue(DungeonBreaks.monsters(level, g).isEmpty(), "its monsters crumbled"))
+                // what was left of its monsters crumbles to ash, the boss's add with them; the stray stays
+                .thenWaitUntil(() -> helper.assertTrue(DungeonBreaks.monsters(level, g).isEmpty() && add.isRemoved(), "its monsters crumbled"))
+                .thenExecute(() -> {
+                    helper.assertTrue(!stray.isRemoved(), "the stray is still there");
+                    stray.discard();
+                })
                 // and the boss leaves a reward cache where it fell
                 .thenWaitUntil(() -> {
                     boolean cache = false;
@@ -227,6 +246,23 @@ public final class BreakGameTests {
                     helper.assertTrue(cache, "a reward cache where the boss fell");
                 })
                 .thenSucceed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void breakMonstersAreNoAmbush(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.D);
+        List<Mob> pack = new java.util.ArrayList<>();
+        for (int i = 0; i < AmbushTrigger.MIN_HUNTERS; i++) {
+            Mob m = helper.spawn(EntityType.ZOMBIE, new BlockPos(1 + i, 2, 3));
+            m.setTarget(p);
+            m.getPersistentData().putUUID(DungeonBreaks.BREAK_TAG, UUID.randomUUID());
+            pack.add(m);
+        }
+        helper.assertTrue(QuestTriggers.AMBUSH.test(p, QuestEngine.data(p)) == null, "a break's monsters are the break quest's, not an ambush");
+        for (Mob m : pack) m.getPersistentData().remove(DungeonBreaks.BREAK_TAG);
+        helper.assertTrue(QuestTriggers.AMBUSH.test(p, QuestEngine.data(p)) != null, "the same pack anywhere else is an ambush");
+        pack.forEach(Mob::discard);
+        helper.succeed();
     }
 
     @GameTest(template = ARENA)

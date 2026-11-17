@@ -2,6 +2,7 @@ package com.beyondsolo.client.breaks;
 
 import com.beyondsolo.client.ClientSystemData;
 import com.beyondsolo.client.SystemTheme;
+import com.beyondsolo.client.combat.WorldProjector;
 import com.beyondsolo.client.depths.DepthsClient;
 import com.beyondsolo.client.depths.DepthsIcons;
 import com.beyondsolo.client.evaluation.EvaluationOverlay;
@@ -15,6 +16,7 @@ import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.client.quest.QuestOverlay;
 import com.beyondsolo.client.skill.SkillOverlay;
+import com.beyondsolo.gate.GateBlockEntity;
 import com.beyondsolo.network.GateSensePayload;
 import com.beyondsolo.system.PlayerRank;
 import com.mojang.math.Axis;
@@ -399,6 +401,7 @@ public final class BreakHud {
         float x = (w - bw) / 2f;
         y -= 8 * (1 - in);
         float old = Gfx.fade(in);
+        inView(g, mc, w, ss, y + bh + 16, partial);
         int ac = SystemTheme.ACCENT;
         Shapes.pill(x, y, bw, bh).fillV(0xB80A1222, 0xB8050912).border(0.7f, Gfx.alpha(ac, 0.55f), Gfx.alpha(ac, 0.2f)).glow(5, Gfx.alpha(ac, 0.18f)).draw(g);
         // the cap: the sensing mark and how many
@@ -442,6 +445,27 @@ public final class BreakHud {
             marker(g, e, px, y + bh / 2f, d, edge, rel, appear, labelled, ss, ticks);
         }
         Gfx.setAlpha(old);
+    }
+
+    /**
+     * The sensed gates in view, marked where they stand (through hills and rock), with how far and how long they have
+     * left: the compass says which way, these say which one. Gates a few steps away need no mark.
+     */
+    private static void inView(GuiGraphics g, Minecraft mc, int w, BreakClient.Sensed ss, float top, float partial) {
+        Vec3 p = mc.player.position();
+        List<GateSensePayload.Entry> gates = new ArrayList<>(ss.gates());
+        gates.sort(Comparator.comparingDouble((GateSensePayload.Entry e) -> flat(p, e)).reversed());
+        float ticks = BreakClient.gameTime() + partial;
+        int h = mc.getWindow().getGuiScaledHeight();
+        for (GateSensePayload.Entry e : gates) {
+            double d = flat(p, e);
+            if (d < 12) continue;
+            float appear = Anim.outBack(Anim.window(ss.age(), BreakWorldFx.delay(d), BreakWorldFx.delay(d) + 0.35f));
+            if (appear <= 0.01f) continue;
+            float[] at = WorldProjector.project(Vec3.atBottomCenterOf(e.pos()).add(0, GateBlockEntity.CENTER_Y, 0));
+            if (at == null || at[0] < 10 || at[0] > w - 10 || at[1] > h - 40) continue;
+            marker(g, e, at[0], Math.max(top, at[1]), d, false, 0, appear, true, ss, ticks);
+        }
     }
 
     private static void marker(GuiGraphics g, GateSensePayload.Entry e, float px, float cy, double d, boolean edge, float rel, float appear,

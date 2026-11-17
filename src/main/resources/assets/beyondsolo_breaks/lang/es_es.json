@@ -23,7 +23,7 @@
   "notify.beyondsolo.break.unstable.title": "Portal Inestable",
   "notify.beyondsolo.break.unstable.body": "Un Portal de Rango %s a %s bloques al %s se está desmoronando. Se romperá en unos %s minutos si nadie lo despeja.",
   "notify.beyondsolo.break.imminent.title": "Ruptura de Mazmorra Inminente",
-  "notify.beyondsolo.break.imminent.body": "El Portal de Rango %s a %s bloques al %s se romperá en %s segundos. Sus monstruos están saliendo.",
+  "notify.beyondsolo.break.imminent.body": "El Portal de Rango %s a %s bloques al %s se romperá en %s segundos. Sus monstruos están a punto de salir en tropel.",
   "quest.beyondsolo.dungeon_break": "Contén la Ruptura de Rango %s",
   "quest.beyondsolo.dungeon_break.desc": "Un Portal de Rango %s se ha roto y sus monstruos salen en tropel. Contenlos y derrota a %s para cerrarlo.",
   "quest_objective.beyondsolo.break_mobs": "Derrota a los monstruos de la ruptura",
