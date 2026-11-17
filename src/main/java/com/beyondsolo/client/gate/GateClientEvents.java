@@ -33,7 +33,7 @@ public final class GateClientEvents {
             event.registerAboveAll(BeyondSolo.id("gate_moments"), GateOverlay::render);
         }
 
-        /** The gate dimension: no sky, no clouds, its own dark fog. */
+        /** The gate dimension: no sky, no clouds, its own dark fog, the light in the realm's colour. */
         @SubscribeEvent
         static void effects(RegisterDimensionSpecialEffectsEvent event) {
             event.register(BeyondSolo.id("gate_depths"), new DimensionSpecialEffects(Float.NaN, false, DimensionSpecialEffects.SkyType.NONE, false, false) {
@@ -45,6 +45,13 @@ public final class GateClientEvents {
                 @Override
                 public boolean isFoggyAt(int x, int y) {
                     return false;
+                }
+
+                @Override
+                public void adjustLightmapColors(net.minecraft.client.multiplayer.ClientLevel level, float partialTicks, float skyDarken,
+                                                 float blockLightRedFlicker, float skyLight, int pixelX, int pixelY, org.joml.Vector3f colors) {
+                    // lamps and fire in the realm's own light
+                    GateAtmosphere.tintLight(colors);
                 }
             });
         }

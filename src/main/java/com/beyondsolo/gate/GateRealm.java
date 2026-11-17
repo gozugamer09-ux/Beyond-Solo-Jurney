@@ -96,7 +96,7 @@ public enum GateRealm {
             .trimmings(Blocks.MOSSY_STONE_BRICK_STAIRS, Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.MOSSY_STONE_BRICK_WALL, Blocks.MOSSY_STONE_BRICKS)
             .shapes(DungeonShape.GAUNTLET, 3, DungeonShape.LABYRINTH, 2, DungeonShape.CAVERNS, 2)
             .life(null, null, Habitat.PLANT, Habitat.UNDEAD, Habitat.BEAST).bosses(BossKind.BRUTE, BossKind.KNIGHT, BossKind.ALPHA)
-            .decor(Decor.PILLARS, Decor.MOSS, Decor.AZALEA, Decor.ROOTS, Decor.CHAINS).fog(0x1C2618, 40).ambience(ParticleTypes.SPORE_BLOSSOM_AIR)),
+            .decor(Decor.PILLARS, Decor.MOSS, Decor.AZALEA, Decor.ROOTS, Decor.CHAINS).fog(0x1C2618, 40).glow(0xC8F0B4).ambience(ParticleTypes.SPORE_BLOSSOM_AIR)),
     /** A buried tomb of sandstone: pillared halls, sarcophagi, urns, dust in the air. */
     SUNSCORCHED_TOMB(spec(PlayerRank.D, PlayerRank.B, 3).built()
             .walls(Blocks.SANDSTONE, Blocks.CUT_SANDSTONE, Blocks.SMOOTH_SANDSTONE).floors(Blocks.SMOOTH_SANDSTONE, Blocks.CUT_SANDSTONE, Blocks.SANDSTONE)
@@ -116,7 +116,7 @@ public enum GateRealm {
             .trimmings(Blocks.POLISHED_DEEPSLATE_STAIRS, Blocks.POLISHED_DEEPSLATE_SLAB, Blocks.DEEPSLATE_BRICK_WALL, Blocks.POLISHED_DEEPSLATE)
             .shapes(DungeonShape.LABYRINTH, 4, DungeonShape.CAVERNS, 2, DungeonShape.DESCENT, 1, DungeonShape.GAUNTLET, 1)
             .life(Affinity.SHADE, DamageElement.CRIMSON, Habitat.UNDEAD, Habitat.CULT).bosses(BossKind.KNIGHT, BossKind.MAGUS, BossKind.BRUTE)
-            .decor(Decor.PILLARS, Decor.COFFINS, Decor.COBWEBS, Decor.BONES, Decor.CHAINS, Decor.SOUL_FIRE).fog(0x121218, 36).ambience(ParticleTypes.WHITE_ASH)),
+            .decor(Decor.PILLARS, Decor.COFFINS, Decor.COBWEBS, Decor.BONES, Decor.CHAINS, Decor.SOUL_FIRE).fog(0x121218, 36).glow(0xB8D0FF).ambience(ParticleTypes.WHITE_ASH)),
     /** A nest of round cells in resin and mud, clusters of glowing eggs, webs, honey underfoot. */
     CHITIN_HIVE(spec(PlayerRank.D, PlayerRank.A, 3).hive()
             .walls(Blocks.PACKED_MUD, Blocks.BROWN_TERRACOTTA, Blocks.TERRACOTTA, Blocks.PACKED_MUD).floors(Blocks.MUD, Blocks.PACKED_MUD, Blocks.COARSE_DIRT)
@@ -134,7 +134,7 @@ public enum GateRealm {
             .trimmings(Blocks.DARK_PRISMARINE_STAIRS, Blocks.DARK_PRISMARINE_SLAB, Blocks.PRISMARINE_WALL, Blocks.DARK_PRISMARINE).carpet(Blocks.CYAN_CARPET)
             .shapes(DungeonShape.GAUNTLET, 3, DungeonShape.CAVERNS, 2, DungeonShape.LABYRINTH, 1, DungeonShape.CHASM, 1)
             .life(Affinity.FROST, null, Habitat.AQUATIC, Habitat.CULT, Habitat.KNIGHT).bosses(BossKind.MAGUS, BossKind.KNIGHT)
-            .decor(Decor.PILLARS, Decor.CHANNELS, Decor.CORAL, Decor.CHAINS).fog(0x0C2A32, 40).ambience(ParticleTypes.UNDERWATER)),
+            .decor(Decor.PILLARS, Decor.CHANNELS, Decor.CORAL, Decor.CHAINS).fog(0x0C2A32, 40).glow(0xA0F0E4).ambience(ParticleTypes.UNDERWATER)),
     /** Caverns of blue ice and snow, spires of packed ice, cold light, snow drifting down. */
     RIMEFROST(spec(PlayerRank.C, PlayerRank.A, 3).cave()
             .walls(Blocks.PACKED_ICE, Blocks.PACKED_ICE, Blocks.SNOW_BLOCK, Blocks.CALCITE).floors(Blocks.SNOW_BLOCK, Blocks.PACKED_ICE, Blocks.CALCITE)
@@ -142,7 +142,7 @@ public enum GateRealm {
             .trimmings(Blocks.POLISHED_DIORITE_STAIRS, Blocks.POLISHED_DIORITE_SLAB, Blocks.DIORITE_WALL, Blocks.POLISHED_DIORITE).lantern(Blocks.SOUL_LANTERN)
             .shapes(DungeonShape.HOLLOW, 3, DungeonShape.CHASM, 2, DungeonShape.CAVERNS, 2, DungeonShape.DESCENT, 1)
             .life(Affinity.FROST, null, Habitat.FROST, Habitat.BEAST, Habitat.UNDEAD).bosses(BossKind.ALPHA, BossKind.ALPHA, BossKind.KNIGHT)
-            .decor(Decor.STALAGMITES, Decor.ICE).fog(0x9CC4E4, 34).ambience(ParticleTypes.SNOWFLAKE)),
+            .decor(Decor.STALAGMITES, Decor.ICE).fog(0x9CC4E4, 34).glow(0xBCDCFF).ambience(ParticleTypes.SNOWFLAKE)),
     /** A crystal mine: timber-propped tunnels through tuff and calcite, seams of amethyst glowing in the walls. */
     CRYSTAL_SEAM(spec(PlayerRank.C, PlayerRank.A, 3).cave().corridors()
             .walls(Blocks.TUFF, Blocks.DEEPSLATE, Blocks.CALCITE, Blocks.TUFF).floors(Blocks.TUFF, Blocks.COBBLED_DEEPSLATE, Blocks.GRAVEL)
@@ -151,7 +151,7 @@ public enum GateRealm {
             .trimmings(Blocks.SPRUCE_STAIRS, Blocks.SPRUCE_SLAB, Blocks.SPRUCE_FENCE, Blocks.SPRUCE_PLANKS)
             .shapes(DungeonShape.DESCENT, 3, DungeonShape.LABYRINTH, 2, DungeonShape.CAVERNS, 2)
             .life(Affinity.STORM, null, Habitat.CRYSTAL, Habitat.INSECT, Habitat.KNIGHT).bosses(BossKind.MAGUS, BossKind.BRUTE, BossKind.ALPHA)
-            .decor(Decor.CRYSTALS, Decor.SUPPORTS, Decor.STALAGMITES).fog(0x1C1430, 40).ambience(ParticleTypes.GLOW)),
+            .decor(Decor.CRYSTALS, Decor.SUPPORTS, Decor.STALAGMITES).fog(0x1C1430, 40).glow(0xE4CCFF).ambience(ParticleTypes.GLOW)),
     /** A cavern of giant mushrooms on mycelium, spores hanging in a violet haze. */
     SPOREFALL_DEEP(spec(PlayerRank.C, PlayerRank.B, 3).cave()
             .walls(Blocks.TUFF, Blocks.PACKED_MUD, Blocks.DEEPSLATE).floors(Blocks.MYCELIUM, Blocks.MOSS_BLOCK, Blocks.PODZOL)
@@ -159,7 +159,7 @@ public enum GateRealm {
             .spike(Blocks.MUSHROOM_STEM).trimmings(Blocks.MUD_BRICK_STAIRS, Blocks.MUD_BRICK_SLAB, Blocks.MUD_BRICK_WALL, Blocks.MUD_BRICKS)
             .shapes(DungeonShape.HOLLOW, 4, DungeonShape.CAVERNS, 2, DungeonShape.HIVE, 1)
             .life(Affinity.VENOM, DamageElement.POISON, Habitat.PLANT, Habitat.INSECT).bosses(BossKind.BROODMOTHER, BossKind.BRUTE, BossKind.MAGUS)
-            .decor(Decor.MUSHROOMS, Decor.MOSS, Decor.ROOTS).fog(0x241A2E, 38).ambience(ParticleTypes.SPORE_BLOSSOM_AIR)),
+            .decor(Decor.MUSHROOMS, Decor.MOSS, Decor.ROOTS).fog(0x241A2E, 38).glow(0xDCC4FF).ambience(ParticleTypes.SPORE_BLOSSOM_AIR)),
     /** A fortress keep: stone halls with timber ceilings, red carpets and banners, chandeliers, a throne. */
     IRONBOUND_KEEP(spec(PlayerRank.B, PlayerRank.S, 3).built()
             .walls(Blocks.STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.POLISHED_ANDESITE)
@@ -179,7 +179,7 @@ public enum GateRealm {
             .trimmings(Blocks.POLISHED_TUFF_STAIRS, Blocks.POLISHED_TUFF_SLAB, Blocks.TUFF_BRICK_WALL, Blocks.POLISHED_TUFF).carpet(Blocks.CYAN_CARPET)
             .shapes(DungeonShape.SPIRE, 5, DungeonShape.GAUNTLET, 1, DungeonShape.CHASM, 1)
             .life(Affinity.STORM, null, Habitat.STORM, Habitat.CULT, Habitat.KNIGHT).bosses(BossKind.MAGUS, BossKind.MAGUS, BossKind.KNIGHT, BossKind.WYRM)
-            .decor(Decor.PILLARS, Decor.COPPER, Decor.END_RODS, Decor.CHAINS).fog(0x161C2E, 44).ambience(ParticleTypes.ELECTRIC_SPARK)),
+            .decor(Decor.PILLARS, Decor.COPPER, Decor.END_RODS, Decor.CHAINS).fog(0x161C2E, 44).glow(0xC4DCFF).ambience(ParticleTypes.ELECTRIC_SPARK)),
     /** Islands of pale stone adrift in a lightless void, obsidian spires, motes rising out of the dark. */
     STARLESS_EXPANSE(spec(PlayerRank.A, PlayerRank.S, 3).cave()
             .walls(Blocks.OBSIDIAN, Blocks.BLACKSTONE, Blocks.OBSIDIAN).floors(Blocks.END_STONE, Blocks.END_STONE_BRICKS)
@@ -187,7 +187,7 @@ public enum GateRealm {
             .spike(Blocks.OBSIDIAN).trimmings(Blocks.END_STONE_BRICK_STAIRS, Blocks.END_STONE_BRICK_SLAB, Blocks.END_STONE_BRICK_WALL, Blocks.END_STONE_BRICKS)
             .shapes(DungeonShape.CHASM, 5, DungeonShape.HOLLOW, 1, DungeonShape.DESCENT, 1)
             .life(Affinity.SHADE, DamageElement.CRIMSON, Habitat.DEMON, Habitat.CULT, Habitat.STORM).bosses(BossKind.MAGUS, BossKind.KNIGHT, BossKind.WYRM)
-            .decor(Decor.END_RODS, Decor.STALAGMITES).fog(0x08060E, 64).ambience(ParticleTypes.REVERSE_PORTAL)),
+            .decor(Decor.END_RODS, Decor.STALAGMITES).fog(0x08060E, 64).glow(0xB8B8FF).ambience(ParticleTypes.REVERSE_PORTAL)),
     /** A fortress of the burning dark: red brick and blackstone, lava in channels, soul fire in braziers. */
     INFERNAL_CITADEL(spec(PlayerRank.A, PlayerRank.S, 3).built()
             .walls(Blocks.RED_NETHER_BRICKS, Blocks.NETHER_BRICKS, Blocks.POLISHED_BLACKSTONE_BRICKS, Blocks.RED_NETHER_BRICKS)
@@ -197,7 +197,7 @@ public enum GateRealm {
             .trimmings(Blocks.POLISHED_BLACKSTONE_BRICK_STAIRS, Blocks.POLISHED_BLACKSTONE_BRICK_SLAB, Blocks.RED_NETHER_BRICK_WALL, Blocks.POLISHED_BLACKSTONE_BRICKS).liquid(Blocks.LAVA)
             .shapes(DungeonShape.SPIRE, 3, DungeonShape.GAUNTLET, 3, DungeonShape.CHASM, 2)
             .life(Affinity.FLAME, DamageElement.FIRE, Habitat.DEMON, Habitat.FLAME, Habitat.KNIGHT).bosses(BossKind.KNIGHT, BossKind.WYRM, BossKind.MAGUS)
-            .decor(Decor.PILLARS, Decor.CHANNELS, Decor.SOUL_FIRE, Decor.CHAINS, Decor.BANNERS, Decor.THRONE).fog(0x2C0A06, 40).ambience(ParticleTypes.ASH)),
+            .decor(Decor.PILLARS, Decor.CHANNELS, Decor.SOUL_FIRE, Decor.CHAINS, Decor.BANNERS, Decor.THRONE).fog(0x2C0A06, 40).glow(0xFFB48C).ambience(ParticleTypes.ASH)),
 
     // ------------------------------------------------------------------ never rolled
     /** The awakening trial's: bone-white stone with gold seams over dark tiled floors, cold soul light. */
@@ -267,6 +267,11 @@ public enum GateRealm {
     /** The fog's colour on the other side (blended in on the client) and how far you can see. */
     public final int fogColor;
     public final float fogFar;
+    /**
+     * The colour of the light down there (on the client, the light of lamps and fire takes it on: cold in the ice,
+     * violet in the haze); 0 leaves it the usual warm torchlight.
+     */
+    public final int glow;
     /** Drifting in the air around you, now and then; null for nothing. */
     @Nullable public final ParticleOptions ambience;
     public final Set<Decor> decor;
@@ -302,6 +307,7 @@ public enum GateRealm {
         this.banner = s.banner;
         this.fogColor = s.fog;
         this.fogFar = s.fogFar;
+        this.glow = s.glow;
         this.ambience = s.ambience;
         this.decor = s.decor;
     }
@@ -465,6 +471,7 @@ public enum GateRealm {
         Block carpet, banner;
         int fog = 0x101018;
         float fogFar = 44;
+        int glow;
         ParticleOptions ambience;
         Set<Decor> decor = EnumSet.noneOf(Decor.class);
 
@@ -520,6 +527,7 @@ public enum GateRealm {
         Spec bosses(BossKind... kinds) { bosses = List.of(kinds); return this; }
         Spec decor(Decor... d) { decor = EnumSet.copyOf(List.of(d)); return this; }
         Spec fog(int color, float far) { fog = color; fogFar = far; return this; }
+        Spec glow(int color) { glow = color; return this; }
         Spec ambience(ParticleOptions p) { ambience = p; return this; }
 
         private static BlockState[] states(Block... blocks) {

@@ -17,6 +17,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 /**
  * The air of the realm behind the gate the player is in: the colour of its fog (it fades in after arriving), how far
@@ -24,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
  * {@code GatePayload.REALM}; outside the gate dimension there is none.
  *
  * <p>The fog colour is set at normal priority, so anything tinting it at low priority (the gate's weather) works on
- * top of the realm's.</p>
+ * top of the realm's. The light takes on the realm's colour too ({@link #tintLight}).</p>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class GateAtmosphere {
@@ -69,6 +70,22 @@ public final class GateAtmosphere {
         event.setRed(Mth.lerp(k, event.getRed(), ((c >> 16) & 255) / 255f));
         event.setGreen(Mth.lerp(k, event.getGreen(), ((c >> 8) & 255) / 255f));
         event.setBlue(Mth.lerp(k, event.getBlue(), (c & 255) / 255f));
+    }
+
+    /**
+     * The light of the realm (the gate dimension's lightmap, see {@code GateClientEvents}): lamps and fire take on its
+     * {@link GateRealm#glow} instead of the usual warm torchlight, as bright as before. Fades in with the fog.
+     */
+    public static void tintLight(Vector3f colors) {
+        GateRealm r = realm();
+        if (r == null || r.glow == 0) return;
+        float l = Math.max(colors.x, Math.max(colors.y, colors.z));
+        if (l <= 0) return;
+        int c = r.glow;
+        float cr = ((c >> 16) & 255) / 255f, cg = ((c >> 8) & 255) / 255f, cb = (c & 255) / 255f;
+        float m = Math.max(cr, Math.max(cg, cb));
+        float k = 0.85f * blend * blend * (3 - 2 * blend);
+        colors.set(Mth.lerp(k, colors.x, l * cr / m), Mth.lerp(k, colors.y, l * cg / m), Mth.lerp(k, colors.z, l * cb / m));
     }
 
     @SubscribeEvent
