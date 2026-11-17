@@ -28,7 +28,8 @@ public final class DungeonLayout {
         }
     }
 
-    public enum Kind { ENTRANCE, CAVERN, SIDE, BOSS }
+    /** HIDDEN: a chamber behind a disguised wall off one of the caverns ({@code depths.HiddenRooms}). */
+    public enum Kind { ENTRANCE, CAVERN, SIDE, BOSS, HIDDEN }
 
     /** A tunnel from one room to another, bending through {@code bend}. */
     public record Tunnel(int from, int to, BlockPos start, BlockPos bend, BlockPos end, float radius) {}
@@ -62,8 +63,39 @@ public final class DungeonLayout {
         throw new IllegalStateException("no boss room");
     }
 
-    /** Builds the plan for a gate. */
+    /** The hidden chamber, if the cave has one. */
+    @org.jetbrains.annotations.Nullable
+    public Room hidden() {
+        for (Room r : rooms) if (r.kind == Kind.HIDDEN) return r;
+        return null;
+    }
+
+    /** The tunnel into the hidden chamber (from the cavern it hides off), if there is one. */
+    @org.jetbrains.annotations.Nullable
+    public Tunnel hiddenTunnel() {
+        Room h = hidden();
+        if (h == null) return null;
+        for (Tunnel t : tunnels) if (t.to() == h.index()) return t;
+        return null;
+    }
+
+    /** The tunnels that open into a room (either end). */
+    public List<Tunnel> tunnelsOf(int room) {
+        List<Tunnel> out = new ArrayList<>();
+        for (Tunnel t : tunnels) if (t.from() == room || t.to() == room) out.add(t);
+        return out;
+    }
+
+    /** Builds the plan for a gate without a hidden chamber. */
     public static DungeonLayout plan(long seed, GateTheme theme) {
+        return plan(seed, theme, false);
+    }
+
+    /**
+     * Builds the plan for a gate. With {@code hidden}, a chamber is tucked off one of the later caverns, where
+     * nothing else passes (its own random, so the rest of the cave is the same with or without it).
+     */
+    public static DungeonLayout plan(long seed, GateTheme theme, boolean hidden) {
         RandomSource r = new LegacyRandomSource(seed);
         List<Room> rooms = new ArrayList<>();
         List<Tunnel> tunnels = new ArrayList<>();
@@ -121,7 +153,79 @@ public final class DungeonLayout {
                 }
             }
         }
+        if (hidden) placeHidden(seed, rooms, tunnels);
         return new DungeonLayout(List.copyOf(rooms), List.copyOf(tunnels));
+    }
+
+    /** The hidden chamber: off a cavern in the back two thirds of the cave, clear of every other room and tunnel. */
+    private static void placeHidden(long seed, List<Room> rooms, List<Tunnel> tunnels) {
+        RandomSource h = new LegacyRandomSource(seed * 0x9E3779B97F4A7C15L + 0x48494444L);
+        List<Room> caverns = new ArrayList<>();
+        for (Room room : rooms) if (room.kind == Kind.CAVERN) caverns.add(room);
+        if (caverns.isEmpty()) return;
+        int first = caverns.size() / 3;
+        for (int attempt = 0; attempt < 60; attempt++) {
+            Room from = caverns.get(first + h.nextInt(Math.max(1, caverns.size() - first)));
+            float a = h.nextFloat() * Mth.TWO_PI;
+            int rx = 6 + h.nextInt(2), rz = 6 + h.nextInt(2), ry = 5;
+            int dist = from.reach() + Math.max(rx, rz) + 8 + h.nextInt(6);
+            int y = Mth.clamp(from.center().getY() + h.nextInt(5) - 2, MIN_Y + ry + 2, MAX_Y - ry - 2);
+            Room room = new Room(rooms.size(), new BlockPos(from.center().getX() + Math.round(Mth.cos(a) * dist), y,
+                    from.center().getZ() + Math.round(Mth.sin(a) * dist)), rx, ry, rz, Kind.HIDDEN);
+            if (!clear(rooms, room, 7)) continue;
+            Tunnel t = tunnel(h, from, room);
+            if (!secluded(rooms, tunnels, from, room, t)) continue;
+            rooms.add(room);
+            tunnels.add(t);
+            return;
+        }
+    }
+
+    /**
+     * True if nothing else reaches the hidden chamber or its tunnel: no other tunnel comes near either, and the tunnel
+     * passes through no room but the one it leaves.
+     */
+    private static boolean secluded(List<Room> rooms, List<Tunnel> tunnels, Room from, Room hidden, Tunnel t) {
+        for (int i = 0; i <= 24; i++) {
+            double[] p = along(t, i / 24.0);
+            for (Room o : rooms) {
+                if (o == from) continue;
+                double dx = (p[0] - o.center().getX()) / (o.rx() + t.radius() + 3);
+                double dy = (p[1] - o.center().getY()) / (o.ry() + t.radius() + 3);
+                double dz = (p[2] - o.center().getZ()) / (o.rz() + t.radius() + 3);
+                if (dx * dx + dy * dy + dz * dz < 1) return false;
+            }
+            boolean pInFrom = within(p, from, 1.35);
+            for (Tunnel other : tunnels) {
+                boolean shares = other.from() == from.index() || other.to() == from.index();
+                for (int j = 0; j <= 24; j++) {
+                    double[] q = along(other, j / 24.0);
+                    // where both are still inside the room they leave, they are the room itself
+                    if (shares && pInFrom && within(q, from, 1.35)) continue;
+                    double need = t.radius() + other.radius() + 3;
+                    double ddx = p[0] - q[0], ddy = p[1] - q[1], ddz = p[2] - q[2];
+                    if (ddx * ddx + ddy * ddy + ddz * ddz < need * need) return false;
+                }
+            }
+        }
+        for (Tunnel other : tunnels) {
+            for (int j = 0; j <= 24; j++) {
+                double[] q = along(other, j / 24.0);
+                double dx = (q[0] - hidden.center().getX()) / (hidden.rx() + other.radius() + 4);
+                double dy = (q[1] - hidden.center().getY()) / (hidden.ry() + other.radius() + 4);
+                double dz = (q[2] - hidden.center().getZ()) / (hidden.rz() + other.radius() + 4);
+                if (dx * dx + dy * dy + dz * dz < 1) return false;
+            }
+        }
+        return true;
+    }
+
+    /** True if {@code p} is inside the room's ellipsoid scaled by {@code scale}. */
+    public static boolean within(double[] p, Room room, double scale) {
+        double dx = (p[0] - room.center().getX()) / room.rx();
+        double dy = (p[1] - room.center().getY()) / room.ry();
+        double dz = (p[2] - room.center().getZ()) / room.rz();
+        return dx * dx + dy * dy + dz * dz < scale * scale;
     }
 
     private static boolean clear(List<Room> rooms, Room candidate, int gap) {

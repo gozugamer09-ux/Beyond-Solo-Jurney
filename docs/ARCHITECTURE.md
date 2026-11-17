@@ -32,6 +32,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
 | `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
 | `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
+| `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -858,6 +859,67 @@ icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` 
 - **Commands** (`/system key ...`, level 2): give &lt;rank&gt; [n], sealed &lt;rank&gt; &lt;boss&gt; [ascendant], kit, turn,
   runs, reset, expire, seal, wipe. UI driver: `screen gates`, `gates <n>`, `gatesgo`, `rerun`.
 
+## Hidden chambers, traps, weaknesses and gate weather
+
+Code in `depths/` (server), `client/depths/` (client) and `enemy/ElementalProfile`. `DepthsModule.init` registers the
+three blocks (`hidden_seal`, `trap_core`, `trap_ward`), the `weaknesses` attachment (`WeaknessLog`, kept through
+death) and the payloads (`DepthsPayload`, `DepthsFxPayload`, `WeaknessPayload`). Lang lives in
+`assets/beyondsolo_depths/lang`. Icons, light textures, block art, block models and the English text come from
+`tools/gen_depths_assets.py`; the Spanish (`es_es.json`) is kept by hand next to it. Everything about one cave lives in `GateDepths` on its `GateInstance` and is saved
+with it: what the seed says unless a command or a test forces it, and how far the party got. Caves saved before this
+load as `GateDepths.legacy()` (weather only, their rock has no chamber or traps in it). An awakening trial has none of
+it. `DepthsHooks` runs it all every half second for each cave with a party in it.
+
+- **Elemental profiles** (`ElementalProfile`): every living thing takes each element by steps: undead fear light and
+  fire and shrug off shadow and rot, spiders burn, blazes are immune to fire and drown, witches laugh at arcane, and
+  so on for the vanilla monsters, the gate's own creatures (by kind), a boss's kind and a creature's affinity (a
+  frostbound hound fears fire; an affinity always resists its own element). Steps add up into a rating: immune (x0),
+  strong resist (x0.25), resist (x0.5), neutral, weak (x1.5), severe (x2). Physical is never rated. The multiplier
+  applies to skill hits (`SkillCombat.strike`), weapon infusions, element procs and buildup (`EnemyHooks`); the hit
+  carries its rating to the damage number (`HitTags`, a label over the number: WEAK, WEAK+, RESIST, IMMUNE). The
+  first time a player lands an element on a weakness of a kind of creature, the System notes it (`WeaknessLog`, by
+  profile key) and says so; from then on the creature under the crosshair shows the weaknesses that player knows
+  (`DepthsHud`). Appraising Gaze shows the whole profile (weak and resists rows).
+- **Gate weather** (`GateWeather`, `WeatherService`): each cave rolls its air from its seed: still in half the E
+  caves down to a quarter of the S ones, else one of eight conditions (the theme's own three times as likely). Each
+  favours one element and dulls another (skill hits and element damage such as infusion procs, burns and venom, by
+  where the target stands) and pays more for the
+  clear (x1.10 to x1.25 XP and gold). Hazards, every few seconds while the boss stands: mist (sight a few blocks),
+  searing heat (burn buildup out of water), frost gale (slows, frost at the edge of the screen), mana storm (bolts on
+  marked spots, leaving creatures charged with lightning), spore miasma (venom buildup), crimson haze (the cave's
+  creatures hit 15% harder and heal 10% of what they deal), devouring dark (sight a few blocks, creatures 15% faster)
+  and tremors (quakes, rocks on marked spots). On screen (`WeatherFx`): fog colour and distance laid over the cave's
+  own (low priority, so the gate's fog runs first), the air itself drawn as light (motes, sparks, snow, spores, ash,
+  wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock.
+- **Hidden chambers** (`HiddenKind`, `HiddenRooms`, `DepthsBuild`): 30% of E caves up to 55% of S ones hide a
+  chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonLayout.placeHidden`,
+  appended after the rest of the plan with its own random so the cave is otherwise unchanged). The tunnel's mouth is
+  plugged with `HiddenSealBlock`s that pass for the cave's own rock (its model points at that rock's textures; some
+  blocks have faint cracks with a violet speck; now and then a mote of light seeps out). It can't be mined: three
+  knocks (hits, or arrows) bring it down; Pulse Scan within range outlines it through the rock and says something is
+  hidden. Opening it gives the party XP and the System's HIDDEN DUNGEON moment. A vault holds a cache one rank above
+  the gate's; a shrine blesses each who steps in once (strength, regeneration and resistance for 5 minutes); a lair
+  wakes guardians of one rank higher and drops its hoard when the last one falls. Hidden caches have the violet look.
+- **Trap rooms** (`TrapKind`, `TrapRooms`): past the first cavern, a cavern may be a trap room (12% plus 3% a rank,
+  at most 1 + rank/3 a cave). It springs on the first step in, with the System's call-out: spikes under the party's
+  feet, vents blasting the gate's element in columns, rockfall on marked spots (all marked on the floor first), or a
+  lockdown: walls of red light (`TrapWardBlock`) across every way out and two waves of the gate's creatures, then it
+  lets go and leaves treasure. The first three stop when their `TrapCoreBlock` breaks (four strikes; Pulse Scan shows
+  cores; a core broken before its trap springs disarms it). A lockdown nobody is left in stands down after 20 s and
+  springs again. Beating a trap pays XP. Strikes hurt the cave's creatures too.
+- **Looks**: banners (`DepthsHud`: the weather's condition card, the glitching HIDDEN DUNGEON stamp, the red TRAP
+  stamp, waves, cleared), the weather and trap chips under the run clock, the weakness tag under the crosshair;
+  world moments (`DepthsWorldFx`): knocks cracking the wall, Pulse Scan's ring with walls and cores outlined through
+  rock, the wall crumbling with light pouring out, bolts, falling rocks, a core cracking and shattering, the shrine's
+  column of light. The depths' vanilla particles never come within about two blocks of a first-person camera, counting
+  how far a burst spreads and flies (`NearFx` on the server, `DepthsWorldFx.particle` on the client): those players
+  get the moment from the light effects. A player who comes into a cave (or logs back in) while a trap is going off
+  gets its chip back (`DepthsPayload.TRAP_ACTIVE`, sent with the cave's state).
+- **Commands** (`/system depths ...`, level 2): `gate <rank> [weather] [hidden] [trap]` opens a gate five steps ahead
+  with its depths forced (`seed` keeps what the seed says), `weather <id|seed>`, `info`, `hidden` (go to the wall),
+  `open`, `reveal`, `trap` (just outside the next trap room), `core` (beside the nearest trap core), `bolt`, `rock`,
+  `profile` (of the creature looked at), `weaknesses reset`. All numbers are first guesses for the balancing pass.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -922,6 +984,7 @@ checks use zombies.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
+`test/DepthsGameTests` covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.

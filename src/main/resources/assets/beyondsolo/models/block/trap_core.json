@@ -1,0 +1,312 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "beyondsolo:block/trap_core_crystal",
+    "plinth": "minecraft:block/polished_blackstone",
+    "plinth_top": "minecraft:block/chiseled_polished_blackstone",
+    "runes": "beyondsolo:block/trap_core_runes",
+    "crystal": "beyondsolo:block/trap_core_crystal"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        0,
+        1
+      ],
+      "to": [
+        15,
+        4,
+        15
+      ],
+      "faces": {
+        "north": {
+          "texture": "#plinth",
+          "uv": [
+            1,
+            12,
+            15,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#plinth",
+          "uv": [
+            1,
+            12,
+            15,
+            16
+          ]
+        },
+        "east": {
+          "texture": "#plinth",
+          "uv": [
+            1,
+            12,
+            15,
+            16
+          ]
+        },
+        "west": {
+          "texture": "#plinth",
+          "uv": [
+            1,
+            12,
+            15,
+            16
+          ]
+        },
+        "up": {
+          "texture": "#plinth_top",
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ]
+        },
+        "down": {
+          "texture": "#plinth",
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ],
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        1,
+        4.02,
+        1
+      ],
+      "to": [
+        15,
+        4.02,
+        15
+      ],
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "up": {
+          "texture": "#runes",
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        5,
+        4,
+        5
+      ],
+      "to": [
+        11,
+        11,
+        11
+      ],
+      "rotation": {
+        "origin": [
+          8,
+          8,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "texture": "#crystal",
+          "uv": [
+            5,
+            5,
+            11,
+            12
+          ]
+        },
+        "south": {
+          "texture": "#crystal",
+          "uv": [
+            5,
+            5,
+            11,
+            12
+          ]
+        },
+        "east": {
+          "texture": "#crystal",
+          "uv": [
+            5,
+            5,
+            11,
+            12
+          ]
+        },
+        "west": {
+          "texture": "#crystal",
+          "uv": [
+            5,
+            5,
+            11,
+            12
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        11,
+        6
+      ],
+      "to": [
+        10,
+        13,
+        10
+      ],
+      "rotation": {
+        "origin": [
+          8,
+          8,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "texture": "#crystal",
+          "uv": [
+            6,
+            3,
+            10,
+            5
+          ]
+        },
+        "south": {
+          "texture": "#crystal",
+          "uv": [
+            6,
+            3,
+            10,
+            5
+          ]
+        },
+        "east": {
+          "texture": "#crystal",
+          "uv": [
+            6,
+            3,
+            10,
+            5
+          ]
+        },
+        "west": {
+          "texture": "#crystal",
+          "uv": [
+            6,
+            3,
+            10,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        7,
+        13,
+        7
+      ],
+      "to": [
+        9,
+        15,
+        9
+      ],
+      "rotation": {
+        "origin": [
+          8,
+          8,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "texture": "#crystal",
+          "uv": [
+            7,
+            1,
+            9,
+            3
+          ]
+        },
+        "south": {
+          "texture": "#crystal",
+          "uv": [
+            7,
+            1,
+            9,
+            3
+          ]
+        },
+        "east": {
+          "texture": "#crystal",
+          "uv": [
+            7,
+            1,
+            9,
+            3
+          ]
+        },
+        "west": {
+          "texture": "#crystal",
+          "uv": [
+            7,
+            1,
+            9,
+            3
+          ]
+        },
+        "up": {
+          "texture": "#crystal",
+          "uv": [
+            7,
+            7,
+            9,
+            9
+          ]
+        }
+      }
+    }
+  ]
+}

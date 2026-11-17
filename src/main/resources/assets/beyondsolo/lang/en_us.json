@@ -493,7 +493,6 @@
   "skills.beyondsolo.cooldown": "%ss",
   "skills.beyondsolo.recharging": "%ss left",
   "skills.beyondsolo.always_on": "Always active",
-  "skills.beyondsolo.gaze.weak": "Weak to %s",
   "skill.beyondsolo.pulse_scan.found": "Pulse Scan: %s hostiles revealed",
   "command.beyondsolo.skill.unknown": "Unknown skill.",
   "skill_element.beyondsolo.physical": "Physical",

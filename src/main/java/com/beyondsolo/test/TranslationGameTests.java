@@ -40,9 +40,9 @@ public final class TranslationGameTests {
     static final String SPANISH = "es_es";
     static final List<String> SPANISH_COPIES = List.of("es_ar", "es_cl", "es_ec", "es_mx", "es_uy", "es_ve", "esan");
     /** Namespaces with their own language files. New ones are found on their own when the assets folder can be listed. */
-    private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_crafting", "beyondsolo_economy",
-            "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty", "beyondsolo_runes",
-            "beyondsolo_shadows");
+    private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_crafting", "beyondsolo_depths",
+            "beyondsolo_economy", "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty",
+            "beyondsolo_runes", "beyondsolo_shadows");
     /** Minecraft's own pattern for a translation argument ({@code TranslatableContents}). */
     private static final Pattern ARG = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 

@@ -42,7 +42,8 @@ public class RewardCacheRenderer extends GeoBlockRenderer<RewardCacheBlockEntity
         float sinceOpen = cache.openedAt() < 0 ? -1 : now - cache.openedAt();
         float fadeOut = sinceOpen < 0 ? 1f : Mth.clamp((RewardCacheBlockEntity.LINGER_TICKS - sinceOpen) / 20f, 0f, 1f);
         int gold = SystemTheme.GOLD & 0xFFFFFF;
-        int blue = SystemTheme.ACCENT & 0xFFFFFF;
+        // a hidden chamber's cache glows violet
+        int blue = cache.isHidden() ? com.beyondsolo.depths.HiddenRooms.VIOLET : SystemTheme.ACCENT & 0xFFFFFF;
 
         // the fall: eased in, with a small bounce on landing
         float fall = (1 - landed);

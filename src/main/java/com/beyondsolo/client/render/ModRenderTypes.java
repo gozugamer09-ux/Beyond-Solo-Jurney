@@ -46,5 +46,21 @@ public final class ModRenderTypes {
         return LIGHT_TEXTURE.apply(texture);
     }
 
+    private static final Function<ResourceLocation, RenderType> LIGHT_THROUGH = Util.memoize(texture -> RenderType.create("beyondsolo_light_through",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::light))
+                    .setTextureState(new RenderStateShard.TextureStateShard(texture, true, false))
+                    .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
+                    .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .createCompositeState(false)));
+
+    /** Like {@link #lightTexture}, but seen through everything: what Pulse Scan shows inside the rock. */
+    public static RenderType lightThroughWalls(ResourceLocation texture) {
+        return LIGHT_THROUGH.apply(texture);
+    }
+
     private ModRenderTypes() {}
 }
