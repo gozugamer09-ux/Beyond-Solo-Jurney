@@ -175,7 +175,8 @@ public final class DungeonKeys {
         Refusal r = refusal(SystemAPI.get(p), key);
         if (r != null) return r;
         ServerLevel level = p.serverLevel();
-        if (level.dimension().equals(com.beyondsolo.penalty.PenaltyZone.DIMENSION) || com.beyondsolo.job.JobTrial.inTrial(p)) return Refusal.PLACE;
+        if (level.dimension().equals(com.beyondsolo.penalty.PenaltyZone.DIMENSION) || com.beyondsolo.job.JobTrial.inTrial(p)
+                || com.beyondsolo.tower.TowerAPI.inCitadel(p)) return Refusal.PLACE;
         GateInstance host = host(p);
         if (host != null) {
             if (host.isTrial()) return Refusal.PLACE;

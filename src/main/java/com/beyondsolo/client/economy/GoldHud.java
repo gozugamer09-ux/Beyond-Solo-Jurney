@@ -70,7 +70,7 @@ public final class GoldHud {
     }
 
     public static String reasonLabel(Economy.Reason r) {
-        return Component.translatable("gold.beyondsolo.reason." + r.name().toLowerCase()).getString();
+        return Component.translatable("gold.beyondsolo.reason." + r.name().toLowerCase(java.util.Locale.ROOT)).getString();
     }
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
