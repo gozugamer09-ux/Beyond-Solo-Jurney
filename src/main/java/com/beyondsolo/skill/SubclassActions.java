@@ -69,7 +69,7 @@ public final class SubclassActions {
     /** Tag on summoned wolves and storm arrows. */
     public static final String SUMMON_TAG = "beyondsolo_summon";
     public static final String STORM_ARROW_TAG = "beyondsolo_storm_arrow";
-    static final String SUMMON_EXPIRES = "beyondsolo_expires";
+    public static final String SUMMON_EXPIRES = "beyondsolo_expires";
 
     /** Death Sentence marks: creature -> {end game time, bonus percent, caster entity id}. Server thread only. */
     static final Map<LivingEntity, long[]> SENTENCES = new WeakHashMap<>();

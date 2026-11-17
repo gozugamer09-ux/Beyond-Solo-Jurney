@@ -178,7 +178,8 @@ public final class RangerPath {
         HELD.put(e, new long[]{now(p) + ticks, p.getId()});
     }
 
-    private static boolean caught(LivingEntity e, long now) {
+    /** Whether a trap, snare, net or pin is holding the creature. Public for the game tests. */
+    public static boolean caught(LivingEntity e, long now) {
         long[] held = HELD.get(e);
         return held != null && held[0] > now;
     }
@@ -648,6 +649,13 @@ public final class RangerPath {
             this.until = until;
             this.level = level;
         }
+    }
+
+    /** How many jaw traps the hunter has lying armed. Public for the game tests. */
+    public static int trapsSet(ServerPlayer p) {
+        long now = now(p);
+        List<Trap> mine = TRAPS.get(p.getUUID());
+        return mine == null ? 0 : (int) mine.stream().filter(t -> !t.gone && t.until > now).count();
     }
 
     /** How much worse the Patient Trapper's traps and snares are. Also for the Snare Field in {@link SubclassActions}. */
