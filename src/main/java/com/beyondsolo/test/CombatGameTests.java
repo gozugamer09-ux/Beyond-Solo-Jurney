@@ -1,12 +1,19 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.awakening.ArbiterEntity;
+import com.beyondsolo.awakening.AwakeningTestAccess;
 import com.beyondsolo.combat.Buildups;
+import com.beyondsolo.combat.CombatDamage;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.combat.ModAttributes;
 import com.beyondsolo.combat.ModEffects;
 import com.beyondsolo.combat.Statuses;
+import com.beyondsolo.enemy.Affinity;
+import com.beyondsolo.enemy.EnemyTraits;
+import com.beyondsolo.enemy.Variant;
 import com.beyondsolo.item.ArmorSets;
+import com.beyondsolo.registry.ModEntities;
 import com.beyondsolo.registry.ModItems;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
@@ -20,6 +27,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -137,6 +145,44 @@ public final class CombatGameTests {
             helper.assertTrue(Math.abs(z.getHealth() - max * 0.9f) < 0.01f, "pop should take 10% through armor, health " + z.getHealth() + "/" + max);
             helper.succeed();
         });
+    }
+
+    /**
+     * Playtest 0.1.0: blood pops took 15-20% off a boss (every bonus on the attacker's hits landed on the pop too).
+     * A pop is a fixed share: 5% of a boss's or an elite's max health, 10% of anything else's, never more.
+     */
+    @GameTest(template = ARENA)
+    public static void bloodPopTakesAtMostFivePercentFromBossesAndElites(GameTestHelper helper) {
+        ArbiterEntity boss = helper.spawn(ModEntities.ARBITER.get(), new BlockPos(5, 2, 5));
+        AwakeningTestAccess.ready(boss);
+        float bossMax = boss.getMaxHealth();
+        Statuses.apply(boss, DamageElement.BLOOD, 100, null);
+        helper.assertTrue(Math.abs(boss.getHealth() - bossMax * 0.95f) < 0.01f, "a pop takes 5% from a boss: " + boss.getHealth() + "/" + bossMax);
+        // a pop some bonus has blown up to a third of its health still takes 5%
+        boss.setHealth(bossMax);
+        CombatDamage.deal(boss, DamageElement.BLOOD, bossMax / 3f, null);
+        helper.assertTrue(Math.abs(boss.getHealth() - bossMax * 0.95f) < 0.01f, "never more: " + boss.getHealth() + "/" + bossMax);
+
+        // an elite under a crimson brand (a quarter more from every hit): 5%
+        Zombie elite = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(1, 2, 5));
+        new EnemyTraits(Affinity.NONE, Variant.ELITE, 0).save(elite);
+        elite.addEffect(new MobEffectInstance(ModEffects.CRIMSON_BRAND, 200));
+        float eliteMax = elite.getMaxHealth();
+        elite.setHealth(eliteMax);
+        Statuses.apply(elite, DamageElement.BLOOD, 100, null);
+        helper.assertTrue(Math.abs(elite.getHealth() - eliteMax * 0.95f) < 0.01f, "a pop takes 5% from an elite, brand or not: " + elite.getHealth() + "/" + eliteMax);
+
+        // a plain zombie under the same brand: its 10%, and not a hair more
+        Zombie plain = zombie(helper);
+        plain.addEffect(new MobEffectInstance(ModEffects.CRIMSON_BRAND, 200));
+        float max = plain.getMaxHealth();
+        plain.setHealth(max);
+        Statuses.apply(plain, DamageElement.BLOOD, 100, null);
+        helper.assertTrue(Math.abs(plain.getHealth() - max * 0.9f) < 0.01f, "a plain creature still loses 10%: " + plain.getHealth() + "/" + max);
+        boss.discard();
+        elite.discard();
+        plain.discard();
+        helper.succeed();
     }
 
     @GameTest(template = ARENA)

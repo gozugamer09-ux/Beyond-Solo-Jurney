@@ -74,6 +74,18 @@ public final class ElementalHits {
         if (event.getEntity().hasEffect(ModEffects.CRIMSON_BRAND)) event.setAmount(event.getAmount() * BRAND_DAMAGE);
     }
 
+    /**
+     * A blood pop is a fixed share of the target's max health: whatever bonuses the attacker's marks, brands, buffs and
+     * set perks added on the way, it never lands harder than {@link Statuses#popCap} (5% of a boss's or an elite's).
+     * Only pops deal blood damage, so this is the pop's last word.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    static void capPop(LivingDamageEvent.Pre event) {
+        if (!event.getSource().is(CombatDamage.BLOOD)) return;
+        float cap = Statuses.popCap(event.getEntity());
+        if (event.getNewDamage() > cap) event.setNewDamage(cap);
+    }
+
     @SubscribeEvent
     static void afterDamage(LivingDamageEvent.Post event) {
         LivingEntity target = event.getEntity();
