@@ -388,8 +388,9 @@ thousand turns behind, and a creature added to a chunk not yet handed over can't
 needs chunks ready (the boss a dungeon was just built with, a wave that just rose) waits for them by the clock with
 `test/TestChunks`, not over turns.
 
-`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|info|cache [rank]|list` for testing: `spawn`
-opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `info` names the
+`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|exit|info|cache [rank]|list` for testing: `spawn`
+opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `exit` takes you
+out through the way out once it is open (its moment and all, as stepping into it does), `info` names the
 dungeon you are in (realm, shape, rooms, boss, element, seed).
 
 ## The awakening
@@ -1019,7 +1020,12 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   creatures hit 15% harder and heal 10% of what they deal), devouring dark (sight a few blocks, creatures 15% faster)
   and tremors (quakes, rocks on marked spots). On screen (`WeatherFx`): fog colour and distance laid over the cave's
   own (low priority, so the gate's fog runs first), the air itself drawn as light (motes, sparks, snow, spores, ash,
-  wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock.
+  wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock. None of it leaves
+  the cave: going through to another dimension (the exit, a command) or coming back from a fall tells the screen at
+  once (`DepthsHooks.leftCave`, `DepthsPayload.STATE` -1; the next beat would no longer see a cave to leave), the
+  client lets go of the weather, a trap, the banners and the world moments by itself as soon as it is out of the gate
+  dimension (`DepthsClient.tick`), and the frost a gale left thaws on the way out. Until 0.1.3 the way out forgot to
+  say so and the condition's chip stayed on screen in the world.
 - **Hidden chambers** (`HiddenKind`, `HiddenRooms`, `DepthsBuild`): 30% of E caves up to 55% of S ones hide a
   chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonPlanner.placeHidden`,
   appended after the rest of the plan with its own random so the cave is otherwise unchanged). Classic caves place it

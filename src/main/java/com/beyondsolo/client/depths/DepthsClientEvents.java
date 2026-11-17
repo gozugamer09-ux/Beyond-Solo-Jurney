@@ -15,8 +15,8 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
 
 /**
  * Client wiring for the depths: the HUD layer, the world effects and the weather's air, the fog (laid over the gate's
- * own cave fog, so it listens late and on cancelled events), and the creature affinity lookup the elemental profiles
- * use on this side.
+ * own cave fog, so it listens late and on cancelled events), letting go of a cave as soon as the player is out of the
+ * gate dimension, and the creature affinity lookup the elemental profiles use on this side.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class DepthsClientEvents {
@@ -40,6 +40,8 @@ public final class DepthsClientEvents {
 
     @SubscribeEvent
     static void tick(ClientTickEvent.Post event) {
+        // first, so nothing below draws a cave the player has already left
+        DepthsClient.tick();
         WeatherFx.tick();
         DepthsWorldFx.tick();
         DepthsHud.tick();

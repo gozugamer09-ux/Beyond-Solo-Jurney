@@ -42,13 +42,14 @@ import java.util.stream.Stream;
  * /system gate ... testing commands (permission level 2):
  * spawn [rank] [realm|any] [shape] (a gate opens 4 blocks in front of you; its dungeon of that realm and shape),
  * near (open one nearby like the natural spawner), enter (go through the nearest gate now), boss (to the door of the
- * boss's room), wake, kill (defeat the boss), info (the dungeon you are in), cache [rank] (a reward cache drops in
- * front of you), list.
+ * boss's room), wake, kill (defeat the boss), exit (out through the way out, with its moment, once it is open), info
+ * (the dungeon you are in), cache [rank] (a reward cache drops in front of you), list.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class GateCommand {
     private static final SimpleCommandExceptionType NONE = new SimpleCommandExceptionType(Component.translatable("command.beyondsolo.gate.none"));
     private static final SimpleCommandExceptionType NOT_INSIDE = new SimpleCommandExceptionType(Component.translatable("command.beyondsolo.gate.not_inside"));
+    private static final SimpleCommandExceptionType NO_EXIT = new SimpleCommandExceptionType(Component.translatable("command.beyondsolo.gate.no_exit"));
     private static final DynamicCommandExceptionType UNKNOWN = new DynamicCommandExceptionType(id -> Component.translatable("command.beyondsolo.gate.unknown", id));
 
     @SubscribeEvent
@@ -123,6 +124,15 @@ public final class GateCommand {
                             boss.setHealth(1f);
                             boss.hurt(p.serverLevel().damageSources().playerAttack(p), 1000f);
                             if (boss.isAlive()) boss.kill();
+                            return 1;
+                        }))
+                        .then(Commands.literal("exit").executes(ctx -> {
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            GateInstance g = inside(p);
+                            // as if stepping into the way out: its moment, then back out into the world
+                            BlockPos at = g.exitPos();
+                            if (at == null || !(p.serverLevel().getBlockEntity(at) instanceof GateBlockEntity exit)) throw NO_EXIT.create();
+                            GateService.beginExit(p, exit);
                             return 1;
                         }))
                         .then(Commands.literal("cache")

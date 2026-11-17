@@ -96,13 +96,14 @@ public final class WeatherFx {
     static void tick() {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
-        if (level == null) {
-            MOTES.clear();
+        if (level == null || !inCaves()) {
+            // out of the caves the air stays behind at once: no motes fading out, no far thunder, no dust in the world
+            clear();
             return;
         }
         GateWeather w = active();
         if (w != null) last = w;
-        shown = Mth.approach(shown, w != null && inCaves() ? 1 : 0, 1 / 40f);
+        shown = Mth.approach(shown, w != null ? 1 : 0, 1 / 40f);
         flash *= 0.8f;
         float time = level.getGameTime();
         Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();

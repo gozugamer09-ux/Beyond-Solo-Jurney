@@ -9,6 +9,7 @@ import com.beyondsolo.depths.TrapKind;
 import com.beyondsolo.enemy.Affinity;
 import com.beyondsolo.enemy.ElementalProfile;
 import com.beyondsolo.enemy.EnemyTraits;
+import com.beyondsolo.gate.GateService;
 import com.beyondsolo.network.DepthsPayload;
 import com.beyondsolo.network.WeaknessPayload;
 import com.beyondsolo.skill.SkillElement;
@@ -129,11 +130,7 @@ public final class DepthsClient {
 
     private static void state(int weatherIndex, int rankIndex) {
         if (weatherIndex < 0) {
-            weather = null;
-            trap = null;
-            trapAt = null;
-            BANNERS.clear();
-            current = null;
+            leaveCave();
             return;
         }
         GateWeather w = GateWeather.byIndex(weatherIndex);
@@ -275,6 +272,35 @@ public final class DepthsClient {
         return KNOWN.size();
     }
 
+    // ------------------------------------------------------------------ leaving
+
+    /**
+     * Every tick: out of the gate dimension, nothing of a cave stays on screen, whatever took the player out (the exit,
+     * a fall, a command, a gate that broke). The server says so too ({@code DepthsPayload.STATE} -1); this is the
+     * screen's own check, in case that never comes.
+     */
+    static void tick() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.level.dimension().equals(GateService.DIMENSION)) return;
+        if (inCave()) leaveCave();
+    }
+
+    /** True while the screen holds anything of a cave: its weather, a trap or a banner about it. */
+    private static boolean inCave() {
+        return weather != null || trap != null || current != null || !BANNERS.isEmpty();
+    }
+
+    /** The cave is behind the player: its weather (banner, chip, air and fog), its trap and the banners about it go. */
+    private static void leaveCave() {
+        weather = null;
+        trap = null;
+        trapAt = null;
+        wave = 0;
+        waves = 0;
+        BANNERS.clear();
+        current = null;
+    }
+
     /** Lets {@link ElementalProfile} see a creature's affinity on this side. */
     static void setup() {
         ElementalProfile.clientAffinity = id -> {
@@ -284,11 +310,7 @@ public final class DepthsClient {
     }
 
     static void clear() {
-        weather = null;
-        trap = null;
-        trapAt = null;
-        BANNERS.clear();
-        current = null;
+        leaveCave();
         KNOWN.clear();
     }
 
