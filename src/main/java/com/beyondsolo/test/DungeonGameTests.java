@@ -184,6 +184,7 @@ public final class DungeonGameTests {
         CompoundTag old = g.save();
         old.remove("realm");
         old.remove("shape");
+        old.remove("depths");
         old.putBoolean("built", true);
         GateInstance legacy = GateInstance.load(old);
         helper.assertTrue(legacy.legacy() && legacy.realm() == GateRealm.classic(PlayerRank.B) && legacy.shape() == DungeonShape.CAVERNS,
@@ -191,6 +192,19 @@ public final class DungeonGameTests {
         helper.assertTrue(legacy.bossKind() == BossKind.forSeed(PlayerRank.B, 99L) && legacy.element() == GateTheme.B.element, "with its old boss and element");
         helper.assertTrue(legacy.layout().rooms().equals(classic(99L, GateTheme.B).rooms()), "and its old plan");
         helper.assertTrue(GateInstance.load(legacy.save()).legacy(), "saved again, it stays one");
+
+        // one carved after hidden chambers came but before realms keeps its chamber where it was carved
+        GateInstance chambered = new GateInstance(UUID.randomUUID(), PlayerRank.B, 99L, 5, Level.OVERWORLD, BlockPos.ZERO);
+        chambered.depths().setHidden(HiddenKind.VAULT);
+        CompoundTag mid = chambered.save();
+        mid.remove("realm");
+        mid.remove("shape");
+        mid.putBoolean("built", true);
+        GateInstance between = GateInstance.load(mid);
+        DungeonLayout carved = DungeonLayout.plan(99L, GateTheme.B, GateRealm.classic(PlayerRank.B), DungeonShape.CAVERNS, true);
+        helper.assertTrue(between.legacy() && carved.hidden() != null && between.layout().rooms().equals(carved.rooms()),
+                "a cave with a hidden chamber keeps it where it was carved");
+        helper.assertTrue(carved.rooms().subList(0, carved.rooms().size() - 1).equals(classic(99L, GateTheme.B).rooms()), "and the rest as it always was");
 
         // one that was never carved takes a realm from its seed like any other
         old.putBoolean("built", false);
@@ -307,7 +321,10 @@ public final class DungeonGameTests {
         helper.assertTrue(d.getBlockState(e.below()).isFaceSturdy(d, e.below(), Direction.UP),
                 what + "ground at the entrance " + e + " (layout " + e.subtract(g.origin()).toShortString() + ")" + around(d, e));
         helper.assertTrue(open(d, g.bossRoomCenter().above()) && open(d, g.bossRoomCenter().above(2)), what + "the boss's room is hollow");
-        helper.assertTrue(g.bossSpawned() && g.boss() != null && d.getEntity(g.boss()) instanceof GateBossEntity, what + "the boss is waiting");
+        helper.assertTrue(g.bossSpawned() && g.boss() != null, what + "the boss was spawned");
+        UUID bossId = g.boss();
+        boolean bossNow = d.getEntity(bossId) instanceof GateBossEntity;
+        if (!bossNow) BeyondSolo.LOGGER.info("{}the boss isn't in the world's lookup yet{}", what, bossWhere(d, g, bossId));
 
         DungeonLayout layout = g.layout();
         for (Tunnel t : layout.tunnels()) {
@@ -350,10 +367,12 @@ public final class DungeonGameTests {
         for (Room r : layout.rooms()) {
             if (got[r.index()] || r.kind() == DungeonLayout.Kind.HIDDEN) continue;
             BlockPos near = nearest[r.index()];
-            helper.fail(what + "room " + r.index() + " (" + r.kind() + " " + r.shape() + " at layout " + r.center().toShortString()
+            String why = what + "room " + r.index() + " (" + r.kind() + " " + r.shape() + " at layout " + r.center().toShortString()
                     + ", floor " + r.floorY() + ") can't be reached on foot from the entrance (" + reached.size() + " spots reached"
-                    + (near == null ? "" : "; the nearest is layout " + near.subtract(o).toShortString() + around(d, near)
-                    + "\n" + map(d, near, reached)) + ")");
+                    + (near == null ? "" : "; the nearest is layout " + near.subtract(o).toShortString() + around(d, near)) + ")";
+            // the map goes to the log: a test's message also goes into a book, which takes no more than a page
+            if (near != null) BeyondSolo.LOGGER.error("{}\n{}", why, map(d, near, reached));
+            helper.fail(why);
             return;
         }
 
@@ -362,8 +381,9 @@ public final class DungeonGameTests {
         if (hidden != null) {
             BlockPos in = inside(reached, hidden, o);
             if (in != null) {
-                helper.fail(what + "the hidden chamber can be walked into without breaking its wall, at layout " + in.subtract(o).toShortString()
-                        + "\n" + map(d, in, reached));
+                String why = what + "the hidden chamber can be walked into without breaking its wall, at layout " + in.subtract(o).toShortString();
+                BeyondSolo.LOGGER.error("{}\n{}", why, map(d, in, reached));
+                helper.fail(why);
                 return;
             }
             DepthsBuild.Mouth m = DepthsBuild.sealMouth(g);
@@ -387,31 +407,68 @@ public final class DungeonGameTests {
             helper.assertTrue(seals >= 4, what + "a wall stands across the hidden chamber's way in: " + seals);
             Set<Long> opened = onFoot(d, e, 800_000);
             if (inside(opened, hidden, o) == null) {
-                helper.fail(what + "the hidden chamber (at layout " + hidden.center().toShortString() + ", floor " + hidden.floorY()
-                        + ") can't be walked into with its wall down; the mouth is at layout " + mouth.subtract(o).toShortString()
-                        + "\n" + map(d, mouth, opened));
+                String why = what + "the hidden chamber (at layout " + hidden.center().toShortString() + ", floor " + hidden.floorY()
+                        + ") can't be walked into with its wall down; the mouth is at layout " + mouth.subtract(o).toShortString();
+                BeyondSolo.LOGGER.error("{}\n{}", why, map(d, mouth, opened));
+                helper.fail(why);
                 return;
             }
         }
 
-        g.setState(GateInstance.State.CLOSED);
-        helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
-        // the builder walled the dungeon in rock first (the game-test world is open air), so any air left anywhere near
-        // it is a part the wipe missed
-        for (int[] b : layout.boxes(6)) {
-            BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-            for (int x = b[0]; x <= b[3]; x++) {
-                for (int y = b[1]; y <= b[4]; y++) {
-                    for (int z = b[2]; z <= b[5]; z++) {
-                        p.set(o.getX() + x, o.getY() + y, o.getZ() + z);
-                        if (!d.getBlockState(p).isAir()) continue;
-                        helper.fail(what + "air left after the wipe at " + p.toShortString() + " (layout " + x + " " + y + " " + z + ")");
-                        return;
+        Runnable wipe = () -> {
+            g.setState(GateInstance.State.CLOSED);
+            helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
+            // the builder walled the dungeon in rock first (the game-test world is open air), so any air left anywhere
+            // near it is a part the wipe missed
+            for (int[] b : layout.boxes(6)) {
+                BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+                for (int x = b[0]; x <= b[3]; x++) {
+                    for (int y = b[1]; y <= b[4]; y++) {
+                        for (int z = b[2]; z <= b[5]; z++) {
+                            p.set(o.getX() + x, o.getY() + y, o.getZ() + z);
+                            if (!d.getBlockState(p).isAir()) continue;
+                            helper.fail(what + "air left after the wipe at " + p.toShortString() + " (layout " + x + " " + y + " " + z + ")");
+                        }
                     }
                 }
             }
+        };
+        if (bossNow) {
+            wipe.run();
+            helper.succeed();
+            return;
         }
-        helper.succeed();
+        // a creature added to a chunk loaded a moment ago is in the world, but only turns up in its lookup once the
+        // chunk has finished loading (the last step of that runs on a later turn of the server); hold the chunk so it
+        // isn't put away first, and give it a few turns
+        net.minecraft.world.level.ChunkPos held = new net.minecraft.world.level.ChunkPos(g.bossRoomCenter());
+        d.getChunkSource().addRegionTicket(BOSS_CHECK, held, 1, held);
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(d.getEntity(bossId) instanceof GateBossEntity, what + "the boss is waiting" + bossWhere(d, g, bossId)))
+                .thenExecute(wipe)
+                .thenSucceed();
+    }
+
+    /** Holds a boss's chunk loaded for ten seconds while a test waits for it to finish loading. */
+    private static final net.minecraft.server.level.TicketType<net.minecraft.world.level.ChunkPos> BOSS_CHECK =
+            net.minecraft.server.level.TicketType.create("beyondsolo_boss_check", java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong), 200);
+
+    /** Where the boss should be and what the world knows of it, for a failure message. */
+    private static String bossWhere(ServerLevel d, GateInstance g, UUID id) {
+        BlockPos c = g.bossRoomCenter();
+        net.minecraft.world.level.ChunkPos cp = new net.minecraft.world.level.ChunkPos(c);
+        String known;
+        try {
+            java.lang.reflect.Field f = ServerLevel.class.getDeclaredField("entityManager");
+            f.setAccessible(true);
+            known = String.valueOf(((net.minecraft.world.level.entity.PersistentEntitySectionManager<?>) f.get(d)).isLoaded(id));
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            known = "? (" + e + ")";
+        }
+        return " (boss " + id + " at " + c.toShortString() + ": chunk " + cp + " loaded " + (d.getChunkSource().getChunkNow(cp.x, cp.z) != null)
+                + ", its creatures loaded " + d.areEntitiesLoaded(cp.toLong()) + ", ticking " + d.isPositionEntityTicking(c)
+                + ", known to the world " + known + ", bosses in sight "
+                + d.getEntitiesOfClass(GateBossEntity.class, new net.minecraft.world.phys.AABB(c).inflate(48)).size() + ")";
     }
 
     /** Nothing to bump into (air, a light, a cobweb, hanging roots...). */

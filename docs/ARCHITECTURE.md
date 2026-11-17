@@ -324,7 +324,7 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 | `GateRealm` | The kind of place behind the gate: 20 realms, several per rank (a gate's seed picks one, `forSeed`), each with its rank range, how it is built (natural caves, built halls, a hive of cells), its blocks (walls, floors, accents, trimmings, lights, liquid, carpet and banners), the decorations it uses (`Decor`), the shapes it suits with their weights, its affinity and element, the creature habitats it draws from (`enemy/Habitat`), the bosses it favours, and its fog colour, fog distance and drifting particles. The first six are the original rank caves (`classic(rank)`), `THRESHOLD` is the trial's |
 | `DungeonShape` | How the whole dungeon is laid out: caverns (the original chain), labyrinth (a grid maze with dead ends and loops), gauntlet (great halls one after another through gatehouses), spire (a tower climbed up winding stairs), descent (a ramp down a deep shaft with ledge caves), chasm (islands joined by bridges over a sea of water or lava), hollow (one vast cavern with camps, a lake and pillars), hive (round cells grown off each other). The realm says which shapes suit it and the seed picks one (`GateRealm.shapeFor`) |
 | `DungeonPlanner`, `DungeonLayout` | The plan of a dungeon from its seed, realm and shape: rooms (`Kind` entrance, cavern, side with a cache, boss, passage; `Shape` cave, hall, round hall, cell, island), passages (`Style` tube, corridor, bridge, spiral stairs) and open spaces (`SpaceShape` void, shaft, hollow, pool). One boss room, the biggest; every room reachable; nothing overlapping; between `FLOOR_LIMIT` and `CEILING_LIMIT` and inside its slot. Pure logic, tested without a world. `CAVERNS` takes exactly the draws the original planner took, so classic caves and the trial come out as before |
-| `DungeonBuilder`, `DungeonDecor` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick): spaces, rooms, passages, the realm's skin on every surface, liquids, islands and stair landings, walkways, then dresses it: lights per room shape, fill light, the boss's arena (pillar rows, standing stones, braziers, a throne in built halls), side-room caches, mana veins, and the realm's decorations, kept off the paths between doors |
+| `DungeonBuilder`, `DungeonDecor` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick): spaces, rooms, passages, the realm's skin on every surface, liquids, islands, the floor of rooms on a chasm's rim (a ledge where the chasm ate into it) and stair landings, walkways, then dresses it: lights per room shape, fill light, the boss's arena (pillar rows, standing stones, braziers, a throne in built halls), side-room caches, mana veins, and the realm's decorations, kept off the paths between doors |
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
 | `GateBossEntity` | GeckoLib boss: dormant until someone enters the arena, then a roar intro; swipe and slam attacks with the gate's element; enrages under half health (adds, faster); long death animation |
 | `RewardCacheBlock(Entity)` | Falls in a beam of light, lands, opens with a lid animation and bursts out `GateLoot` |
@@ -918,9 +918,12 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   own (low priority, so the gate's fog runs first), the air itself drawn as light (motes, sparks, snow, spores, ash,
   wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock.
 - **Hidden chambers** (`HiddenKind`, `HiddenRooms`, `DepthsBuild`): 30% of E caves up to 55% of S ones hide a
-  chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonLayout.placeHidden`,
-  appended after the rest of the plan with its own random so the cave is otherwise unchanged). The tunnel's mouth is
-  plugged with `HiddenSealBlock`s that pass for the cave's own rock (its model points at that rock's textures; some
+  chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonPlanner.placeHidden`,
+  appended after the rest of the plan with its own random so the cave is otherwise unchanged). Classic caves place it
+  exactly as they always did; the other layouts also keep it clear of open spaces, built rooms' corners and the slot's
+  edge, and hide it off any room on the way (not the boss's, not an island) when no cavern has room: a chasm's
+  entrance, a descent's ledge caves. The tunnel's mouth is plugged with `HiddenSealBlock`s that pass for the realm's
+  own walls (a look for every realm's wall blocks, course by course; each look's model points at that block's textures; some
   blocks have faint cracks with a violet speck; now and then a mote of light seeps out). It can't be mined: three
   knocks (hits, or arrows) bring it down; Pulse Scan within range outlines it through the rock and says something is
   hidden. Opening it gives the party XP and the System's HIDDEN DUNGEON moment. A vault holds a cache one rank above
@@ -1000,8 +1003,12 @@ timeouts and penalties, fleeing, offers, inventory and level objectives, the dai
 plan, one entrance, one boss room and the biggest, nothing overlapping, everything reachable through passages or open
 spaces, inside the rock and its slot), the original caves coming out exactly as before realms (fingerprints of the
 old planner's layouts), gates picking every realm of their rank and every shape of their realm, realms favouring
-their bosses, realm and shape being saved (and old caves staying classic), and a dungeon of each shape carved, walked
-along every passage, and wiped back to rock to the last block.
+their bosses and their creatures (three to five kinds, one up close, two at home in the realm, its ruling affinity),
+realm and shape being saved (and old caves staying classic), and a dungeon of each shape and of each realm carved,
+walked along every passage, walked on foot from the entrance to every room (stepping, jumping a block, dropping no
+more than a harmless fall), its hidden chamber sealed off on foot behind a wall that passes for the realm's own and
+walkable once the wall is down, and wiped back to rock to the last block. A failed walk draws a map of what was
+reached. Set `EXPLORE` to carve every realm in every one of its shapes (about 80 more dungeons, several minutes).
 `test/GateGameTests` covers: the classic cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
 `test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, only a D-rank or higher clear calls a player, the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,

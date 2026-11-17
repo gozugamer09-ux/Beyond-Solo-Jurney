@@ -1208,6 +1208,13 @@ final class DungeonPlanner {
                 break;
             }
         }
+        // and a way in from the entrance to the nearest camp: the hollow's rim rises to its roof in places, so the
+        // entrance's own edge may not open onto it
+        Room near = null;
+        for (Room c : camp) {
+            if (near == null || c.center().distSqr(rooms.get(0).center()) < near.center().distSqr(rooms.get(0).center())) near = c;
+        }
+        if (near != null) tunnels.add(link(r, rooms.get(0), near));
     }
 
     // ------------------------------------------------------------------ hive

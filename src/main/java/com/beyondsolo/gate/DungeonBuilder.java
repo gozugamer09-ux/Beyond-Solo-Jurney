@@ -94,6 +94,7 @@ public final class DungeonBuilder {
         steps.add(once(this::joinUp));
         // the hidden chamber's wall and dressing, the trap rooms' cores and vents
         steps.add(once(level -> com.beyondsolo.depths.DepthsBuild.build(level, gate)));
+        steps.add(once(this::landing));
     }
 
     private static Step once(Consumer<ServerLevel> work) {
@@ -779,8 +780,9 @@ public final class DungeonBuilder {
             int x = BlockPos.getX(e.getKey()), z = BlockPos.getZ(e.getKey());
             double s = e.getValue()[0];
             boolean edge = e.getValue()[1] > 0;
-            if (inRoom(x, s + 1, z, 1.0) && !onIsland(x, z)) continue;
             int base = Mth.floor(s);
+            // inside a room its own floor carries the walk; only where the drop ate that floor does the deck run on
+            if (inRoom(x, s + 1, z, 1.0) && !onIsland(x, z) && grounded(level, p, x + ox, base, z + oz)) continue;
             boolean half = s - base >= 0.5;
             if (edge) {
                 int top = half ? base : base - 1;
@@ -793,6 +795,34 @@ public final class DungeonBuilder {
                 put(level, p.set(x + ox, base - 1, z + oz), realm.deck);
             }
         }
+    }
+
+    /**
+     * Where you arrive stands on solid ground: a passage dipping steeply out of the entrance may have eaten the floor
+     * under its middle.
+     */
+    private void landing(ServerLevel level) {
+        Room e = layout.entrance();
+        RandomSource r = new LegacyRandomSource(gate.seed() * 47);
+        int y = e.floorY() - 1;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                int x = e.center().getX() + dx + ox, z = e.center().getZ() + dz + oz;
+                if (!level.getBlockState(p.set(x, y, z)).isAir()) continue;
+                level.setBlock(p, realm.floorAt(x, z, r), FLAGS);
+                place(level, p.set(x, y - 1, z), realm.wall(r));
+            }
+        }
+    }
+
+    /** True if something stands within three blocks under a walkway (world x and z; {@code base} the feet block). */
+    private static boolean grounded(ServerLevel level, BlockPos.MutableBlockPos p, int x, int base, int z) {
+        for (int k = 1; k <= 3; k++) {
+            BlockState b = level.getBlockState(p.set(x, base - k, z));
+            if (!b.isAir() && b.getFluidState().isEmpty()) return true;
+        }
+        return false;
     }
 
     private boolean onIsland(double x, double z) {
