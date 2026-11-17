@@ -36,13 +36,11 @@ public final class EnemyModule {
                     .sized(0.4f, 0.4f).clientTrackingRange(8).updateInterval(2).build("element_orb"));
 
     static {
-        int[][] colors = {{0x3A3A44, 0x9FD8FF}, {0x2E2430, 0xB06AD0}, {0x4A4640, 0x7FE0C8}, {0x34303F, 0xD9C27A}, {0x3A3A40, 0xC9A35A}, {0x46403C, 0xFF8030}};
         for (MonsterKind kind : MonsterKind.values()) {
             var holder = ENTITY_TYPES.register(kind.id, () -> EntityType.Builder.<GateMonsterEntity>of((t, l) -> new GateMonsterEntity(t, l, kind), MobCategory.MONSTER)
                     .sized(kind.width, kind.height).clientTrackingRange(10).build(kind.id));
             TYPES.put(kind, holder);
-            int[] c = colors[kind.ordinal()];
-            EGGS.put(kind, ITEMS.register(kind.id + "_spawn_egg", () -> new DeferredSpawnEggItem(holder, c[0], c[1], new Item.Properties())));
+            EGGS.put(kind, ITEMS.register(kind.id + "_spawn_egg", () -> new DeferredSpawnEggItem(holder, kind.eggBase, kind.eggSpots, new Item.Properties())));
         }
     }
 

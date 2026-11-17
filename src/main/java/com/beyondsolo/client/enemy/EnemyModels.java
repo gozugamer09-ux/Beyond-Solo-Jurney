@@ -74,7 +74,8 @@ public final class EnemyModels {
         @Override
         public void setCustomAnimations(GateMonsterEntity e, long instanceId, AnimationState<GateMonsterEntity> state) {
             super.setCustomAnimations(e, instanceId, state);
-            if (!e.isDeadOrDying()) turnHead(this, state, kind == MonsterKind.EMBERWISP ? 0.5f : 1f);
+            // not while it is dying, nor while a thrall lies on the ground before it gets up
+            if (!e.isDeadOrDying() && e.downed() <= 0) turnHead(this, state, kind == MonsterKind.EMBERWISP ? 0.5f : 1f);
         }
     }
 

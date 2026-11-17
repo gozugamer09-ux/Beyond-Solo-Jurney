@@ -1,7 +1,9 @@
 {
   "replace": false,
   "values": [
-    "minecraft:skeleton", "minecraft:stray", "minecraft:bogged", "minecraft:pillager", "minecraft:blaze", "minecraft:witch",
-    "minecraft:evoker", "minecraft:illusioner", "minecraft:ghast", "minecraft:breeze", "minecraft:shulker", "minecraft:drowned"
+    "minecraft:skeleton", "minecraft:stray", "minecraft:bogged", "minecraft:pillager", "minecraft:blaze",
+    "minecraft:witch", "minecraft:evoker", "minecraft:illusioner", "minecraft:ghast", "minecraft:breeze",
+    "minecraft:shulker", "minecraft:drowned", "beyondsolo:hollow_acolyte", "beyondsolo:tusk_shaman",
+    "beyondsolo:brimling", "beyondsolo:bone_archer", "beyondsolo:thorn_spitter"
   ]
 }

@@ -3,6 +3,7 @@
   "values": [
     "minecraft:horse", "minecraft:donkey", "minecraft:mule", "minecraft:skeleton_horse", "minecraft:zombie_horse",
     "minecraft:camel", "minecraft:llama", "minecraft:trader_llama", "minecraft:spider", "minecraft:cave_spider",
-    "minecraft:ravager", "minecraft:hoglin", "minecraft:zoglin", "minecraft:polar_bear", "minecraft:sniffer"
+    "minecraft:ravager", "minecraft:hoglin", "minecraft:zoglin", "minecraft:polar_bear", "minecraft:sniffer",
+    "beyondsolo:rimeclaw", "beyondsolo:pit_ravager", "beyondsolo:shardback"
   ]
 }

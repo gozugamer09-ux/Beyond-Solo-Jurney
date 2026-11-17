@@ -215,6 +215,9 @@ class Paint:
         rgb = np.zeros(self.shape + (3,))
         em = np.zeros(self.shape, bool)
         for ramp, tone, w, glow in self.layers:
+            if ramp not in pal:
+                # a layer for another variant only (an affinity's own marks): this palette leaves it out
+                continue
             col = ramp_colour(pal[ramp], tone, levels.get(ramp, levels.get("", 0)))
             if w is None:
                 rgb, em = col.copy(), np.zeros(self.shape, bool)
@@ -390,7 +393,7 @@ def paint(name, bones, deferred, tex_dir, unit, max_atlas=2048):
         Image.fromarray(img.astype(np.uint8)).save(os.path.join(tex_dir, f"{name}_{suffix}.png"))
         Image.fromarray(glow.astype(np.uint8)).save(os.path.join(tex_dir, f"{name}_{suffix}_glowmask.png"))
     for b, c in cubes:
-        for k in ("_mat", "_tag", "_skip", "_part"):
+        for k in ("_mat", "_tag", "_skip", "_part", "_paint"):
             c.pop(k, None)
     return aw, ah, density
 

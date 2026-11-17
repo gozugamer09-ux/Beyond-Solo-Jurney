@@ -3,52 +3,42 @@ package com.beyondsolo.gate;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.system.PlayerRank;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.util.RandomSource;
 
-import java.util.List;
-
 /**
- * What a gate of each rank looks like and holds: the dungeon's rock and lights, its element, its monsters,
- * how big it is and how strong its boss is. One theme per rank, so a gate's rank can be read from the colour of its
- * light before the System says it.
+ * What a gate of each rank looks like and holds: the dungeon's rock and lights, its element, how big it is and how
+ * strong its boss is. Its creatures come from {@link com.beyondsolo.enemy.EnemyRoster}. One theme per rank, so a
+ * gate's rank can be read from the colour of its light before the System says it.
  */
 public enum GateTheme {
     E(PlayerRank.E, DamageElement.BLOOD, 5, 2,
             blocks(Blocks.STONE, Blocks.ANDESITE, Blocks.COBBLESTONE), blocks(Blocks.GRAVEL, Blocks.COARSE_DIRT, Blocks.STONE),
-            blocks(Blocks.MOSSY_COBBLESTONE, Blocks.TUFF), Blocks.GLOW_LICHEN, Blocks.OCHRE_FROGLIGHT, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.ZOMBIE, EntityType.SPIDER, EntityType.SKELETON)),
+            blocks(Blocks.MOSSY_COBBLESTONE, Blocks.TUFF), Blocks.GLOW_LICHEN, Blocks.OCHRE_FROGLIGHT, Blocks.POINTED_DRIPSTONE),
     D(PlayerRank.D, DamageElement.POISON, 6, 3,
             blocks(Blocks.MOSSY_COBBLESTONE, Blocks.STONE, Blocks.MOSS_BLOCK), blocks(Blocks.MOSS_BLOCK, Blocks.ROOTED_DIRT, Blocks.MUD),
-            blocks(Blocks.MOSS_BLOCK, Blocks.MOSSY_STONE_BRICKS), Blocks.MOSS_CARPET, Blocks.VERDANT_FROGLIGHT, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.HUSK, EntityType.CAVE_SPIDER, EntityType.SKELETON)),
+            blocks(Blocks.MOSS_BLOCK, Blocks.MOSSY_STONE_BRICKS), Blocks.MOSS_CARPET, Blocks.VERDANT_FROGLIGHT, Blocks.POINTED_DRIPSTONE),
     C(PlayerRank.C, DamageElement.BLOOD, 7, 3,
             blocks(Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE, Blocks.TUFF), blocks(Blocks.SMOOTH_BASALT, Blocks.DEEPSLATE, Blocks.PACKED_ICE),
-            blocks(Blocks.BLUE_ICE, Blocks.PRISMARINE), Blocks.GLOW_LICHEN, Blocks.SEA_LANTERN, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.STRAY, EntityType.ZOMBIE, EntityType.SPIDER, EntityType.VINDICATOR)),
+            blocks(Blocks.BLUE_ICE, Blocks.PRISMARINE), Blocks.GLOW_LICHEN, Blocks.SEA_LANTERN, Blocks.POINTED_DRIPSTONE),
     B(PlayerRank.B, DamageElement.POISON, 8, 4,
             blocks(Blocks.BLACKSTONE, Blocks.POLISHED_BLACKSTONE, Blocks.DEEPSLATE), blocks(Blocks.SOUL_SOIL, Blocks.BLACKSTONE, Blocks.SOUL_SAND),
-            blocks(Blocks.AMETHYST_BLOCK, Blocks.CRYING_OBSIDIAN), Blocks.AMETHYST_CLUSTER, Blocks.PEARLESCENT_FROGLIGHT, Blocks.AMETHYST_CLUSTER,
-            List.of(EntityType.VINDICATOR, EntityType.STRAY, EntityType.CAVE_SPIDER, EntityType.WITCH)),
+            blocks(Blocks.AMETHYST_BLOCK, Blocks.CRYING_OBSIDIAN), Blocks.AMETHYST_CLUSTER, Blocks.PEARLESCENT_FROGLIGHT, Blocks.AMETHYST_CLUSTER),
     A(PlayerRank.A, DamageElement.FIRE, 9, 4,
             blocks(Blocks.BASALT, Blocks.BLACKSTONE, Blocks.NETHERRACK), blocks(Blocks.NETHERRACK, Blocks.BLACKSTONE, Blocks.MAGMA_BLOCK),
-            blocks(Blocks.GILDED_BLACKSTONE, Blocks.MAGMA_BLOCK), Blocks.FIRE, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.WITHER_SKELETON, EntityType.BLAZE, EntityType.VINDICATOR)),
+            blocks(Blocks.GILDED_BLACKSTONE, Blocks.MAGMA_BLOCK), Blocks.FIRE, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE),
     S(PlayerRank.S, DamageElement.CRIMSON, 10, 5,
             blocks(Blocks.OBSIDIAN, Blocks.RED_NETHER_BRICKS, Blocks.BLACKSTONE), blocks(Blocks.CRIMSON_NYLIUM, Blocks.BLACKSTONE, Blocks.NETHER_WART_BLOCK),
-            blocks(Blocks.CRYING_OBSIDIAN, Blocks.NETHER_WART_BLOCK), Blocks.CRIMSON_ROOTS, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE,
-            List.of(EntityType.WITHER_SKELETON, EntityType.EVOKER, EntityType.BLAZE, EntityType.VINDICATOR)),
+            blocks(Blocks.CRYING_OBSIDIAN, Blocks.NETHER_WART_BLOCK), Blocks.CRIMSON_ROOTS, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE),
     /**
      * The awakening trial behind a sealed gate (not a rank of its own: its monsters are D-rank). Bone-white stone with
      * gold seams over dark tiled floors, cold soul light, and a long way down to the Hollow Arbiter.
      */
     TRIAL(PlayerRank.D, DamageElement.CRIMSON, 11, 2,
             blocks(Blocks.CALCITE, Blocks.POLISHED_DIORITE, Blocks.CALCITE), blocks(Blocks.POLISHED_DEEPSLATE, Blocks.DEEPSLATE_TILES, Blocks.CRACKED_DEEPSLATE_TILES),
-            blocks(Blocks.GILDED_BLACKSTONE, Blocks.RAW_GOLD_BLOCK, Blocks.CHISELED_QUARTZ_BLOCK), Blocks.SOUL_LANTERN, Blocks.GLOWSTONE, Blocks.BONE_BLOCK,
-            List.of(EntityType.SKELETON, EntityType.ZOMBIE, EntityType.STRAY, EntityType.SKELETON));
+            blocks(Blocks.GILDED_BLACKSTONE, Blocks.RAW_GOLD_BLOCK, Blocks.CHISELED_QUARTZ_BLOCK), Blocks.SOUL_LANTERN, Blocks.GLOWSTONE, Blocks.BONE_BLOCK);
 
     public final PlayerRank rank;
     public final DamageElement element;
@@ -64,10 +54,9 @@ public enum GateTheme {
     /** The block that lights the cave, set into walls and floors. */
     public final Block light;
     public final Block spike;
-    public final List<EntityType<?>> monsters;
 
     GateTheme(PlayerRank rank, DamageElement element, int rooms, int packSize, BlockState[] walls, BlockState[] floors, BlockState[] accents,
-              Block scatter, Block light, Block spike, List<EntityType<?>> monsters) {
+              Block scatter, Block light, Block spike) {
         this.rank = rank;
         this.element = element;
         this.rooms = rooms;
@@ -78,7 +67,6 @@ public enum GateTheme {
         this.scatter = scatter;
         this.light = light;
         this.spike = spike;
-        this.monsters = monsters;
     }
 
     public static GateTheme of(PlayerRank rank) {

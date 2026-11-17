@@ -217,9 +217,9 @@ public final class ArmorCatalog {
         return out;
     }
 
-    /** The sets a gate creature can leave. */
+    /** The sets a gate creature can leave: its own kind's, or those of the original it is kin to. */
     public static List<ArmorSets.Set> forCreature(MonsterKind kind) {
-        return from("creature:" + kind.id);
+        return from("creature:" + kind.kin().id);
     }
 
     /** The sets a boss can leave in its cache (the brute: its six, one per rank). */
