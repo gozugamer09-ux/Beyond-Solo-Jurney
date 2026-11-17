@@ -368,6 +368,8 @@ def paint(name, bones, deferred, tex_dir, unit, max_atlas=2048):
 
     for b, c in cubes:
         c["uv"] = {}
+    if spec.get("prepare"):
+        spec["prepare"](cubes, unit)       # e.g. the model's boxes, for shadows where parts meet
     faces = []
     for (ci, f), (w, h), (x, y) in zip(keys, rects, pos):
         b, c = cubes[ci]

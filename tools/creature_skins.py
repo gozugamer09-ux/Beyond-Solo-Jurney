@@ -129,7 +129,8 @@ def across(f):
 
 def light_pass(p, f, s, k=1.0):
     """The shared light: lit tops and top edges, darker undersides and bottom edges, a cube's walls darker towards
-    its bottom, everything darker near the ground."""
+    its bottom, round things darker towards their sides, shadow wherever the model closes in on itself (under a
+    head, between the legs, where an arm meets the body), everything darker near the ground."""
     face = f.face
     tex = f.texel
     d = {"up": 0.10, "down": -0.26, "north": 0.02, "south": -0.06, "east": -0.02, "west": -0.02}[face]
@@ -144,8 +145,196 @@ def light_pass(p, f, s, k=1.0):
     elif face == "up":
         rim = (f.U < 1.05 / max(f.w, 1)) | (f.U > 1 - 1.05 / max(f.w, 1)) | (f.V < 1.05 / max(f.h, 1)) | (f.V > 1 - 1.05 / max(f.h, 1))
         p.shade(k * 0.08, rim)
+    # round forms: a limb, a bone, a snout is darker towards its sides than down its middle
+    rnd = s.get("round", ROUND.get(s.get("m", "skin"), 0.0))
+    if rnd:
+        side_u = (1 - np.sin(np.clip(f.U, 0, 1) * math.pi)) ** 1.6
+        if f.wall:
+            p.shade(-k * rnd * side_u)
+        elif face == "up":
+            side_v = (1 - np.sin(np.clip(f.V, 0, 1) * math.pi)) ** 1.6
+            p.shade(-k * rnd * 0.5 * (side_u + side_v))
+    # contact shadow from the rest of the model
+    ao = s.get("ao", 0.5)
+    if ao:
+        p.shade(-k * ao * occlusion(f))
     ground = s.get("ground", 0.0)
     p.shade(-k * 0.14 * sstep(ground + 5.0, ground, f.Y))
+
+
+# how round each material's cubes are taken to be (see light_pass)
+ROUND = {"skin": 0.12, "fur": 0.10, "scales": 0.09, "flesh": 0.12, "chitin": 0.07, "bone": 0.12, "horn": 0.10,
+         "hair": 0.06, "cloth": 0.05, "leather": 0.06, "wood": 0.05, "rock": 0.03, "boulder": 0.03, "plate": 0.0,
+         "trim": 0.03, "ice": 0.0, "membrane": 0.0, "metal": 0.0}
+
+
+# --------------------------------------------------------------------------------------------- the model's shape
+
+FACE_N = {"north": (0.0, 0.0, -1.0), "south": (0.0, 0.0, 1.0), "west": (1.0, 0.0, 0.0), "east": (-1.0, 0.0, 0.0),
+          "up": (0.0, 1.0, 0.0), "down": (0.0, -1.0, 0.0)}
+FACE_T = {"north": ((1, 0, 0), (0, 1, 0)), "south": ((1, 0, 0), (0, 1, 0)), "west": ((0, 0, 1), (0, 1, 0)),
+          "east": ((0, 0, 1), (0, 1, 0)), "up": ((1, 0, 0), (0, 0, 1)), "down": ((1, 0, 0), (0, 0, 1))}
+# the model being painted: every cube as a box (x0, y0, z0, x1, y1, z1), filled in by prepare_boxes
+GEOM = {"boxes": np.zeros((0, 6)), "ids": []}
+
+
+def prepare_boxes(cubes, unit):
+    """Called by solid_skins.paint before the faces are painted: the model's cubes, for occlusion()."""
+    rows, ids = [], []
+    for _, c in cubes:
+        o = [v / unit for v in c["origin"]]
+        sz = [v / unit for v in c["size"]]
+        if min(sz) <= 0.0:
+            continue
+        rows.append(o + [o[i] + sz[i] for i in range(3)])
+        ids.append(id(c))
+    GEOM["boxes"] = np.array(rows, float).reshape(-1, 6)
+    GEOM["ids"] = ids
+
+
+def _ao_dirs():
+    out = [(1.0, 0.0, 0.0)]
+    for i in range(6):
+        a = i * math.pi / 3
+        out.append((0.74, 0.67 * math.cos(a), 0.67 * math.sin(a)))
+    for i in range(6):
+        a = i * math.pi / 3 + math.pi / 6
+        out.append((0.34, 0.94 * math.cos(a), 0.94 * math.sin(a)))
+    return out
+
+
+AO_DIRS = _ao_dirs()
+AO_DIST = ((0.35, 1.0), (0.9, 0.7), (1.8, 0.45), (3.2, 0.25))      # (how far, how much it counts)
+
+
+def occlusion(f):
+    """How shut in every texel of a face is by the rest of the model, 0 (open) .. 1: rays into the space in front of
+    the face, tested against every other cube of the model as it is built (before any bone turns)."""
+    boxes = GEOM["boxes"]
+    if not len(boxes):
+        return np.zeros(f.X.shape)
+    me = id(f.cube)
+    reach = AO_DIST[-1][0] + 0.2
+    lo = np.array([f.X.min(), f.Y.min(), f.Z.min()]) - reach
+    hi = np.array([f.X.max(), f.Y.max(), f.Z.max()]) + reach
+    near = [i for i, cid in enumerate(GEOM["ids"]) if cid != me and (boxes[i, 3:] > lo).all() and (boxes[i, :3] < hi).all()]
+    if not near:
+        return np.zeros(f.X.shape)
+    B = boxes[near]
+    n = np.array(FACE_N[f.face])
+    t1, t2 = (np.array(v, float) for v in FACE_T[f.face])
+    P = np.stack([f.X, f.Y, f.Z], -1).reshape(-1, 3) + n * 0.02
+    occ = np.zeros(len(P))
+    total = 0.0
+    for dist, w in AO_DIST:
+        for a, b, c in AO_DIRS:
+            Q = P + (a * n + b * t1 + c * t2) * dist
+            inside = ((Q[:, None, 0] > B[None, :, 0]) & (Q[:, None, 0] < B[None, :, 3])
+                      & (Q[:, None, 1] > B[None, :, 1]) & (Q[:, None, 1] < B[None, :, 4])
+                      & (Q[:, None, 2] > B[None, :, 2]) & (Q[:, None, 2] < B[None, :, 5])).any(1)
+            occ += w * inside
+            total += w
+    return (occ / total).reshape(f.X.shape)
+
+
+# --------------------------------------------------------------------------------------------- drawn details
+
+FACE_IDX = {"north": 0, "south": 1, "east": 2, "west": 3, "up": 4, "down": 5}
+
+
+def face_seed(f, seed):
+    """A number for this face of this cube, so details drawn in a face's own units differ from face to face."""
+    k = int(abs(f.o[0] * 7.31 + f.o[1] * 13.17 + f.o[2] * 5.71 + f.s[0] * 3.3 + f.s[1] * 1.7 + f.s[2] * 2.9) * 10)
+    return int(seed) * 131 + k * 7 + FACE_IDX[f.face] * 1009
+
+
+def edge_dist(f):
+    """Distance of every texel from the nearest edge of its face, in units."""
+    return np.minimum(np.minimum(f.P, f.fw - f.P), np.minimum(f.Q, f.fh - f.Q))
+
+
+def polylines(f, seed, n, length=(1.2, 3.0), steps=(3, 5), wander=1.1, margin=0.3):
+    """n jagged lines (cracks, scratches, creases) drawn in a face's own units (P across, Q down): the distance from
+    every texel to the nearest line, and how far along its line (0..1) that nearest point is."""
+    dmin = np.full(f.X.shape, 99.0)
+    along = np.zeros(f.X.shape)
+    for i in range(int(n)):
+        x = margin + float(hash01(seed, i, 1)) * max(f.fw - 2 * margin, 0.01)
+        y = margin + float(hash01(seed, i, 2)) * max(f.fh - 2 * margin, 0.01)
+        ang = float(hash01(seed, i, 3)) * 2 * math.pi
+        ln = length[0] + (length[1] - length[0]) * float(hash01(seed, i, 4))
+        k = steps[0] + int(float(hash01(seed, i, 5)) * (steps[1] - steps[0] + 1))
+        pts = [(x, y)]
+        for j in range(k):
+            ang += (float(hash01(seed, i, 10 + j)) - 0.5) * wander
+            x += math.cos(ang) * ln / k
+            y += math.sin(ang) * ln / k
+            pts.append((x, y))
+        for j, ((a0, b0), (a1, b1)) in enumerate(zip(pts, pts[1:])):
+            d, t = seg_dist(f.P, f.Q, a0, b0, a1, b1)
+            closer = d < dmin
+            dmin = np.where(closer, d, dmin)
+            along = np.where(closer, (j + t) / k, along)
+    return dmin, along
+
+
+def incise(p, f, ramp, dmin, along=None, width=None, dark=0.1, lip=None, taper=True):
+    """A line cut into a surface (a crack, a scratch, a crease): dark in the cut, and a lit lip along its lower edge
+    where the light from above catches it. Lines thin out towards their ends."""
+    w = width if width is not None else f.texel * 0.62
+    if taper and along is not None:
+        w = w * (0.5 + 0.8 * np.sin(np.clip(along, 0, 1) * math.pi))
+    line = dmin < w
+    p.over(ramp, dark, line)
+    if lip is not None:
+        above = np.roll(line, 1, axis=0)
+        above[0, :] = False
+        p.over(ramp, lip, above & ~line)
+    return line
+
+
+def bumps(p, f, ramp, seed, cell, radius, density, tone=0.5, relief=0.26, concave=False, mask=None, rim=0.1):
+    """Round bumps (warts, studs, pustules) or hollows (pits, pores) scattered on a face, each lit from above: a
+    bump is light on its top and dark at its foot, a hollow the other way round."""
+    a, b = f.P / cell, f.Q / cell
+    ia, ib = np.floor(a), np.floor(b)
+    best = np.full(f.X.shape, 9.0)
+    sh = np.zeros(f.X.shape)
+    for da in (-1, 0, 1):
+        for db in (-1, 0, 1):
+            ca, cb = (ia + da).astype(np.int64), (ib + db).astype(np.int64)
+            on = hash01(seed, ca, cb) < density
+            cx = ca + 0.2 + 0.6 * hash01(seed + 1, ca, cb)
+            cy = cb + 0.2 + 0.6 * hash01(seed + 2, ca, cb)
+            r = radius / cell * (0.65 + 0.7 * hash01(seed + 3, ca, cb))
+            d = np.hypot(a - cx, b - cy) / r
+            closer = on & (d < best)
+            best = np.where(closer, d, best)
+            sh = np.where(closer, (b - cy) / r, sh)          # -1 at the top of the bump .. 1 at its foot
+    inside = best < 1.0
+    if mask is not None:
+        inside &= mask
+    lit = -sh if not concave else sh
+    t = tone + relief * lit * np.sqrt(np.clip(1 - best ** 2, 0, 1)) + relief * 0.4 * lit
+    p.over(ramp, t, inside)
+    if rim:
+        p.shade(-rim, (best >= 1.0) & (best < 1.25) & ((sh > 0.2) if not concave else (sh < -0.2)) & (mask if mask is not None else True))
+    return inside
+
+
+def stars(p, f, ramp, seed, cell, density, arm=None, tone=0.95):
+    """Glints: small four-pointed stars of light scattered over a face (ice, crystal, wet scales)."""
+    arm = arm or f.texel * 2.4
+    a, b = f.P / cell, f.Q / cell
+    ia, ib = np.floor(a).astype(np.int64), np.floor(b).astype(np.int64)
+    on = hash01(seed, ia, ib) < density
+    cx = (ia + 0.25 + 0.5 * hash01(seed + 1, ia, ib)) * cell
+    cy = (ib + 0.25 + 0.5 * hash01(seed + 2, ia, ib)) * cell
+    dx, dy = np.abs(f.P - cx), np.abs(f.Q - cy)
+    w = f.texel * 0.55
+    star = on & (((dx < w) & (dy < arm)) | ((dy < w) & (dx < arm)))
+    core = on & (dx < w * 1.6) & (dy < w * 1.6)
+    p.glow(ramp, tone, star | core)
 
 
 # ----------------------------------------------------------------------------- colour areas
@@ -216,17 +405,32 @@ def base(p, f, s, r, t):
 # ----------------------------------------------------------------------------- materials
 
 def m_skin(f, p, s):
+    """Living hide: broad masses of light and shade, a mottle of a second tone with soft edges, fine grain, and on
+    request wrinkles, warts, scars and veins."""
     X, Y, Z = f.X, f.Y, f.Z
     sd = s.get("seed", 11)
-    t = 0.5 + (fbm3(X * 0.42 + 3, Y * 0.42, Z * 0.42, sd, 3) - 0.5) * s.get("mottle", 0.2)
-    t = t + (vnoise3(X * 2.4, Y * 2.4, Z * 2.4, sd + 7) - 0.5) * 0.07                 # pores
+    r = s.get("r", "skin")
+    tex = f.texel
+    t = 0.5 + (fbm3(X * 0.32 + 3, Y * 0.32, Z * 0.32, sd, 3) - 0.5) * s.get("mottle", 0.22)
+    t = t + (fbm3(X * 0.2, Y * 0.28, Z * 0.2, sd + 3, 2) - 0.5) * 0.16                # muscle and fat
+    t = t + (vnoise3(X * 2.2, Y * 2.2, Z * 2.2, sd + 7) - 0.5) * 0.045               # grain
     if s.get("wrinkle", 0):
         w = np.abs(np.sin((Y + 0.4 * np.sin(across(f) * 1.7)) * s["wrinkle"]))
-        t = t - 0.08 * (w < 0.18)
-    base(p, f, s, s.get("r", "skin"), t)
+        t = t - 0.08 * (w < 0.18) + 0.04 * ((w > 0.18) & (w < 0.34))
+    base(p, f, s, r, t)
+    # blotches of a darker tone, soft at their edges
+    bl = fbm3(X * 0.45 + 9, Y * 0.45, Z * 0.45, sd + 11, 3)
+    p.over(r + "_d", 0.46 + (bl - 0.62) * 1.2, 0.45 * sstep(0.6, 0.72, bl))
+    if s.get("warts"):
+        bumps(p, f, r, sd + 13, cell=s.get("wart_cell", 1.6), radius=s.get("wart_r", 0.34), density=s["warts"], tone=0.5)
+    if s.get("scars") and min(f.fw, f.fh) > 1.5:
+        d, al = polylines(f, face_seed(f, sd + 17), s["scars"] * (1 if hash01(face_seed(f, sd), 3) < 0.55 else 0),
+                          length=(1.2, 2.6), steps=(2, 3), wander=0.5)
+        p.over(r + "_l", 0.62, d < tex * 1.1 * (0.5 + 0.8 * np.sin(np.clip(al, 0, 1) * math.pi)))
+        p.over(r, 0.16, (d >= tex * 1.1) & (d < tex * 1.8) & (al > 0.1) & (al < 0.9))
     if s.get("veins"):
         n = fbm3(X * 0.5, Y * 0.5, Z * 0.5, sd + 21, 2)
-        p.over(s.get("r", "skin") + "_d", 0.32, np.abs(n - 0.5) < 0.018)
+        p.over(r + "_d", 0.36, 0.7 * sstep(0.03, 0.012, np.abs(n - 0.5)))
 
 
 def m_fur(f, p, s):
@@ -287,35 +491,51 @@ def m_plate(f, p, s):
     X, Y, Z = f.X, f.Y, f.Z
     r = s.get("r", "plate")
     sd = s.get("seed", 50)
+    fs = face_seed(f, sd)
     tex = f.texel
-    t = 0.46 + (fbm3(X * 0.6, Y * 0.6, Z * 0.6, sd, 2) - 0.5) * 0.14
+    t = 0.44 + (fbm3(X * 0.5, Y * 0.5, Z * 0.5, sd, 2) - 0.5) * 0.10
     if f.wall:
-        t = t + 0.08 * sstep(f.bottom, f.top, Y)
+        # worked metal mirrors the light above and the dark below: a bright band high on the plate, a darker one
+        # under it, a little light bounced back up at its foot; and the faint streaks of the polishing
+        v = f.V
+        t = t + 0.2 * np.exp(-((v - 0.22) / 0.13) ** 2) - 0.1 * sstep(0.35, 0.7, v) + 0.06 * sstep(0.82, 1.0, v)
+        t = t + (vnoise2(f.P * 0.5, f.Q * 6.0, sd + 3) - 0.5) * 0.07
+    elif f.face == "up":
+        t = t + 0.12 + (vnoise2(f.P * 6.0, f.Q * 0.5, sd + 3) - 0.5) * 0.06
     p.fill(r, t)
     bw = max(1.05 / max(f.w, 1), 0.55 * tex / max(f.fw, 1e-6))
     bh = max(1.05 / max(f.h, 1), 0.55 * tex / max(f.fh, 1e-6))
     if min(f.fw, f.fh) > 1.4:
-        p.over(r, 0.88, f.V < bh)                       # the lit top bevel
-        p.over(r, 0.70, (f.U < bw) & (f.V >= bh))
-        p.over(r, 0.12, f.V > 1 - bh)                   # the dark lower bevel
-        p.over(r, 0.24, (f.U > 1 - bw) & (f.V <= 1 - bh))
+        p.over(r, 0.92, f.V < bh)                       # the lit top bevel
+        p.over(r, 0.72, (f.U < bw) & (f.V >= bh))
+        p.over(r, 0.1, f.V > 1 - bh)                    # the dark lower bevel
+        p.over(r, 0.22, (f.U > 1 - bw) & (f.V <= 1 - bh))
+    # worn edges: the metal rubbed bright along the rims, in uneven runs
+    ed = edge_dist(f)
+    wear = sstep(0.5, 0.62, fbm2(f.P * 1.2 + 5, f.Q * 1.2, fs + 1, 2)) * ((ed > 0.9 * tex) & (ed < 3.2 * tex))
+    p.over(r, 0.8, 0.85 * wear)
+    # dents: shallow hollows, dark at the top and lit at the bottom
+    if min(f.fw, f.fh) > 2.2 and s.get("dents", True):
+        bumps(p, f, r, fs + 5, cell=2.4, radius=0.45, density=0.22, tone=0.42, relief=0.16, concave=True, rim=0.0,
+              mask=ed > 2.2 * tex)
+    # a few long scratches cut into it
+    if min(f.fw, f.fh) > 1.2:
+        d, al = polylines(f, fs + 7, int(f.fw * f.fh / 12) + 1, length=(0.9, 2.6), steps=(1, 2), wander=0.3)
+        incise(p, f, r, d, al, width=tex * 0.55, dark=0.16, lip=0.84)
     if s.get("rivets", True) and f.fw > 3.2 and f.fh > 3.2:
+        rv = s.get("rivet", "trim")
+        rad = max(tex * 1.2, 0.3)
         for u, v in ((0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)):
             cx = (u * (f.fw - 2.2 * tex - 0.5) + 1.1 * tex + 0.25)
             cy = (v * (f.fh - 2.2 * tex - 0.5) + 1.1 * tex + 0.25)
             d = np.hypot(f.P - cx, f.Q - cy)
-            p.over(s.get("rivet", "trim"), 0.62 - 0.4 * ((f.P - cx) + (f.Q - cy)) / max(tex * 2, 0.3), d < max(tex * 1.1, 0.32))
-    # scratches
-    sc = np.zeros(X.shape)
-    for i in range(int(f.fw * f.fh / 6) + 1):
-        ax, ay = hash01(sd + i, 1) * f.fw, hash01(sd + i, 2) * f.fh
-        ang = hash01(sd + i, 3) * math.pi
-        ln = 0.6 + 1.6 * hash01(sd + i, 4)
-        d, tt = seg_dist(f.P, f.Q, ax, ay, ax + math.cos(ang) * ln, ay + math.sin(ang) * ln)
-        sc = np.maximum(sc, (d < tex * 0.5) * 1.0)
-    p.over(r, 0.78, sc > 0.5)
+            ds = np.hypot(f.P - cx - rad * 0.5, f.Q - cy - rad * 0.5)
+            p.shade(-0.14, (ds < rad) & (d >= rad))     # the shadow it casts
+            p.over(rv, 0.6 - 0.45 * ((f.P - cx) + (f.Q - cy)) / (rad * 1.5), d < rad)
     if f.wall and s.get("grime", True):
         p.shade(-0.14 * sstep(f.bottom + 0.35 * (f.top - f.bottom), f.bottom, Y))
+        g = fbm3(X * 0.6, Y * 0.3, Z * 0.6, sd + 9, 2)
+        p.over("rust", 0.34 + (g - 0.6), 0.5 * sstep(0.55, 0.72, g) * sstep(f.bottom + 0.55 * (f.top - f.bottom), f.bottom, Y))
     if s.get("engrave"):
         # an engraved line just inside the edge, filled with the trim colour
         inset = 1.6 * tex
@@ -334,16 +554,48 @@ def m_trim(f, p, s):
 
 
 def m_cloth(f, p, s):
-    """Heavy cloth: folds that hang down, a weave, a darker lining at the hem, and a torn hem cut out of it."""
+    """Heavy cloth: deep folds that hang from the top and spread towards the hem (lit crests, dark creases), a weave,
+    dirt rising from the hem, worn patches, an embroidered band, and a torn hem cut out of it."""
     X, Y, Z = f.X, f.Y, f.Z
     sd = s.get("seed", 60)
+    r = s.get("r", "cloth")
+    tex = f.texel
     a = across(f) if f.wall else X
-    fold = np.sin(a * s.get("folds", 1.3) + (vnoise2(a * 0.4, Y * 0.2, sd) - 0.5) * 3.0)
-    t = 0.48 + 0.12 * fold + (vnoise3(X * 1.8, Y * 0.6, Z * 1.8, sd + 1) - 0.5) * 0.12
-    t = t + 0.03 * ((np.floor(f.P / max(f.texel, 1e-6)) + np.floor(f.Q / max(f.texel, 1e-6))) % 2)
-    base(p, f, s, s.get("r", "cloth"), t)
+    fr = s.get("folds", 1.3)
     if f.wall:
-        p.shade(-0.10 * (fold < -0.6))
+        h = max(f.top - f.bottom, 1e-6)
+        down = np.clip((f.top - Y) / h, 0, 1)
+        warp = (vnoise2(a * 0.35, Y * 0.16, sd) - 0.5) * 3.0
+        fold = 0.65 * np.sin(a * fr * (1.2 - 0.4 * down) + warp) + 0.35 * np.sin(a * fr * 2.3 + 1.7 + warp * 0.6)
+        t = 0.47 + 0.2 * fold + 0.06 * np.sign(fold) * np.abs(fold) ** 3 + 0.06 * (1 - down) - 0.03
+    else:
+        fold = np.zeros(X.shape)
+        t = 0.46 + (fbm2(X * 0.6, Z * 0.6, sd + 4, 2) - 0.5) * 0.12
+    t = t + 0.025 * ((np.floor(f.P / max(tex, 1e-6)) + np.floor(f.Q / max(tex, 1e-6))) % 2)
+    t = t + (vnoise3(X * 1.4, Y * 0.5, Z * 1.4, sd + 1) - 0.5) * 0.08
+    base(p, f, s, r, t)
+    if f.wall:
+        p.over(r, 0.1, fold < -0.84)                                            # the deepest creases
+        p.over(r, 0.8, 0.65 * sstep(0.74, 0.95, fold))                           # worn, lit crests
+        dirt = sstep(f.bottom + 2.8, f.bottom, Y) * (0.55 + 0.45 * fbm2(a * 0.8, Y * 0.8, sd + 5, 2))
+        p.shade(-0.16 * dirt)
+        if s.get("patches") and min(f.fw, f.fh) > 2.4 and hash01(face_seed(f, sd), 7) < s["patches"]:
+            # a patch sewn on, in another cloth, with a stitched edge
+            fs = face_seed(f, sd)
+            pw, ph = 1.2 + 1.2 * float(hash01(fs, 8)), 1.0 + 1.0 * float(hash01(fs, 9))
+            px0 = float(hash01(fs, 10)) * max(f.fw - pw, 0.01)
+            py0 = float(hash01(fs, 11)) * max(f.fh - ph, 0.01)
+            inp = (f.P > px0) & (f.P < px0 + pw) & (f.Q > py0) & (f.Q < py0 + ph)
+            p.over(s.get("patch_r", r + "_l"), 0.42 + 0.1 * fold, inp)
+            ring = inp & ((f.P < px0 + 1.6 * tex) | (f.P > px0 + pw - 1.6 * tex) | (f.Q < py0 + 1.6 * tex) | (f.Q > py0 + ph - 1.6 * tex))
+            dots = ((np.floor(f.P / tex) + np.floor(f.Q / tex)) % 3) == 0
+            p.over(s.get("patch_r", r + "_l"), 0.85, ring & dots)
+            p.shade(-0.12, ~inp & (f.P > px0 - tex * 1.2) & (f.P < px0 + pw + tex * 1.2) & (f.Q > py0 + ph) & (f.Q < py0 + ph + tex * 1.4))
+        if s.get("tears") and min(f.fw, f.fh) > 1.8:
+            fs = face_seed(f, sd + 3)
+            d, al = polylines(f, fs, s["tears"] * (1 if hash01(fs, 1) < 0.6 else 0), length=(0.5, 1.2), steps=(1, 2), wander=0.4)
+            p.over("black", 0.05, d < tex * 0.9 * (0.4 + np.sin(np.clip(al, 0, 1) * math.pi)))
+            p.over(r, 0.78, (d >= tex * 0.9) & (d < tex * 1.6) & (al > 0.15) & (al < 0.85))
     if s.get("band") and f.wall:
         # an embroidered band near the hem, with stitched runes of light
         y0, y1 = s["band"]
@@ -364,31 +616,57 @@ def m_cloth(f, p, s):
 
 
 def m_leather(f, p, s):
+    """Worn leather: a soft mottle, darker oiled edges, rubbed lighter patches, a few creases cut into it, stitches
+    along the seams."""
     X, Y, Z = f.X, f.Y, f.Z
-    t = 0.5 + (fbm3(X * 0.9, Y * 0.9, Z * 0.9, s.get("seed", 70), 2) - 0.5) * 0.24
-    p.fill(s.get("r", "leather"), t)
+    sd = s.get("seed", 70)
+    r = s.get("r", "leather")
     tex = f.texel
+    t = 0.5 + (fbm3(X * 0.7, Y * 0.7, Z * 0.7, sd, 3) - 0.5) * 0.22 + (vnoise3(X * 2, Y * 2, Z * 2, sd + 1) - 0.5) * 0.05
+    p.fill(r, t)
+    ed = edge_dist(f)
+    p.shade(-0.1 * sstep(2.6 * tex, 0.0, ed))
+    p.over(r, 0.7, 0.4 * sstep(0.6, 0.72, fbm2(f.P * 1.1, f.Q * 1.1, face_seed(f, sd) % 100000, 2)))
+    if min(f.fw, f.fh) > 1.4:
+        d, al = polylines(f, face_seed(f, sd + 1), int(f.fw * f.fh / 9) + 1, length=(0.7, 1.8), steps=(2, 3), wander=0.7)
+        incise(p, f, r, d, al, width=tex * 0.55, dark=0.2, lip=0.72)
     if f.fw > 2.2 * tex and f.fh > 2.2 * tex and s.get("stitch", True):
         inset = 0.9 * tex
         line = ((np.abs(f.Q - inset) < tex * 0.5) | (np.abs(f.Q - (f.fh - inset)) < tex * 0.5))
         dots = (np.floor(f.P / max(tex, 1e-6)) % 2) == 0
-        p.over(s.get("r", "leather"), 0.85, line & dots)
-    p.over(s.get("r", "leather"), 0.18, vnoise3(X * 2.6, Y * 2.6, Z * 2.6, 72) > 0.82)
+        p.over(r, 0.85, line & dots)
 
 
 def m_bone(f, p, s):
-    """Old bone: pale at the middle of the cube, browner towards its ends and crevices, a few cracks."""
+    """Old bone: a long grain down its length, pale and polished down the middle, browner and darker towards its
+    ends, soft old stains, and a hairline crack or two on the bigger faces (a cut line with a lit lip, never dots)."""
     X, Y, Z = f.X, f.Y, f.Z
     sd = s.get("seed", 80)
-    n = fbm3(X * 0.8, Y * 0.8, Z * 0.8, sd, 3)
-    t = 0.58 + (n - 0.5) * 0.24
+    r = s.get("r", "bone")
+    along_v = f.fh >= f.fw
+    L = f.Q if along_v else f.P                       # along the bone
+    C = f.P if along_v else f.Q                       # across it
+    Ln = f.V if along_v else f.U
+    t = 0.6 + (fbm2(L * 0.3 + 3.1, C * 2.4, sd, 3) - 0.5) * 0.2
+    t = t + (fbm3(X * 0.3, Y * 0.3, Z * 0.3, sd + 1, 2) - 0.5) * 0.14
     if f.wall:
-        t = t - 0.16 * sstep(0.62, 1.0, np.abs(f.V * 2 - 1)) * s.get("ends", 1.0)
-    p.fill(s.get("r", "bone"), t)
-    cr = np.abs(fbm3(X * 1.3 + 7, Y * 1.3, Z * 1.3, sd + 3, 2) - 0.5)
-    p.over(s.get("r", "bone"), 0.16, (cr < 0.022) & (n > 0.42))
+        t = t - 0.17 * sstep(0.62, 1.0, np.abs(Ln * 2 - 1)) * s.get("ends", 1.0)
+    p.fill(r, t)
+    # old bone is two-toned: greyer, sunken patches and pale polished ones
+    st = fbm3(X * 0.42 + 2, Y * 0.42, Z * 0.42, sd + 2, 3)
+    p.over(r, t - 0.22, 0.6 * sstep(0.58, 0.72, st))
+    p.over(r + "_d", 0.55 + (st - 0.5) * 0.4, 0.35 * sstep(0.36, 0.26, st))
+    p.over(r, t + 0.12, 0.5 * sstep(0.55, 0.7, fbm2(L * 0.5 + 9, C * 0.9, sd + 4, 2)))
+    if s.get("cracks", True) and min(f.fw, f.fh) > 1.6:
+        fs = face_seed(f, sd)
+        n = int(min(3, f.fw * f.fh / 10 + float(hash01(fs, 0)) * 1.3))
+        if n:
+            d, al = polylines(f, fs, n, length=(1.0, min(3.4, max(f.fw, f.fh) * 0.8)), steps=(3, 5), wander=1.3)
+            incise(p, f, r, d, al, dark=0.16, lip=0.86)
     if s.get("rings"):
-        p.over(s.get("r", "bone"), 0.3, (np.abs(np.sin(Y * s["rings"])) < 0.16) & f.wall)
+        ring = np.abs(np.sin(Y * s["rings"]))
+        p.over(r, 0.28, (ring < 0.16) & f.wall)
+        p.over(r, 0.8, (ring >= 0.16) & (ring < 0.3) & f.wall)
 
 
 def m_horn(f, p, s):
@@ -451,11 +729,13 @@ def m_boulder(f, p, s):
         p.over(r, 0.76 + (cid - 0.5) * 0.1, above & (edge > 0.16))
         p.over(r, 0.16, below & ~above & (edge > 0.16))
     p.over("black", 0.14, edge < 0.16)
-    pits = vnoise3(X * 2.2, Y * 2.2, Z * 2.2, sd + 4)
-    p.over(r, 0.18, pits > 0.86)
-    p.over(r, 0.72, (pits < 0.08) & (edge > 0.4))
-    cr = np.abs(fbm3(X * 0.6 + 11, Y * 0.6, Z * 0.6, sd + 5, 3) - 0.5)
-    p.over("black", 0.2, (cr < 0.014) & (edge > 0.3))
+    # pits: small round hollows, shadowed at the top and lit along the lower lip
+    if min(f.fw, f.fh) > 1.2:
+        bumps(p, f, r, face_seed(f, sd + 4), cell=1.5, radius=0.3, density=0.3, tone=0.36, relief=0.22, concave=True,
+              rim=0.0, mask=edge > 0.35)
+    if min(f.fw, f.fh) > 1.6:
+        d, al = polylines(f, face_seed(f, sd + 5), int(f.fw * f.fh / 14) + 1, length=(0.8, 2.2), steps=(2, 4), wander=1.2)
+        incise(p, f, r, d, al, dark=0.08, lip=0.7)
     if s.get("moss", 0) > 0:
         n = fbm3(X * 0.45, Y * 0.45, Z * 0.45, sd + 7, 3)
         if f.face == "up":
@@ -525,10 +805,18 @@ def m_ice(f, p, s):
         p.over(r, 0.16, f.V > 1 - 1.05 / max(f.h, 1))
     else:
         p.fill(r, t + (0.18 if f.face == "up" else -0.2))
-    cr = np.abs(fbm3(X * 0.9, Y * 0.9, Z * 0.9, sd + 4, 2) - 0.5)
-    p.over(r, 0.88, cr < 0.012)
+    # cracks inside the ice: thin pale lines with a dark shadow beside them
+    if min(f.fw, f.fh) > 1.2:
+        d, al = polylines(f, face_seed(f, sd + 4), int(f.fw * f.fh / 8) + 1, length=(1.0, 2.6), steps=(2, 3), wander=0.9)
+        line = d < f.texel * 0.6 * (0.5 + 0.8 * np.sin(np.clip(al, 0, 1) * math.pi))
+        p.over(r, 0.9, line)
+        below = np.roll(line, -1, axis=0)
+        below[-1, :] = False
+        p.over(r, 0.22, below & ~line)
+    # frost along the edges
+    p.over(r, 0.86, 0.6 * sstep(2.2 * f.texel, 0.6 * f.texel, edge_dist(f)) * sstep(0.45, 0.6, fbm2(f.P * 1.5, f.Q * 1.5, sd + 6, 2)))
     if s.get("glint", True):
-        p.glow("glow", 0.8, (cr < 0.005) & (vnoise3(X * 1.7, Y * 1.7, Z * 1.7, sd + 5) > 0.72))
+        stars(p, f, "glow", face_seed(f, sd + 5), cell=2.4, density=0.16)
 
 
 def m_wood(f, p, s):
@@ -591,11 +879,16 @@ def m_flesh(f, p, s):
     """Rotting flesh: grey-green and bruised, dark blotches and stringy sinew."""
     X, Y, Z = f.X, f.Y, f.Z
     n = fbm3(X * 0.5, Y * 0.5, Z * 0.5, s.get("seed", 160), 3)
-    t = 0.48 + (n - 0.5) * 0.4
+    t = 0.48 + (n - 0.5) * 0.36 + (fbm3(X * 0.2, Y * 0.28, Z * 0.2, s.get("seed", 160) + 3, 2) - 0.5) * 0.14
     base(p, f, s, s.get("r", "rot"), t)
-    p.over("flesh", 0.3 + 0.2 * n, fbm3(X * 0.35 + 5, Y * 0.35, Z * 0.35, 161, 3) > 0.64)
+    raw = fbm3(X * 0.35 + 5, Y * 0.35, Z * 0.35, 161, 3)
+    wound = sstep(0.6, 0.68, raw)
+    p.over("flesh", 0.32 + 0.3 * (raw - 0.6), wound)
     sinew = np.abs(np.sin((across(f) if f.wall else X) * 3.1 + fbm3(X, Y * 0.3, Z, 162, 2) * 5))
-    p.over("flesh", 0.62, (sinew < 0.12) & (fbm3(X * 0.35 + 5, Y * 0.35, Z * 0.35, 161, 3) > 0.64))
+    p.over("flesh", 0.66, (sinew < 0.14) & (raw > 0.66))
+    p.over("flesh", 0.14, (sinew > 0.7) & (raw > 0.7))
+    # the wound's rim: darker, bruised skin around the opening
+    p.over(s.get("r", "rot") + "_d", 0.3, 0.6 * (sstep(0.52, 0.6, raw) - wound).clip(0, 1))
 
 
 def m_metal(f, p, s):
@@ -825,7 +1118,7 @@ def marks(p, f, s):
     elif f.wall:
         creep = sstep(f.top - 0.7 - 1.3 * jag(across(f) * 1.2, sd + 1, 0.9, 1.0), f.top, Y)
         p.over("mk_frost", 0.5 + (n - 0.5) * 0.8, (creep > 0.5) & (n > 0.44))
-        p.over("mk_frost", 0.78, (fbm3(X * 1.3, Y * 1.3, Z * 1.3, sd + 2, 2) > 0.78) & (n > 0.55))
+        p.over("mk_frost", 0.78, 0.8 * sstep(0.72, 0.8, fbm3(X * 0.8, Y * 0.8, Z * 0.8, sd + 2, 2)) * (n > 0.55))
     # flame: a few charred patches, split by thin glowing cracks
     c = fbm3(X * 0.3 + 9, Y * 0.3, Z * 0.3, sd + 3, 3)
     ridge = np.abs(fbm3(X * 0.6 + 2, Y * 0.6, Z * 0.6, sd + 4, 3) - 0.5)
@@ -836,8 +1129,11 @@ def marks(p, f, s):
     v = fbm3(X * 0.45 + 4, Y * 0.45, Z * 0.45, sd + 5, 3)
     blot = v > 0.66 - 0.04 * amt
     p.over("mk_venom", 0.18 + (v - 0.66) * 2.0, blot)
-    pust = blot & (vnoise3(X * 2.2, Y * 2.2, Z * 2.2, sd + 6) > 0.84)
-    p.glow("mk_venom", 0.75, pust)
+    # pustules: swollen and lit from inside, a dark ring around each
+    pv = vnoise3(X * 1.1, Y * 1.1, Z * 1.1, sd + 6)
+    pust = blot & (pv > 0.82)
+    p.over("mk_venom", 0.06, blot & (pv > 0.77) & ~pust)
+    p.glow("mk_venom", 0.62 + 0.9 * (pv - 0.82), pust)
     if f.wall:
         a = across(f)
         col = np.floor(a / 0.8)
@@ -891,4 +1187,4 @@ LEVELS = {"": 11, "glow": 0, "crystal": 9, "hot": 0, "mk_flame": 0, "mk_storm": 
 def register(name, palette_fn, features=None, density=5.0, levels=None, ground=0.0):
     """Registers a creature with solid_skins, so gen_enemy_assets.write_geo paints it on the model."""
     S.PAINTERS[name] = dict(painter=painter(features, ground=ground), palette=lambda base: palette_fn(base["aff"]), density=density,
-                            levels=levels or LEVELS)
+                            levels=levels or LEVELS, prepare=prepare_boxes)

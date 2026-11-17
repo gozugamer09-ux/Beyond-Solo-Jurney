@@ -235,6 +235,25 @@ public final class ElementalProfile {
         TYPES.put(EnemyModule.type(MonsterKind.HOLLOW_ACOLYTE), row("light+1 arcane-1 shadow-1"));
         TYPES.put(EnemyModule.type(MonsterKind.ASHEN_SENTINEL), row("lightning+1 water+1 fire-1 earth-1"));
         TYPES.put(EnemyModule.type(MonsterKind.EMBERWISP), row("fire! water+1 air+1"));
+        TYPES.put(EnemyModule.type(MonsterKind.GUTTERKIN), row("fire+1 light+1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.GRAVE_THRALL), row("light+1 fire+1 shadow-1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.BONE_ARCHER), row("light+1 earth+1 shadow-1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.RIME_STALKER), row("fire+1 light+1 water-1 shadow-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.TUSKBRUTE), row("arcane+1 lightning+1 earth-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.TUSK_SHAMAN), row("earth+1 arcane-1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.DEEPKIN), row("lightning+1 earth+1 water-2"));
+        TYPES.put(EnemyModule.type(MonsterKind.DUSKWING), row("light+1 earth+1 air-1 shadow-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.HIVE_DRONE), row("fire+1 water+1 air-1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.BRIMLING), row("fire! water+1 light+1"));
+        TYPES.put(EnemyModule.type(MonsterKind.WAILING_WRAITH), row("light+2 nature-1 shadow-2"));
+        TYPES.put(EnemyModule.type(MonsterKind.STATIC_DRIFTER), row("lightning! earth+2 air-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.RIMECLAW), row("fire+1 earth+1 water-1 air-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.PIT_RAVAGER), row("water+1 light+1 fire-1 earth-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.COILFANG), row("fire+1 water+1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.CRAGCRAWLER), row("water+1 arcane+1 earth-1 fire-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.HIVE_REAVER), row("fire+1 air+1 nature-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.RUNE_COLOSSUS), row("arcane+2 earth-1 fire-1"));
+        TYPES.put(EnemyModule.type(MonsterKind.THORN_SPITTER), row("fire+2 water-1 nature-2"));
     }
 
     /** What a kind of creature is, before any affinity: its own row, else what its tags say. */
