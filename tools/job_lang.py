@@ -4,6 +4,7 @@ Writes the job change module's English texts to src/main/resources/assets/beyond
 (Minecraft loads lang files from every namespace, so the module keeps its texts apart from the shared file.)
 
 Run from the repo root:  python3 tools/job_lang.py
+Spanish lives by hand in es_es.json next to it: add a line there for every new key (TranslationGameTests checks).
 """
 import json
 import os

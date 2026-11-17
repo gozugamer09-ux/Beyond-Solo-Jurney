@@ -92,9 +92,20 @@ public final class ShadowRecord {
 
     /** The shadow's name: its own if it has one, otherwise the creature it was. */
     public Component displayName() {
-        if (named()) return Component.literal(name);
-        EntityType<?> t = entityType();
-        Component base = t != null ? t.getDescription() : Component.literal(type);
+        return displayName(wireName());
+    }
+
+    /** The shadow's name as one string to send to a client: its own stored name, or its creature type id. */
+    public String wireName() {
+        return named() ? name : type;
+    }
+
+    /** Reads {@link #wireName()} back into the name, in the reader's language (stored names never hold a ':'). */
+    public static Component displayName(String wire) {
+        if (wire.indexOf(':') < 0) return ShadowNames.display(wire);
+        ResourceLocation id = ResourceLocation.tryParse(wire);
+        EntityType<?> t = id == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
+        Component base = t != null ? t.getDescription() : Component.literal(wire);
         return Component.translatable("shadow.beyondsolo.of", base);
     }
 

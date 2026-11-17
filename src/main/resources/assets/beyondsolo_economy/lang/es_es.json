@@ -60,6 +60,7 @@
   "shop.beyondsolo.license.desc": "Una copia nueva de tu licencia",
   "shop.beyondsolo.lot": "Lote de %s",
   "shop.beyondsolo.maxed": "Ampliado al máximo",
+  "shop.beyondsolo.max_tag": "MÁX.",
   "shop.beyondsolo.sold_out": "Agotado por hoy",
   "shop.beyondsolo.short": "Faltan %s G",
   "shop.beyondsolo.buy_button": "COMPRAR",
@@ -83,5 +84,6 @@
   "shop.beyondsolo.refused.nothing": "El Sistema no compra eso.",
   "storage.beyondsolo.hint.move": "+ clic: mover entre almacén e inventario",
   "storage.beyondsolo.hint.key": "abrir el almacén en cualquier sitio",
-  "storage.beyondsolo.hint.scroll": "rueda: páginas"
+  "storage.beyondsolo.hint.scroll": "rueda: páginas",
+  "storage.beyondsolo.key.shift": "MAYÚS"
 }

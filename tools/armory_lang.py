@@ -5,6 +5,7 @@ and their 156 pieces (named after their art in tools/gen_armory_assets.py), the 
 and the set tooltips. Minecraft loads lang files from every namespace, so the armory keeps its texts apart.
 
 Run from the repo root:  python3 tools/armory_lang.py
+Spanish lives by hand in es_es.json next to it: add a line there for every new key (TranslationGameTests checks).
 """
 import json
 import os

@@ -252,7 +252,7 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
         float hy = y + H - 22;
         Ui.divider(g, x + 16, hy - 6, W - 32, Gfx.alpha(SystemTheme.ACCENT, 0.25f));
         float kx = x + StorageMenu.STORAGE_X;
-        kx += Ui.keycap(g, kx, hy, 9, "SHIFT", SystemTheme.ACCENT) + 3;
+        kx += Ui.keycap(g, kx, hy, 9, Component.translatable("storage.beyondsolo.key.shift").getString(), SystemTheme.ACCENT) + 3;
         String a = Component.translatable("storage.beyondsolo.hint.move").getString();
         SysFont.text(g, a, kx, hy + 1.5f, 6f, SystemTheme.TEXT_SOFT);
         kx += SysFont.width(a, 6f, false) + 10;
