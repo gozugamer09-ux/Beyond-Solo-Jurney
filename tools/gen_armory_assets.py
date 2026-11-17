@@ -1,28 +1,41 @@
 #!/usr/bin/env python3
 """
-Art for the armory's 39 class sets (com.beyondsolo.armory.ArmorCatalog), at the PR #20 detail level of
-tools/hd_armor.py: four 64x64 item icons per set, its two 128x64 worn layers and the item models.
+Art for every armor set: the armory's 39 class sets (com.beyondsolo.armory.ArmorCatalog) and the 9 sets of the first
+gear (hunter, knight, dusk and the six boss sets). For each set:
 
-Every set has its own palette and its own mix of helmet, chest and boots shapes, chosen so no two sets of a class
-look alike; the grade (common to divine, the same as ArmorCatalog.gradeFor) decides the aura and the sparkles.
+- its two worn layers, textures/models/armor/<set>_layer_1.png and _layer_2.png: 128 pixels wide (twice the vanilla
+  resolution), taller when the set has many extra parts;
+- its extra 3D parts, models/armor/<set>.json, loaded by client/armor/ArmorModels.java (pauldrons, brims, crests,
+  horns, wings, capes, tassets, toe caps...);
+- its four 64x64 item icons, rendered from the worn model itself (tools/armor_icons.py), and the item models.
+
+What each set looks like is in tools/armor_designs.py; the painting is tools/armor_worn.py on tools/armor_kit.py.
+The grade (common to divine, the same as ArmorCatalog.gradeFor) decides the icon's aura and sparkles.
 
 Run from the repo root:  python3 tools/gen_armory_assets.py [set ...]
                          python3 tools/gen_armory_assets.py --sheet out.png   (a contact sheet of every icon)
+                         python3 tools/armor_preview.py <set>                 (the set worn, from five sides)
 Needs: pillow, numpy.
 """
 import json
 import os
 import sys
 
+import numpy as np
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
-import hd_armor as ha  # noqa: E402
+import armor_designs as designs  # noqa: E402
+import armor_icons  # noqa: E402
+import armor_worn  # noqa: E402
 from hd_paint import hexc  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 ASSETS = os.path.join(ROOT, "src/main/resources/assets/beyondsolo")
 MODEL_OUT = os.path.join(ASSETS, "models/item")
+ITEM_OUT = os.path.join(ASSETS, "textures/item")
+ARMOR_OUT = os.path.join(ASSETS, "textures/models/armor")
+GEO_OUT = os.path.join(ASSETS, "models/armor")
 
 
 def kit(cls, grade, main, mat, trim, trim_mat, accent, helm, chest, boots, glow=None, **extra):
@@ -98,32 +111,73 @@ for _n, _c in ARMORY.items():
     _c["items"] = tuple(_n + "_" + p for p in PIECES)
 
 
+# the first gear's sets: grade, aura colour and item names (their item models come from tools/gen_hd_gear.py's older
+# generators and are left alone)
+GEAR = {
+    "hunter": dict(grade="common", accent="3e5a3a", items=("hunter_hood", "hunter_coat", "hunter_leggings", "hunter_boots")),
+    "knight": dict(grade="rare", accent="2f6fd0", items=("knight_helm", "knight_cuirass", "knight_greaves", "knight_sabatons")),
+    "dusk": dict(grade="epic", accent="ff5d8a"),
+    "stonehide": dict(grade="rare", accent="e8dcc0"),
+    "mirefang": dict(grade="rare", accent="8ee05a"),
+    "rimeguard": dict(grade="epic", accent="4fa8ff"),
+    "gloomreaver": dict(grade="epic", accent="c8a8ff"),
+    "emberwrought": dict(grade="legendary", accent="ff8a2a"),
+    "sovereign": dict(grade="mythic", accent="ff3d5a"),
+}
+for _n, _c in GEAR.items():
+    _c.setdefault("items", tuple(_n + "_" + p for p in PIECES))
+
+
 def model(item):
     return {"parent": "minecraft:item/generated", "textures": {"layer0": "beyondsolo:item/" + item}}
 
 
-def main(only=None):
-    os.makedirs(ha.ITEM_OUT, exist_ok=True)
-    os.makedirs(ha.ARMOR_OUT, exist_ok=True)
+def info(name):
+    """(grade, aura colour, item names, whether this script owns the item models) for a set."""
+    if name in ARMORY:
+        c = ARMORY[name]
+        return c["grade"], tuple(c["accent"][:3]), c["items"], True
+    c = GEAR[name]
+    return c["grade"], hexc(c["accent"])[:3], c["items"], False
+
+
+def build(name):
+    return armor_worn.Worn(designs.D[name]).build()
+
+
+def write_set(name):
+    res = build(name)
+    grade, accent, items, own_models = info(name)
+    os.makedirs(ITEM_OUT, exist_ok=True)
+    os.makedirs(ARMOR_OUT, exist_ok=True)
+    os.makedirs(GEO_OUT, exist_ok=True)
     os.makedirs(MODEL_OUT, exist_ok=True)
-    for name, cfg in ARMORY.items():
-        if only and name not in only:
-            continue
-        for item, img in zip(cfg["items"], ha.icons(cfg)):
-            img.save(os.path.join(ha.ITEM_OUT, item + ".png"))
+    for layer in (1, 2):
+        Image.fromarray(res[layer], "RGBA").save(os.path.join(ARMOR_OUT, "%s_layer_%d.png" % (name, layer)), optimize=True)
+    geo = {"texture_height": {"1": res["uv_height"][1], "2": res["uv_height"][2]}, "parts": res["parts"]}
+    with open(os.path.join(GEO_OUT, name + ".json"), "w") as f:
+        json.dump(geo, f, indent=1)
+        f.write("\n")
+    for item, img in zip(items, armor_icons.icons(name, res, grade, accent)):
+        Image.fromarray(img, "RGBA").save(os.path.join(ITEM_OUT, item + ".png"), optimize=True)
+        if own_models:
             with open(os.path.join(MODEL_OUT, item + ".json"), "w") as f:
                 json.dump(model(item), f, indent=2)
                 f.write("\n")
-        l1, l2 = ha.layers(cfg)
-        l1.save(os.path.join(ha.ARMOR_OUT, name + "_layer_1.png"))
-        l2.save(os.path.join(ha.ARMOR_OUT, name + "_layer_2.png"))
-    print("armory art written:", len(only) if only else len(ARMORY), "sets")
+    return res
+
+
+def main(only=None):
+    names = [n for n in list(ARMORY) + list(GEAR) if not only or n in only]
+    for name in names:
+        write_set(name)
+    print("armor art written:", len(names), "sets")
 
 
 def sheet(path, scale=2):
     """Every set's four icons in a row, grouped by class, on a dark background (for previews)."""
-    order = ["warrior", "assassin", "mage", "guardian", "healer", "ranger"]
-    names = sorted(ARMORY, key=lambda n: (order.index(ARMORY[n]["cls"]), list(ARMORY).index(n)))
+    order = list(designs.CLASS)
+    names = [n for cls in order for n in designs.CLASS[cls]]
     cols = 3
     rows = (len(names) + cols - 1) // cols
     cell = 64 * scale
@@ -133,8 +187,11 @@ def sheet(path, scale=2):
     for i, name in enumerate(names):
         cx = 24 + (i % cols) * (4 * cell + 24)
         cy = 12 + (i // cols) * (cell + 12)
-        for k, img in enumerate(ha.icons(ARMORY[name])):
-            img = img.resize((cell, cell), Image.NEAREST)
+        for k, item in enumerate(info(name)[2]):
+            p = os.path.join(ITEM_OUT, item + ".png")
+            if not os.path.exists(p):
+                continue
+            img = Image.open(p).convert("RGBA").resize((cell, cell), Image.NEAREST)
             out.alpha_composite(img, (cx + k * cell, cy))
     out.save(path)
     print("sheet written:", path)

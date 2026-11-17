@@ -7,7 +7,8 @@ High-detail (64x64) textures for System gear. Run AFTER the older generators: it
   wood grain, part seams and a tinted outline, then dresses them by grade (epic: etched glowing runes and a soft
   aura; legendary and up: brighter aura and sparkles; divine: white-gold radiance). The light sweep animation on
   legendary and up is rebuilt at 64x64.
-- all 9 armor sets: item icons (64x64) and worn armor layers (128x64), see tools/hd_armor.py
+- all 9 armor sets: item icons, worn layers and their 3D parts, by tools/gen_armory_assets.py (the same as the
+  armory's sets)
 - the refining stone and the ward seal
 
 Item models, Better Combat files and names are untouched (the older generators own them).
@@ -500,11 +501,9 @@ def main():
     n = weapons(only)
     refining_stone().save(os.path.join(ITEM_OUT, "refining_stone.png"))
     ward_seal().save(os.path.join(ITEM_OUT, "ward_seal.png"))
-    try:
-        import hd_armor
-        hd_armor.main()
-    except ImportError:
-        pass
+    # the armor sets' art (icons, worn layers, 3D parts) comes from tools/gen_armory_assets.py now
+    import gen_armory_assets
+    gen_armory_assets.main(set(gen_armory_assets.GEAR))
     print(f"hd gear written: {n} weapon textures")
 
 

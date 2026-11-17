@@ -19,7 +19,8 @@ import java.util.Map;
  * Buildup framework. Register a {@link BuildupType}, then call {@link #add} when a hit applies it.
  * Works the same on players and mobs, so it hits both ways.
  *
- * <p>{@link #BLOOD}: at 100 buildup the target loses 10% of max health. {@link Statuses} adds burn (deep burn),
+ * <p>{@link #BLOOD}: at 100 buildup the target loses 10% of max health (5% for bosses and elites, see
+ * {@link Statuses#popCap}). {@link Statuses} adds burn (deep burn),
  * venom stacks and crimson the same way. The target's resistance to the element (see {@link ModAttributes})
  * shrinks every amount added.
  */
