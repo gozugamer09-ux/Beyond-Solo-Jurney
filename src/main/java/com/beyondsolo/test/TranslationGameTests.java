@@ -1,6 +1,7 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.economy.Economy;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -19,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -42,7 +44,7 @@ public final class TranslationGameTests {
     /** Namespaces with their own language files. New ones are found on their own when the assets folder can be listed. */
     private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_breaks", "beyondsolo_crafting", "beyondsolo_depths",
             "beyondsolo_economy", "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty",
-            "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows");
+            "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_tower");
     /** Minecraft's own pattern for a translation argument ({@code TranslatableContents}). */
     private static final Pattern ARG = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 
@@ -86,6 +88,23 @@ public final class TranslationGameTests {
             helper.fail("Spanish is incomplete (" + problems.size() + " problem(s)):\n  " + String.join("\n  ", problems.subList(0, Math.min(25, problems.size()))));
         }
         helper.assertTrue(checked > 2000, "the language files were all read (" + checked + " lines)");
+        helper.succeed();
+    }
+
+    /** The gold pop-up says where gold came from: a reason with no line would show its raw key there. */
+    @GameTest(template = ARENA)
+    public static void everyGoldReasonIsNamed(GameTestHelper helper) {
+        Set<String> english = new TreeSet<>();
+        for (String ns : namespaces()) {
+            JsonObject en = read(ns, "en_us");
+            if (en != null) english.addAll(en.keySet());
+        }
+        List<String> missing = new ArrayList<>();
+        for (Economy.Reason r : Economy.Reason.values()) {
+            String key = "gold.beyondsolo.reason." + r.name().toLowerCase(Locale.ROOT);
+            if (!english.contains(key)) missing.add(key);
+        }
+        helper.assertTrue(missing.isEmpty(), "gold reasons with no English line: " + missing);
         helper.succeed();
     }
 
