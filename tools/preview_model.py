@@ -237,7 +237,7 @@ def render(quads, tex, glow, size=(640, 520), az=35, el=14, target=(0, 16, 0), d
             ui = np.clip(np.floor(u).astype(int), int(math.floor(min(u0, u0 + uw))), max(int(math.ceil(max(u0, u0 + uw))) - 1, int(math.floor(min(u0, u0 + uw)))))
             vi = np.clip(np.floor(v).astype(int), int(math.floor(min(v0, v0 + vh))), max(int(math.ceil(max(v0, v0 + vh))) - 1, int(math.floor(min(v0, v0 + vh)))))
             ui, vi = np.clip(ui, 0, tw - 1), np.clip(vi, 0, th - 1)
-            ok = inside & (alpha[vi, ui] >= 26) & (depth < zbuf[y0:y1 + 1, x0:x1 + 1])
+            ok = inside & (alpha[vi, ui] >= 26) & (depth < zbuf[y0:y1 + 1, x0:x1 + 1] + 1e-3)
             if not ok.any():
                 continue
             col = base[vi, ui]
