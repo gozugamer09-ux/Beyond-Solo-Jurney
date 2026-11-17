@@ -50,6 +50,8 @@ public final class GateOverlay {
     private static float cover;
     private static boolean coverWhite;
     private static double coverSince;
+    /** When a red gate's arrival lifted the cover instead of the usual name card (-1: not lifting). */
+    private static double liftedAt = -1;
     private static boolean shakePlayed;
 
     private static float trauma;
@@ -71,8 +73,14 @@ public final class GateOverlay {
                 addTrauma(0.8f);
                 sound(SoundEvents.WARDEN_ROAR, 1.3f, 0.5f);
             }
-            case GatePayload.ENTER -> QUEUE.addFirst(new Moment(p, 2.3f));
-            case GatePayload.EXIT -> QUEUE.addFirst(new Moment(p, 2.1f));
+            case GatePayload.ENTER -> {
+                QUEUE.addFirst(new Moment(p, 2.3f));
+                liftedAt = -1;
+            }
+            case GatePayload.EXIT -> {
+                QUEUE.addFirst(new Moment(p, 2.1f));
+                liftedAt = -1;
+            }
             case GatePayload.ARRIVE, GatePayload.RETURN -> QUEUE.addLast(new Moment(p, 4.4f));
             case GatePayload.BOSS_INTRO -> {
                 bossId = p.entity();
@@ -92,6 +100,20 @@ public final class GateOverlay {
         return current != null || cover > 0.01f;
     }
 
+    /** True while the player is going through a gate (the light swallowing the screen, or the cover after it). */
+    public static boolean passing() {
+        return current != null && (current.p.kind() == GatePayload.ENTER || current.p.kind() == GatePayload.EXIT) || cover > 0.01f;
+    }
+
+    /**
+     * Lifts the cover held after going in, without a name card: a red gate's arrival plays its own moment (the
+     * System's warning, see {@code client.redgate.RedGateOverlay}).
+     */
+    public static void lift() {
+        if (cover <= 0.01f && (current == null || current.p.kind() != GatePayload.ENTER)) return;
+        liftedAt = Anim.now();
+    }
+
     /** How far the boss bar is in (0..1): things at the top of the screen move down under it. */
     public static float bossBarIn() {
         return barIn;
@@ -105,6 +127,7 @@ public final class GateOverlay {
         QUEUE.clear();
         current = null;
         cover = 0;
+        liftedAt = -1;
         trauma = 0;
         bossId = -1;
         NotificationManager.setHeld(false);
@@ -176,6 +199,10 @@ public final class GateOverlay {
             }
         }
         if (current == null && cover > 0 && Anim.since(coverSince) > 12f) cover = 0;
+        if (liftedAt >= 0 && current == null && Anim.since(liftedAt) > 1.2f) {
+            cover = 0;
+            liftedAt = -1;
+        }
     }
 
     private static void sound(SoundEvent s, float pitch, float volume) {
@@ -216,9 +243,10 @@ public final class GateOverlay {
                 default -> {}
             }
         } else if (cover > 0.01f) {
-            Shapes.box(0, 0, w, h).fill(coverWhite ? 0xFFF4FBFF : 0xFF000000).draw(g);
+            float lift = liftedAt < 0 ? 1f : 1 - Anim.outCubic(Anim.window(Anim.since(liftedAt), 0f, 1.1f));
+            Shapes.box(0, 0, w, h).fill(Gfx.alpha(coverWhite ? 0xFFF4FBFF : 0xFF000000, lift)).draw(g);
             float dots = Anim.since(coverSince);
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3 && liftedAt < 0; i++) {
                 float a = 0.3f + 0.7f * Math.max(0, Mth.sin(dots * 5f - i * 0.8f));
                 Shapes.circle(w / 2f - 8 + i * 8, h / 2f, 1.6f).fill(Gfx.alpha(coverWhite ? SystemTheme.ACCENT_DEEP : SystemTheme.ACCENT, a)).draw(g);
             }
