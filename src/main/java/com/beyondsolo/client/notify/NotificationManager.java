@@ -123,8 +123,8 @@ public final class NotificationManager {
         }
         if (suppressed) return;
         // new pop-ups wait while a quest moment holds the middle of the screen, while a dungeon break's banner is up
-        // (it runs across the top, where they would cover it), or while one of the Citadel's end cards shows
-        if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending() || com.beyondsolo.client.tower.TowerClient.holdsPopups()) return;
+        // (it runs across the top, where they would cover it), or while the Citadel has the screen (its cards)
+        if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending() || com.beyondsolo.client.tower.TowerClient.holdsScreen()) return;
         // With "stay open" on, a full stack makes room by retiring its oldest pop-up.
         if (keep && !WAITING.isEmpty() && shown >= MAX_VISIBLE) {
             for (Popup p : ACTIVE) {

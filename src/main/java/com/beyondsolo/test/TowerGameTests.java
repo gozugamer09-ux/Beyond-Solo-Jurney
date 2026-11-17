@@ -337,6 +337,7 @@ public final class TowerGameTests {
                         helper.assertTrue(foes.stream().allMatch(e -> e.getTags().contains(TowerRun.FOE_TAG)), "the creatures belong to the run");
                         helper.assertTrue(foes.stream().allMatch(TowerGameTests::ours), "no vanilla creatures in the Citadel");
                         helper.assertTrue(foes.stream().allMatch(e -> hall.bounds().inflate(2).contains(e.position())), "they rose in the hall");
+                        helper.assertTrue(!turnedAway(foes.get(0)), "a live run's creature loads again with its chunk");
                         helper.assertTrue(TowerRun.jump(p, "clear"), "the floor can be won");
                         helper.assertTrue(TowerRun.phase(p) == TowerRun.Phase.CLEARED, "won");
                         helper.assertTrue(TowerRun.foes(p).isEmpty(), "what was left of them is gone");
@@ -375,6 +376,27 @@ public final class TowerGameTests {
                 default -> {}
             }
         });
+    }
+
+    /** A run's creature saved with the world when it stopped mid-run (a crash, a quit) is turned away when its chunk loads. */
+    @GameTest(template = ARENA)
+    public static void staleCreaturesAreTurnedAway(GameTestHelper helper) {
+        net.minecraft.world.entity.npc.Villager stale = net.minecraft.world.entity.EntityType.VILLAGER.create(helper.getLevel());
+        helper.assertTrue(stale != null, "a creature to load");
+        helper.assertTrue(!turnedAway(stale), "an untagged creature loads as ever");
+        stale.addTag(TowerRun.FOE_TAG);
+        helper.assertTrue(turnedAway(stale), "one of an old run's creatures is turned away as it loads");
+        net.neoforged.neoforge.event.entity.EntityJoinLevelEvent fresh = new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(stale, helper.getLevel(), false);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(fresh);
+        helper.assertTrue(!fresh.isCanceled(), "a run's creature spawned now is let in");
+        helper.succeed();
+    }
+
+    /** True when a creature coming back with its chunk would be turned away. */
+    private static boolean turnedAway(net.minecraft.world.entity.Entity e) {
+        net.neoforged.neoforge.event.entity.EntityJoinLevelEvent event = new net.neoforged.neoforge.event.entity.EntityJoinLevelEvent(e, e.level(), true);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(event);
+        return event.isCanceled();
     }
 
     /** A gatekeeper: a named gate boss, dormant until woken; beaten, a reward cache and a checkpoint. */

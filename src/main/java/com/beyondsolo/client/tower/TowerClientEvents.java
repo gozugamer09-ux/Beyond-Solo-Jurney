@@ -15,6 +15,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
@@ -99,6 +100,11 @@ public final class TowerClientEvents {
         event.setNearPlaneDistance(24f - 8f * moonShown);
         event.setFarPlaneDistance(Math.min(event.getFarPlaneDistance(), 110f - 30f * moonShown));
         event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    static void tick(ClientTickEvent.Post event) {
+        TowerClient.tick();
     }
 
     @SubscribeEvent

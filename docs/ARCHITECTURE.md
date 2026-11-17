@@ -1147,7 +1147,9 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   checkpoint: the next climb starts above it (`TowerData.startFloor`).
 - **A run** (`TowerRun`, one `Session` per hunter, each in its own slot 1024 blocks apart along x): `PULL` (a crimson
   ring and pillar, the screen closes in red) while the first hall is raised a slice at a time (`CitadelHalls.Job`,
-  `BUDGET` blocks a tick), `ARRIVING` (the title card), `FIGHT`, `CLEARED` (the seal comes off the stair door, the exit
+  `BUDGET` blocks a tick), `ARRIVING` (the title card; its clock waits until the hunter's screen shows the hall, which
+  the client says with `TowerActionPayload.ARRIVED`, at most 10 s, so the card is never lost behind "Loading terrain"
+  and the floor never begins there), `FIGHT`, `CLEARED` (the seal comes off the stair door, the exit
   sigil lights, the floor's rewards; the next hall is already going up on the other pad), `CLIMBING` (the stair leads
   straight into it). A gatekeeper's floor drops a reward cache; the stair waits until it is opened. Standing on the
   exit sigil for 2 s lets them out (`LEAVING`). A blow that would kill ends the run instead (`FALLEN`): no death, nothing
@@ -1174,7 +1176,10 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   the rush tiers with their times; the sealed gate until the key is bound), `TowerHud` (the pull, title cards, the
   floor plaque under the boss bar, banners, the climb, the ends, the exit hold), `TowerWorldFx` (the seal curtain on
   the stair door, the exit sigil, the moon and the red haze in the sky), `CitadelLordRenderer` (his glowing seams,
-  the glare of his eyes, the blood moon's heat, the light that takes him as he dies), `TowerClientEvents`.
+  the glare of his eyes, the blood moon's heat, the light that takes him as he dies), `TowerClientEvents`. While the
+  Citadel has the screen (`TowerClient.holdsScreen`: pulled in, a title card, the climb, an end card) the System's
+  pop-ups and quest windows wait; they ask every frame instead of sharing `NotificationManager`'s held flag. A run's
+  creatures saved with the world when it stopped mid-run are turned away as their chunk loads (`TowerRun.onJoin`).
 - **Commands** (`/system tower ...`, level 2): bind, climb, enter <floor>, lord, endless, rush <tier>,
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.

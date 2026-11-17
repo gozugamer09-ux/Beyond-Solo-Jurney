@@ -58,6 +58,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
@@ -109,6 +110,8 @@ public final class TowerRun {
 
     static final int PULL_TICKS = 50;
     static final int ARRIVE_TICKS = 60;
+    /** How long the arrival waits at most for the hunter's screen to show the hall (a slow load) before going on. */
+    static final int ARRIVE_WAIT_TICKS = 20 * 10;
     static final int CLIMB_TICKS = 36;
     static final int CLIMB_SWAP = 16;
     static final int VICTORY_TICKS = 170;
@@ -166,6 +169,12 @@ public final class TowerRun {
         @Nullable BlockPos cache;
         int cacheHint = -100;
         int hold;
+        /**
+         * The hunter's screen shows the hall (their client says so once "Loading terrain" is gone; a fake player at once):
+         * until then the arrival's clock waits, so the title card is seen and the floor never begins on a loading screen.
+         */
+        boolean seen;
+        int waited;
         /** The boss rush: the bouts, which one, and the clock (running from the first boss waking to the last one falling). */
         List<RushTier.Bout> bouts = List.of();
         int bout;
@@ -261,6 +270,10 @@ public final class TowerRun {
             case TowerActionPayload.LEAVE -> {
                 Session s = SESSIONS.get(p.getUUID());
                 if (s != null && s.phase != Phase.LEAVING && s.phase != Phase.FALLEN && s.phase != Phase.PULL) leave(s);
+            }
+            case TowerActionPayload.ARRIVED -> {
+                Session s = SESSIONS.get(p.getUUID());
+                if (s != null && s.phase == Phase.ARRIVING) s.seen = true;
             }
             default -> {}
         }
@@ -380,7 +393,10 @@ public final class TowerRun {
                 if (s.tick >= PULL_TICKS) arrive(s);
             }
             case ARRIVING -> {
-                if (s.tick >= ARRIVE_TICKS) {
+                if (!s.seen && s.waited < ARRIVE_WAIT_TICKS) {
+                    s.waited++;
+                    s.tick = 0;
+                } else if (s.tick >= ARRIVE_TICKS) {
                     setPhase(s, Phase.FIGHT);
                     if (s.mode == Mode.RUSH) beginBout(s);
                     else beginFloor(s);
@@ -477,6 +493,8 @@ public final class TowerRun {
         p.clearFire();
         s.level.sendParticles(dust(CRIMSON, 1.4f), p.getX(), p.getY() + 1, p.getZ(), 40, 0.4, 0.9, 0.4, 0);
         sound(s.level, p.position(), SoundEvents.ENDER_DRAGON_GROWL, 0.35f, 0.5f);
+        s.seen = p instanceof net.neoforged.neoforge.common.util.FakePlayer;
+        s.waited = 0;
         setPhase(s, Phase.ARRIVING);
         send(s);
     }
@@ -1285,6 +1303,24 @@ public final class TowerRun {
         SESSIONS.clear();
     }
 
+    /**
+     * A run's creatures last only as long as its run. Ones saved with the world when it stopped mid-run (a crash, a
+     * quit) are turned away as their chunk loads again: otherwise the next run in that hall finds them waiting, a lord
+     * from the last one already awake.
+     */
+    @SubscribeEvent
+    static void onJoin(EntityJoinLevelEvent event) {
+        if (!event.loadedFromDisk() || !(event.getLevel() instanceof ServerLevel)) return;
+        Entity e = event.getEntity();
+        if (e.getTags().contains(FOE_TAG) && !claimed(e.getUUID())) event.setCanceled(true);
+    }
+
+    /** One of a live run's creatures. */
+    private static boolean claimed(UUID id) {
+        for (Session s : SESSIONS.values()) if (id.equals(s.boss) || s.foes.contains(id)) return true;
+        return false;
+    }
+
     /** The Citadel's stone can't be broken or built on (the halls would be no obstacle), except by builders. */
     @SubscribeEvent
     static void onBreak(BlockEvent.BreakEvent event) {
@@ -1485,7 +1521,10 @@ public final class TowerRun {
         switch (what) {
             case "arrive" -> {
                 if (s.phase == Phase.PULL) arrive(s);
-                if (s.phase == Phase.ARRIVING) s.tick = ARRIVE_TICKS - 1;
+                if (s.phase == Phase.ARRIVING) {
+                    s.seen = true;
+                    s.tick = ARRIVE_TICKS - 1;
+                }
             }
             case "clear" -> {
                 if (s.phase == Phase.PULL) arrive(s);

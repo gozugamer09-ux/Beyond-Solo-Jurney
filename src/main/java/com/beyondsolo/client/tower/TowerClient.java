@@ -1,10 +1,13 @@
 package com.beyondsolo.client.tower;
 
+import com.beyondsolo.client.gate.GateOverlay;
 import com.beyondsolo.client.gfx.Anim;
+import com.beyondsolo.network.TowerActionPayload;
 import com.beyondsolo.network.TowerPayload;
 import com.beyondsolo.network.TowerSyncPayload;
 import com.beyondsolo.tower.TowerData;
 import net.minecraft.client.Minecraft;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * The client's copy of the Crimson Citadel: the run the player is in ({@link TowerPayload}, for the HUD and the light
@@ -26,6 +29,8 @@ public final class TowerClient {
     /** How long a cleared rush's stamp keeps the pop-ups waiting (the phase itself lasts a minute). */
     static final float RUSH_CARD_SECONDS = 5.5f;
     private static double gateMomentAt = -100;
+    /** The server has been told the hall is on screen (for this arrival). */
+    private static boolean arrivalTold;
 
     public static void onRun(TowerPayload p) {
         int was = run.phase();
@@ -35,15 +40,14 @@ public final class TowerClient {
                 endedAt = Anim.now();
             }
             run = p;
-            com.beyondsolo.client.notify.NotificationManager.setHeld(false);
             return;
         }
         if (p.phase() != was) {
             // the server's tick in the phase says how far in it already is (a late join, a resent packet)
             phaseStart = Anim.now() - p.tick() / 20.0;
-            com.beyondsolo.client.notify.NotificationManager.setHeld(holds(p.phase()));
             // pulled in: the Citadel takes the whole screen, and what was popping up out there waits in the Log
             if (p.phase() == TowerPayload.PULL) com.beyondsolo.client.notify.NotificationManager.hideShowing();
+            if (p.phase() == TowerPayload.ARRIVING) arrivalTold = false;
         }
         int floorKey = p.mode() == TowerPayload.RUSH ? 10_000 + p.bout() : p.floor();
         if (floorKey != shownFloor) {
@@ -58,28 +62,41 @@ public final class TowerClient {
         receivedAt = gameTime();
     }
 
+    /**
+     * Once a client tick. Arriving, the title card (and the lift out of the black) waits while the citadel loads behind
+     * "Loading terrain", where nothing drawn here can be seen; once the hall shows, the server is told, and its clock
+     * starts with the card's (the floor never begins on a loading screen).
+     */
+    static void tick() {
+        if (run.phase() != TowerPayload.ARRIVING || arrivalTold) return;
+        if (GateOverlay.loading()) {
+            phaseStart = Anim.now();
+            return;
+        }
+        arrivalTold = true;
+        PacketDistributor.sendToServer(new TowerActionPayload(TowerActionPayload.ARRIVED, 0));
+    }
+
     public static void onSync(TowerSyncPayload p) {
         DATA.deserializeNBT(null, p.data());
     }
 
-    /** Pop-ups wait while the screen belongs to the Citadel (pulled in, title cards, the climb, fallen, leaving). */
-    private static boolean holds(int phase) {
-        return phase == TowerPayload.PULL || phase == TowerPayload.ARRIVING || phase == TowerPayload.CLIMBING || phase == TowerPayload.FALLEN
-                || phase == TowerPayload.LEAVING;
-    }
-
     /**
-     * The end cards (the throne taken, a rush cleared) keep the System's pop-ups waiting while they show, so the rewards'
-     * pop-ups come in after them. The pop-ups ask this every frame (like a dungeon break's banner).
+     * The screen belongs to the Citadel: pulled in, a title card, the climb, the end cards (the throne taken, a rush
+     * cleared), fallen, leaving. The System's pop-ups and quest windows wait for it (a break quest given up by being
+     * pulled in would otherwise land on the title card), so the rewards' pop-ups come in after the end cards. They ask
+     * every frame (like a dungeon break's banner) rather than share a flag that other moments set and clear.
      */
-    public static boolean holdsPopups() {
+    public static boolean holdsScreen() {
         int phase = run.phase();
-        return phase == TowerPayload.VICTORY || phase == TowerPayload.RUSH_DONE && cardAge() < RUSH_CARD_SECONDS;
+        return phase == TowerPayload.PULL || phase == TowerPayload.ARRIVING || phase == TowerPayload.CLIMBING || phase == TowerPayload.FALLEN
+                || phase == TowerPayload.LEAVING || phase == TowerPayload.VICTORY
+                || phase == TowerPayload.RUSH_DONE && cardAge() < RUSH_CARD_SECONDS;
     }
 
     /** How long the phase's card has been up: a boss's fall plays its own DEFEATED moment first, and the card waits for it. */
     static float cardAge() {
-        if (com.beyondsolo.client.gate.GateOverlay.active()) gateMomentAt = Anim.now();
+        if (GateOverlay.active()) gateMomentAt = Anim.now();
         return Math.min(phaseAge(), Anim.since(gateMomentAt));
     }
 
@@ -131,7 +148,6 @@ public final class TowerClient {
     }
 
     public static void clear() {
-        if (inRun()) com.beyondsolo.client.notify.NotificationManager.setHeld(false);
         run = TowerPayload.none();
         endedFrom = TowerPayload.NONE;
         endedAt = -100;
