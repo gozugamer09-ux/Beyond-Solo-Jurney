@@ -1,0 +1,228 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "horn1",
+   "part": "head",
+   "origin": [
+    -2,
+    -1.5,
+    -1.5
+   ],
+   "size": [
+    2,
+    3,
+    3
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -5,
+    -6.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "horn1_l",
+   "part": "head",
+   "origin": [
+    0,
+    -1.5,
+    -1.5
+   ],
+   "size": [
+    2,
+    3,
+    3
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    5,
+    -6.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": true,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "horn2",
+   "part": "head",
+   "origin": [
+    -1.5,
+    -1,
+    -3.5
+   ],
+   "size": [
+    2,
+    3,
+    3
+   ],
+   "uv": [
+    10,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -6.5,
+    -5.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "horn2_l",
+   "part": "head",
+   "origin": [
+    -0.5,
+    -1,
+    -3.5
+   ],
+   "size": [
+    2,
+    3,
+    3
+   ],
+   "uv": [
+    10,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    6.5,
+    -5.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": true,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "horn3",
+   "part": "head",
+   "origin": [
+    -1.5,
+    0,
+    -4.5
+   ],
+   "size": [
+    1.5,
+    2.5,
+    2.0
+   ],
+   "uv": [
+    20,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -6.5,
+    -4.0,
+    -0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "horn3_l",
+   "part": "head",
+   "origin": [
+    0.0,
+    0,
+    -4.5
+   ],
+   "size": [
+    1.5,
+    2.5,
+    2.0
+   ],
+   "uv": [
+    20,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    6.5,
+    -4.0,
+    -0.5
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": true,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.15
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.25
+   ],
+   "uv": [
+    27,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  }
+ ]
+}
