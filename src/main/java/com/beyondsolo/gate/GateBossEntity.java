@@ -132,6 +132,7 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     public void configure(GateInstance gate) {
         configure(gate.rank(), gate.bossKind(), gate.bossAscended());
         this.gateId = gate.id();
+        getPersistentData().putString(GateService.ELEMENT_TAG, gate.element().id().toString());
         setCustomName(gate.bossName());
         setCustomNameVisible(false);
     }
@@ -197,12 +198,12 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         return GateTheme.of(rank());
     }
 
-    /** The element its hits carry: its own for the broodmother (poison) and wyrm (fire), else its gate's. */
+    /** The element its hits carry: its own for the broodmother (poison) and wyrm (fire), else its gate's realm's. */
     public DamageElement element() {
         return switch (kind()) {
             case BROODMOTHER -> DamageElement.POISON;
             case WYRM -> DamageElement.FIRE;
-            default -> theme().element;
+            default -> getPersistentData().contains(GateService.ELEMENT_TAG) ? GateService.elementOf(this) : theme().element;
         };
     }
 

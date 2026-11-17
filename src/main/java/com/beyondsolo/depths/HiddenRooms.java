@@ -284,7 +284,7 @@ public final class HiddenRooms {
             BlockPos at = DepthsBuild.floorAt(level, c.getX() + Math.round(Mth.cos(a) * room.rx() * k), c.getZ() + Math.round(Mth.sin(a) * room.rz() * k), c.getY());
             EntityType<?> type = mix.pick(level.random);
             Mob m = Enemies.spawn(level, rank, type, at, Enemies.roll(rank, mix, type, level.random, i == 0, true), g.theme().ordinal());
-            if (m != null) m.getPersistentData().putUUID(GateWiper.GATE_ID_TAG, g.id());
+            GateService.claim(m, g);
         }
     }
 

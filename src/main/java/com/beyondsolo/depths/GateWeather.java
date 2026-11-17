@@ -1,5 +1,6 @@
 package com.beyondsolo.depths;
 
+import com.beyondsolo.gate.GateRealm;
 import com.beyondsolo.gate.GateTheme;
 import com.beyondsolo.skill.SkillElement;
 import com.beyondsolo.system.PlayerRank;
@@ -101,6 +102,20 @@ public enum GateWeather {
         };
     }
 
+    /** The weather a realm's dungeons lean towards (the six original caves lean as their ranks did). */
+    public static GateWeather themed(GateRealm realm) {
+        return switch (realm) {
+            case HOLLOWS, MOSSWEPT_RUINS, SUNKEN_SANCTUM -> MIST;
+            case MIREWOOD, CHITIN_HIVE, SPOREFALL_DEEP -> MIASMA;
+            case AZURE_GROTTO, RIMEFROST -> BLIZZARD;
+            case GLOOMSHADE, STORMSPIRE -> STORM;
+            case EMBERFORGE, SUNSCORCHED_TOMB, INFERNAL_CITADEL -> SCORCHING;
+            case CRIMSON_ABYSS, THRESHOLD -> CRIMSON;
+            case BONE_CATACOMBS, STARLESS_EXPANSE -> DARKNESS;
+            case ROOTBOUND_DEN, CRYSTAL_SEAM, IRONBOUND_KEEP -> TREMORS;
+        };
+    }
+
     /** Chance of a still cave, by rank: half the E-rank caves, a quarter of the S-rank ones. */
     public static float clearChance(PlayerRank rank) {
         return 0.5f - 0.05f * rank.tier();
@@ -108,9 +123,13 @@ public enum GateWeather {
 
     /** A gate's weather, from its seed: the same gate always has the same sky. */
     public static GateWeather roll(long seed, PlayerRank rank, GateTheme theme) {
+        return roll(seed, rank, themed(theme));
+    }
+
+    /** A gate's weather, from its seed, leaning toward {@code themed} (three times as likely as any other). */
+    public static GateWeather roll(long seed, PlayerRank rank, GateWeather themed) {
         RandomSource r = new LegacyRandomSource(seed ^ 0x5745415448455221L);
         if (r.nextFloat() < clearChance(rank)) return CLEAR;
-        GateWeather themed = themed(theme);
         int total = (values().length - 2) + 3;
         int pick = r.nextInt(total);
         for (GateWeather w : values()) {

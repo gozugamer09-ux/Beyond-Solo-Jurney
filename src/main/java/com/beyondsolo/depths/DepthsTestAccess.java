@@ -28,6 +28,17 @@ public final class DepthsTestAccess {
         return HiddenRooms.guardians(level, g, room);
     }
 
+    /** The room a trap forced by command goes in (null if no room will do). */
+    @org.jetbrains.annotations.Nullable
+    public static DungeonLayout.Room forcedTrapRoom(DungeonLayout layout, TrapKind kind) {
+        return DepthsCommand.trapRoom(layout, kind);
+    }
+
+    /** The trap rooms a seed gives a plan at a rank, as a gate rolls them. */
+    public static java.util.Map<Integer, TrapKind> rollTraps(long seed, com.beyondsolo.system.PlayerRank rank, DungeonLayout layout) {
+        return GateDepths.roll(seed, rank.tier(), layout);
+    }
+
     /** The wave a lockdown room is on (0 before it springs). */
     public static int wave(GateInstance g, int room) {
         return g.depths().wave(room);

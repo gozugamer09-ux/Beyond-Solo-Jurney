@@ -1,0 +1,132 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "minecraft:block/polished_andesite",
+    "side": "minecraft:block/polished_andesite",
+    "end": "minecraft:block/polished_andesite",
+    "cracks": "beyondsolo:block/hidden_seal/cracks_polished_andesite_1",
+    "glint": "beyondsolo:block/hidden_seal/glint_1"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#side",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#side",
+          "cullface": "south"
+        },
+        "east": {
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "up": {
+          "texture": "#end",
+          "cullface": "up"
+        },
+        "down": {
+          "texture": "#end",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "texture": "#cracks",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#cracks",
+          "cullface": "south"
+        },
+        "east": {
+          "texture": "#cracks",
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#cracks",
+          "cullface": "west"
+        },
+        "up": {
+          "texture": "#cracks",
+          "cullface": "up"
+        },
+        "down": {
+          "texture": "#cracks",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "shade": false,
+      "neoforge_data": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "faces": {
+        "north": {
+          "texture": "#glint",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#glint",
+          "cullface": "south"
+        },
+        "east": {
+          "texture": "#glint",
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#glint",
+          "cullface": "west"
+        },
+        "up": {
+          "texture": "#glint",
+          "cullface": "up"
+        },
+        "down": {
+          "texture": "#glint",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}

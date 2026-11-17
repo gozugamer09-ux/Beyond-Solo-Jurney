@@ -180,7 +180,7 @@ public final class WeatherService {
 
     /** One falling rock: dust trickles from the ceiling over a marked spot, then it lands. Public for commands. */
     public static void rock(ServerLevel level, GateInstance g, Vec3 at, float radius, float damage) {
-        BlockState stone = g.theme().mainWall();
+        BlockState stone = g.realm().mainWall();
         EnemyFx.telegraphCircle(level, at, radius, ROCK_WARNING, GateWeather.TREMORS.color);
         double ceiling = ceiling(level, at);
         int id = Block.getId(stone);
