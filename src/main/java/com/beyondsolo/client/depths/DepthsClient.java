@@ -2,6 +2,7 @@ package com.beyondsolo.client.depths;
 
 import com.beyondsolo.client.enemy.EnemyClient;
 import com.beyondsolo.client.gfx.Anim;
+import com.beyondsolo.client.quest.QuestOverlay;
 import com.beyondsolo.depths.GateWeather;
 import com.beyondsolo.depths.HiddenKind;
 import com.beyondsolo.depths.TrapKind;
@@ -159,6 +160,8 @@ public final class DepthsClient {
             BANNERS.addLast(b);
             return;
         }
+        // a quest window in the middle of the screen folds away early to make room
+        QuestOverlay.skip();
         // an urgent banner goes next, and cuts short a less urgent one that is up (a weather banner barely begun
         // goes back to wait its turn)
         BANNERS.addFirst(b);
@@ -176,11 +179,15 @@ public final class DepthsClient {
         if (current != null && current.kind == kind) current = null;
     }
 
-    /** The banner on screen now, or null. {@code free} is false while the gate's own moments hold the screen. */
+    /**
+     * The banner on screen now, or null. {@code free} is false while another moment holds the middle of the screen
+     * (the gate's, a quest window, the evaluation, a new skill); while {@code questWaiting}, only the urgent banners
+     * (a trap, its waves and its end, a hidden dungeon found) go before the quest window.
+     */
     @Nullable
-    static Banner banner(boolean free) {
+    static Banner banner(boolean free, boolean questWaiting) {
         if (current != null && current.age() >= current.duration) current = null;
-        if (current == null && free && !BANNERS.isEmpty()) {
+        if (current == null && free && !BANNERS.isEmpty() && (!questWaiting || priority(BANNERS.peekFirst().kind) >= 2)) {
             current = BANNERS.pollFirst();
             current.start = Anim.now();
         }
@@ -202,6 +209,11 @@ public final class DepthsClient {
     /** Seconds since the weather (or the cave) changed. */
     public static float sinceWeather() {
         return Anim.since(weatherSince);
+    }
+
+    /** A banner is on screen now (the quest windows wait for it to go). */
+    public static boolean bannerShowing() {
+        return current != null && current.start >= 0 && current.age() < current.duration;
     }
 
     /** The weather banner is still up (the chip waits for it). */

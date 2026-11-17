@@ -446,7 +446,8 @@ def lang() -> dict:
         "depths.beyondsolo.hidden.lair_cleared.body": "Its guardians have fallen. Their hoard is yours.",
         "depths.beyondsolo.hidden.blessing.title": "Shrine's Blessing",
         "depths.beyondsolo.hidden.blessing.body": "Strength, regeneration and resistance for 5 minutes.",
-        "depths.beyondsolo.scan.found": "Your pulse found something hidden nearby.",
+        "depths.beyondsolo.scan.found.title": "Something Hidden",
+        "depths.beyondsolo.scan.found": "Your pulse found what the rock hides. It glows violet for a few moments.",
     })
     for tid, (title, hint) in TRAPS.items():
         t[f"depths.beyondsolo.trap.{tid}"] = title

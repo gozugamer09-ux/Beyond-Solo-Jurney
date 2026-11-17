@@ -47,7 +47,8 @@ import java.util.stream.Stream;
  * depths hidden                              to the hidden wall (or into the chamber once it is open)
  * depths open                                the hidden wall comes down
  * depths reveal                              Pulse Scan's reveal, from where you stand
- * depths trap                                to the next trap room not yet beaten
+ * depths trap                                just outside the next trap room not yet beaten, facing in
+ * depths core                                beside the nearest trap core still standing, facing it
  * depths bolt | rock                         a storm bolt / falling rock beside you
  * depths profile                             the elemental profile of the creature you look at
  * depths weaknesses reset                    forgets the weaknesses you have found
@@ -101,8 +102,8 @@ public final class DepthsCommand {
                                 BlockPos in = DepthsBuild.floorCenter(level, g, g.layout().hidden());
                                 p.teleportTo(level, in.getX() + 0.5, in.getY(), in.getZ() + 0.5, p.getYRot(), 0);
                             } else {
-                                // a few steps back from the wall, on the cavern's side, facing it
-                                Vec3 at = m.center().subtract(m.dir().scale(m.radius() + 3.5));
+                                // a few steps back from the wall (within reach of a knock), on the cavern's side, facing it
+                                Vec3 at = m.center().subtract(m.dir().scale(3.2));
                                 BlockPos floor = DepthsBuild.floorAt(level, Mth.floor(at.x), Mth.floor(at.z), Mth.floor(at.y));
                                 float yaw = (float) (Mth.atan2(m.dir().z, m.dir().x) * Mth.RAD_TO_DEG) - 90f;
                                 p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, yaw, 5f);
@@ -130,19 +131,44 @@ public final class DepthsCommand {
                                 if (g.depths().trapDone(e.getKey())) continue;
                                 DungeonLayout.Room room = g.layout().rooms().get(e.getKey());
                                 ServerLevel level = p.serverLevel();
-                                // at the room's edge, on the way in from the previous room
+                                // just outside the room, on the way in from the previous room, facing in
                                 DungeonLayout.Tunnel in = null;
                                 for (DungeonLayout.Tunnel t : g.layout().tunnels()) if (t.to() == room.index()) in = t;
-                                Vec3 at = in != null ? DepthsBuild.mouth(g, in, room).center().add(DepthsBuild.mouth(g, in, room).dir().scale(2))
-                                        : Vec3.atCenterOf(g.world(room.center()));
+                                DepthsBuild.Mouth m = in == null ? null : DepthsBuild.mouth(g, in, room);
+                                Vec3 at = m != null ? m.center().add(m.dir().scale(2)) : Vec3.atCenterOf(g.world(room.center()));
+                                float yaw = m != null ? (float) (Mth.atan2(-m.dir().z, -m.dir().x) * Mth.RAD_TO_DEG) - 90f : p.getYRot();
                                 BlockPos floor = DepthsBuild.floorAt(level, Mth.floor(at.x), Mth.floor(at.z), Mth.floor(at.y));
-                                p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, p.getYRot(), 0);
+                                p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, yaw, 0);
                                 ctx.getSource().sendSuccess(() -> Component.literal("trap: ").append(e.getValue().title())
                                         .append(" in room " + room.index()), false);
                                 return 1;
                             }
                             ctx.getSource().sendFailure(Component.literal("no trap left in this cave"));
                             return 0;
+                        }))
+                        .then(Commands.literal("core").executes(ctx -> {
+                            ServerPlayer p = ctx.getSource().getPlayerOrException();
+                            GateInstance g = inside(p);
+                            ServerLevel level = p.serverLevel();
+                            BlockPos best = null;
+                            for (Map.Entry<Integer, TrapKind> e : g.depths().traps(g).entrySet()) {
+                                if (!e.getValue().hasCore() || g.depths().trapDone(e.getKey())) continue;
+                                BlockPos core = DepthsBuild.coreSpot(level, g, g.layout().rooms().get(e.getKey()));
+                                if (best == null || core.distSqr(p.blockPosition()) < best.distSqr(p.blockPosition())) best = core;
+                            }
+                            if (best == null) {
+                                ctx.getSource().sendFailure(Component.literal("no trap core standing in this cave"));
+                                return 0;
+                            }
+                            // a couple of steps from the core, on the player's side of it, facing it
+                            Vec3 c = Vec3.atCenterOf(best);
+                            Vec3 away = p.position().subtract(c).multiply(1, 0, 1);
+                            away = away.lengthSqr() < 1.0e-4 ? new Vec3(1, 0, 0) : away.normalize();
+                            Vec3 at = c.add(away.scale(2.5));
+                            BlockPos floor = DepthsBuild.floorAt(level, Mth.floor(at.x), Mth.floor(at.z), best.getY());
+                            float yaw = (float) (Mth.atan2(-away.z, -away.x) * Mth.RAD_TO_DEG) - 90f;
+                            p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, yaw, 25f);
+                            return 1;
                         }))
                         .then(Commands.literal("bolt").executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();

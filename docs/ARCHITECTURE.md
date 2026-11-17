@@ -911,8 +911,8 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   `DepthsWorldFx.particle` on the client): those players get the moment from the light effects.
 - **Commands** (`/system depths ...`, level 2): `gate <rank> [weather] [hidden] [trap]` opens a gate five steps ahead
   with its depths forced (`seed` keeps what the seed says), `weather <id|seed>`, `info`, `hidden` (go to the wall),
-  `open`, `reveal`, `trap` (go to the next trap room), `bolt`, `rock`, `profile` (of the creature looked at),
-  `weaknesses reset`. All numbers are first guesses for the balancing pass.
+  `open`, `reveal`, `trap` (just outside the next trap room), `core` (beside the nearest trap core), `bolt`, `rock`,
+  `profile` (of the creature looked at), `weaknesses reset`. All numbers are first guesses for the balancing pass.
 
 ## World generation
 

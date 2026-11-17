@@ -1,6 +1,7 @@
 package com.beyondsolo.client.depths;
 
 import com.beyondsolo.client.SystemTheme;
+import com.beyondsolo.client.evaluation.EvaluationOverlay;
 import com.beyondsolo.client.gate.GateOverlay;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.gfx.Gfx;
@@ -8,6 +9,8 @@ import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.key.RunHud;
+import com.beyondsolo.client.quest.QuestOverlay;
+import com.beyondsolo.client.skill.SkillOverlay;
 import com.beyondsolo.depths.GateWeather;
 import com.beyondsolo.depths.HiddenKind;
 import com.beyondsolo.depths.TrapKind;
@@ -54,7 +57,9 @@ public final class DepthsHud {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
         int w = g.guiWidth(), h = g.guiHeight();
-        DepthsClient.Banner b = DepthsClient.banner(!GateOverlay.active());
+        // the System's banners take turns with the other moments in the middle of the screen
+        boolean free = !GateOverlay.active() && !QuestOverlay.active() && !EvaluationOverlay.active() && !SkillOverlay.active();
+        DepthsClient.Banner b = DepthsClient.banner(free, QuestOverlay.waiting());
         if (b != null) banner(g, w, h, b);
         strip(g, w);
         weaknesses(g, mc, w, h);
@@ -108,7 +113,7 @@ public final class DepthsHud {
         List<String[]> effects = b.kind == DepthsClient.BannerKind.WEATHER ? effects(GateWeather.byIndex(b.which)) : List.of();
         float ew = effectsWidth(effects);
         float pw = Math.max(170, Math.max(tw, Math.max(lw, ew)) + 50);
-        float ph = 30 + lines.size() * lineSize * SysFont.LINE + (effects.isEmpty() ? 0 : 15);
+        float ph = 30 + lines.size() * lineSize * SysFont.LINE + (effects.isEmpty() ? 0 : 17);
         float cx = w / 2f, y = h * 0.24f;
         float open = Anim.outBack(Anim.window(t, 0f, 0.45f));
         float old = Gfx.fade(live);
@@ -161,6 +166,9 @@ public final class DepthsHud {
         return out;
     }
 
+    /** The size of the words on a weather banner's chips. */
+    private static final float CHIP_TEXT = 6.1f;
+
     private static float effectsWidth(List<String[]> effects) {
         float w = 0;
         for (String[] e : effects) w += chipWidth(e) + 4;
@@ -168,7 +176,7 @@ public final class DepthsHud {
     }
 
     private static float chipWidth(String[] e) {
-        return SysFont.width(e[0], 5.4f, true) + 10 + (Integer.parseInt(e[2]) >= 0 ? 8 : 0);
+        return SysFont.width(e[0], CHIP_TEXT, true) + 11 + (Integer.parseInt(e[2]) >= 0 ? 9 : 0);
     }
 
     private static void drawEffects(GuiGraphics g, List<String[]> effects, float x, float y, float k) {
@@ -177,15 +185,15 @@ public final class DepthsHud {
             int element = Integer.parseInt(e[2]);
             float cw = chipWidth(e);
             g.pose().pushPose();
-            g.pose().translate(x + cw / 2f, y + 5, 0);
+            g.pose().translate(x + cw / 2f, y + 5.5f, 0);
             g.pose().scale(k, k, 1);
-            Shapes.pill(-cw / 2f, -5, cw, 10).fill(Gfx.alpha(color, 0.16f)).border(0.7f, Gfx.alpha(color, 0.65f)).draw(g);
-            float tx = -cw / 2f + 5;
+            Shapes.pill(-cw / 2f, -5.5f, cw, 11).fill(Gfx.alpha(color, 0.18f)).border(0.7f, Gfx.alpha(color, 0.7f)).draw(g);
+            float tx = -cw / 2f + 5.5f;
             if (element >= 0) {
-                Shapes.icon(DepthsIcons.element(SkillElement.values()[element]), tx + 3, 0, 6.5f).fill(Gfx.mix(color, 0xFFFFFFFF, 0.25f)).draw(g);
-                tx += 8;
+                Shapes.icon(DepthsIcons.element(SkillElement.values()[element]), tx + 3.5f, 0, 7.2f).fill(Gfx.mix(color, 0xFFFFFFFF, 0.25f)).draw(g);
+                tx += 9;
             }
-            SysFont.draw(g, e[0], tx, -5 + SysFont.centerY(0, 10, 5.4f), 5.4f, Gfx.mix(color, 0xFFFFFFFF, 0.35f), true, 0f);
+            SysFont.draw(g, e[0], tx, -5.5f + SysFont.centerY(0, 11, CHIP_TEXT), CHIP_TEXT, Gfx.mix(color, 0xFFFFFFFF, 0.45f), true, 0f);
             g.pose().popPose();
             x += cw + 4;
         }

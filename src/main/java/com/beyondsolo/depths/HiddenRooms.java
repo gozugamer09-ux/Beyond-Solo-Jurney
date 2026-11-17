@@ -209,7 +209,8 @@ public final class HiddenRooms {
         PacketDistributor.sendToPlayer(p, new DepthsFxPayload(DepthsFxPayload.REVEAL, (float) p.getX(), (float) p.getY() + 1, (float) p.getZ(),
                 radius + 6, 14, VIOLET));
         if (found > 0) {
-            p.displayClientMessage(Component.translatable("depths.beyondsolo.scan.found"), false);
+            Notifications.send(p, SystemNotification.of(SystemNotification.Kind.INFO,
+                    Component.translatable("depths.beyondsolo.scan.found.title"), Component.translatable("depths.beyondsolo.scan.found")));
             level.playSound(null, p.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.5f, 0.7f);
         }
     }
