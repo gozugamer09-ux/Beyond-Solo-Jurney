@@ -102,7 +102,8 @@ public final class SkillClientEvents {
             SkillOverlay.refuse(s.path(), SkillMomentPayload.COOLDOWN);
             return;
         }
-        if (!mc.player.isCreative() && ClientSystemData.get().mana() < s.manaCost(level)) {
+        if (!mc.player.isCreative() && ClientSystemData.get().mana() < com.beyondsolo.rune.Runes.manaCost(com.beyondsolo.client.rune.RuneClient.data(), s, level)
+                * com.beyondsolo.combat.ModAttributes.manaFactor(mc.player)) {
             SkillOverlay.refuse(s.path(), SkillMomentPayload.NO_MANA);
             return;
         }

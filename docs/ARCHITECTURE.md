@@ -27,8 +27,11 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
+| `armory` | The class armor sets: the catalogue (`ArmorCatalog`), their items and ARMORY tab (`ArmoryModule`), set perks (`SetPerks`), the divine weapons' passives (`DivinePassives`), drop rules (`ArmorDrops`), the level and class checks and set pop-ups (`ArmoryEvents`) (see "The armory: class armor sets") |
 | `crafting`, `client.crafting` | Monster cores, materials, mana stones and veins, System potions, recipes and the CRAFT tab (see "Cores, materials, potions and crafting") |
 | `penalty`, `client.penalty` | The Penalty Zone: sentences for a failed daily training, the Wastes, the survival, its overlay and sky (see "The Penalty Zone and the daily training") |
+| `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
+| `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -579,13 +582,14 @@ Textures come from `tools/gen_gear_assets.py`.
 - **Infusions** (`Infusions`, `ForgeService.infuse`): an element crystal plus gold sets a weapon's element. 15 % of the
   hit lands again as that element through `SkillCombat.strike`, so it applies auras and triggers the skill system's
   reactions for every class; arrows carry the bow's infusion (`Infusions.tagArrow`).
-- **Armor sets** (`item/ArmorSets`): every set has a 2-piece and a 4-piece bonus and may carry a perk. Boss sets
-  (`BossSets`, one per gate rank E..S: Stonehide, Mirefang, Rimeguard, Gloomreaver, Emberwrought, Sovereign) add
+- **Armor sets** (`item/ArmorSets`): every set has a 2-piece and a 4-piece bonus and may carry a perk. The brute's
+  sets (`BossSets`, one per gate rank E..S: Stonehide, Mirefang, Rimeguard, Gloomreaver, Emberwrought, Sovereign) add
   perks (`SetEffects`: Unbroken, Venom Skin, Frost Aegis, Night's Edge, Living Flame, Crimson Dominion) and an
-  innate element for un-infused weapons.
-- **Boss signature loot** (`BossLoot`): each rank's boss table drops its set pieces, a chance at its weighted signature
-  weapons, refining stones, crystals and (C and up) ward seals. `GateLoot` adds it to the reward cache, which calls out
-  signature drops with a pop-up (`BossLoot.isSignature(stack, rank)`).
+  innate element for un-infused weapons. They are class sets now, like the armory's (see "The armory").
+- **Boss signature loot** (`BossLoot`): each rank's table has a chance at its weighted signature weapons, refining
+  stones, crystals and (C and up) ward seals. Set pieces are no longer in it: they come from `armory/ArmorDrops`
+  through `GateLoot.BossLootEvent`. `GateLoot` adds both to the reward cache, which calls out signature drops with a
+  pop-up (`BossLoot.isSignature(stack, rank)`: the rank's weapons, any boss set piece, any divine piece).
 - **Forge tab** (`client/gear/ForgeTab`, order 125 in the System window): pick gear, REFINE or INFUSE, see chances and
   costs; the ring charges with hammer strikes, then plays success rays and a +N stamp, cracks and a shake, the ward
   hexagon, or the infusion spiral. The shop sells refining stones, ward seals and crystals (category FORGE);
@@ -593,6 +597,56 @@ Textures come from `tools/gen_gear_assets.py`.
 - **Commands** (`/system gear ...`, level 2): info, roll &lt;grade&gt;, enhance &lt;0-10&gt;, refine [ward], infuse
   &lt;element|none&gt;, bossloot &lt;rank&gt; [n], set &lt;name&gt;, materials. UI driver: `screen forge`,
   `forge <slot> [refine|infuse] [element] [ward|noward]`, `forgego`.
+
+## The armory: class armor sets
+
+Code in `armory/`; `ArmoryModule.init` registers the items, one armor material per set (`ArmorMaterial.Layer(<set>)`
+for the worn texture) and the ARMORY creative tab. Lang lives in `assets/beyondsolo_armory/lang` (written by
+`tools/armory_lang.py`); icons, worn layers and item models come from `tools/gen_armory_assets.py` on top of
+`tools/hd_armor.py` (`--sheet <png>` writes a contact sheet of every icon).
+
+- **The catalogue** (`ArmorCatalog`): 39 sets on top of the brute's six, 45 class sets in all, every one made for a
+  single class. Each class has a set at every gate rank E..S and a divine set. Sources: the villages (one plain
+  common set per class, `villager:<set>`), every gate creature (`creature:<kind>`, one to three sets across the ranks
+  it lives in), every boss (`boss:<kind>`) and `divine`. Grade follows source and rank (`ArmorCatalog.gradeFor`:
+  village common; creatures common to legendary; bosses rare to mythic; divine). A set is heavy, medium or light
+  (`Build`): its armor values (`ArmoryModule.VALUES`, by rank and build, never above netherite until A rank) and how
+  much more tiring sprinting gets.
+- **Small buffs, for one class** (`ArmorSets.attuned`): two pieces give one or two stats, four a little more and the
+  set's perk. Only an awakened hunter of the set's class draws them out; anyone else just gets the armor (the
+  2-piece line says so). Creatures always draw them out. Stats include the two new attributes
+  `beyondsolo:mana_efficiency` (skills cost less mana, cap 50%) and `beyondsolo:skill_haste` (shorter cooldowns,
+  cap 40%), applied in `Runes.manaCost` / `Runes.cooldown` (`ModAttributes.manaFactor` / `hasteFactor`), so the
+  skill bar shows the real numbers.
+- **Level gates** (`ArmorSets.refusal`): E 1, D 10, C 20, B 30, A 40, S 50, divine 60 (`ArmorSets.levelFor`).
+  Divine pieces are also bound to their class. `SystemArmorItem.canEquip` and `use` refuse with the reason;
+  `ArmoryEvents` puts back anything that got on some other way (dispensers, commands) every second, and works the
+  bonuses out again when the class changes. Creative players are never refused.
+- **Perks** (`SetPerks`, 33): four-piece mechanics for the armory's creature, boss and divine sets (village sets are
+  stats only). Offence: Venom Fangs, Hunter's Mark, Cinder Burst, Pounce, Webshot, Prism Charge, Pyre Burst, Hollow
+  Echo, Moonlit Hunt, Alpha's Howl, Vanguard Cleave, Storm Sigil, Frostbite Arrows, Empress Venom, Ashfall, Phantom
+  Blade, Arcane Cascade, Dragon's Blood. Defence and support: Crystal Spines, Bone Ward, Tower Guard, Saint's Grace,
+  Ashen Bulwark, Cradle Silk, Rime Bloom, Oath of Iron, Starbinding. Divine: Warlord's Fury, Shadow Veil, Arcane
+  Overflow, Sanctuary, Overflowing Grace, Windwalker. Pounce, Phantom Blade and Windwalker listen to Combat Roll
+  (`ArmoryEvents.RollHook`, only when the mod is there). Effects stay light: sparks, a ring, a sound.
+- **Divine weapon passives** (`DivinePassives`): each divine weapon has a passive of its own while its class holds
+  it, on top of its traits and signature art: Ruinbringer: Ruin (the fifth mark detonates), Calamity Fang: Vanishing
+  Edge (a kill hides you, next strike +80%), Eye of the Insatiable: Insatiable (+3% spell damage per kill, up to 10),
+  Colossus Aegis: Unyielding (a killing blow leaves you at 1 health, every 90 s), World Tree Branch: Rootbound Life
+  (allies under 30% are caught and healed), Starfall Longbow: Astral Quiver (every 4th full draw is a star arrow).
+  The tooltip shows it under the signature art.
+- **Drops** (`ArmorDrops`), slow on purpose: gate creatures killed by a hunter with the System leave a piece of one
+  of their kind's sets 0.6% of the time (veteran 1.2%, elite 5%, champion 10%). Sets of the gate's own rank come up
+  most, each rank away halves it, never more than one rank above; the killer's own class 2.5 times as often.
+  Bosses: a piece of one of their sets, 50% (E) to 75% (S) a kill, an ascended boss always one and 35% a second;
+  the brute leaves its rank's set. Divine pieces: 1% from an S-rank boss (3% ascended), 0.5% from an ascended A-rank
+  one. Village requests: the giver's craft's starter set (`ArmorCatalog.PROFESSIONS`), 12% of requests, 25% for
+  clearing a nest or an escort. Pieces roll bonus stats and may come out a grade higher (`GearRolls.dropGrade`).
+- **Tooltips** (`GearTooltip`): the set name, its class, the level it needs (red when too low), the 2- and 4-piece
+  bonuses with the perk, where it drops, and for divine pieces that they are bound. The 2-piece line over the hotbar
+  and the 4-piece System pop-up (`ArmoryEvents.equipped`) say what just switched on.
+- **Commands**: `/system gear set <name>` puts on any set; `/system gear bossloot <rank> [n]` now includes the brute's
+  pieces as an ascended kill would.
 
 ## Enemy roster and boss pool
 
@@ -696,6 +750,111 @@ Code in `penalty/` (server) and `client/penalty/` (client); `PenaltyModule.init`
 - **Commands** (`/system penalty ...`, level 2): sentence, now, jump arrive|fight|time <s>|survive|fail|surge [n]|erupt|champion,
   cancel, reset, status.
 
+## Rune stones
+
+Code in `rune/` (server) and `client/rune/` (client); the rune arts are skills, in `skill/RuneArts`. `RuneModule.init`
+registers the items, the `beyondsolo:rune_grade` data component (the skill rides on the tomes' `ModComponents.SKILL`),
+the `RuneData` attachment (kept through death), the RUNES creative tab and the payloads (`RuneFxPayload`, `RuneSyncPayload`,
+`RuneActionPayload`). Lang lives in `assets/beyondsolo_runes/lang`. Textures, models, glyphs, icons, light textures,
+the two poses and all the text come from `tools/gen_rune_assets.py` (`--preview <dir>` also writes contact sheets).
+
+- **The stone** (`RuneStoneItem`, one item): either **inscribed** with a skill (`Runes.of(skill)`, at the skill's
+  grade) or **sealed** (`Runes.sealed(rank)`). An inscribed stone holds a rune art (any class) or a class skill (a
+  *class rune*: only that class, or that subclass, can take it). A sealed stone settles on a skill when it shatters:
+  `Runes.pool` lists rune arts and the absorber's own class skills (not the job change's) no higher than its grade
+  and not mastered, rune arts and skills of the stone's own grade weighted up.
+- **Absorbing**: hold use for `USE_TICKS` (2 s). Too strong a stone (more than `RANK_REACH` grade above the rank), a
+  class rune of another class, a mastered skill, a sealed stone with nothing left or no System: the stone won't
+  answer (`Runes.refusal`, worked out on the client too so the channel never starts; the server decides). When it
+  shatters it teaches the skill at level 1, or raises a known one by `RAISE_LEVELS`; `SkillEvent.Source.RUNE`.
+  Letting go early loses nothing.
+- **Rune arts** (`skill/RuneArts`, 14): the essence of each gate creature and boss, plus two *deep* runes no creature
+  carries. Never unlocked by level and no tome rolls them (`Skill.rune()`); a class change keeps them. Gloomfang:
+  Hunter's Howl. Broodling: Skittering Brood. Shardback: Crystal Carapace (passive). Hollow Acolyte: Hollow Lance.
+  Ashen Sentinel: Ashen Bulwark. Emberwisp: Cinder Wisp. Bosses: Titan's Fall (Brute), Widow's Snare (Broodmother),
+  Dread Presence (Alpha), Phantom Flurry (Knight), Sigil Cascade (Magus, the only one with a cast circle), Wyrmfire
+  Roar (Wyrm). Deep: Quickened Pulse, Iron Resolve (passives). Their effects are `RuneFxPayload` kinds drawn by
+  `RuneWorldFx` (no circles or auras, light shapes instead: the web, the tower-shield ward, sigils, the lance).
+- **Engraving runes** (`Engraving`: Haste cooldown x0.8, Thrift mana x0.7, Might hits x1.2): using one opens
+  `RuneEngraveScreen` (known actives, numbers before and after, CARVE). One engraving per skill, a new one replaces
+  the old; stored in `RuneData`. `SkillAPI` reads `Runes.manaCost` / `Runes.cooldown`, `SkillActions.hit` multiplies by
+  `Runes.damageMultiplier`.
+- **Drops** (`RuneDrops`): gate creatures killed by a hunter with the System: their kind's rune (normal 0.4% up to
+  champion 8%), class runes and sealed runes from veterans, elites and champions; a rune above the creature's rank
+  halves its chance per grade. Bosses: their rune art (15%, 35% ascended), a sealed rune of the gate's rank (35%,
+  always when ascended), deep runes from A and S gates, all into the reward cache (`GateLoot.BossLootEvent`).
+- **Economy and crafting**: rune stones sell by grade (`Runes.SELL`, 80 for E up to 5000 for S), engraving runes 600.
+  The shop sells a sealed D-rank stone and the three engraving runes. CRAFT tab, RUNES (`RuneRecipes`): seal four E cores and a mana stone into
+  an E-rank stone, fuse three sealed stones (plus a core of the next rank, mana stones from B up) into one of the next
+  grade, and make the engraving runes. Recipes only take sealed stones, never inscribed ones.
+- **Looks**: `RuneStoneModel` replaces the item model after baking with one put together from 20 small models
+  (`item/rune/stone_<grade>`, `glyph_<n>`, `crack_<n>`, all `neoforge:item_layers` with blank padding layers so tint
+  index = layer), cached per grade, glyph and crack stage. The glyph and cracks are full-bright and tinted in the rune's
+  colour (`RuneClientEvents`). Six stones, one per grade: river pebble, mossy tablet, carved hexagon, obsidian gem,
+  gold-bound shield, crimson monolith. While held: the stone is raised and trembles (first-person hand transform), the
+  body takes `rune_channel` then `rune_release` (`RuneAnimator`), `RuneOverlay` fills a ring round the crosshair and
+  pours the light in before the System pop-up; other players see it as `RuneWorldFx`. A rune on the ground glows.
+- **Commands** (`/system rune ...`, level 2): give &lt;skill&gt;, sealed &lt;rank&gt;, engraving &lt;kind&gt;, kit, absorb,
+  engrave &lt;skill&gt; &lt;kind&gt;, clear, bossloot &lt;boss&gt;. UI driver: `engrave <skill>`, `engravego`.
+
+## Dungeon keys and re-runs
+
+Code in `key/` (server) and `client/key/` (client). `KeyModule.init` registers the six keys (`dungeon_key_e` .. `_s`,
+`DungeonKeyItem`), the `beyondsolo:key_seal` data component (`KeySeal`: a boss's sigil, ascendant), the `KeyRunData`
+attachment (records, kept through death), the KEYS creative tab and the payloads (`KeyFxPayload`, `KeyRunPayload`,
+`KeySyncPayload`, `KeyActionPayload`). Lang lives in `assets/beyondsolo_keys/lang`. Textures, models, light textures,
+icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` (`--preview <dir>` writes contact sheets).
+
+- **Turning a key** (`DungeonKeys`): hold use for `USE_TICKS` (1.5 s), or press TURN on the GATES tab (no hold,
+  `turnFromInventory`; walking off or swapping the key away stops it). A lock of light forms where the gate will
+  open (`findSpot`: about three steps ahead on solid ground with room for a gate, not on another gate still
+  standing), cracks at each notch, and gives: `GateService.spawnKeyedGate` opens a gate of the key's rank there and
+  the key is used up. Keys of that rank then rest for `REST_TICKS` (an item cooldown), so a hold that goes on past
+  the turn doesn't start on the next key.
+  Refusals (`Refusal`, worked out on the client too for the ones it can know): no System, the key more than
+  `RANK_REACH` above the rank, the Wastes / a job trial / the gate depths outside a cave, a cave whose boss stands,
+  the last keyed gate still waiting unentered, no room, already turning.
+- **Keyed runs** (`KeyedRuns`, `GateInstance.Keyed`): the gate in the world is only a door to a fresh cave of its
+  rank. It seals `SEAL_TICKS` (10 s) after the first one goes through; one nobody enters gives up after
+  `UNUSED_TICKS` (2 min, counted while its holder is online) and the key comes back, seal and all. The way out at the
+  end leads back to where the key was turned. The run's clock starts at the first arrival and stops when the boss
+  falls (the clear goes to the players' screens right then, `KeyedRuns.cleared`); the time goes into each hunter's
+  records (`KeyRunData`: turned, cleared, best time per rank, longest chain).
+  Once everyone inside has fallen out, the run is over and the cave closes. A keyed run's gate quest pays its XP but
+  no stat points (keys can be bought and crafted).
+- **Re-runs and chains**: in a cleared cave a key opens the next gate right there, as the next run of a chain; each
+  run of a chain pays `CHAIN_BONUS` (+10%) more XP and gold, up to `CHAIN_MAX` (5) steps, and the whole chain still
+  goes home to where its first key was turned (`GateService.home`). When a cave is cleared and the player carries a
+  key of its rank, the re-run prompt shows over the hotbar once the cleared banner is done; the accept key (J) turns
+  that key (`rerunSlot`: the same seal first, then a plain one, then any of the rank).
+- **Seals**: a key can carry a boss's sigil (`KeySeal`), so its gate ends with that boss again; an ascendant seal
+  brings it ascended. Shown in the key's name, tooltip and looks (item property `beyondsolo:seal`: 0 plain, 1 sealed,
+  2 ascendant; the seal hangs from the bow as a medallion).
+- **Where keys come from** (`KeyDrops`, `KeyRecipes`, `ShopCatalog`): bosses leave a plain key of their rank (30%)
+  and a sigil key (8%, 40% ascended, half of those ascendant) into the reward cache; veteran, elite and champion gate
+  creatures rarely leave one. The CRAFT tab's KEYS page forges a key of each rank around a boss core (plus four cores,
+  mana stones and metal). The shop sells E to C keys a few a day and buys keys back (`DungeonKeys.SELL`, sealed x1.5,
+  ascendant x2). All numbers are first guesses for the balancing pass.
+- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock
+  after `GRACE_TICKS` (20 s) with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
+  in it (items, monsters tagged with `GATE_ID_TAG`) is removed, its slot goes back to `GateData.freeSlots` for the
+  next gate and its record is forgotten (an awakening trial's is kept). Monsters saved in unloaded chunks are turned
+  away when they load; a player who logs in inside a cave that is gone is sent home. Without this every run would
+  leave a cave behind.
+- **Looks**: six keys, one per rank (iron, bronze with patina, frost with icicles, blackened steel with amethyst,
+  gold with sun rays, crimson obsidian with thorns), with glowing parts drawn full-bright. While a key turns: the
+  key is held out and twisted in first person (`KeyClientEvents.HAND`), the body takes `key_turn` (`KeyAnimator`),
+  and `KeyWorldFx` draws the lock (tumbler ring, lock face, keyhole, cracks, a thread of light from the key, the
+  burst). Held still, a key sits small and upright in first person so the whole key shows (`models/item/key/key_held`,
+  whose transform `KeyClientEvents` undoes while turning). A keyed gate has a keyhole at its heart, a tumbler ring in
+  the swirl and no beam (`GateRenderer`). On
+  screen (`RunHud`): the run clock at the top (gold when cleared, with the best time or NEW BEST), the time and chain
+  bonus under the cleared banner, and the re-run prompt. The GATES tab (`GatesTab`): the key ring, the chosen key in
+  a lock with what its gate holds and TURN, and the records by rank. The System window's tab bar now shrinks its
+  labels when there are too many tabs to fit.
+- **Commands** (`/system key ...`, level 2): give &lt;rank&gt; [n], sealed &lt;rank&gt; &lt;boss&gt; [ascendant], kit, turn,
+  runs, reset, expire, seal, wipe. UI driver: `screen gates`, `gates <n>`, `gatesgo`, `rerun`.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -734,6 +893,9 @@ checks use zombies.
 `test/SkillGameTests` covers: starter skills by class, rank moving unlocks earlier, level unlocks and passives, mana and cooldowns, refusing while collapsed, the Rending Arc cone, power scaling, proficiency, passive attributes, tomes, Ember Burst and Hunter's Mark, stealth, Shadowstep, the healer's skills, the job change hooks, the bar and saving, and that every skill has its text and element. Second batch: 8 skills per class, combo chains, the reaction table, water then lightning, air feeding fire, every new skill casting, and the new passives.
 `test/ShadowGameTests` covers: only necromancers leave souls, the starting steed, extraction raising a shadow that never fights its master, three refusals crumbling a soul, boss souls becoming named elites, levels and ranks up to marshal, roles from tags, summon, recall and a fallen shadow recovering, and saving the army.
 `test/EconomyGameTests` covers: gold from monsters only with the System, buying, rank and gold refusals, daily limits, storage size by rank and expansions (doubling price, maximum), locked slots and pages, shift-click, stack in and sort, saving, selling by grade and sell-all, that buying to sell never pays, the license being issued and kept up to date (and not rewritten by others), and gate clear gold.
-`test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables, sell value against refine cost, and boss sets carrying their element.
+`test/GearGameTests` covers: rolls by grade, attributes from stats and enhancement, refine odds and downgrades, the forge charging, refusing and the ward, infusion reactions, 2- and 4-piece set bonuses and Unbroken, boss signature tables (and the brute's set pieces moving to the armory), sell value against refine cost, and boss sets carrying their element.
 `test/CraftingGameTests` covers: elites leaving cores with their affinity and material, core chances for ordinary and wild monsters, boss loot gaining a boss core, crafting from inventory then storage with gold, refusing rank/materials/gold without taking anything, plain cores used before affinity cores, infusion crystals needing their affinity, forged gear rolling stats, potions and mana stones, veins dropping their stones, sell prices and every recipe being whole.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
+`test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
+`test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
+`test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.

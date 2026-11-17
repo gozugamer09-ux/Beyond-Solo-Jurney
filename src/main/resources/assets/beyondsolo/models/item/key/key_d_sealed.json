@@ -1,0 +1,22 @@
+{
+  "parent": "beyondsolo:item/key/key_held",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/key/key_d",
+    "layer1": "beyondsolo:item/key/seal",
+    "layer2": "beyondsolo:item/key/key_d_light",
+    "layer3": "beyondsolo:item/key/seal_light"
+  },
+  "neoforge_data": {
+    "layers": {
+      "2": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "3": {
+        "block_light": 15,
+        "sky_light": 15
+      }
+    }
+  }
+}

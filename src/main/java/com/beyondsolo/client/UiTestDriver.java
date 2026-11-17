@@ -31,7 +31,7 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|gallery  open a System page (or the drawing test page)
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory
@@ -66,6 +66,13 @@ import java.util.Deque;
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
+ * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
+ *                                      ./gradlew processResources first to see changed models, animations or textures)
+ * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
+ * engravego                            press the engraving screen's CARVE button
+ * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
+ * gatesgo                              press the GATES page's TURN button
+ * rerun                                press the re-run prompt's key (the accept key)
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -101,6 +108,11 @@ public final class UiTestDriver {
         if (!ENABLED || mc.player == null) return;
         if (++pollTimer % 5 == 0) poll(mc);
         releaseKeys();
+        if (reloading != null) {
+            if (!reloading.isDone()) return;
+            reloading = null;
+            waitTicks = 10;   // a few frames with the new resources before anything looks at them
+        }
         if (waitTicks > 0) {
             waitTicks--;
         } else {
@@ -156,6 +168,8 @@ public final class UiTestDriver {
     }
 
     private static final java.util.Map<KeyMapping, Integer> HELD = new java.util.HashMap<>();
+    /** A resource reload started by the "reload" command. Nothing else runs until it is over. */
+    private static java.util.concurrent.CompletableFuture<Void> reloading;
 
     private static KeyMapping findKey(Minecraft mc, String name) {
         for (KeyMapping k : mc.options.keyMappings) {
@@ -204,6 +218,7 @@ public final class UiTestDriver {
                     case "shop" -> SystemScreen.openOn(com.beyondsolo.client.economy.EconomyClientEvents.SHOP_TAB);
                     case "forge" -> SystemScreen.openOn(com.beyondsolo.client.gear.GearClientEvents.FORGE_TAB);
                     case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
+                    case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -231,6 +246,11 @@ public final class UiTestDriver {
                 com.beyondsolo.client.crafting.CraftTab.show(a[0], a.length > 1 ? Integer.parseInt(a[1]) : 1);
             }
             case "craftgo" -> com.beyondsolo.client.crafting.CraftTab.press();
+            case "engrave" -> com.beyondsolo.client.rune.RuneEngraveScreen.select(arg);
+            case "engravego" -> com.beyondsolo.client.rune.RuneEngraveScreen.pressCarve();
+            case "gates" -> com.beyondsolo.client.key.GatesTab.show(Integer.parseInt(arg));
+            case "gatesgo" -> com.beyondsolo.client.key.GatesTab.press();
+            case "rerun" -> com.beyondsolo.client.key.KeyClient.pressRerun();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));
             }
@@ -278,6 +298,10 @@ public final class UiTestDriver {
             }
             case "shot" -> Screenshot.grab(mc.gameDirectory, arg + ".png", mc.getMainRenderTarget(), message -> {});
             case "wait" -> waitTicks = Integer.parseInt(arg);
+            case "reload" -> {
+                reloading = mc.reloadResourcePacks();
+                waitTicks = 1;   // ends this tick's run of commands
+            }
             case "press" -> {
                 String[] a = arg.split(" ");
                 KeyMapping key = findKey(mc, a[0]);

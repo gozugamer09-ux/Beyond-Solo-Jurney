@@ -1,0 +1,21 @@
+{
+  "parent": "neoforge:item/default",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/rune/blank",
+    "layer1": "beyondsolo:item/rune/glyph_7_halo",
+    "layer2": "beyondsolo:item/rune/glyph_7_core"
+  },
+  "neoforge_data": {
+    "layers": {
+      "1": {
+        "block_light": 15,
+        "sky_light": 15
+      },
+      "2": {
+        "block_light": 15,
+        "sky_light": 15
+      }
+    }
+  }
+}

@@ -169,27 +169,46 @@ public class SystemScreen extends Screen {
 
     /**
      * Where the tab pills go in a window at (x, y): right-aligned in the header. With many tabs the padding
-     * shrinks so they still fit (the title gives way first).
+     * shrinks so they still fit (the title gives way first), and past that the labels get smaller. Each rect is
+     * {x, y, width, label size}.
      */
     public static List<float[]> layoutTabs(List<String> titles, float x, float y) {
         List<float[]> rects = new ArrayList<>();
-        float[] text = new float[titles.size()];
-        float textTotal = 0;
-        for (int i = 0; i < titles.size(); i++) {
-            text[i] = SysFont.spacedWidth(titles.get(i), TAB_SIZE, true, TAB_TRACKING);
-            textTotal += text[i];
+        int n = titles.size();
+        float[] text = new float[n];
+        float size = TAB_SIZE;
+        float textTotal = measureTabs(titles, size, text);
+        float gaps = Math.max(0, n - 1) * 4;
+        float avail = WIDTH - 24 - 26;
+        float minPad = 8;
+        if (n > 0 && textTotal + gaps + minPad * n > avail) {
+            // too many to fit even with tight pills: smaller labels, a little tighter still
+            minPad = 6;
+            for (int i = 0; i < 4 && textTotal + gaps + minPad * n > avail; i++) {
+                size *= Math.max(0.6f, (avail - gaps - minPad * n) / textTotal);
+                size = Math.max(TAB_SIZE * 0.6f, size);
+                textTotal = measureTabs(titles, size, text);
+            }
         }
-        float gaps = Math.max(0, titles.size() - 1) * 4;
-        float room = WIDTH - 24 - 26 - gaps - textTotal;
-        float pad = titles.isEmpty() ? 18 : Math.max(8, Math.min(18, room / titles.size()));
-        float total = textTotal + pad * titles.size() + gaps;
+        float room = avail - gaps - textTotal;
+        float pad = n == 0 ? 18 : Math.max(minPad, Math.min(18, room / n));
+        float total = textTotal + pad * n + gaps;
         float tx = x + WIDTH - 12 - total;
         float ty = y + (HEADER - TAB_H) / 2f + 1;
-        for (int i = 0; i < titles.size(); i++) {
-            rects.add(new float[]{tx, ty, text[i] + pad});
+        for (int i = 0; i < n; i++) {
+            rects.add(new float[]{tx, ty, text[i] + pad, size});
             tx += text[i] + pad + 4;
         }
         return rects;
+    }
+
+    private static float measureTabs(List<String> titles, float size, float[] out) {
+        float total = 0;
+        for (int i = 0; i < titles.size(); i++) {
+            out[i] = SysFont.spacedWidth(titles.get(i), size, true, TAB_TRACKING * size / TAB_SIZE);
+            total += out[i];
+        }
+        return total;
     }
 
     /** Draws the tab pills (the selected one lit) the way the System window does. */
@@ -207,7 +226,8 @@ public class SystemScreen extends Screen {
             boolean hover = !sel && Ui.inside(mouseX, mouseY, r[0], r[1], r[2], TAB_H);
             if (hover) Shapes.pill(r[0], r[1], r[2], TAB_H).fill(0x18FFFFFF).border(0.5f, 0x30FFFFFF).draw(g);
             int color = sel ? SystemTheme.TEXT : hover ? SystemTheme.ACCENT_BRIGHT : SystemTheme.TEXT_SOFT;
-            SysFont.spaced(g, titles.get(i), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, TAB_SIZE), TAB_SIZE, color, true, TAB_TRACKING, 0.5f);
+            float size = r.length > 3 ? r[3] : TAB_SIZE;
+            SysFont.spaced(g, titles.get(i), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, size), size, color, true, TAB_TRACKING * size / TAB_SIZE, 0.5f);
         }
     }
 

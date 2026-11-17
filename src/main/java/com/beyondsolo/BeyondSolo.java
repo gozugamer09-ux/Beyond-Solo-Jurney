@@ -44,6 +44,9 @@ public final class BeyondSolo {
         com.beyondsolo.enemy.EnemyModule.init(modBus);
         com.beyondsolo.crafting.CraftingModule.init(modBus);
         com.beyondsolo.penalty.PenaltyModule.init(modBus, container);
+        com.beyondsolo.rune.RuneModule.init(modBus);
+        com.beyondsolo.key.KeyModule.init(modBus);
+        com.beyondsolo.armory.ArmoryModule.init(modBus);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);
     }
 

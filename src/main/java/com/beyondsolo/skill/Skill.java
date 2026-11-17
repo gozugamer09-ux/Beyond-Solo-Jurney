@@ -52,6 +52,10 @@ public final class Skill {
     private SkillElement element = SkillElement.PHYSICAL;
     /** Set for subclass skills: only that subclass learns them, at the job change. */
     private @Nullable Subclass subclass;
+    /** A rune art: only rune stones teach it (never levels, tomes or the job change). See {@link RuneArts}. */
+    private boolean rune;
+    /** Overrides whether casting draws the magic circle (null = the usual rule). */
+    private @Nullable Boolean circle;
 
     Skill(String path, Kind kind, @Nullable PlayerClass owner, PlayerRank grade, int unlockLevel, boolean advanced, int color,
           float mana, int cooldown, int cooldownAtMax, @Nullable Action action, Args args) {
@@ -79,7 +83,21 @@ public final class Skill {
      * any class; a sword skill does not need one.
      */
     public boolean castCircle() {
+        if (circle != null) return circle;
         return owner == PlayerClass.MAGE || owner == PlayerClass.HEALER || cooldown >= 900;
+    }
+
+    Skill circle(boolean draw) {
+        this.circle = draw;
+        return this;
+    }
+
+    /** Only rune stones teach it: it never unlocks by level and no tome rolls it. */
+    public boolean rune() { return rune; }
+
+    Skill rune(boolean rune) {
+        this.rune = rune;
+        return this;
     }
     /** The class that learns it, or null for skills anyone can learn. */
     public @Nullable PlayerClass owner() { return owner; }

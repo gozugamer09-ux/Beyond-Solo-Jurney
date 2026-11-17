@@ -1,0 +1,7 @@
+{
+  "parent": "neoforge:item/default",
+  "loader": "neoforge:item_layers",
+  "textures": {
+    "layer0": "beyondsolo:item/rune/stone_5"
+  }
+}

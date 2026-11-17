@@ -17,20 +17,27 @@ import software.bernie.geckolib.model.data.EntityModelData;
 
 /** GeckoLib models of the roster (made by tools/gen_enemy_assets.py): the gate's creatures and every boss kind. */
 public final class EnemyModels {
-    /** Turns the "head" bone with where the creature looks, as GeckoLib's defaulted entity models do. */
+    /**
+     * Turns the "head" bone with where the creature looks, on top of whatever its animation is doing with the head
+     * (a howl, a roar, the wyrm's neck thrust), as GeckoLib's defaulted entity models do.
+     *
+     * <p>This runs from {@code setCustomAnimations}, right after GeckoLib has put this frame's pose on the bones:
+     * the animated rotation where the running animation moves the head, otherwise its blend back to the rest pose.
+     * Either way the value is fresh, so the look is simply added to it. What must not be left behind is the
+     * "changed" mark that setting a rotation puts on the bone: GeckoLib skips its blend back to rest for a marked
+     * bone on the next frame, so a head that no animation is moving would keep last frame's value, get the look
+     * added again, and spin (faster the more creatures share the model, since they share its bones). Clearing the
+     * mark keeps every frame starting from a fresh pose.
+     */
     static <T extends GeoAnimatable> void turnHead(GeoModel<T> model, AnimationState<T> state, float pitchScale) {
         GeoBone head = model.getAnimationProcessor().getBone("head");
         EntityModelData data = state.getData(DataTickets.ENTITY_MODEL_DATA);
         if (head == null || data == null) return;
-        // Add to this frame's animated pose when an animation moved the head; otherwise start from the rest pose.
-        // (Adding to an unanimated head stacks frame after frame through GeckoLib's reset blend: the head spun.)
-        float baseX = head.hasRotationChanged() ? head.getRotX() : head.getInitialSnapshot().getRotX();
-        float baseY = head.hasRotationChanged() ? head.getRotY() : head.getInitialSnapshot().getRotY();
         float pitch = Mth.clamp(data.headPitch(), -30f, 30f) * pitchScale;
-        float yaw = Mth.clamp(data.netHeadYaw(), -50f, 50f) * 0.7f;
-        head.setRotX(baseX + pitch * Mth.DEG_TO_RAD);
-        head.setRotY(baseY + yaw * Mth.DEG_TO_RAD);
-        head.markRotationAsChanged();
+        float yaw = Mth.clamp(Mth.wrapDegrees(data.netHeadYaw()), -50f, 50f) * 0.7f;
+        head.setRotX(head.getRotX() + pitch * Mth.DEG_TO_RAD);
+        head.setRotY(head.getRotY() + yaw * Mth.DEG_TO_RAD);
+        head.resetStateChanges();
     }
 
     /** One of the gate's creatures; its texture follows its affinity. */

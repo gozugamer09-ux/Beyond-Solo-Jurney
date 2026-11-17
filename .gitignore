@@ -23,3 +23,7 @@ logs/
 # os
 .DS_Store
 Thumbs.db
+
+# python
+__pycache__/
+*.pyc

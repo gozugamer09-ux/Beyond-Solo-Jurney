@@ -24,7 +24,9 @@ import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
  * Draws a gate: the GeckoLib ring of floating rock (with its glowing crystals and veins) and, inside it, the
  * vortex: a dark hole with spiral arms of light turning at different speeds, a bright core, a rim of light and a
  * halo, in the rank's colour. A thin beam over it shows where it is from far away. Opening, it tears open as a
- * line of light that grows tall, then wide; closing, it collapses back to a point with a flash.
+ * line of light that grows tall, then wide; closing, it collapses back to a point with a flash. A gate opened by a
+ * dungeon key has a keyhole of light at its heart and a tumbler ring turning in the swirl, and no beam (its holder
+ * turned it right in front of themselves).
  */
 public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     private static final ResourceLocation VORTEX = BeyondSolo.id("textures/effect/vortex.png");
@@ -33,6 +35,9 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     private static final int EXIT_COLOR = 0x9FE6FF;
     private static final int SEALED_COLOR = 0xF2D58A;
     private static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
+    /** A keyed gate's looks: the keyhole at its heart and the tumbler ring turning around it. */
+    private static final ResourceLocation KEY_HOLE = BeyondSolo.id("textures/effect/key_hole.png");
+    private static final ResourceLocation KEY_RING = BeyondSolo.id("textures/effect/key_ring.png");
 
     public GateRenderer(BlockEntityRendererProvider.Context context) {
         super(new GateModels.Gate());
@@ -96,6 +101,23 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                 GateFx.quad(ring, pose.last().pose(), hx * 1.12f, hy * 1.08f, pale, 0.65f + 0.25f * pulse);
                 pose.popPose();
             }
+            if (gate.isKeyed()) {
+                // a door opened by a key: the tumbler ring turning slowly in the swirl, and the keyhole at its heart
+                VertexConsumer tumbler = buffers.getBuffer(ModRenderTypes.lightTexture(KEY_RING));
+                for (int side = 0; side < 2; side++) {
+                    float z = side == 0 ? 0.07f : -0.07f;
+                    layer(tumbler, pose, z, hx * 0.72f, hx * 0.72f, time * 0.9f, pale, 0.55f + 0.2f * pulse);
+                    layer(tumbler, pose, z * 1.2f, hx * 0.98f, hy * 0.92f, -time * 0.5f + 22, rgb, 0.35f);
+                }
+                VertexConsumer hole = buffers.getBuffer(ModRenderTypes.lightTexture(KEY_HOLE));
+                float beat = 0.75f + 0.25f * Mth.sin(time * 0.2f);
+                for (int side = 0; side < 2; side++) {
+                    pose.pushPose();
+                    pose.translate(0, 0, side == 0 ? 0.09f : -0.09f);
+                    GateFx.quad(hole, pose.last().pose(), hx * 0.42f, hx * 0.42f, GateFx.mix(rgb, 0xFFFFFF, 0.7f), (0.55f + 0.3f * beat) * Mth.clamp(open * 1.5f, 0f, 1f));
+                    pose.popPose();
+                }
+            }
         }
         if (tearFlash > 0.01f || closeFlash > 0.01f) {
             VertexConsumer glow = buffers.getBuffer(ModRenderTypes.lightTexture(GLOW));
@@ -119,7 +141,7 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         }
 
         // a beam over the gate, so it can be found from far away
-        if (open > 0.5f && !gate.isExit()) {
+        if (open > 0.5f && !gate.isExit() && !gate.isKeyed()) {
             pose.pushPose();
             pose.translate(0f, GateBlockEntity.CENTER_Y + 2.4f, 0f);
             BeaconRenderer.renderBeaconBeam(pose, buffers, BeaconRenderer.BEAM_LOCATION, partialTick, 1f, gate.getLevel().getGameTime(), 0, 96,

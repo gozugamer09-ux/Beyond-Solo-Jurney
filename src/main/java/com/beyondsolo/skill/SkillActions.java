@@ -920,7 +920,7 @@ public final class SkillActions {
      * reacts with the one already there ({@link SkillCombat#strike}), then the damage lands.
      */
     static void hit(ServerPlayer p, Skill s, LivingEntity e, float damage, boolean magic) {
-        damage *= SkillCombat.comboMultiplier(p);
+        damage *= SkillCombat.comboMultiplier(p) * com.beyondsolo.rune.Runes.damageMultiplier(p, s);
         int steady = SkillAPI.level(p, Skills.STEADY_AIM);
         if (steady > 0 && e.distanceTo(p) > STEADY_RANGE) damage *= 1 + 0.03f * steady;
         damage = SkillCombat.strike(p, e, s.element(), damage);
