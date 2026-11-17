@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:halberd"
+  "parent": "bettercombat:halberd",
+  "attributes": {
+    "pose": "beyondsolo:pose_polearm"
+  }
 }
