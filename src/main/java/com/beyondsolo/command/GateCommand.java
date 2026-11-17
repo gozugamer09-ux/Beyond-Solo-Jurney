@@ -73,6 +73,10 @@ public final class GateCommand {
                             if (GateSpawner.trySpawnNear(p.serverLevel(), p) == null) throw NONE.create();
                             return 1;
                         }))
+                        // what the once-a-minute gate spawner sees around you; "now" runs its minute for you at once
+                        .then(Commands.literal("spawner")
+                                .executes(ctx -> spawner(ctx, false))
+                                .then(Commands.literal("now").executes(ctx -> spawner(ctx, true))))
                         .then(Commands.literal("enter").executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             GateBlockEntity gate = GateService.nearestGate(p, 64);
@@ -132,6 +136,30 @@ public final class GateCommand {
                             }
                             return 1;
                         }))));
+    }
+
+    private static int spawner(CommandContext<CommandSourceStack> ctx, boolean now) throws CommandSyntaxException {
+        ServerPlayer p = ctx.getSource().getPlayerOrException();
+        if (now) {
+            GateSpawner.Outcome outcome = GateSpawner.minute(p.server.overworld(), p);
+            ctx.getSource().sendSuccess(() -> Component.literal("Gate spawner minute: " + outcome), false);
+        }
+        String who = !com.beyondsolo.system.SystemAPI.hasSystem(p) ? "no System (D-rank gates, " + com.beyondsolo.awakening.AwakeningService.stage(p) + ")"
+                : !com.beyondsolo.system.SystemAPI.isAwakened(p) ? "not evaluated (no gates open)" : "hunter (any rank)";
+        java.util.List<GateInstance> near = GateSpawner.openGatesNear(p.server, p.blockPosition(), GateSpawner.NEAR, null);
+        StringBuilder gates = new StringBuilder();
+        for (GateInstance g : near) {
+            gates.append("\n  ").append(g.rank()).append(" at ").append(g.gatePos().toShortString())
+                    .append(" (").append((int) Math.sqrt(GateSpawner.flatDistSqr(p.position(), g.gatePos()))).append(" blocks, ")
+                    .append(GateSpawner.knows(p, g) ? "known" : "not seen yet").append(")");
+        }
+        GateSpawner.Rules hunters = GateSpawner.Rules.hunters(), unawakened = GateSpawner.Rules.unawakened();
+        String rules = "hunters " + (hunters == null ? "off" : hunters) + ", no System " + (unawakened == null ? "off" : unawakened);
+        int quiet = GateSpawner.quiet(p);
+        String text = "You: " + who + ". Quiet minutes: " + (quiet < 0 ? "none yet (first gate due)" : quiet)
+                + ". Open gates within " + GateSpawner.NEAR + ": " + near.size() + gates + "\nRules: " + rules;
+        ctx.getSource().sendSuccess(() -> Component.literal(text), false);
+        return 1;
     }
 
     private static GateInstance inside(ServerPlayer p) throws CommandSyntaxException {
