@@ -59,7 +59,7 @@ public final class KeyedRuns {
     private static void start(ServerPlayer p, GateInstance g) {
         GateInstance.Keyed k = g.keyed();
         PacketDistributor.sendToPlayer(p, new KeyRunPayload(KeyRunPayload.START, g.rank().ordinal(), k.chain, k.runStartedAt, 0, -1, 0,
-                g.theme().dungeonName()));
+                g.dungeonName()));
     }
 
     /**
@@ -76,7 +76,7 @@ public final class KeyedRuns {
             boolean newBest = d.clear(g.rank(), k.clearTicks, k.chain);
             DungeonKeys.sync(p);
             PacketDistributor.sendToPlayer(p, new KeyRunPayload(KeyRunPayload.CLEARED, g.rank().ordinal(), k.chain, k.runStartedAt,
-                    k.clearTicks, d.best[g.rank().tier()], newBest ? KeyRunPayload.NEW_BEST : 0, g.theme().dungeonName()));
+                    k.clearTicks, d.best[g.rank().tier()], newBest ? KeyRunPayload.NEW_BEST : 0, g.dungeonName()));
         }
     }
 

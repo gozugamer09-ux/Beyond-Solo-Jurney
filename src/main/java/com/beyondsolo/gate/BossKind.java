@@ -91,6 +91,23 @@ public enum BossKind {
         return roll(rank, RandomSource.create(seed * 31 + 0xB055L));
     }
 
+    /**
+     * The boss of a gate of a realm: those the realm favours are four times as likely (seven times for one it names
+     * twice), so a hive ends with its broodmother more often than not, but any boss of the rank can still wait there.
+     */
+    public static BossKind forSeed(PlayerRank rank, long seed, GateRealm realm) {
+        RandomSource r = RandomSource.create(seed * 31 + 0xB055L);
+        int total = 0;
+        for (BossKind k : values()) if (k.livesAt(rank)) total += k.weight * (1 + 3 * realm.bossWeight(k));
+        int roll = r.nextInt(Math.max(1, total));
+        for (BossKind k : values()) {
+            if (!k.livesAt(rank)) continue;
+            roll -= k.weight * (1 + 3 * realm.bossWeight(k));
+            if (roll < 0) return k;
+        }
+        return BRUTE;
+    }
+
     /** About one gate in twelve holds an ascended boss: bigger, tougher, its title in gold. */
     public static boolean ascendedForSeed(long seed) {
         return RandomSource.create(seed * 17 + 0xA5CL).nextInt(12) == 0;
