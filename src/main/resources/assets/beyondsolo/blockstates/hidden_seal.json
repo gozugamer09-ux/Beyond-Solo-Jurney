@@ -1,0 +1,244 @@
+{
+  "variants": {
+    "look=stone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/stone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_2"
+      }
+    ],
+    "look=andesite": [
+      {
+        "model": "beyondsolo:block/hidden_seal/andesite",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/andesite_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/andesite_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/andesite_2"
+      }
+    ],
+    "look=cobblestone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/cobblestone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobblestone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobblestone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobblestone_2"
+      }
+    ],
+    "look=mossy_cobblestone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_cobblestone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_cobblestone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_cobblestone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_cobblestone_2"
+      }
+    ],
+    "look=moss_block": [
+      {
+        "model": "beyondsolo:block/hidden_seal/moss_block",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/moss_block_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/moss_block_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/moss_block_2"
+      }
+    ],
+    "look=deepslate": [
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_2"
+      }
+    ],
+    "look=cobbled_deepslate": [
+      {
+        "model": "beyondsolo:block/hidden_seal/cobbled_deepslate",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobbled_deepslate_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobbled_deepslate_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cobbled_deepslate_2"
+      }
+    ],
+    "look=tuff": [
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_2"
+      }
+    ],
+    "look=blackstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/blackstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blackstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blackstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blackstone_2"
+      }
+    ],
+    "look=polished_blackstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_2"
+      }
+    ],
+    "look=basalt": [
+      {
+        "model": "beyondsolo:block/hidden_seal/basalt",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/basalt_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/basalt_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/basalt_2"
+      }
+    ],
+    "look=netherrack": [
+      {
+        "model": "beyondsolo:block/hidden_seal/netherrack",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/netherrack_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/netherrack_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/netherrack_2"
+      }
+    ],
+    "look=obsidian": [
+      {
+        "model": "beyondsolo:block/hidden_seal/obsidian",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/obsidian_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/obsidian_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/obsidian_2"
+      }
+    ],
+    "look=red_nether_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/red_nether_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/red_nether_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/red_nether_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/red_nether_bricks_2"
+      }
+    ],
+    "look=calcite": [
+      {
+        "model": "beyondsolo:block/hidden_seal/calcite",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/calcite_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/calcite_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/calcite_2"
+      }
+    ],
+    "look=polished_diorite": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_diorite",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_diorite_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_diorite_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_diorite_2"
+      }
+    ]
+  }
+}

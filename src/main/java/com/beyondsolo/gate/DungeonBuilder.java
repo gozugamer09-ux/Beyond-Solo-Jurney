@@ -58,6 +58,11 @@ public final class DungeonBuilder {
             decorate(level, room);
             return -1;
         });
+        // the hidden chamber's wall and dressing, the trap rooms' cores and vents
+        steps.add(level -> {
+            com.beyondsolo.depths.DepthsBuild.build(level, gate);
+            return -1;
+        });
     }
 
     public GateInstance gate() {
@@ -251,7 +256,7 @@ public final class DungeonBuilder {
             BlockPos at = floorSpot(level, c, room, floor, r, 0.85f);
             if (at != null) level.setBlock(at, scatterState(), FLAGS);
         }
-        if (room.kind() != DungeonLayout.Kind.BOSS && room.kind() != DungeonLayout.Kind.ENTRANCE) {
+        if (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE) {
             int spikes = 3 + r.nextInt(4);
             for (int i = 0; i < spikes; i++) {
                 BlockPos at = floorSpot(level, c, room, floor, r, 0.7f);
@@ -269,9 +274,10 @@ public final class DungeonBuilder {
             for (int k = 1; k <= h; k++) placeIfAir(level, top.below(k), theme.mainWall());
         }
 
-        // mana veins in the walls of caverns and side caves
-        if (theme != GateTheme.TRIAL && (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE)) {
-            int veins = 1 + r.nextInt(room.kind() == DungeonLayout.Kind.SIDE ? 3 : 2);
+        // mana veins in the walls of caverns and side caves, and plenty in a hidden chamber
+        if (theme != GateTheme.TRIAL && (room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.SIDE
+                || room.kind() == DungeonLayout.Kind.HIDDEN)) {
+            int veins = room.kind() == DungeonLayout.Kind.HIDDEN ? 3 + r.nextInt(2) : 1 + r.nextInt(room.kind() == DungeonLayout.Kind.SIDE ? 3 : 2);
             for (int i = 0; i < veins; i++) {
                 float a = r.nextFloat() * Mth.TWO_PI;
                 BlockPos hit = march(level, new BlockPos(c.getX(), floor + 1 + r.nextInt(3), c.getZ()), Mth.cos(a), 0, Mth.sin(a), room.reach() + 6);

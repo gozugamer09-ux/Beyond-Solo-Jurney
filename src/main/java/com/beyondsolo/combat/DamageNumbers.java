@@ -18,7 +18,9 @@ public final class DamageNumbers {
 
     public static void report(LivingEntity target, float amount, DamageElement element, boolean crit, @Nullable Entity attacker) {
         if (!(target.level() instanceof ServerLevel level)) return;
-        DamageNumberPayload payload = new DamageNumberPayload(target.getId(), amount, element.index(), crit);
+        HitTags.Tag tag = HitTags.take(target);
+        DamageNumberPayload payload = tag == null ? new DamageNumberPayload(target.getId(), amount, element.index(), crit)
+                : new DamageNumberPayload(target.getId(), amount, element.index(), crit, tag.element().ordinal(), tag.rating().ordinal());
         if (attacker instanceof ServerPlayer player) {
             if (player != target) PacketDistributor.sendToPlayer(player, payload);
             if (element == DamageElement.PHYSICAL) return;

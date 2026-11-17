@@ -130,9 +130,18 @@ public final class SkillCombat {
      * reacts, otherwise leaves this one on it. Returns the damage to deal.
      */
     public static float strike(ServerPlayer player, LivingEntity target, SkillElement element, float damage) {
-        // gate creatures' elemental strengths and weaknesses (enemy.Affinity) and warded affixes
+        // what the creature is weak to or shrugs off (enemy.ElementalProfile), warded affixes, and the cave's weather
         damage *= com.beyondsolo.enemy.EnemyHooks.skillMultiplier(target, element);
+        damage *= com.beyondsolo.depths.WeatherService.factor(target, element);
         if (element == SkillElement.PHYSICAL) return damage;
+        // the damage number says how it landed; a first hit on a weakness is noted (depths.WeaknessLog)
+        com.beyondsolo.enemy.ElementalProfile.Rating rating = com.beyondsolo.enemy.EnemyHooks.rating(target, element);
+        com.beyondsolo.combat.HitTags.tag(target, element, rating);
+        if (rating.weak()) com.beyondsolo.depths.WeaknessLog.discover(player, target, element);
+        else if (rating == com.beyondsolo.enemy.ElementalProfile.Rating.IMMUNE) {
+            // nothing lands, so no damage event would show it: say so now
+            com.beyondsolo.combat.DamageNumbers.report(target, 0f, com.beyondsolo.combat.DamageElement.PHYSICAL, false, player);
+        }
         SkillElement carried = aura(target);
         SkillReaction reaction = carried == null ? null : SkillReaction.of(carried, element);
         if (reaction == null) {
