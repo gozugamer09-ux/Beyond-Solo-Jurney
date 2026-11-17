@@ -30,6 +30,9 @@ public record GatePayload(int kind, int rank, int entity, float value, Component
     public static final int SHAKE = 7;
     public static final int ENRAGED = 8;
 
+    /** Added to {@link #rank} for a red gate's moments ({@code redgate.RedGates}): the overlay draws them in its red. */
+    public static final int RED = 100;
+
     public static final Type<GatePayload> TYPE = new Type<>(BeyondSolo.id("gate"));
     public static final StreamCodec<RegistryFriendlyByteBuf, GatePayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, GatePayload::kind,

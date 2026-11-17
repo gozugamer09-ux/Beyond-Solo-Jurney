@@ -192,6 +192,7 @@ public final class PenaltyZone {
         if (GateService.isDungeon(p.level()) && !(p.server instanceof net.minecraft.gametest.framework.GameTestServer)) return true;
         if (GateService.inTransit(p)) return true;
         if (com.beyondsolo.job.JobTrial.inTrial(p)) return true;
+        if (com.beyondsolo.redgate.RedGates.occupied(p)) return true;
         if (com.beyondsolo.awakening.AwakeningService.inSequence(p)) return true;
         return com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p);
     }

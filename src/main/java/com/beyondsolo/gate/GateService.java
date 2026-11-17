@@ -259,6 +259,8 @@ public final class GateService {
             player.hurtMarked = true;
             return;
         }
+        // a red gate in waiting turns red for an awakened hunter; one that has turned lets its party follow, then seals
+        if (com.beyondsolo.redgate.RedGates.enter(player, gate, g)) return;
         if (level.getServer().getLevel(DIMENSION) == null) {
             BeyondSolo.LOGGER.error("The gate dimension {} is missing; is the mod's datapack loaded?", DIMENSION.location());
             return;
@@ -285,6 +287,8 @@ public final class GateService {
     }
 
     public static void beginExit(ServerPlayer player, GateBlockEntity gate) {
+        // a red gate's way out lets its hunters go only once its hold is broken
+        if (com.beyondsolo.redgate.RedGates.exit(player, gate)) return;
         if (busy(player)) return;
         GateInstance g = GateData.get(player.server).bySlotPos(player.blockPosition());
         if (g == null) return;

@@ -1,0 +1,61 @@
+{
+  "has_precipitation": true,
+  "temperature": -0.9,
+  "downfall": 0.7,
+  "effects": {
+    "fog_color": 12900351,
+    "sky_color": 10335438,
+    "water_color": 3750089,
+    "water_fog_color": 329011,
+    "grass_color": 8434839,
+    "foliage_color": 6332794,
+    "mood_sound": {
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 6000,
+      "block_search_extent": 8,
+      "offset": 2.0
+    },
+    "particle": {
+      "options": {
+        "type": "minecraft:snowflake"
+      },
+      "probability": 0.006
+    }
+  },
+  "spawners": {},
+  "spawn_costs": {},
+  "carvers": {},
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [
+      "beyondsolo:red_winter_ice_spike"
+    ],
+    [],
+    [
+      "minecraft:ore_dirt",
+      "minecraft:ore_gravel",
+      "minecraft:ore_coal_upper",
+      "minecraft:ore_coal_lower",
+      "minecraft:ore_iron_upper",
+      "minecraft:ore_iron_middle",
+      "minecraft:ore_iron_small",
+      "minecraft:ore_gold",
+      "minecraft:ore_redstone",
+      "minecraft:ore_diamond",
+      "minecraft:ore_lapis",
+      "minecraft:ore_copper"
+    ],
+    [],
+    [],
+    [
+      "beyondsolo:red_winter_spruce",
+      "beyondsolo:red_winter_pine"
+    ],
+    [
+      "minecraft:freeze_top_layer"
+    ]
+  ]
+}

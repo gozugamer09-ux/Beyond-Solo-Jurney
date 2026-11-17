@@ -58,6 +58,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     /** A hidden chamber's cache ({@code depths.HiddenRooms}): violet light, and now and then a dungeon key. */
     private boolean hidden;
     @Nullable private java.util.UUID legendaryFor;
+    /** A red gate's cache ({@code redgate.RedGates}): blood-red light, its rank's loot twice over, and often a key. */
+    private boolean red;
 
     public RewardCacheBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.REWARD_CACHE.get(), pos, state);
@@ -69,6 +71,12 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
     public boolean isOpen() { return openedAt >= 0; }
     public boolean isLegendary() { return legendary; }
     public boolean isHidden() { return hidden; }
+    public boolean isRed() { return red; }
+
+    public void setRed(boolean red) {
+        this.red = red;
+        changed();
+    }
 
     /** A hidden chamber's cache, holding loot of {@code rank}. {@code droppedAt} -1: it was always there. */
     public void setupHidden(PlayerRank rank, long droppedAt) {
@@ -156,7 +164,10 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
             return;
         }
         List<ItemStack> loot = new java.util.ArrayList<>(GateLoot.roll(rank, server.random));
+        // a red gate's master guarded twice the treasure, and often the key to a gate of its rank
+        if (red) loot.addAll(GateLoot.roll(rank, server.random));
         if (boss != null) loot.addAll(GateLoot.signature(server, boss, rank, ascended, worldPosition));
+        if (red && server.random.nextFloat() < 0.5f) loot.add(com.beyondsolo.key.DungeonKeys.key(rank));
         // what a hidden chamber kept: often a key to a gate of its rank
         if (hidden && server.random.nextFloat() < 0.5f) loot.add(com.beyondsolo.key.DungeonKeys.key(rank));
         for (int i = 0; i < loot.size(); i++) {
@@ -177,7 +188,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         }
         for (ServerPlayer p : server.getEntitiesOfClass(ServerPlayer.class, new net.minecraft.world.phys.AABB(worldPosition).inflate(32))) {
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
-                    Component.translatable(hidden ? "notify.beyondsolo.depths.cache.title" : "notify.beyondsolo.gate.cache.title"), list));
+                    Component.translatable(hidden ? "notify.beyondsolo.depths.cache.title" : red ? "notify.beyondsolo.redgate.cache.title"
+                            : "notify.beyondsolo.gate.cache.title"), list));
         }
         // the boss's signature drops get their own call-out
         MutableComponent sig = Component.empty();
@@ -205,6 +217,7 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         tag.putBoolean("burst", burst);
         tag.putBoolean("legendary", legendary);
         tag.putBoolean("hidden", hidden);
+        tag.putBoolean("red", red);
         if (boss != null) tag.putString("boss", boss.id);
         tag.putBoolean("ascended", ascended);
         if (legendaryFor != null) tag.putUUID("legendaryFor", legendaryFor);
@@ -220,6 +233,7 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         burst = tag.getBoolean("burst");
         legendary = tag.getBoolean("legendary");
         hidden = tag.getBoolean("hidden");
+        red = tag.getBoolean("red");
         boss = tag.contains("boss") ? BossKind.byId(tag.getString("boss")) : null;
         ascended = tag.getBoolean("ascended");
         legendaryFor = tag.hasUUID("legendaryFor") ? tag.getUUID("legendaryFor") : null;
