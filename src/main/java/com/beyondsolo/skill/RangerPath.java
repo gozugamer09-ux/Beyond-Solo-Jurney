@@ -166,6 +166,9 @@ public final class RangerPath {
     private static void hold(ServerPlayer p, LivingEntity e, int ticks) {
         stun(e, ticks);
         snared(p, e, ticks);
+        // at once, too: the blow that came with it must not knock the creature out of what holds it
+        e.setDeltaMovement(0, Math.min(0, e.getDeltaMovement().y), 0);
+        e.hurtMarked = true;
         repeat(p, ticks, 4, () -> {
             if (!e.isAlive()) return;
             e.setDeltaMovement(0, Math.min(0, e.getDeltaMovement().y), 0);
@@ -187,7 +190,7 @@ public final class RangerPath {
     /** The summoned beasts of a hunter that are near them. */
     private static List<TamableAnimal> beasts(ServerPlayer p, double radius) {
         return p.level().getEntitiesOfClass(TamableAnimal.class, p.getBoundingBox().inflate(radius),
-                t -> t.isAlive() && t.getTags().contains(SubclassActions.SUMMON_TAG) && t.isOwnedBy(p));
+                t -> t.isAlive() && t.getTags().contains(SubclassActions.SUMMON_TAG) && p.getUUID().equals(t.getOwnerUUID()));
     }
 
     /** Bolts that walk through the foes around a point: the nearest one first, then the next, and round again. */
@@ -612,6 +615,8 @@ public final class RangerPath {
 
     static final int MAX_TRAPS = 3;
     static final float TRAP_SIZE = 0.75f, WIRE_LENGTH = 9;
+    /** How near a jaw trap a creature must come: wide enough that one laid under a walking creature still has it when it arms. */
+    static final double TRAP_REACH = 1.4;
 
     static int trips(int l) { return 4 + l / 3; }
     static float netSeconds(int l) { return 3 + 0.15f * l; }
@@ -717,7 +722,7 @@ public final class RangerPath {
                 return;
             }
             if (now >= trap.armedAt) {
-                LivingEntity victim = foes(p, trap.at, 1.6).stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(trap.at))).orElse(null);
+                LivingEntity victim = foes(p, trap.at, TRAP_REACH).stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(trap.at))).orElse(null);
                 if (victim != null) {
                     trap.gone = true;
                     ServerLevel level = p.serverLevel();
@@ -726,8 +731,9 @@ public final class RangerPath {
                     Buildups.add(victim, Buildups.BLOOD, 25, p);
                     sound(level, trap.at, SoundEvents.IRON_TRAPDOOR_CLOSE, 1.2f, 0.7f);
                     sound(level, trap.at, SoundEvents.CHAIN_BREAK, 1f, 0.8f);
-                    // duration 0: the jaws snap shut, and the open ones are gone
-                    fxAt(level, Kind.TRAP, s.color(), trap.at, TRAP_SIZE, 0);
+                    // duration 0: the open jaws are gone from where they lay, and snap shut on the creature's legs
+                    fxAt(level, Kind.TRAP, s.color(), trap.at, 0, 0);
+                    fxAt(level, Kind.TRAP, s.color(), victim.position(), TRAP_SIZE, 0);
                     return;
                 }
             }
@@ -1308,9 +1314,17 @@ public final class RangerPath {
         bonus(UNERRING, ALObjects.Attributes.CRIT_CHANCE, 0.01f, ADD, "crit_chance");
     }
 
-    /** A wildcaller's beast bites: Pack Tactics makes it bite harder, and marks what it bit for the hunter. */
+    /** A wildcaller's beast bites. */
     static float beastStrike(TamableAnimal beast, LivingEntity target, float amount, long now) {
         if (!beast.getTags().contains(SubclassActions.SUMMON_TAG) || !(beast.getOwner() instanceof ServerPlayer owner)) return amount;
+        return packBite(owner, target, amount, now);
+    }
+
+    /**
+     * Pack Tactics: a beast of this hunter's pack bites harder, and what it bit is marked for the hunter. Returns
+     * the damage of the bite. Public for the game tests: a wolf does not find a test player to call its owner.
+     */
+    public static float packBite(ServerPlayer owner, LivingEntity target, float amount, long now) {
         int pack = SkillAPI.level(owner, PACK_TACTICS);
         if (pack <= 0) return amount;
         BITTEN.put(target, new long[]{now + 100, owner.getId()});

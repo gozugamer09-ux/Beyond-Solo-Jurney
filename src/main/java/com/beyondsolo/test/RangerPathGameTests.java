@@ -266,10 +266,11 @@ public final class RangerPathGameTests {
         helper.assertTrue(aimedShot > shot * 1.4f, "the aimed shot hits harder: " + aimedShot + " vs " + shot);
         helper.assertTrue(!SkillAPI.hasBuff(aimed, RangerPath.BUFF_TAKE_AIM), "and the aim is spent");
 
-        // a skill's arrow is a projectile like one from the bow: Hawk Focus (24% at level 10) counts it
+        // a skill's arrow is a projectile like one from the bow: Hawk Focus (24% at level 10, 6% at level 1) counts it
         ServerPlayer hawk = ranger(helper, Subclass.SHARPSHOOTER);
         SkillAPI.learn(hawk, RangerPath.PINNING_SHOT, 1, OTHER);
-        SkillAPI.learn(hawk, SubclassSkills.HAWK_FOCUS, 10, OTHER);
+        // every sharpshooter has it at level 1 from the day they took the job
+        helper.assertTrue(SkillAPI.addLevels(hawk, SubclassSkills.HAWK_FOCUS, 9) == 9, "Hawk Focus rises to level 10");
         refill(hawk);
         face(hawk, z);
         z.setHealth(2000);
@@ -326,16 +327,19 @@ public final class RangerPathGameTests {
         refill(p);
         helper.assertTrue(SkillAPI.cast(p, SubclassSkills.CALL_OF_THE_PACK), "Call of the Pack casts");
         List<Wolf> pack = level.getEntitiesOfClass(Wolf.class, p.getBoundingBox().inflate(4),
-                w -> w.isOwnedBy(p) && w.getTags().contains(SubclassActions.SUMMON_TAG));
+                w -> p.getUUID().equals(w.getOwnerUUID()) && w.getTags().contains(SubclassActions.SUMMON_TAG));
         helper.assertTrue(pack.size() == 2, "two wolves answer at level 1, found " + pack.size());
         Wolf wolf = pack.get(0);
 
-        // Pack Tactics: the pack bites 35% harder at level 10, and the hunter hits what it bit 15% harder
-        float bite = bite(wolf, z);
-        helper.assertTrue(bite > 1, "a wolf's bite lands: " + bite);
+        // Pack Tactics: the pack bites 35% harder at level 10, and the hunter hits what it bit 15% harder. A wolf
+        // does not find a test player to call its owner, so the bite is put to the hook that the pack's bites go through.
+        long now = level.getGameTime();
+        helper.assertTrue(bite(wolf, z) > 1, "a wolf's bite lands");
+        helper.assertTrue(Math.abs(RangerPath.packBite(p, z, 10, now) - 10) < 0.01f, "the pack bites as ever without Pack Tactics");
+        helper.assertTrue(strike(p, z, 2000) < normal * 1.02f, "and leaves no mark");
         SkillAPI.learn(p, RangerPath.PACK_TACTICS, 10, OTHER);
-        float packBite = bite(wolf, z);
-        helper.assertTrue(packBite > bite * 1.3f, "Pack Tactics makes the pack bite harder: " + packBite + " vs " + bite);
+        float packBite = RangerPath.packBite(p, z, 10, now);
+        helper.assertTrue(Math.abs(packBite - 13.5f) < 0.01f, "Pack Tactics makes the pack bite harder: " + packBite);
         float marked = strike(p, z, 2000);
         helper.assertTrue(marked > normal * 1.12f, "and the hunter hits what the pack bit harder: " + marked + " vs " + normal);
 
