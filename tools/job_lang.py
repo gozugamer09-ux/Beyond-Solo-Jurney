@@ -464,6 +464,65 @@ SKILLS.update({
     "avatar_of_dawn": ("Avatar of Dawn", "Behold.", "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes the foes within 14 blocks in turn, nearest first, for %s damage, and every second allies within 12 blocks are mended for %s."),
 })
 
+# the Ranger subclasses' own skill sets (RangerPath.java)
+SKILLS.update({
+    # sharpshooter
+    "ricochet": ("Ricochet", "One arrow, several opinions.", "Shoot the creature you are looking at for %s damage. The arrow glances off it to the nearest foe within 9 blocks, up to %s times, losing a little force each time."),
+    "pinning_shot": ("Pinning Shot", "Stay.", "A bolt through the foot of the creature you are looking at: %s damage, and it is held where it stands for %s s."),
+    "marksmans_eye": ("Marksman's Eye", "You see where it is soft.", "+%s%% critical chance and +%s%% critical damage."),
+    "gale_arrow": ("Gale Arrow", "The wind comes with it.", "An arrow that drags the wind behind it through everything in a line 24 blocks long: %s damage, and foes are carried off and slowed for 3 s."),
+    "take_aim": ("Take Aim", "Breathe. Wait. Now.", "Line up your next shot for up to 8 s. Your next Sharpshooter skill deals %s%% more damage."),
+    "patient_hunter": ("Patient Hunter", "The longer you wait, the less it matters where they run.", "Every second you stand still you deal %s%% more damage, up to %s%%. A step loses it."),
+    "killshot": ("Killshot", "This is the one.", "A heavy shot at the creature you are looking at: %s damage, or %s if it is under 35%% health."),
+    "rapid_fire": ("Rapid Fire", "Why choose?", "Loose %s arrows in under a second, each at whatever you are looking at by then, for %s damage each."),
+    "clean_kill": ("Clean Kill", "No wasted arrows.", "When you kill a creature you regain %s mana, and Deadeye Shot is ready again."),
+    "hunters_verdict": ("Hunter's Verdict", "Judged. All of you.", "Mark up to 8 foes you can see within 40 blocks, then loose %s arrows at once, one for every mark: %s damage. Arrows left over strike the same marks again for less."),
+    # wildcaller
+    "hawk_strike": ("Hawk Strike", "Death from a clear sky.", "A hawk of starlight stoops on the creature you are looking at: %s damage, and for 3 s it is slowed and weakened."),
+    "pounce": ("Pounce", "You learned it from the wolves.", "Leap at the creature you are looking at, up to 14 blocks away. Where you land, foes within 3 blocks take %s damage and start to bleed."),
+    "pack_tactics": ("Pack Tactics", "Never alone.", "Your beasts deal %s%% more damage, and you deal %s%% more to whatever they have bitten in the last 5 s."),
+    "tusker": ("Tusker", "It does not stop for anything.", "A great boar of starlight charges 14 blocks ahead of you: %s damage, and everything in its way is tossed aside and stunned for 1 s."),
+    "rallying_howl": ("Rallying Howl", "They hear you. So does everything else.", "For %s s you and allies within 10 blocks are stronger and faster. Your beasts grow stronger still, mend, and stay 10 s longer. Foes within 8 blocks lose heart: weakened and slowed for 4 s."),
+    "alpha": ("Alpha", "The pack follows the strongest.", "You deal %s%% more damage for each of your beasts near you, up to %s%%."),
+    "hornet_swarm": ("Hornet Swarm", "Do not run. It only makes them angry.", "Set a swarm on the creature you are looking at for 5 s. It and foes within 3 blocks of it take %s damage twice a second and are poisoned. If it dies, the swarm finds someone else."),
+    "bears_wrath": ("Bear's Wrath", "It was asleep.", "A bear of starlight rears where you are looking and comes down with both paws: %s damage to foes within 5 blocks, and they are thrown up and stunned for 2 s."),
+    "wild_heart": ("Wild Heart", "The forest keeps its own.", "You regain %s health every second, and your beasts %s."),
+    "wild_hunt": ("Wild Hunt", "Everything with teeth, all at once.", "Call the hunt for 10 s. Every second a wave of beasts runs through the ground in front of you: %s damage to foes within 9 blocks, and they are trampled back. Every third wave a hawk takes the foe in the middle for %s more. Your own beasts are mended and strengthened."),
+    # snare artisan
+    "jaw_trap": ("Jaw Trap", "Iron remembers how to bite.", "Set iron jaws where you are looking. They lie waiting for 30 s; the first foe to step in takes %s damage, bleeds, and is held for 3 s. You can keep three set."),
+    "tripwire": ("Tripwire", "Mind the thread.", "String a wire 9 blocks wide across the way you face, for 20 s. It trips up to %s foes that cross it: %s damage each, and a 2 s stun."),
+    "patient_trapper": ("Patient Trapper", "Set it well, and then wait.", "Your traps and snares deal %s%% more damage."),
+    "weighted_net": ("Weighted Net", "It was a good throw.", "Throw a net over the spot you are looking at. Foes under it within 3.5 blocks are held for %s s and take %s damage, and what flies is dragged to the ground."),
+    "spring_snare": ("Spring Snare", "Up you go.", "A noose takes the creature you are looking at by the foot: %s damage, and a sprung pole hoists it off the ground for 3 s. When it drops it takes %s more. What is too heavy to lift is hobbled instead."),
+    "scavenger": ("Scavenger", "Nothing goes to waste.", "When a creature dies while your trap or snare holds it, you regain %s mana and Jaw Trap is ready again."),
+    "shrapnel_charge": ("Shrapnel Charge", "Count to one.", "Shoot a charge into the ground where you are looking. A moment later it bursts: %s damage to foes within 4.5 blocks, and they are thrown back and bleed."),
+    "deadfall": ("Deadfall", "The oldest trap there is.", "Bring rocks down on the spot you are looking at: %s damage to foes within 4 blocks, and a 2.5 s stun."),
+    "killing_ground": ("Killing Ground", "They fight on your terms.", "Creatures that are slowed or held in your snares deal %s%% less damage to you."),
+    "no_way_out": ("No Way Out", "You walked in. That was the mistake.", "Seed the ground where you are looking with jaws for 10 s. Every second each foe within 9 blocks is bitten for %s damage and held fast. Then the rocks come down: %s damage, and a 3 s stun."),
+    # storm archer
+    "lightning_rod": ("Lightning Rod", "It hums. Stand back.", "Plant a charged arrow where you are looking for 6 s. Every second it arcs to each foe within 6 blocks for %s damage."),
+    "flash_step": ("Flash Step", "Gone before the thunder.", "Become lightning and cross up to 10 blocks the way you face. Foes in your path take %s damage and are stunned for 1 s."),
+    "conductive": ("Conductive", "It likes them now.", "Creatures your lightning has struck in the last 6 s take %s%% more damage from you."),
+    "wandering_spark": ("Wandering Spark", "It is in no hurry.", "Loose a ball of lightning that drifts 16 blocks ahead. It strikes foes within 3.5 blocks for %s damage four times a second, and bursts at the end for %s."),
+    "live_wire": ("Live Wire", "Everything you touch.", "For %s s you move faster and each of your hits is followed by a spark for %s damage, at most four times a second."),
+    "storm_battery": ("Storm Battery", "It all comes back to you.", "You regain %s mana whenever your lightning strikes, at most twice a second."),
+    "thunderhead": ("Thunderhead", "Bring an umbrella.", "Shoot a storm cloud over the spot you are looking at for 8 s. Bolts fall from it on the foes within 6 blocks in turn, nearest first: %s damage each."),
+    "thunderbolt_arrow": ("Thunderbolt Arrow", "What goes up.", "Shoot an arrow into the sky. What comes back down on the creature you are looking at is a thunderbolt: %s damage and a 2.5 s stun, and %s to other foes within 5 blocks."),
+    "chain_reaction": ("Chain Reaction", "It has to go somewhere.", "When a creature dies with your lightning still on it, the charge leaps to the nearest foe within 7 blocks for %s damage."),
+    "stormfall": ("Stormfall", "The whole sky, on your word.", "Call a storm over yourself for 12 s. While it lasts your hits spark as with Live Wire, and twice a second a bolt strikes the foes within 12 blocks in turn, nearest first, for %s damage. It ends with every bolt at once: %s damage and a 2 s stun."),
+    # heavenpiercer
+    "starseekers": ("Starseekers", "They know the way.", "Loose %s arrows that bend through the air onto the foes nearest your aim: %s damage each. An arrow that finds a foe already struck deals half."),
+    "ascend": ("Ascend", "The ground is for other people.", "The wind lifts you high and holds you there for 4 s. While it carries you, you deal %s%% more damage, and you come down gently."),
+    "skys_grace": ("Sky's Grace", "The sky looks after its own.", "You deal %s%% more damage while you are off the ground, and a fall never hurts you."),
+    "falling_star": ("Falling Star", "Make a wish.", "An arrow shot into the sky comes down on the spot you are looking at: %s damage to foes within 3.5 blocks, and they are thrown up."),
+    "arrow_halo": ("Arrow Halo", "They wait behind you, and they do not wait long.", "%s arrows of light hang at your shoulders for 12 s. One after another they fly at the nearest foe within 10 blocks for %s damage."),
+    "unerring": ("Unerring", "You do not miss. You have forgotten how.", "You deal %s%% more damage and gain +%s%% critical chance."),
+    "windcutter": ("Windcutter", "The air has an edge.", "Cut the air: a blade of wind 5 blocks wide flies 16 blocks ahead of you, %s damage to everything it passes through, and it carries them back."),
+    "gale_barrier": ("Gale Barrier", "Nothing gets through.", "Raise a wall of wind 9 blocks wide in front of you for 8 s. Foes that touch it are thrown back and take %s damage, and whatever is shot or thrown at it is swept away."),
+    "killing_wind": ("Killing Wind", "Each one makes the next one easier.", "Each kill makes you %s%% deadlier for 10 s, up to %s%%, and quick on your feet."),
+    "fall_of_heaven": ("Fall of Heaven", "Look up, one last time.", "Rise on the wind and rain arrows for 7 s: four times a second one strikes the nearest foes within 32 blocks in turn for %s damage, and half that to anything beside them. The last arrow is the size of a tower: %s damage to foes within 7 blocks."),
+})
+
 
 def main():
     out = dict(TEXT)

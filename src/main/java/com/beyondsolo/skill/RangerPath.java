@@ -66,7 +66,7 @@ import static com.beyondsolo.skill.SubclassKit.*;
  */
 public final class RangerPath {
     public static final String BUFF_TAKE_AIM = "take_aim";
-    public static final String BUFF_OVERCHARGE = "overcharge";
+    public static final String BUFF_LIVE_WIRE = "live_wire";
     /** Carried by the wind: set while a Heavenpiercer rises and hangs in the air. */
     public static final String BUFF_SKYBORNE = "skyborne";
 
@@ -83,7 +83,7 @@ public final class RangerPath {
     private static final Map<UUID, List<Trap>> TRAPS = new HashMap<>();
     /** Static left by a storm archer's lightning: creature -> {end game time, entity id of the archer}. */
     static final Map<LivingEntity, long[]> CHARGED = new WeakHashMap<>();
-    /** Storm Battery and the sparks of Overcharge come at most so often: player -> game time of the last one. */
+    /** Storm Battery and the sparks of Live Wire come at most so often: player -> game time of the last one. */
     private static final Map<UUID, Long> LAST_BATTERY = new HashMap<>(), LAST_SPARK = new HashMap<>();
     /** Arrow Halo: player -> game time their newest halo was raised (an older one stops firing). */
     private static final Map<UUID, Long> HALO = new HashMap<>();
@@ -926,10 +926,10 @@ public final class RangerPath {
     public static final Skill FLASH_STEP = active("flash_step", ST, A, 24, 0xD0ECFF, 14, 220, 130,
             RangerPath::flashStep, (l, t) -> a(f(8 * m(l, t))));
     public static final Skill CONDUCTIVE = passive("conductive", ST, A, 26, 0xB8E2FF, (l, t) -> a(f(conductive(l))));
-    public static final Skill BALL_LIGHTNING = active("ball_lightning", ST, A, 29, 0x98D0FF, 18, 320, 200,
-            RangerPath::ballLightning, (l, t) -> a(f(2 * m(l, t)), f(8 * m(l, t))));
-    public static final Skill OVERCHARGE = active("overcharge", ST, A, 32, 0xC8E8FF, 20, 600, 400,
-            RangerPath::overcharge, (l, t) -> a(f(10), f(3 * m(l, t))));
+    public static final Skill WANDERING_SPARK = active("wandering_spark", ST, A, 29, 0x98D0FF, 18, 320, 200,
+            RangerPath::wanderingSpark, (l, t) -> a(f(2 * m(l, t)), f(8 * m(l, t))));
+    public static final Skill LIVE_WIRE = active("live_wire", ST, A, 32, 0xC8E8FF, 20, 600, 400,
+            RangerPath::liveWire, (l, t) -> a(f(10), f(3 * m(l, t))));
     public static final Skill STORM_BATTERY = passive("storm_battery", ST, A, 35, 0xA0D8F0, (l, t) -> a(f(battery(l))));
     public static final Skill THUNDERHEAD = active("thunderhead", ST, A, 38, 0x90C4F0, 22, 480, 320,
             RangerPath::thunderhead, (l, t) -> a(f(7 * m(l, t))));
@@ -996,7 +996,7 @@ public final class RangerPath {
         return true;
     }
 
-    static boolean ballLightning(ServerPlayer p, Skill s, int l) {
+    static boolean wanderingSpark(ServerPlayer p, Skill s, int l) {
         ServerLevel level = p.serverLevel();
         Vec3 start = p.position().add(0, 1.2, 0);
         Vec3 dir = facing(p);
@@ -1026,8 +1026,8 @@ public final class RangerPath {
         return true;
     }
 
-    static boolean overcharge(ServerPlayer p, Skill s, int l) {
-        SkillAPI.setBuff(p, BUFF_OVERCHARGE, 200);
+    static boolean liveWire(ServerPlayer p, Skill s, int l) {
+        SkillAPI.setBuff(p, BUFF_LIVE_WIRE, 200);
         p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 200, 0, false, false, true));
         sound(p, SoundEvents.TRIDENT_THUNDER.value(), 0.35f, 1.8f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.6f);
@@ -1072,7 +1072,7 @@ public final class RangerPath {
     static boolean stormfall(ServerPlayer p, Skill s, int l) {
         ServerLevel level = p.serverLevel();
         Vec3 center = p.position();
-        SkillAPI.setBuff(p, BUFF_OVERCHARGE, 240);
+        SkillAPI.setBuff(p, BUFF_LIVE_WIRE, 240);
         p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 240, 0, false, false, true));
         sound(p, SoundEvents.LIGHTNING_BOLT_THUNDER, 1f, 0.7f);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.5f);
@@ -1342,19 +1342,19 @@ public final class RangerPath {
     }
 
     static void afterStrike(ServerPlayer p, SkillData data, LivingEntity target, long now) {
-        // Overcharge: whatever the archer hits, a spark follows it
-        if (sparking || !data.hasBuff(BUFF_OVERCHARGE, now) || now - LAST_SPARK.getOrDefault(p.getUUID(), 0L) < 5) return;
+        // Live Wire: whatever the archer hits, a spark follows it
+        if (sparking || !data.hasBuff(BUFF_LIVE_WIRE, now) || now - LAST_SPARK.getOrDefault(p.getUUID(), 0L) < 5) return;
         LAST_SPARK.put(p.getUUID(), now);
-        int l = Math.max(1, data.level(OVERCHARGE.path()));
+        int l = Math.max(1, data.level(LIVE_WIRE.path()));
         later(p, 1, () -> {
             if (!target.isAlive()) return;
             sparking = true;
             try {
-                zap(p, OVERCHARGE, target, 3 * m(l, tier(p)));
+                zap(p, LIVE_WIRE, target, 3 * m(l, tier(p)));
             } finally {
                 sparking = false;
             }
-            fx(p, Kind.BOLT, OVERCHARGE.color(), mid(target), 0.15f, 0);
+            fx(p, Kind.BOLT, LIVE_WIRE.color(), mid(target), 0.15f, 0);
         });
     }
 
