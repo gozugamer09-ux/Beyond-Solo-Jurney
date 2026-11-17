@@ -24,10 +24,22 @@ final class StarBeasts {
     private static final int HAWK = SkillFxPayload.BEAST_HAWK, WOLF = SkillFxPayload.BEAST_WOLF, BOAR = SkillFxPayload.BEAST_BOAR,
             BEAR = SkillFxPayload.BEAST_BEAR;
 
-    private static final int[][] WOLF_BONES = {{0, 1}, {1, 2}, {1, 3}, {0, 4}, {4, 6}, {1, 5}, {5, 6}, {5, 7}, {7, 8}, {6, 9}, {9, 8}, {8, 10},
-            {10, 11}, {6, 12}, {12, 13}, {6, 14}, {14, 15}, {8, 16}, {16, 17}, {8, 18}, {18, 19}};
-    private static final int[][] BOAR_BONES = {{0, 1}, {1, 2}, {1, 3}, {0, 4}, {4, 13}, {5, 6}, {7, 8}, {1, 9}, {9, 10}, {10, 11}, {11, 12},
-            {13, 14}, {14, 15}, {15, 11}, {13, 16}, {13, 17}, {15, 18}, {15, 19}, {9, 13}};
+    private static final int[][] WOLF_BONES = {
+            // head and throat
+            {0, 1}, {1, 2}, {1, 3}, {0, 4}, {4, 6}, {1, 5},
+            // spine and tail, breast and belly
+            {5, 7}, {7, 8}, {8, 10}, {10, 11}, {6, 9},
+            // shoulders and haunches stand out to both sides, with a flank between them
+            {5, 12}, {5, 13}, {12, 6}, {13, 6}, {8, 14}, {8, 15}, {9, 14}, {9, 15}, {12, 14}, {13, 15},
+            // legs
+            {12, 16}, {16, 17}, {13, 18}, {18, 19}, {14, 20}, {20, 21}, {15, 22}, {22, 23}};
+    private static final int[][] BOAR_BONES = {
+            // head, tusks, hump and back
+            {0, 1}, {1, 2}, {1, 3}, {0, 4}, {4, 13}, {5, 6}, {7, 8}, {1, 9}, {9, 10}, {10, 11}, {11, 12}, {13, 14},
+            // shoulders and haunches stand out to both sides, with a flank between them
+            {9, 15}, {9, 16}, {15, 13}, {16, 13}, {11, 17}, {11, 18}, {14, 17}, {14, 18}, {15, 17}, {16, 18},
+            // legs
+            {15, 19}, {19, 20}, {16, 21}, {21, 22}, {17, 23}, {23, 24}, {18, 25}, {25, 26}};
     private static final int[][] HAWK_BONES = {{0, 1}, {1, 2}, {1, 3}, {2, 4}, {3, 4}, {4, 5}, {4, 6}, {5, 6}, {3, 7}, {7, 8}, {8, 9}, {9, 4},
             {3, 10}, {10, 11}, {11, 12}, {12, 4}, {2, 13}, {2, 14}};
     private static final int[][] BEAR_BONES = {{0, 1}, {1, 2}, {1, 3}, {0, 4}, {4, 6}, {1, 5}, {5, 7}, {7, 15}, {15, 16}, {6, 8}, {8, 16},
@@ -177,43 +189,47 @@ final class StarBeasts {
         return new float[][]{
                 {1.04f, 0.90f + bob, 0},                                    // 0 nose
                 {0.74f, 1.12f + bob, 0},                                    // 1 brow
-                {0.62f, 1.32f + bob, 0.10f},                                // 2 ear
-                {0.62f, 1.32f + bob, -0.10f},                               // 3 ear
+                {0.58f, 1.38f + bob, 0.14f},                                // 2 ear
+                {0.58f, 1.38f + bob, -0.14f},                               // 3 ear
                 {0.78f, 0.78f + bob, 0},                                    // 4 jaw
-                {0.36f, 0.94f + bob, 0},                                    // 5 withers
-                {0.42f, 0.55f + bob, 0},                                    // 6 chest
-                {-0.12f, 0.86f + bob + 0.05f * Mth.cos(s), 0},              // 7 back
-                {-0.58f, 0.82f + bob, 0},                                   // 8 hip
-                {-0.24f, 0.60f + bob, 0},                                   // 9 belly
-                {-0.88f, 0.80f + bob, 0},                                   // 10 tail
-                {-1.24f, 0.94f + bob + wag, 0},                             // 11 tail tip
-                {0.40f + 0.22f * fl, 0.32f, 0.15f}, {0.42f + 0.55f * fl, 0.03f + 0.22f * up(s), 0.15f},
-                {0.40f + 0.22f * fr, 0.32f, -0.15f}, {0.42f + 0.55f * fr, 0.03f + 0.22f * up(s - 0.5f), -0.15f},
-                {-0.50f + 0.20f * hl, 0.38f, 0.15f}, {-0.62f + 0.50f * hl, 0.03f + 0.22f * up(s + Mth.PI), 0.15f},
-                {-0.50f + 0.20f * hr, 0.38f, -0.15f}, {-0.62f + 0.50f * hr, 0.03f + 0.22f * up(s + Mth.PI - 0.5f), -0.15f}};
+                {0.36f, 0.98f + bob, 0},                                    // 5 withers
+                {0.44f, 0.52f + bob, 0},                                    // 6 breast
+                {-0.12f, 0.88f + bob + 0.05f * Mth.cos(s), 0},              // 7 back
+                {-0.58f, 0.86f + bob, 0},                                   // 8 hip
+                {-0.20f, 0.56f + bob, 0},                                   // 9 belly
+                {-0.84f, 0.84f + bob, 0},                                   // 10 tail
+                {-1.22f, 1.06f + bob + wag, 0},                             // 11 tail tip
+                {0.36f, 0.74f + bob, 0.20f}, {0.36f, 0.74f + bob, -0.20f},  // 12, 13 shoulders
+                {-0.50f, 0.68f + bob, 0.22f}, {-0.50f, 0.68f + bob, -0.22f}, // 14, 15 haunches
+                {0.40f + 0.22f * fl, 0.34f, 0.19f}, {0.42f + 0.55f * fl, 0.03f + 0.22f * up(s), 0.18f},
+                {0.40f + 0.22f * fr, 0.34f, -0.19f}, {0.42f + 0.55f * fr, 0.03f + 0.22f * up(s - 0.5f), -0.18f},
+                {-0.50f + 0.20f * hl, 0.36f, 0.21f}, {-0.62f + 0.50f * hl, 0.03f + 0.22f * up(s + Mth.PI), 0.20f},
+                {-0.50f + 0.20f * hr, 0.36f, -0.21f}, {-0.62f + 0.50f * hr, 0.03f + 0.22f * up(s + Mth.PI - 0.5f), -0.20f}};
     }
 
     /** A boar: a hump, a low head, tusks, and short legs that drum. */
     private static float[][] boar(float s) {
         float bob = 0.05f * Mth.sin(2 * s);
+        float fl = Mth.sin(s), fr = Mth.sin(s - 0.5f), hl = Mth.sin(s + Mth.PI), hr = Mth.sin(s + Mth.PI - 0.5f);
         return new float[][]{
                 {1.00f, 0.48f + bob, 0},                                    // 0 snout
                 {0.70f, 0.92f + bob, 0},                                    // 1 forehead
-                {0.55f, 1.08f + bob, 0.16f}, {0.55f, 1.08f + bob, -0.16f},  // 2, 3 ears
+                {0.55f, 1.10f + bob, 0.19f}, {0.55f, 1.10f + bob, -0.19f},  // 2, 3 ears
                 {0.80f, 0.36f + bob, 0},                                    // 4 jaw
-                {0.84f, 0.42f + bob, 0.13f}, {1.02f, 0.74f + bob, 0.20f},   // 5, 6 tusk
-                {0.84f, 0.42f + bob, -0.13f}, {1.02f, 0.74f + bob, -0.20f}, // 7, 8 tusk
-                {0.28f, 1.22f + bob, 0},                                    // 9 hump
-                {-0.25f, 1.05f + bob, 0},                                   // 10 back
-                {-0.72f, 0.82f + bob, 0},                                   // 11 rump
-                {-0.92f, 1.00f + bob, 0},                                   // 12 tail
-                {0.48f, 0.42f + bob, 0},                                    // 13 chest
-                {-0.10f, 0.36f + bob, 0},                                   // 14 belly
-                {-0.62f, 0.44f + bob, 0},                                   // 15 haunch
-                {0.48f + 0.38f * Mth.sin(s), 0.02f + 0.14f * up(s), 0.2f},
-                {0.48f + 0.38f * Mth.sin(s - 0.5f), 0.02f + 0.14f * up(s - 0.5f), -0.2f},
-                {-0.62f + 0.34f * Mth.sin(s + Mth.PI), 0.02f + 0.14f * up(s + Mth.PI), 0.2f},
-                {-0.62f + 0.34f * Mth.sin(s + Mth.PI - 0.5f), 0.02f + 0.14f * up(s + Mth.PI - 0.5f), -0.2f}};
+                {0.84f, 0.42f + bob, 0.13f}, {1.02f, 0.76f + bob, 0.22f},   // 5, 6 tusk
+                {0.84f, 0.42f + bob, -0.13f}, {1.02f, 0.76f + bob, -0.22f}, // 7, 8 tusk
+                {0.28f, 1.24f + bob, 0},                                    // 9 hump
+                {-0.25f, 1.06f + bob, 0},                                   // 10 back
+                {-0.72f, 0.84f + bob, 0},                                   // 11 rump
+                {-0.92f, 1.02f + bob, 0},                                   // 12 tail
+                {0.48f, 0.40f + bob, 0},                                    // 13 breast
+                {-0.12f, 0.34f + bob, 0},                                   // 14 belly
+                {0.40f, 0.80f + bob, 0.27f}, {0.40f, 0.80f + bob, -0.27f},  // 15, 16 shoulders
+                {-0.56f, 0.68f + bob, 0.27f}, {-0.56f, 0.68f + bob, -0.27f}, // 17, 18 haunches
+                {0.46f + 0.16f * fl, 0.30f, 0.25f}, {0.48f + 0.38f * fl, 0.02f + 0.14f * up(s), 0.24f},
+                {0.46f + 0.16f * fr, 0.30f, -0.25f}, {0.48f + 0.38f * fr, 0.02f + 0.14f * up(s - 0.5f), -0.24f},
+                {-0.58f + 0.14f * hl, 0.30f, 0.25f}, {-0.62f + 0.34f * hl, 0.02f + 0.14f * up(s + Mth.PI), 0.24f},
+                {-0.58f + 0.14f * hr, 0.30f, -0.25f}, {-0.62f + 0.34f * hr, 0.02f + 0.14f * up(s + Mth.PI - 0.5f), -0.24f}};
     }
 
     /** A hawk: wings beating ({@code flap} -1..1) or folded for the stoop ({@code tuck} 1), talons out to {@code strike}. */

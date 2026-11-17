@@ -181,6 +181,13 @@ public final class RangerPath {
         HELD.put(e, new long[]{now(p) + ticks, p.getId()});
     }
 
+    /** A blow that does not shove. What stings or strikes many times over must not drive its victim out of reach. */
+    private static void unmoved(LivingEntity e, Runnable blow) {
+        Vec3 before = e.getDeltaMovement();
+        blow.run();
+        e.setDeltaMovement(before);
+    }
+
     /** Whether a trap, snare, net or pin is holding the creature. Public for the game tests. */
     public static boolean caught(LivingEntity e, long now) {
         long[] held = HELD.get(e);
@@ -373,7 +380,7 @@ public final class RangerPath {
             later(p, i * 3, () -> {
                 // each arrow goes where the hunter is looking by then
                 LivingEntity target = aim(p, 32, x -> canHit(p, x));
-                fx(p, Kind.ARROW, s.color(), target != null ? mid(target) : aimPoint(p, 32), 0.7f, 0);
+                fx(p, Kind.ARROW, s.color(), target != null ? mid(target) : aimPoint(p, 32), 0.85f, 0);
                 sound(p, SoundEvents.ARROW_SHOOT, 0.8f, pitch);
                 if (target != null) shot(p, s, target, (4 * m(l, tier(p)) + agi(p, 0.08f)) * aimed);
             });
@@ -540,7 +547,7 @@ public final class RangerPath {
                 }
                 float dmg = 2 * m(l, tier(p)) + sense(p, 0.05f);
                 for (LivingEntity e : foes(p, host[0].position(), 3)) {
-                    hit(p, s, e, dmg);
+                    unmoved(e, () -> hit(p, s, e, dmg));
                     Statuses.apply(e, DamageElement.POISON, 4 + l, p);
                 }
                 sound(host[0], SoundEvents.BEE_STING, 0.6f, 1.3f);
@@ -688,6 +695,8 @@ public final class RangerPath {
             rock.dropItem = false;
             rock.disableDrop();
             rock.setDeltaMovement(0, -0.7 - level.random.nextDouble() * 0.1, 0);
+            // it was shown to those watching before it had this speed: tell them, or they see it drift down from rest
+            rock.hurtMarked = true;
         }
     }
 
@@ -958,7 +967,8 @@ public final class RangerPath {
      * {@link #CONDUCTIVE}), and the Storm Battery fills a little.
      */
     private static void zap(ServerPlayer p, Skill s, LivingEntity e, float damage) {
-        asShot(() -> magic(p, s, e, damage));
+        // a jolt, not a shove: a storm that struck its victims away would strike each of them once
+        unmoved(e, () -> asShot(() -> magic(p, s, e, damage)));
         long now = now(p);
         CHARGED.put(e, new long[]{now + 120, p.getId()});
         int battery = SkillAPI.level(p, STORM_BATTERY);
