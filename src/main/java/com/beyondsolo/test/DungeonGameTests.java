@@ -1,6 +1,9 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.depths.DepthsBuild;
+import com.beyondsolo.depths.HiddenKind;
+import com.beyondsolo.depths.HiddenSealBlock;
 import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.gate.DungeonLayout;
 import com.beyondsolo.gate.DungeonLayout.Room;
@@ -19,12 +22,16 @@ import com.beyondsolo.system.PlayerRank;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -207,24 +214,69 @@ public final class DungeonGameTests {
     }
 
     /**
+     * Every realm is carved, walked and wiped as well, each in one of its own shapes: what dresses a dungeon differs
+     * from realm to realm (pools, pillars, roots, coffins, railings), and none of it may stand in the way. Five at a
+     * time, so the dungeons aren't all carved at once.
+     */
+    @GameTestGenerator
+    public static List<TestFunction> everyRealmIsCarvedWalkedAndWiped() {
+        List<TestFunction> out = new ArrayList<>();
+        int n = 0;
+        for (GateRealm realm : GateRealm.values()) {
+            if (realm.weight == 0) continue;
+            long seed = 0xD00DL + realm.ordinal() * 104729L;
+            DungeonShape shape = realm.shapeFor(seed);
+            int ranks = realm.maxRank.ordinal() - realm.minRank.ordinal() + 1;
+            PlayerRank rank = PlayerRank.values()[realm.minRank.ordinal() + (int) (seed % ranks)];
+            out.add(new TestFunction("beyondsolo_realms_" + n++ / 5, "dungeongametests.realm_" + realm.id(), BeyondSolo.MOD_ID + ":" + ARENA,
+                    900, 0, true, helper -> carveWalkWipe(helper, rank, realm, shape, seed)));
+        }
+        if (EXPLORE) {
+            for (GateRealm realm : GateRealm.values()) {
+                if (realm.weight == 0) continue;
+                for (DungeonShape shape : realm.shapes()) {
+                    long seed = 0xE0E0L + realm.ordinal() * 7727L + shape.ordinal() * 15485863L;
+                    PlayerRank rank = (realm.ordinal() + shape.ordinal()) % 2 == 0 ? realm.maxRank : realm.minRank;
+                    out.add(new TestFunction("beyondsolo_explore_" + n++ / 6, "dungeongametests.explore_" + realm.id() + "_" + shape.id(),
+                            BeyondSolo.MOD_ID + ":" + ARENA, 900, 0, true, helper -> carveWalkWipe(helper, rank, realm, shape, seed)));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static final boolean EXPLORE = true;
+
+    /**
      * Opens a gate of the realm and shape, carves its dungeon, checks you can stand at the entrance, walk every
      * passage and find the boss in its room, then closes it and checks every block of it went back to rock.
      */
     private static void carveWalkWipe(GameTestHelper helper, PlayerRank rank, GateRealm realm, DungeonShape shape) {
-        MinecraftServer server = helper.getLevel().getServer();
         // a fixed seed per shape, so a failure can be looked at again
-        long seed = 0x5EEDL + shape.ordinal() * 7919L + realm.ordinal() * 131L;
+        carveWalkWipe(helper, rank, realm, shape, 0x5EEDL + shape.ordinal() * 7919L + realm.ordinal() * 131L);
+    }
+
+    private static void carveWalkWipe(GameTestHelper helper, PlayerRank rank, GateRealm realm, DungeonShape shape, long seed) {
+        MinecraftServer server = helper.getLevel().getServer();
         GateInstance g = GateData.get(server).create(UUID.randomUUID(), rank, seed, helper.getLevel().dimension(), helper.absolutePos(new BlockPos(3, 2, 3)));
         g.setDungeon(realm, shape);
+        // every dungeon carved here hides a chamber, so one is carved, sealed and opened in every realm and layout
+        g.depths().setHidden(HiddenKind.VAULT);
+        g.replan();
         ServerLevel d = GateService.dungeon(server);
         helper.assertTrue(d != null, "there is somewhere to carve");
         GateService.buildNow(server, g);
+        // the chunks loaded last (often the boss's) only finish loading on the server thread's next turn; until then
+        // a creature added to them is there but not yet in the world's lookup
+        while (d.getChunkSource().pollTask()) {
+        }
         helper.assertTrue(g.built() && g.realm() == realm && g.shape() == shape, "built as asked");
         String what = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + ": ";
 
         BlockPos e = g.entrance();
         helper.assertTrue(low(d, e) && open(d, e.above()), what + "room to stand at the entrance " + e + around(d, e));
-        helper.assertTrue(d.getBlockState(e.below()).isFaceSturdy(d, e.below(), Direction.UP), what + "ground at the entrance");
+        helper.assertTrue(d.getBlockState(e.below()).isFaceSturdy(d, e.below(), Direction.UP),
+                what + "ground at the entrance " + e + " (layout " + e.subtract(g.origin()).toShortString() + ")" + around(d, e));
         helper.assertTrue(open(d, g.bossRoomCenter().above()) && open(d, g.bossRoomCenter().above(2)), what + "the boss's room is hollow");
         helper.assertTrue(g.bossSpawned() && g.boss() != null && d.getEntity(g.boss()) instanceof GateBossEntity, what + "the boss is waiting");
 
@@ -240,11 +292,81 @@ public final class DungeonGameTests {
             }
         }
 
+        // and on foot from the entrance, every room is reached: walking, stepping or jumping up a block, dropping
+        // no further than a fall that doesn't hurt
+        BlockPos o = g.origin();
+        Set<Long> reached = onFoot(d, e, 800_000);
+        boolean[] got = new boolean[layout.rooms().size()];
+        BlockPos[] nearest = new BlockPos[got.length];
+        double[] best = new double[got.length];
+        java.util.Arrays.fill(best, Double.MAX_VALUE);
+        for (long k : reached) {
+            BlockPos p = BlockPos.of(k);
+            double lx = p.getX() - o.getX() + 0.5, ly = p.getY() - o.getY(), lz = p.getZ() - o.getZ() + 0.5;
+            for (Room r : layout.rooms()) {
+                if (got[r.index()] || r.kind() == DungeonLayout.Kind.HIDDEN) continue;
+                if (r.contains(lx, ly, lz, 1.0)) {
+                    got[r.index()] = true;
+                    continue;
+                }
+                double dd = sq(lx - r.center().getX()) + sq(ly - r.floorY()) + sq(lz - r.center().getZ());
+                if (dd < best[r.index()]) {
+                    best[r.index()] = dd;
+                    nearest[r.index()] = p;
+                }
+            }
+        }
+        for (Room r : layout.rooms()) {
+            if (got[r.index()] || r.kind() == DungeonLayout.Kind.HIDDEN) continue;
+            BlockPos near = nearest[r.index()];
+            helper.fail(what + "room " + r.index() + " (" + r.kind() + " " + r.shape() + " at layout " + r.center().toShortString()
+                    + ", floor " + r.floorY() + ") can't be reached on foot from the entrance (" + reached.size() + " spots reached"
+                    + (near == null ? "" : "; the nearest is layout " + near.subtract(o).toShortString() + around(d, near)
+                    + "\n" + map(d, near, reached)) + ")");
+            return;
+        }
+
+        // the hidden chamber can't be walked into past its wall, and can be once the wall is down
+        Room hidden = layout.hidden();
+        if (hidden != null) {
+            BlockPos in = inside(reached, hidden, o);
+            if (in != null) {
+                helper.fail(what + "the hidden chamber can be walked into without breaking its wall, at layout " + in.subtract(o).toShortString()
+                        + "\n" + map(d, in, reached));
+                return;
+            }
+            DepthsBuild.Mouth m = DepthsBuild.sealMouth(g);
+            helper.assertTrue(m != null, what + "the hidden chamber's way in has a mouth");
+            BlockPos mouth = BlockPos.containing(m.center());
+            int reach = (int) Math.ceil(m.radius() + 3);
+            // it passes for the realm's own walls
+            Set<Block> walls = new java.util.HashSet<>();
+            net.minecraft.util.RandomSource rs = net.minecraft.util.RandomSource.create(7);
+            for (int y = d.getMinBuildHeight(); y < d.getMaxBuildHeight(); y++) for (int i = 0; i < 12; i++) walls.add(realm.wallAt(y, rs).getBlock());
+            walls.add(realm.mainWall().getBlock());
+            int seals = 0;
+            for (BlockPos p : BlockPos.betweenClosed(mouth.offset(-reach, -reach, -reach), mouth.offset(reach, reach, reach))) {
+                BlockState seal = d.getBlockState(p);
+                if (!(seal.getBlock() instanceof HiddenSealBlock)) continue;
+                Block mimic = seal.getValue(HiddenSealBlock.LOOK).mimic;
+                helper.assertTrue(walls.contains(mimic), what + "the hidden wall passes for " + mimic + ", not one of the realm's walls");
+                d.setBlock(p, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+                seals++;
+            }
+            helper.assertTrue(seals >= 4, what + "a wall stands across the hidden chamber's way in: " + seals);
+            Set<Long> opened = onFoot(d, e, 800_000);
+            if (inside(opened, hidden, o) == null) {
+                helper.fail(what + "the hidden chamber (at layout " + hidden.center().toShortString() + ", floor " + hidden.floorY()
+                        + ") can't be walked into with its wall down; the mouth is at layout " + mouth.subtract(o).toShortString()
+                        + "\n" + map(d, mouth, opened));
+                return;
+            }
+        }
+
         g.setState(GateInstance.State.CLOSED);
         helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
         // the builder walled the dungeon in rock first (the game-test world is open air), so any air left anywhere near
         // it is a part the wipe missed
-        BlockPos o = g.origin();
         for (int[] b : layout.boxes(6)) {
             BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
             for (int x = b[0]; x <= b[3]; x++) {
@@ -292,6 +414,105 @@ public final class DungeonGameTests {
             for (int dy = -1; dy <= 1; dy++) if (stand(d, c.above(dy))) return true;
         }
         return false;
+    }
+
+    /** Somewhere a player can stand: room for them, and something under their feet (or a slab, a step, snow in the block). */
+    private static boolean footing(ServerLevel d, BlockPos p) {
+        if (!stand(d, p)) return false;
+        if (!d.getBlockState(p).getCollisionShape(d, p).isEmpty()) return true;
+        return !d.getBlockState(p.below()).getCollisionShape(d, p.below()).isEmpty();
+    }
+
+    /**
+     * Every spot a player gets to on foot from {@code from} (feet positions): walking, stepping or jumping up one block
+     * where there's head room, or dropping off an edge no more than three blocks (a fall that doesn't hurt). No
+     * swimming. At most {@code limit} spots.
+     */
+    private static Set<Long> onFoot(ServerLevel d, BlockPos from, int limit) {
+        Set<Long> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<BlockPos> todo = new java.util.ArrayDeque<>();
+        seen.add(from.asLong());
+        todo.add(from);
+        while (!todo.isEmpty() && seen.size() < limit) {
+            BlockPos c = todo.poll();
+            boolean jump = open(d, c.above(2));
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos h = c.relative(dir);
+                List<BlockPos> next = new ArrayList<>(2);
+                if (footing(d, h)) {
+                    next.add(h);
+                } else if (open(d, h) && open(d, h.above())) {
+                    for (int k = 1; k <= 3; k++) {
+                        BlockPos q = h.below(k);
+                        if (footing(d, q)) {
+                            next.add(q);
+                            break;
+                        }
+                        if (!open(d, q)) break;
+                    }
+                }
+                if (jump && footing(d, h.above())) next.add(h.above());
+                for (BlockPos q : next) if (seen.add(q.asLong())) todo.add(q);
+            }
+        }
+        return seen;
+    }
+
+    /** A spot reached on foot inside a room, or null. */
+    private static BlockPos inside(Set<Long> reached, Room room, BlockPos o) {
+        for (long k : reached) {
+            BlockPos p = BlockPos.of(k);
+            if (room.contains(p.getX() - o.getX() + 0.5, p.getY() - o.getY(), p.getZ() - o.getZ() + 0.5, 1.0)) return p;
+        }
+        return null;
+    }
+
+    private static double sq(double v) {
+        return v * v;
+    }
+
+    /**
+     * A map seen from above around a spot, for a failure message, one character a column: {@code *} the spot,
+     * {@code o} a spot reached on foot within two blocks of its height, {@code ~} water or lava, {@code |} a wall, a
+     * fence or bars, {@code s} a slab, {@code /} a step, {@code #} solid at head height, {@code .} floor at the spot's
+     * height, {@code ,} floor a block or two down, and a blank for a drop.
+     */
+    private static String map(ServerLevel d, BlockPos at, Set<Long> reached) {
+        StringBuilder b = new StringBuilder();
+        for (int dz = -12; dz <= 12; dz++) {
+            for (int dx = -16; dx <= 16; dx++) {
+                BlockPos c = at.offset(dx, 0, dz);
+                char ch;
+                if (dx == 0 && dz == 0) ch = '*';
+                else if (reachedNear(reached, c)) ch = 'o';
+                else ch = cell(d, c);
+                b.append(ch);
+            }
+            b.append('\n');
+        }
+        return b.toString();
+    }
+
+    private static boolean reachedNear(Set<Long> reached, BlockPos c) {
+        for (int dy = -2; dy <= 2; dy++) if (reached.contains(c.above(dy).asLong())) return true;
+        return false;
+    }
+
+    private static char cell(ServerLevel d, BlockPos c) {
+        BlockState s = d.getBlockState(c);
+        if (!s.getFluidState().isEmpty()) return '~';
+        if (s.getBlock() instanceof net.minecraft.world.level.block.FenceBlock || s.getBlock() instanceof net.minecraft.world.level.block.WallBlock
+                || s.getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock) return '|';
+        if (s.getBlock() instanceof net.minecraft.world.level.block.SlabBlock) return 's';
+        if (s.getBlock() instanceof net.minecraft.world.level.block.StairBlock) return '/';
+        if (!open(d, c) && !open(d, c.above())) return '#';
+        if (!open(d, c)) return '.';
+        for (int k = 1; k <= 2; k++) {
+            BlockState under = d.getBlockState(c.below(k));
+            if (!under.getFluidState().isEmpty()) return '~';
+            if (!under.getCollisionShape(d, c.below(k)).isEmpty()) return k == 1 ? '.' : ',';
+        }
+        return ' ';
     }
 
     /** What is around a spot, for a failure message. */

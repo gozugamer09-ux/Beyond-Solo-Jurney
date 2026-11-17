@@ -170,21 +170,24 @@ final class DungeonPlanner {
                     return false;
                 }
             }
-            if (!exact) {
+            boolean pInFrom = DungeonLayout.within(p, from, 1.35);
+            // (a room on the rim of a chasm or by a shaft may itself open onto the space: the tunnel leaves it inside)
+            if (!exact && !DungeonLayout.within(p, from, 1.0)) {
                 for (Space s : spaces) {
                     double grow = 1 + (t.radius() + 4) / Math.max(1, Math.min(s.rx(), s.rz()));
                     if (s.contains(p[0], p[1], p[2], grow)) return false;
                 }
             }
-            boolean pInFrom = DungeonLayout.within(p, from, 1.35);
             for (Tunnel other : tunnels) {
                 boolean shares = other.from() == from.index() || other.to() == from.index();
+                // still inside the room it leaves, the tunnel is the room itself
+                if (!exact && shares && DungeonLayout.within(p, from, 1.0)) continue;
                 int m = exact ? 24 : Math.max(24, (int) (other.length() * 1.5));
                 for (int j = 0; j <= m; j++) {
                     double[] q = middle(other, j / (double) m, exact);
                     // where both are still inside the room they leave, they are the room itself
                     if (shares && pInFrom && DungeonLayout.within(q, from, 1.35)) continue;
-                    double need = t.radius() + other.radius() + 3 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
+                    double need = t.radius() + halfWidth(other) + 3 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
                     double ddx = p[0] - q[0], ddy = p[1] - q[1], ddz = p[2] - q[2];
                     if (ddx * ddx + ddy * ddy + ddz * ddz < need * need) return false;
                 }
@@ -194,7 +197,7 @@ final class DungeonPlanner {
             int m = exact ? 24 : Math.max(24, (int) (other.length() * 1.5));
             for (int j = 0; j <= m; j++) {
                 double[] q = middle(other, j / (double) m, exact);
-                double grow = other.radius() + 4 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
+                double grow = halfWidth(other) + 4 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
                 double dx = (q[0] - hidden.center().getX()) / (hidden.rx() + grow);
                 double dy = (q[1] - hidden.center().getY()) / (hidden.ry() + grow);
                 double dz = (q[2] - hidden.center().getZ()) / (hidden.rz() + grow);
@@ -202,6 +205,15 @@ final class DungeonPlanner {
             }
         }
         return true;
+    }
+
+    /** How far a passage's opening reaches either side of its middle (a winding stair's radius is its distance from its axis). */
+    private static double halfWidth(Tunnel t) {
+        return switch (t.style()) {
+            case SPIRAL -> 1.5;
+            case BRIDGE -> 2;
+            default -> t.radius();
+        };
     }
 
     /** The middle of a passage's opening at a point: a tube's own points, two above the walkway of the others. */

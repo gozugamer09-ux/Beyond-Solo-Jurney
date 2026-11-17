@@ -19,9 +19,11 @@ import com.beyondsolo.depths.WeatherService;
 import com.beyondsolo.enemy.Affinity;
 import com.beyondsolo.enemy.ElementalProfile;
 import com.beyondsolo.gate.DungeonLayout;
+import com.beyondsolo.gate.DungeonShape;
 import com.beyondsolo.gate.GateBlockEntity;
 import com.beyondsolo.gate.GateData;
 import com.beyondsolo.gate.GateInstance;
+import com.beyondsolo.gate.GateRealm;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.gate.GateTheme;
 import com.beyondsolo.gate.GateWiper;
@@ -238,29 +240,55 @@ public final class DepthsGameTests {
         for (GateTheme theme : GateTheme.values()) {
             for (long seed = 0; seed < 12; seed++) {
                 long s = 99991L * seed + theme.ordinal();
-                DungeonLayout plain = DungeonLayout.plan(s, theme, false);
-                DungeonLayout with = DungeonLayout.plan(s, theme, true);
-                helper.assertTrue(with.rooms().equals(DungeonLayout.plan(s, theme, true).rooms()), "same seed, same chamber");
-                helper.assertTrue(with.rooms().subList(0, plain.rooms().size()).equals(plain.rooms())
-                        && with.tunnels().subList(0, plain.tunnels().size()).equals(plain.tunnels()), "the rest of the cave is untouched");
                 tried++;
-                DungeonLayout.Room h = with.hidden();
-                if (h == null) continue;
-                placed++;
-                DungeonLayout.Tunnel t = with.hiddenTunnel();
-                helper.assertTrue(t != null && with.rooms().get(t.from()).kind() == DungeonLayout.Kind.CAVERN, "it hides off a cavern");
-                helper.assertTrue(with.tunnelsOf(h.index()).size() == 1, "one way in");
-                int[] bounds = with.bounds();
-                helper.assertTrue(bounds[2] - bounds[0] < GateInstance.SLOT_SPACING / 2 && bounds[3] - bounds[1] < GateInstance.SLOT_SPACING, "still fits in its slot");
-                for (DungeonLayout.Room o : with.rooms()) {
-                    if (o == h) continue;
-                    double min = o.reach() + h.reach();
-                    helper.assertTrue(o.center().distSqr(h.center()) >= min * min, "it overlaps no room");
-                }
+                if (secludedChamber(helper, DungeonLayout.plan(s, theme, false), DungeonLayout.plan(s, theme, true), DungeonLayout.plan(s, theme, true))) placed++;
             }
         }
         helper.assertTrue(placed >= tried * 3 / 4, "most caves have room for one: " + placed + "/" + tried);
+        // and in every realm, in every layout it is dug in
+        placed = 0;
+        tried = 0;
+        for (GateRealm realm : GateRealm.values()) {
+            if (realm.weight == 0) continue;
+            for (DungeonShape shape : realm.shapes()) {
+                for (long seed = 0; seed < 4; seed++) {
+                    long s = 7919L * seed + realm.ordinal() * 131L + shape.ordinal();
+                    GateTheme theme = GateTheme.of(seed % 2 == 0 ? realm.minRank : realm.maxRank);
+                    tried++;
+                    if (secludedChamber(helper, DungeonLayout.plan(s, theme, realm, shape, false), DungeonLayout.plan(s, theme, realm, shape, true),
+                            DungeonLayout.plan(s, theme, realm, shape, true))) placed++;
+                }
+            }
+        }
+        helper.assertTrue(placed >= tried * 9 / 10, "nearly every dungeon has room for one: " + placed + "/" + tried);
         helper.succeed();
+    }
+
+    /** Checks a dungeon planned without and with its hidden chamber (twice); true if the chamber found room. */
+    private static boolean secludedChamber(GameTestHelper helper, DungeonLayout plain, DungeonLayout with, DungeonLayout again) {
+        String what = with.realm().id() + "/" + with.shape().id() + ": ";
+        helper.assertTrue(with.rooms().equals(again.rooms()), what + "same seed, same chamber");
+        helper.assertTrue(with.rooms().subList(0, plain.rooms().size()).equals(plain.rooms())
+                && with.tunnels().subList(0, plain.tunnels().size()).equals(plain.tunnels()), what + "the rest of the cave is untouched");
+        DungeonLayout.Room h = with.hidden();
+        if (h == null) return false;
+        DungeonLayout.Tunnel t = with.hiddenTunnel();
+        DungeonLayout.Room from = t == null ? null : with.rooms().get(t.from());
+        helper.assertTrue(from != null && from.kind() != DungeonLayout.Kind.BOSS && from.shape() != DungeonLayout.Shape.ISLAND,
+                what + "it hides off a room on the way (not the boss's, not an island)");
+        // the caves of the original kind keep it where it always was: off a cavern
+        if (with.shape() == DungeonShape.CAVERNS && with.realm().build == GateRealm.Build.CAVE && !with.realm().corridors) {
+            helper.assertTrue(from.kind() == DungeonLayout.Kind.CAVERN, what + "it hides off a cavern");
+        }
+        helper.assertTrue(with.tunnelsOf(h.index()).size() == 1, what + "one way in");
+        int[] bounds = with.bounds();
+        helper.assertTrue(bounds[2] - bounds[0] < GateInstance.SLOT_SPACING / 2 && bounds[3] - bounds[1] < GateInstance.SLOT_SPACING, what + "still fits in its slot");
+        for (DungeonLayout.Room o : with.rooms()) {
+            if (o == h) continue;
+            double min = o.reach() + h.reach();
+            helper.assertTrue(o.center().distSqr(h.center()) >= min * min, what + "it overlaps no room");
+        }
+        return true;
     }
 
     @GameTest(template = ARENA, timeoutTicks = 300)

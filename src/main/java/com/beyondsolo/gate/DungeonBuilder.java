@@ -82,7 +82,10 @@ public final class DungeonBuilder {
         steps.add(once(this::liquids));
         for (Room room : layout.rooms()) {
             if (room.shape() == Shape.ISLAND) steps.add(once(level -> island(level, room)));
-            else steps.add(once(level -> terrace(level, room)));
+            else steps.add(once(level -> {
+                terrace(level, room);
+                ledge(level, room);
+            }));
         }
         for (Tunnel t : layout.tunnels()) steps.add(once(level -> walkway(level, t)));
         for (Space s : layout.spaces()) steps.add(once(level -> decor.space(level, s)));
@@ -671,6 +674,35 @@ public final class DungeonBuilder {
                     if (!here.isAir() && here.getFluidState().isEmpty()) break;
                     level.setBlock(p, y == top ? realm.floorAt(lx + ox, lz + oz, r) : realm.wall(r), FLAGS);
                 }
+            }
+        }
+    }
+
+    /**
+     * A room on the rim of a chasm keeps its whole floor: where the chasm ate into it, the floor runs on out over the
+     * drop as a ledge a few blocks thick, so the bridges that leave the room leave from its floor.
+     */
+    private void ledge(ServerLevel level, Room room) {
+        List<Space> voids = new ArrayList<>();
+        for (Space s : layout.spaces()) if (s.shape() == SpaceShape.VOID) voids.add(s);
+        if (voids.isEmpty()) return;
+        RandomSource r = new LegacyRandomSource(gate.seed() * 43 + room.index());
+        int top = room.floorY() - 1;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int dx = -room.rx() - 1; dx <= room.rx() + 1; dx++) {
+            for (int dz = -room.rz() - 1; dz <= room.rz() + 1; dz++) {
+                int lx = room.center().getX() + dx, lz = room.center().getZ() + dz;
+                if (!room.contains(lx, room.floorY() + 0.5, lz, 1.0)) continue;
+                int x = lx + ox, z = lz + oz;
+                if (!level.getBlockState(p.set(x, top, z)).isAir()) continue;
+                boolean eaten = false;
+                for (Space s : voids) {
+                    int[] span = span(s, x, z);
+                    if (span != null && span[0] <= top && span[1] >= top) eaten = true;
+                }
+                if (!eaten) continue;
+                level.setBlock(p, realm.floorAt(x, z, r), FLAGS);
+                for (int k = 1; k <= 3; k++) place(level, p.set(x, top - k, z), realm.wall(r));
             }
         }
     }
