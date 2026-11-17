@@ -441,7 +441,8 @@ public final class GateService {
             }
             if (room.kind() == DungeonLayout.Kind.BOSS) {
                 if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - (g.isTrial() ? 8 : 4)) wakeBoss(dungeon, g);
-            } else if (room.kind() != DungeonLayout.Kind.ENTRANCE && !g.roomTriggered(room.index()) && dist < room.reach() + 7) {
+            } else if (room.kind() != DungeonLayout.Kind.ENTRANCE && room.kind() != DungeonLayout.Kind.HIDDEN
+                    && !g.roomTriggered(room.index()) && dist < room.reach() + 7) {
                 g.triggerRoom(room.index());
                 data.setDirty();
                 spawnPack(dungeon, g, room);
@@ -579,8 +580,8 @@ public final class GateService {
             BlockPos cachePos = ground(level, center.relative(facing, 3));
             level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
             if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
-            // a chain of keyed runs pays a little more for each run in it
-            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g);
+            // a chain of keyed runs pays a little more for each run in it, and so does a cave with weather
+            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g) * com.beyondsolo.depths.WeatherService.rewardBonus(g);
             long xp = Math.round(g.theme().clearXp() * (double) bonus);
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));
