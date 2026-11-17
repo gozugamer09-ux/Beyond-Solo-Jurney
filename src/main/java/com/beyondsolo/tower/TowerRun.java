@@ -1458,6 +1458,12 @@ public final class TowerRun {
         return s == null ? -1 : s.clock;
     }
 
+    /** Tests ({@link TowerTestAccess}): the run's slot, the stretch of the Citadel its halls are raised in, or -1. */
+    static int slot(ServerPlayer player) {
+        Session s = SESSIONS.get(player.getUUID());
+        return s == null ? -1 : s.slot;
+    }
+
     /** A line for {@code /system tower info}. */
     public static String describe(ServerPlayer player) {
         Session s = SESSIONS.get(player.getUUID());
@@ -1490,11 +1496,9 @@ public final class TowerRun {
                 }
                 if (s.phase != Phase.FIGHT) return false;
                 LivingEntity boss = boss(s);
-                if (boss != null && s.bossDown < 0) {
-                    boss.discard();
-                    s.bossDown = s.tick - 200;
-                    bossFallen(s);
-                } else if (s.bossDown >= 0) {
+                if (boss != null) boss.discard();
+                if (s.mode == Mode.RUSH || s.boss != null || s.bossDown >= 0) {
+                    // a boss's floor (or bout) is won by its boss falling, even one that can't be seen right now
                     bossFallen(s);
                 } else {
                     crumble(s);
@@ -1514,7 +1518,7 @@ public final class TowerRun {
                 LivingEntity boss = boss(s);
                 if (boss == null) return false;
                 if (!s.bossAwake) wakeBoss(s, boss);
-                        boss.setInvulnerable(false);
+                boss.setInvulnerable(false);
                 boss.kill();
             }
             case "enrage" -> {

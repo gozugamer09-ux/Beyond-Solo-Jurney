@@ -388,16 +388,21 @@ public class CitadelLordEntity extends Monster implements GeoEntity, DungeonBoss
         }
     }
 
-    /** Marks the floor under his challengers (where they are going, not where they stand). */
+    /** Marks the floor under his challengers (where they are going, not where they stand): every hunter in the hall, and whatever he is fighting. */
     private void decree(ServerLevel server) {
         long at = server.getGameTime() + MARK_TICKS;
-        for (ServerPlayer p : server.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(48, 20, 48), this::canHit)) {
-            Vec3 lead = p.getKnownMovement().multiply(1, 0, 1).scale(8);
-            mark(server, floor(server, p.position().add(lead)), at, MARK, 1f);
+        List<LivingEntity> marked = new ArrayList<>(server.getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(48, 20, 48), this::canHit));
+        LivingEntity target = getTarget();
+        if (target != null && canHit(target) && !marked.contains(target) && distanceToSqr(target) < 48 * 48) marked.add(target);
+        for (LivingEntity e : marked) {
+            Vec3 lead = e.getKnownMovement().multiply(1, 0, 1).scale(8);
+            // where they are going, but no further than a few strides (a knockback is not a plan)
+            if (lead.lengthSqr() > 4.0 * 4.0) lead = lead.normalize().scale(4.0);
+            mark(server, floor(server, e.position().add(lead)), at, MARK, 1f);
             if (isEnraged()) {
                 for (int i = 0; i < 2; i++) {
                     float a = random.nextFloat() * Mth.TWO_PI;
-                    mark(server, floor(server, p.position().add(Mth.cos(a) * 4.5, 0, Mth.sin(a) * 4.5)), at + 4 + i * 4, MARK, 1f);
+                    mark(server, floor(server, e.position().add(Mth.cos(a) * 4.5, 0, Mth.sin(a) * 4.5)), at + 4 + i * 4, MARK, 1f);
                 }
             }
         }
