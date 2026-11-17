@@ -42,6 +42,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
@@ -50,6 +51,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -265,7 +267,7 @@ public final class DepthsGameTests {
 
             // out through the exit, into the world: told at once
             p.setTicksFrozen(120);
-            GateService.leave(p, g);
+            out(p, g);
             helper.assertTrue(p.level() == helper.getLevel(), "back in the world");
             helper.assertTrue(told.size() == 2 && isState(told.get(1), -1), "the screen is told the haze is behind it: " + said(told));
             helper.assertTrue(p.getTicksFrozen() == 0, "the frost a gale left thaws on the way out");
@@ -283,12 +285,22 @@ public final class DepthsGameTests {
             helper.assertTrue(told.size() == 4 && isState(told.get(3), -1), "after a fall the cave is behind the screen: " + said(told));
             DepthsTestAccess.beat(p);
             helper.assertTrue(told.size() == 5 && isState(told.get(4), haze), "still standing in it, it is told again: " + said(told));
-            GateService.leave(p, g);
+            out(p, g);
             helper.assertTrue(told.size() == 6 && isState(told.get(5), -1), "and let go of on the way out: " + said(told));
         } finally {
             DepthsTestAccess.listen(p, null);
         }
         helper.succeed();
+    }
+
+    /**
+     * Out through a cave's exit. In the game that is a change of dimension; the game test server has no gate dimension
+     * (its caves are carved into the overworld, see {@code GateService.dungeon}), so the change is played by hand.
+     */
+    private static void out(ServerPlayer p, GateInstance g) {
+        ResourceKey<Level> was = p.level().dimension();
+        GateService.leave(p, g);
+        if (p.level().dimension().equals(was)) DepthsTestAccess.changedDimension(p, GateService.DIMENSION);
     }
 
     private static boolean isState(DepthsPayload p, int weather) {

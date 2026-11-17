@@ -68,6 +68,14 @@ public final class DepthsTestAccess {
         DepthsHooks.beat(p);
     }
 
+    /**
+     * What happens when a player goes through to another dimension from {@code from}. The game test server has no gate
+     * dimension (caves are carved into its overworld), so a test plays the change the way out makes in the game.
+     */
+    public static void changedDimension(ServerPlayer p, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> from) {
+        DepthsHooks.changedDimension(p, from);
+    }
+
     /** What happens when a player comes back from a fall (test players can't be respawned). */
     public static void respawned(ServerPlayer p) {
         DepthsHooks.respawned(p);

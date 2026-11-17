@@ -178,7 +178,7 @@ public final class DepthsHooks {
      * cave is behind it (a cave it arrives in is told on the next beat). Out of the gate dimension, the frost a frost
      * gale left creeping in at the edge of the screen thaws at once.
      */
-    private static void changedDimension(ServerPlayer p, ResourceKey<Level> from) {
+    static void changedDimension(ServerPlayer p, ResourceKey<Level> from) {
         leftCave(p);
         if (from.equals(GateService.DIMENSION) && !p.level().dimension().equals(GateService.DIMENSION)) p.setTicksFrozen(0);
     }
