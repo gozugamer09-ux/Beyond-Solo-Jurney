@@ -193,6 +193,7 @@ public final class PenaltyZone {
         if (GateService.inTransit(p)) return true;
         if (com.beyondsolo.job.JobTrial.inTrial(p)) return true;
         if (com.beyondsolo.awakening.AwakeningService.inSequence(p)) return true;
+        if (com.beyondsolo.tower.TowerAPI.inCitadel(p)) return true;
         return com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p);
     }
 

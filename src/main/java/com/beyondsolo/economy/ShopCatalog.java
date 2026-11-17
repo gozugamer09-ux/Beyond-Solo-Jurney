@@ -147,6 +147,8 @@ public final class ShopCatalog {
         for (var e : com.beyondsolo.rune.Engraving.values()) {
             add(m, new Entry("rune_of_" + e.id(), Category.SPECIAL, () -> new ItemStack(e.item()), 3500, PlayerRank.C, 1, Special.NONE));
         }
+        add(m, new Entry("citadel_key", Category.SPECIAL, () -> new ItemStack(com.beyondsolo.tower.TowerModule.CITADEL_KEY.get()), 12000,
+                com.beyondsolo.tower.TowerAPI.KEY_RANK, 1, Special.NONE));
         add(m, new Entry("totem_of_undying", Category.SPECIAL, () -> new ItemStack(Items.TOTEM_OF_UNDYING), 3000, PlayerRank.B, 1, Special.NONE));
         add(m, new Entry("storage_expansion", Category.SPECIAL, () -> new ItemStack(Items.CHEST), 800, PlayerRank.E, 0, Special.EXPANSION));
         add(m, new Entry("hunter_license", Category.SPECIAL, () -> new ItemStack(EconomyModule.HUNTER_LICENSE.get()), 100, PlayerRank.E, 0, Special.LICENSE));
