@@ -258,8 +258,17 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
     at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
     poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
     on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
-  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling. Gauntlets are
-    worn: the fist sits on the outside of the hand, knuckles along the arm, so they lead the punch.
+  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling.
+  - Gauntlets (the `fist` kind) are worn, not held. `tools/gen_gauntlets.py` builds each as a few boxes in the arm's
+    own space (cuff, vambrace, plated hand, knuckle guard, claws or spikes), painted with the armor art kit at four
+    texels a pixel, and writes them as an item model (`models/item/worn/<name>.json`) whose hand transform undoes
+    what the game does to a held item, so the gauntlet lands on the arm and follows every animation. The weapon's
+    item model shows it for both hands and on the ground (a raised fist); the icon and item frames keep the sprite.
+    A second fit (`<name>_armored`, picked by the item property `beyondsolo:armored`) clears a chestplate's arm.
+    `client/combat/WornGauntlets` does the rest: a layer puts the pair's second gauntlet on the arm of the empty
+    hand, the arm keeps the empty-hand stance, and in first person the bare arms are drawn wearing them (the game
+    only draws an arm for an empty hand). `python3 tools/gauntlet_preview.py <name>` shows a design on a mannequin
+    without starting the game.
   - Better Combat reads `weapon_attributes` only when the server starts: after changing one, restart the server
     (`tools/uitest/stop.sh` and `start.sh`); `/reload` and a client restart are not enough.
 - **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers are

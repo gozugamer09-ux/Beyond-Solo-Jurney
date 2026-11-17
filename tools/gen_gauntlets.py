@@ -155,8 +155,10 @@ def frostbear(g):
     spread = 2.0 + g * 0.6
     return [
         ("cuff", "fur_ruff", ("ring", 2.5, 4.5, 3.0 + g), {}),
-        ("vambrace", "vambrace", ("ring", 4.25, 7.25, 2.5 + g), dict(key="metal", trim="trim", emblem="frost", side="snow")),
-        ("hand", "hand_lames", ("ring", 7.0, 10.5, 2.75 + g), dict(key="metal2", trim="trim", lames=3)),
+        ("underfur", "fur_under", ("ring", 2.75, 4.5, 2.75 + g), {}),
+        ("vambrace", "vambrace", ("ring", 4.25, 7.25, 2.5 + g), dict(key="metal", trim="trim", emblem="frost", side="claws",
+                                                                    straps="leather", rivet="metal")),
+        ("hand", "hand_lames", ("ring", 7.0, 10.5, 2.75 + g), dict(key="metal2", trim="trim", lames=3, rivet="metal")),
         ("knuckles", "knuckle_guard", ("ring", 9.75, 11.25, 3.0 + g, 3.25 + g, 2.5 + g), dict(key="metal", trim="trim", bumps=3)),
         ("crest", "gem", ("at", -0.75, 7.75, -(2.75 + g) - 0.5, 1.5, 1.5, 0.5), dict(key="crystal", rot=("z", 45), glow=True)),
     ] + _claws(g, 11.25, (-spread, 0.0, spread), -(3.25 + g) + 1.25, ((1.5, 1.5), (1.0, 1.5), (0.5, 1.0)), "ice_claw",
@@ -244,14 +246,20 @@ def _fc(bp):
     return bp.lx + 0.5 - bp.fw / 2.0
 
 
-def _rivet(bp, pts, color, kind):
-    """Round rivet heads two texels across at (strip x, y): lit top left, their shadow under them."""
-    hi, lo = bp.S(), bp.S()
+def _rivet(bp, pts, color, kind, same=False):
+    """Round rivet heads two texels across at (strip x, y): lit top left, their shadow under them. same: the rivet
+    is of the plate's own metal, so it is told apart by its light alone (a dark setting would read as a hole)."""
+    hi, lo, mid = bp.S(), bp.S(), bp.S()
     for x, y in pts:
         x, y = int(x) % bp.SW, int(y)
+        x1 = (x + 1) % bp.SW
         hi |= (bp.sx == x) & (bp.y == y)
-        lo |= ((bp.sx == (x + 1) % bp.SW) & ((bp.y == y) | (bp.y == y + 1))) | ((bp.sx == x) & (bp.y == y + 1))
-    bp.paint(hi | lo, color, kind, np.where(hi, 2.2, 0.2), edge=(0.3, 0.2, -1.2, -0.8), ao=1.5)
+        mid |= ((bp.sx == x1) & (bp.y == y)) | ((bp.sx == x) & (bp.y == y + 1))
+        lo |= (bp.sx == x1) & (bp.y == y + 1)
+    if same:
+        bp.paint(hi | mid | lo, color, kind, np.where(hi, 2.6, np.where(mid, 1.2, -0.9)), edge=(0, 0, 0, 0), ao=0.5)
+    else:
+        bp.paint(hi | mid | lo, color, kind, np.where(hi, 2.2, 0.2), edge=(0.3, 0.2, -1.2, -0.8), ao=1.5)
 
 
 def fur_ruff(w, bp, key="fur", lock=4):
@@ -275,6 +283,14 @@ def fur_ruff(w, bp, key="fur", lock=4):
     bp.erase((bp.y >= length) | point)
 
 
+def fur_under(w, bp, key="fur", lock=3):
+    """The fur in the shade under a ruff: what shows between the ragged tips instead of the arm."""
+    col, kind = w.c(key, "fur")
+    lp = bp.sx % lock
+    t = -1.9 + np.where(lp == 0, 0.5, np.where(lp == lock - 1, -0.5, 0.0)) + np.interp(bp.y, [0, bp.H - 1], [-0.6, 0.3])
+    bp.paint(bp.S(True), col, kind, t, edge=(0, 0, 0, 0), ao=0)
+
+
 def cuff_plate(w, bp, key="metal", trim="trim"):
     """A flared elbow cuff: plate between two rolled rims, a row of rivets, the opening for the arm on top."""
     col, kind = w.c(key)
@@ -294,10 +310,11 @@ def cuff_plate(w, bp, key="metal", trim="trim"):
     bp.paint(None, w.c("dark")[0], "dark", top=edge_d >= max(3, (bp.W - 16) // 2 + 1), top_tone=-1.0, edge=(0, 0, 0, 0), ao=0)
 
 
-def vambrace(w, bp, key="metal", trim="trim", emblem=None, side=None, straps=None):
+def vambrace(w, bp, key="metal", trim="trim", emblem=None, side=None, straps=None, rivet=None):
     """The forearm plate. emblem (front): "frost" = chevrons of inlaid ice running down to the hand, "shield" = a
-    raised shield. side (outer and inner faces alike): "snow" = an engraved snowflake, "flutes" = fluting.
-    straps: leather straps with buckles across the back (the underside of the forearm in a punch)."""
+    raised shield. side (outer and inner faces alike): "claws" = three claw marks filled with ice, "flutes" =
+    fluting. straps: leather straps with buckles across the back (the underside of the forearm in a punch).
+    rivet: the palette key of the rivet heads (default: the trim)."""
     col, kind = w.c(key)
     tc, tk = w.c(trim)
     H, W = bp.H, bp.W
@@ -329,9 +346,18 @@ def vambrace(w, bp, key="metal", trim="trim", emblem=None, side=None, straps=Non
         bp.paint(inner, mc, mk, np.where(fc < 0, 0.3, -0.5), edge=(-0.8, -0.5, 0.6, 0.4), ao=0)
         bar = inner & (ax < 1.0)
         bp.paint(bar, tc, tk, np.where(fc < 0, 1.5, 0.4), edge=(0.3, 0.2, -0.6, -0.3), ao=0.6)
-    if side == "snow":
-        for face_mid in (-(W + bp.D) / 2.0, (W + bp.D) / 2.0):
-            aw.stamp(bp, "snow", face_mid, 2 + max(0, (H - 5 - 7) // 2), tc, "crystal", 1.0)
+    if side == "claws":
+        # three slanted cuts on each side face, deepest in the middle: ice in the cut, its far wall in shadow
+        rows = H - 5 - 2
+        for i, dx in enumerate((-5.0, 0.0, 5.0)):
+            top = 2 + (1 if i != 1 else 0)
+            length = rows - (2 if i != 1 else 0)
+            along = bp.y - top
+            mid = dx + 1.5 - along * 0.75
+            cut = bp.sides & (along >= 0) & (along < length) & (np.abs(fc - mid) < 1.0)
+            wall = bp.sides & (along >= 0) & (along < length) & (fc - mid >= 1.0) & (fc - mid < 2.0)
+            bp.paint(wall, col, kind, -1.6, edge=(0, 0, 0, 0), ao=0)
+            bp.paint(cut, tc, "crystal", np.where(along < 1, 1.8, np.where(fc < mid, 1.0, 0.2)), edge=(0, 0, 0, 0), ao=0)
     if straps:
         lc, lk = w.c(straps, "leather")
         for y0 in (3, H - 7):
@@ -346,10 +372,11 @@ def vambrace(w, bp, key="metal", trim="trim", emblem=None, side=None, straps=Non
     for f in ("right", "front", "left"):
         x0, x1 = bp.b.face_x(f)
         pts += [(x0 + 2, 2), (x1 - 4, 2)]
-    _rivet(bp, pts, tc, tk)
+    rc, rk = w.c(rivet or trim)
+    _rivet(bp, pts, rc, rk, same=rivet is not None and rivet != trim)
 
 
-def hand_lames(w, bp, key="metal2", trim="trim", lames=3):
+def hand_lames(w, bp, key="metal2", trim="trim", lames=3, rivet=None):
     """The back of the hand: overlapping plates that let the fist close, each lit along its upper lip and dark under
     the next, the first one edged in trim."""
     col, kind = w.c(key)
@@ -360,8 +387,8 @@ def hand_lames(w, bp, key="metal2", trim="trim", lames=3):
     k = np.floor(bp.y / lh).astype(int)
     r = bp.y - np.floor(k * lh)                    # row inside its lame
     last = np.floor((k + 1) * lh) - np.floor(k * lh) - 1
-    lt = np.where(r == 0, 1.5, np.where(r == 1, 0.6, np.where(r == last, -1.5, np.where(r == last - 1, -0.5, 0.0))))
-    t = lt + aw.form(bp, m, kind, amp=0.8, vert=0.0, spec=0.0) + np.where(bp.lx == 0, 0.5, 0) + np.where(bp.lx == bp.fw - 1, -0.6, 0)
+    lt = np.where(r == 0, 1.4, np.where(r == 1, 0.6, np.where(r == last, -1.1, np.where(r == last - 1, -0.3, 0.15))))
+    t = lt + aw.form(bp, m, kind, amp=0.7, vert=0.0, spec=0.0) + np.where(bp.lx == 0, 0.5, 0) + np.where(bp.lx == bp.fw - 1, -0.6, 0)
     bp.paint(m, col, kind, t, top=bp.T(True), top_tone=-0.4, bottom=bp.T(True), bottom_tone=-2.0, edge=(0, 0, 0, 0))
     bp.paint(bp.rows(0, 2), tc, tk, np.where(bp.y == 0, 1.4, -0.2) + aw.form(bp, m, tk, amp=0.6, vert=0, spec=0), edge=(0, 0, 0, 0), ao=1.2)
     # a rivet at each end of every lame on the two side faces
@@ -372,7 +399,8 @@ def hand_lames(w, bp, key="metal2", trim="trim", lames=3):
             y = int(np.floor(i * lh)) + 2
             if y + 1 < H - 1:
                 pts += [(x0 + 2, y), (x1 - 4, y)]
-    _rivet(bp, pts, tc, tk)
+    rc, rk = w.c(rivet or trim)
+    _rivet(bp, pts, rc, rk, same=rivet is not None and rivet != trim)
 
 
 def knuckle_guard(w, bp, key="metal", trim="trim", bumps=3):
@@ -431,7 +459,7 @@ def gem(w, bp, key="gem", glow=True):
     bp.paint(m, col, "crystal", t, top=bp.T(True), top_tone=1.2, bottom=bp.T(True), bottom_tone=-1.0, edge=(0, 0, 0, 0))
 
 
-PAINTERS = {"fur_ruff": fur_ruff, "cuff_plate": cuff_plate, "vambrace": vambrace, "hand_lames": hand_lames,
+PAINTERS = {"fur_ruff": fur_ruff, "fur_under": fur_under, "cuff_plate": cuff_plate, "vambrace": vambrace, "hand_lames": hand_lames,
             "knuckle_guard": knuckle_guard, "ice_claw": ice_claw, "spike": spike, "gem": gem}
 NOT_PAINT_OPTS = ("rot",)
 
