@@ -627,11 +627,11 @@ public final class TowerGameTests {
     @GameTest(template = ARENA, timeoutTicks = 300)
     public static void lordMoves(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        // the arena's floor is its bottom layer: he stands on it (the slab roof clears his crown), the dummy off to one side of the crystal
-        BlockPos stand = new BlockPos(3, 1, 1);
+        // on the arena's floor (y 2 here; the slab roof clears his crown), the dummy off to one side of the crystal
+        BlockPos stand = new BlockPos(3, 2, 1);
         Vec3 standAt = Vec3.atBottomCenterOf(helper.absolutePos(stand));
         CitadelLordEntity lord = lord(helper, stand);
-        Villager dummy = dummy(helper, new BlockPos(5, 1, 4));
+        Villager dummy = dummy(helper, new BlockPos(5, 2, 4));
         helper.assertTrue(!lord.isAwake() && !lord.hurt(level.damageSources().generic(), 10f), "dormant: no harm");
         lord.wake();
         helper.assertTrue(lord.introTicks() > 0 && !lord.hurt(level.damageSources().generic(), 10f), "rising: no harm");

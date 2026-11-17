@@ -1105,7 +1105,7 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   the glare of his eyes, the blood moon's heat, the light that takes him as he dies), `TowerClientEvents`.
 - **Commands** (`/system tower ...`, level 2): bind, climb, enter <floor>, lord, endless, rush <tier>,
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
-  info, reset. All numbers are first guesses for the balancing pass.
+  sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
 ## World generation
 

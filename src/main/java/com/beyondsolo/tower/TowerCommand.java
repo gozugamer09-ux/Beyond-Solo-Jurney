@@ -23,7 +23,7 @@ import java.util.Arrays;
  *   <li>bind (the key, without the checks), climb (as the CITADEL page does, with them), enter &lt;floor&gt;, lord,
  *   endless, rush &lt;tier&gt;</li>
  *   <li>jump &lt;arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege&gt;, leave, cancel</li>
- *   <li>checkpoint &lt;floor&gt;, sigil, info, reset</li>
+ *   <li>checkpoint &lt;floor&gt;, sigil (the item), sigil dry &lt;kills&gt; (stages the pity), info, reset</li>
  * </ul>
  */
 @EventBusSubscriber(modid = com.beyondsolo.BeyondSolo.MOD_ID)
@@ -93,7 +93,16 @@ public final class TowerCommand {
                             ItemStack sigil = new ItemStack(TowerModule.SIGIL_OF_DOMINION.get());
                             if (!p.getInventory().add(sigil)) p.drop(sigil, false);
                             return 1;
-                        }))
+                        }).then(Commands.literal("dry").then(Commands.argument("kills", IntegerArgumentType.integer(0, TowerRun.SIGIL_PITY - 1))
+                                .executes(ctx -> {
+                                    // stages the pity: the Sigil not yet earned, and this many lord kills already gone by without it
+                                    ServerPlayer p = ctx.getSource().getPlayerOrException();
+                                    TowerData data = TowerAPI.data(p);
+                                    data.sigil = false;
+                                    data.sigilDry = IntegerArgumentType.getInteger(ctx, "kills");
+                                    TowerAPI.sync(p);
+                                    return 1;
+                                }))))
                         .then(Commands.literal("info").executes(ctx -> {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             TowerData data = TowerAPI.data(p);

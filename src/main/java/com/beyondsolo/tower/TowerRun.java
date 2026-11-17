@@ -1064,7 +1064,7 @@ public final class TowerRun {
         }
         p.heal(p.getMaxHealth() * BREATHER_HEAL);
         if (SystemAPI.hasSystem(p)) SystemAPI.restoreMana(p, SystemAPI.get(p).maxMana() * BREATHER_HEAL);
-        s.level.sendParticles(ParticleTypes.HAPPY_VILLAGER, p.getX(), p.getY() + 1, p.getZ(), 20, 0.5, 0.8, 0.5, 0);
+        s.level.sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 0.2, p.getZ(), 14, 0.7, 0.1, 0.7, 0.03);
         sound(s.level, p.position(), SoundEvents.BEACON_POWER_SELECT, 1f, 1.5f);
         setPhase(s, Phase.BREATHER);
         send(s);

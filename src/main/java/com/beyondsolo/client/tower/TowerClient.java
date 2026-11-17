@@ -23,6 +23,9 @@ public final class TowerClient {
     static int shownFloor = -1;
     static double floorAt = -100;
     static final TowerData DATA = new TowerData();
+    /** How long a cleared rush's stamp keeps the pop-ups waiting (the phase itself lasts a minute). */
+    static final float RUSH_CARD_SECONDS = 5.5f;
+    private static double gateMomentAt = -100;
 
     public static void onRun(TowerPayload p) {
         int was = run.phase();
@@ -39,6 +42,8 @@ public final class TowerClient {
             // the server's tick in the phase says how far in it already is (a late join, a resent packet)
             phaseStart = Anim.now() - p.tick() / 20.0;
             com.beyondsolo.client.notify.NotificationManager.setHeld(holds(p.phase()));
+            // pulled in: the Citadel takes the whole screen, and what was popping up out there waits in the Log
+            if (p.phase() == TowerPayload.PULL) com.beyondsolo.client.notify.NotificationManager.dismissShown();
         }
         int floorKey = p.mode() == TowerPayload.RUSH ? 10_000 + p.bout() : p.floor();
         if (floorKey != shownFloor) {
@@ -57,10 +62,25 @@ public final class TowerClient {
         DATA.deserializeNBT(null, p.data());
     }
 
-    /** Pop-ups wait while the screen belongs to the Citadel (pulled in, title cards, the climb, the end cards). */
+    /** Pop-ups wait while the screen belongs to the Citadel (pulled in, title cards, the climb, fallen, leaving). */
     private static boolean holds(int phase) {
         return phase == TowerPayload.PULL || phase == TowerPayload.ARRIVING || phase == TowerPayload.CLIMBING || phase == TowerPayload.FALLEN
                 || phase == TowerPayload.LEAVING;
+    }
+
+    /**
+     * The end cards (the throne taken, a rush cleared) keep the System's pop-ups waiting while they show, so the rewards'
+     * pop-ups come in after them. The pop-ups ask this every frame (like a dungeon break's banner).
+     */
+    public static boolean holdsPopups() {
+        int phase = run.phase();
+        return phase == TowerPayload.VICTORY || phase == TowerPayload.RUSH_DONE && cardAge() < RUSH_CARD_SECONDS;
+    }
+
+    /** How long the phase's card has been up: a boss's fall plays its own DEFEATED moment first, and the card waits for it. */
+    static float cardAge() {
+        if (com.beyondsolo.client.gate.GateOverlay.active()) gateMomentAt = Anim.now();
+        return Math.min(phaseAge(), Anim.since(gateMomentAt));
     }
 
     private static long gameTime() {

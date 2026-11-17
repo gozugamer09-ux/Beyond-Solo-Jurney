@@ -46,6 +46,7 @@ public final class TowerHud {
     static final int GLASS_BOTTOM = 0xE60D0306;
 
     private static float plaqueIn;
+    private static float railDrop;
     private static float holdShown;
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
@@ -62,6 +63,9 @@ public final class TowerHud {
         plaqueIn = Anim.approach(plaqueIn, plaque ? 1 : 0, plaque ? 4f : 7f);
         if (plaqueIn > 0.01f) plaque(g, w, r, partial);
 
+        // a boss's fall plays its own DEFEATED moment first: the breather's ring and a rush's end card wait for it to finish
+        float cardAge = TowerClient.cardAge();
+
         switch (r.phase()) {
             case TowerPayload.PULL -> pull(g, w, h, age, r);
             case TowerPayload.ARRIVING -> arriving(g, w, h, age, r);
@@ -74,9 +78,9 @@ public final class TowerHud {
             case TowerPayload.CLIMBING -> climbing(g, w, h, age, r);
             case TowerPayload.VICTORY -> victory(g, w, h, age);
             case TowerPayload.BREATHER -> {
-                if (!hide) breather(g, w, h, age, r, partial);
+                if (!hide) breather(g, w, h, age, cardAge, r, partial);
             }
-            case TowerPayload.RUSH_DONE -> rushDone(g, w, h, age, r, partial);
+            case TowerPayload.RUSH_DONE -> rushDone(g, w, h, cardAge, r, partial);
             case TowerPayload.FALLEN -> fallen(g, w, h, age, r);
             case TowerPayload.LEAVING -> leaving(g, w, h, age);
             default -> afterglow(g, w, h);
@@ -89,8 +93,9 @@ public final class TowerHud {
 
     // ================================================================ the plaque
 
+    /** Under the boss bar when there is one, and under the player's status rail (burns, venom) when it reaches this far. */
     private static float plaqueTop() {
-        return 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn());
+        return 6 + 34 * Math.max(Anim.outCubic(GateOverlay.bossBarIn()), Anim.outCubic(railDrop));
     }
 
     private static float plaqueBottom() {
@@ -118,6 +123,8 @@ public final class TowerHud {
         float statusW = status == null ? 0 : SysFont.width(status, rush || TowerClient.siege() ? 9f : 7f, true);
         float bw = 28 + leftW + (status == null ? 10 : 18 + statusW + 10);
         float x = (w - bw) / 2f;
+        boolean crowded = com.beyondsolo.client.combat.CombatHud.railEnd() > x - 4;
+        railDrop = Anim.approach(railDrop, crowded ? 1 : 0, 6f);
 
         float old = Gfx.fade(Math.min(1, plaqueIn * 1.3f));
         boolean won = r.phase() == TowerPayload.CLEARED || r.phase() == TowerPayload.RUSH_DONE;
@@ -330,10 +337,10 @@ public final class TowerHud {
     }
 
     /** Between bouts: a ring counting down, the bout to come, a little health back. */
-    private static void breather(GuiGraphics g, int w, int h, float age, TowerPayload r, float partial) {
+    private static void breather(GuiGraphics g, int w, int h, float age, float shownFor, TowerPayload r, float partial) {
         float total = Math.max(1, r.length() / 20f);
         float left = Math.max(0, total - age);
-        float in = Anim.outBack(Anim.window(age, 0.1f, 0.6f));
+        float in = Anim.outBack(Anim.window(shownFor, 0.1f, 0.6f));
         if (in <= 0.01f) return;
         float old = Gfx.fade(Mth.clamp(in, 0, 1));
         float cx = w / 2f, cy = h * 0.3f;
@@ -436,7 +443,8 @@ public final class TowerHud {
         int color;
         switch (ev) {
             case TowerPayload.EV_WAVE -> {
-                title = Component.translatable("tower.beyondsolo.ev.wave", r.wave(), r.waves()).getString();
+                title = r.mode() == TowerPayload.RUSH ? Component.translatable("tower.beyondsolo.ev.bout", r.bout(), Math.max(1, r.bouts())).getString()
+                        : Component.translatable("tower.beyondsolo.ev.wave", r.wave(), r.waves()).getString();
                 sub = "";
                 color = CRIMSON;
             }

@@ -55,6 +55,7 @@ public final class CombatHud {
     }
 
     private static final List<Slot> RAIL = new ArrayList<>();
+    private static float railEnd;
     private static float burnTint, venomTint, brandTint;
     private static double flashAt = -10;
     private static int flashColor;
@@ -103,6 +104,7 @@ public final class CombatHud {
         if (ClientConfig.ENEMY_METERS.get()) enemyMeters(g, mc, delta.getGameTimeDeltaPartialTick(true));
         FloatingNumbers.render(g);
         if (ClientConfig.SHOW_HUD.get() && !mc.getDebugOverlay().showDebugScreen()) rail(g, mc);
+        else railEnd = 0;
     }
 
     private static void screenEffects(GuiGraphics g, Minecraft mc) {
@@ -211,6 +213,11 @@ public final class CombatHud {
 
     // ---- the player's own rail ----
 
+    /** Where the rail ends on the right, in GUI pixels (0 when it is empty), so other pieces along the top can keep clear of it. */
+    public static float railEnd() {
+        return railEnd;
+    }
+
     private static Slot slot(String key) {
         for (Slot s : RAIL) if (s.key.equals(key)) return s;
         Slot s = new Slot(key);
@@ -249,6 +256,7 @@ public final class CombatHud {
             Gfx.setAlpha(old);
             x += width * s.visible + 5 * s.visible;
         }
+        railEnd = RAIL.isEmpty() ? 0 : x;
     }
 
     /** Draws one rail slot with its left edge at x. Returns the width it took. */
