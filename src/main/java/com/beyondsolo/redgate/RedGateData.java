@@ -58,8 +58,11 @@ public final class RedGateData extends SavedData {
         return defused.contains(gate);
     }
 
+    /** It will never turn red (again), whatever forced it before. */
     void defuse(UUID gate) {
-        if (defused.add(gate)) setDirty();
+        boolean changed = defused.add(gate);
+        if (forced.remove(gate)) changed = true;
+        if (changed) setDirty();
     }
 
     boolean forced(UUID gate) {

@@ -52,7 +52,9 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -89,10 +91,20 @@ public final class RedGateGameTests {
         return g;
     }
 
-    /** Keeps the chunks round a spot loaded and ticking (nobody real is there to keep them so). */
-    private static void forceChunks(ServerLevel level, BlockPos at, int radius, boolean on) {
+    /**
+     * Keeps the chunks round a spot loaded and ticking (nobody real is there to keep them so); turning them on waits
+     * (see {@link TestChunks}) until they tick, so that creatures added there can be found at once.
+     */
+    private static boolean forceChunks(ServerLevel level, BlockPos at, int radius, boolean on) {
         ChunkPos c = new ChunkPos(at);
-        for (int x = -radius; x <= radius; x++) for (int z = -radius; z <= radius; z++) level.setChunkForced(c.x + x, c.z + z, on);
+        List<ChunkPos> chunks = new ArrayList<>();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                level.setChunkForced(c.x + x, c.z + z, on);
+                chunks.add(new ChunkPos(c.x + x, c.z + z));
+            }
+        }
+        return !on || TestChunks.ticking(level, chunks);
     }
 
     private static long progress(ServerPlayer p) {
@@ -268,18 +280,20 @@ public final class RedGateGameTests {
         helper.assertTrue(run.built() && run.keep() != null && !run.camps().isEmpty(), "the patch is built: the keep and its camps");
         BlockPos spot = RedGateTestAccess.bossSpot(run);
         helper.assertTrue(red.getBlockState(spot).isAir() && red.getBlockState(spot.above(2)).isAir(), "room for its master in the keep");
-        forceChunks(red, spot, 1, true);
+        helper.assertTrue(forceChunks(red, spot, 1, true) && forceChunks(red, run.exit(), 0, true), "the keep's and the breach's chunks are ready");
         long before = progress(p);
         RedRecord record = p.getData(RedGateModule.RECORD);
         int cleared = record.cleared();
         GateBlockEntity exit = (GateBlockEntity) red.getBlockEntity(run.exit());
+        helper.assertTrue(exit.isRed(), "the breach's way out burns red");
         helper.startSequence()
                 .thenIdle(5)
                 .thenExecute(() -> {
                     helper.assertTrue(RedGateTestAccess.jump(p, "clear", 0), "its master is there to fall");
                     helper.assertTrue(run.cleared() && run.state() == RedGate.State.RELEASED, "the seal is broken");
-                    helper.assertFalse(exit.isRed(), "the breach's way out is red no more");
                 })
+                .thenWaitUntil(() -> helper.assertTrue(red.getBlockEntity(run.exit()) instanceof GateBlockEntity e && !e.isRed(),
+                        "the breach's way out is red no more"))
                 .thenWaitUntil(() -> {
                     boolean cache = false;
                     for (BlockPos q : BlockPos.betweenClosed(spot.offset(-8, -4, -8), spot.offset(8, 6, 8))) {
@@ -299,6 +313,7 @@ public final class RedGateGameTests {
                     helper.assertTrue(run.state() == RedGate.State.ENDED && g.state() == GateInstance.State.CLOSED, "it is over and the gate closes");
                     helper.assertFalse(RedGates.holding(g), "nothing held");
                     forceChunks(red, spot, 1, false);
+                    forceChunks(red, run.exit(), 0, false);
                     RedGateTestAccess.forget(server, g.id());
                 })
                 .thenSucceed();
@@ -317,7 +332,7 @@ public final class RedGateGameTests {
         RedGate run = RedGateTestAccess.startNow(p, gate, g);
         helper.assertTrue(run != null, "in");
         BlockPos at = p.blockPosition();
-        forceChunks(red, at, 3, true);
+        helper.assertTrue(forceChunks(red, at, 3, true), "the chunks round the hunter are ready");
         long t0 = run.insideTime();
         long[] since = {red.getGameTime()};
         int rate = RedGateConfig.timeRate();
