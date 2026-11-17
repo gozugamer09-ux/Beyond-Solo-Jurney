@@ -60,7 +60,7 @@ public class GateMonsterEntity extends Monster implements GeoEntity {
     /** Ticks left of a shambler lying on the ground before it gets back up (0: standing). */
     private static final EntityDataAccessor<Integer> DOWNED = SynchedEntityData.defineId(GateMonsterEntity.class, EntityDataSerializers.INT);
     /** How long a shambler stays down: its "revive" animation, the fall and the rise. */
-    static final int DOWN_TICKS = 60;
+    public static final int DOWN_TICKS = 60;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final MonsterKind kind;
