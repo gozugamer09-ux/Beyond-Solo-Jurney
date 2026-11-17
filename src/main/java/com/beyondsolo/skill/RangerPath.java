@@ -1292,8 +1292,9 @@ public final class RangerPath {
                 last[0] = e.position();
                 float dmg = 9 * m(l, tier(p)) + agi(p, 0.2f) + sense(p, 0.1f);
                 fx(p, Kind.ARROW, s.color(), e.position().add(0, 0.1, 0), 1.3f, 8);
-                shot(p, s, e, dmg);
-                for (LivingEntity near : foes(p, e.position(), 2)) if (near != e) shot(p, s, near, dmg * 0.5f);
+                // straight down: they nail what they hit to the spot, so the last arrow finds everyone still there
+                unmoved(e, () -> shot(p, s, e, dmg));
+                for (LivingEntity near : foes(p, e.position(), 2)) if (near != e) unmoved(near, () -> shot(p, s, near, dmg * 0.5f));
                 sound(p, SoundEvents.ARROW_SHOOT, 0.8f, 0.8f);
                 sound(e, SoundEvents.TRIDENT_HIT_GROUND, 0.8f, 1.2f);
             });

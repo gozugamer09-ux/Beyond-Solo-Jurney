@@ -1621,12 +1621,12 @@ public final class SkillWorldFx {
                             last = pt;
                         }
                     }
-                    // and the dust it lifts where it started
-                    Vec3 foot = fx.origin.subtract(at);
-                    pose.translate(foot.x, foot.y, foot.z);
-                    for (int i = 0; i < 2; i++) {
-                        float k = ((age + i * 0.3f) % 0.6f) / 0.6f;
-                        disc(pose, buffers, RING, 0.06f, p.size() * (0.5f + 1.6f * k), 0, i == 0 ? light : c, hold * (1 - k) * 0.8f);
+                    // and the dust it lifts where it started: thrown outwards once and gone, not a circle to stand in
+                    float k = age / 0.45f;
+                    if (k < 1) {
+                        Vec3 foot = fx.origin.subtract(at);
+                        pose.translate(foot.x, foot.y, foot.z);
+                        disc(pose, buffers, RING, 0.06f, p.size() * (0.5f + 2.2f * k), 0, light, (1 - k) * (1 - k) * 0.7f);
                     }
                 }
                 case QUIVER -> {
@@ -1654,26 +1654,34 @@ public final class SkillWorldFx {
                     Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
                     Vec3 side = new Vec3(-look.z, 0, look.x);
                     float half = p.size() / 2 * (1 - (1 - Mth.clamp(age / 0.25f, 0, 1)) * (1 - Mth.clamp(age / 0.25f, 0, 1)));
-                    int n = Math.round(p.size() * 3.2f);
+                    float tall = 3.4f;
+                    int n = Math.round(p.size() * 2.4f);
                     for (int i = 0; i < n; i++) {
                         long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
                         float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
-                        float period = 0.45f + 0.4f * v;
+                        float period = 0.55f + 0.4f * v;
                         float phase = ((age + w * period) / period) % 1f;
                         float x = (u * 2 - 1) * half;
-                        float y = phase * 3.4f;
-                        // each gust rises, leans with the wind and bows out of the wall a little
-                        float bow = 0.25f * Mth.sin(phase * Mth.TWO_PI + i);
-                        Vec3 foot = side.scale(x).add(look.scale(bow)).add(0, y, 0);
-                        Vec3 top = side.scale(x + 0.12f).add(look.scale(bow + 0.1f)).add(0, y + 0.7f + 0.5f * v, 0);
-                        streak(pose, buffers, camera, base, foot, top, 0.14f + 0.1f * w, i % 3 == 0 ? light : c, Mth.sin(phase * Mth.PI) * hold * 0.8f);
+                        // each gust climbs the wall in a slow S, the way smoke does in a draught: straight lines would be rain
+                        Vec3 last = null;
+                        for (int sgm = 0; sgm <= 4; sgm++) {
+                            float ph = phase - sgm * 0.07f;
+                            if (ph < 0) break;
+                            float sway = 0.5f * Mth.sin(ph * 7.5f + i * 2.3f);
+                            float bow = 0.22f * Mth.sin(ph * Mth.TWO_PI + i);
+                            Vec3 pt = side.scale(Mth.clamp(x + sway, -half, half)).add(look.scale(bow)).add(0, ph * tall, 0);
+                            if (last != null) streak(pose, buffers, camera, base, pt, last, (0.17f + 0.1f * w) * (1 - sgm * 0.15f), i % 3 == 0 ? light : c,
+                                    Mth.sin(phase * Mth.PI) * hold * 0.8f * (1 - sgm * 0.2f));
+                            last = pt;
+                        }
                     }
-                    // the wall itself: a sheet of pale air, and the line it stands on
+                    // the wall itself: a sheet of pale air between the line it stands on and the line it ends at
                     for (int row = 0; row < 3; row++) {
                         float y = 0.6f + row * 1.1f + 0.1f * Mth.sin(time * 0.2f + row);
-                        streak(pose, buffers, camera, base, side.scale(-half).add(0, y, 0), side.scale(half).add(0, y, 0), 1.2f, c, hold * 0.13f);
+                        streak(pose, buffers, camera, base, side.scale(-half).add(0, y, 0), side.scale(half).add(0, y, 0), 1.2f, c, hold * 0.16f);
                     }
                     streak(pose, buffers, camera, base, side.scale(-half).add(0, 0.08, 0), side.scale(half).add(0, 0.08, 0), 0.22f, light, hold * 0.7f);
+                    streak(pose, buffers, camera, base, side.scale(-half).add(0, tall, 0), side.scale(half).add(0, tall, 0), 0.1f, c, hold * 0.35f);
                 }
                 case BEAST -> StarBeasts.render(pose, buffers, camera, at, fx.origin, fx.yaw, fx.target(), p.duration() % 10, p.duration() / 10 / 20f, p.size(), c, age, time);
                 case CLAW -> {
@@ -1822,6 +1830,8 @@ public final class SkillWorldFx {
                     float a = Mth.clamp(age / 0.4f, 0, 1) * Mth.clamp((life - age) / 0.8f, 0, 1);
                     int dark = mix(c, 0x3A475E, 0.7f);
                     int n = Mth.clamp(Math.round(r * r * 0.9f), 30, 110);
+                    // from the ground a wide cloud is looked through edge-on, many puffs deep: the wider, the fainter each one
+                    float thin = Math.min(1f, (float) Math.sqrt(6 / r));
                     // lightning somewhere inside it lights the cloud around it, a few times a second
                     long beat = (long) (time / 3);
                     for (int i = 0; i < n; i++) {
@@ -1831,7 +1841,7 @@ public final class SkillWorldFx {
                         float ang = v * Mth.TWO_PI + time * 0.006f * (0.5f + w);
                         float x = Mth.cos(ang) * dist, y = 7f + 1.1f * (w - 0.5f) + 0.12f * Mth.sin(time * 0.04f + i), z = Mth.sin(ang) * dist;
                         boolean lit = Math.floorMod((fx.seed ^ beat) * 0xC2B2AE3D27D4EB4FL + i * 0x165667B19E3779F9L >>> 20, 11) == 0;
-                        dot(pose, buffers, camera, x, y, z, 1.5f + 1.3f * w, lit ? mix(c, 0xFFFFFF, 0.6f) : dark, a * (lit ? 0.6f : 0.36f));
+                        dot(pose, buffers, camera, x, y, z, 1.5f + 1.3f * w, lit ? mix(c, 0xFFFFFF, 0.6f) : dark, a * (lit ? 0.5f : 0.26f) * thin);
                     }
                     // thin rain under it
                     for (int i = 0; i < 18; i++) {
