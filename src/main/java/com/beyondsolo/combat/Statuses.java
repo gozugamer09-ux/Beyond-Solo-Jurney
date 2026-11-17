@@ -94,9 +94,31 @@ public final class Statuses {
         CombatFx.play(target, CombatFxPayload.Kind.CRIMSON_BURST, 0);
     }
 
-    /** Blood pop: a fixed 10% of max health that armor, enchantments and Resistance can't soften. Players too. */
+    /** The share of max health a blood pop takes. */
+    public static final float POP_SHARE = 0.10f;
+    /** ...from a boss, an elite or a champion: at most this (in the 0.1.0 playtest pops took 15-20% off a boss). */
+    public static final float TOUGH_POP_SHARE = 0.05f;
+
+    /** Bosses (a gate's boss, the Arbiter, the boss tags) and elite or champion creatures: a pop takes less from them. */
+    public static boolean tough(LivingEntity e) {
+        return e instanceof com.beyondsolo.gate.DungeonBoss
+                || e.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES)
+                || e.getType().is(com.beyondsolo.shadow.ShadowModule.BOSSES)
+                || com.beyondsolo.enemy.EnemyTraits.of(e).variant().special();
+    }
+
+    /**
+     * The most one blood pop takes from {@code target}: 10% of its max health, 5% from a boss or an elite. It is a fixed
+     * share, so the bonuses a hit would get (marks, brands, buffs, set perks) never push it past this
+     * ({@link ElementalHits} caps it at the end of the damage).
+     */
+    public static float popCap(LivingEntity target) {
+        return target.getMaxHealth() * (tough(target) ? TOUGH_POP_SHARE : POP_SHARE);
+    }
+
+    /** Blood pop: a fixed share of max health ({@link #popCap}) that armor, enchantments and Resistance can't soften. Players too. */
     static void bloodPop(LivingEntity target, @Nullable Entity source) {
-        CombatDamage.deal(target, DamageElement.BLOOD, target.getMaxHealth() * 0.10f, source);
+        CombatDamage.deal(target, DamageElement.BLOOD, popCap(target), source);
         target.level().playSound(null, target.blockPosition(), SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, SoundSource.HOSTILE, 1f, 0.6f);
         target.level().playSound(null, target.blockPosition(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 0.8f, 0.5f);
         CombatFx.play(target, CombatFxPayload.Kind.BLOOD_POP, 0);

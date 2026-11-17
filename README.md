@@ -6,12 +6,14 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 
 - **You start with nothing.** No System, no windows, no quests: an ordinary player in an ordinary world, with gates
   tearing open around you. Low gates (rank D) open near players who have no System yet.
-- **The awakening trial.** The first time you clear a gate of rank D or higher, a **sealed gate** opens in front of
-  you as you step out. It will not let you leave: walk away and it pulls you back, run and it follows. Behind it lies
-  the **Ashen Threshold**, a long way down through bone-white caverns to the hall of the **Hollow Arbiter**, a
-  kneeling, faceless colossus in chains. It cannot reasonably be beaten. When it strikes you down you do not die and
-  you lose nothing: the screen goes dark, the first System window opens in the dark, and you wake outside with
-  **the System**. That is where the game begins.
+- **The awakening trial.** The first gate of rank D or higher you walk into without the System hides a **sealed
+  door**: a chamber past the boss's hall, walled off with rock that looks like the rest of the cave. Knocking gets you
+  nothing. When the boss falls, the wall breaks by itself and a sealed gate opens in the chamber, and the cave's way
+  out won't take you while it stands. Behind it lies the **Ashen Threshold**, a temple: a short way down past a stele
+  with the Arbiter's three tenets to the hall of the **Hollow Arbiter**, a kneeling, faceless colossus in chains, and
+  nothing else alive in there. The door shuts behind you. It cannot reasonably be beaten. When it strikes you down you
+  do not die and you lose nothing: the screen goes dark, the first System window opens in the dark, and you wake in
+  front of the gate you first went into, with **the System**. That is where the game begins.
 - **The hidden way.** The Arbiter can be killed. Whoever manages it still receives the System, with a title, and
   its cache holds one of four **legendary weapons** (Sunderveil, Ashen Oath, Nightglass Fang, Thorn Requiem),
   unbreakable and far beyond anything else in the game.

@@ -89,6 +89,13 @@ public final class HiddenRooms {
             crumble(level, connected(level, pos), pos);
             return;
         }
+        if (d.hidden(g) == HiddenKind.SEALED) {
+            // the sealed door's wall does not give to knocks: it breaks by itself once the boss has fallen
+            level.playSound(null, pos, SoundEvents.WARDEN_HEARTBEAT, SoundSource.BLOCKS, 1.6f, 0.5f);
+            level.playSound(null, pos, SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 0.8f, 0.4f);
+            p.displayClientMessage(Component.translatable("depths.beyondsolo.hidden.sealed.knock"), true);
+            return;
+        }
         knocks = ++d.knocks;
         float pitch = 0.55f + 0.12f * knocks;
         level.playSound(null, pos, SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.BLOCKS, 1.4f, pitch);
@@ -145,6 +152,8 @@ public final class HiddenRooms {
         long xp = 60L * (1 + g.rank().tier());
         for (ServerPlayer p : party) {
             PacketDistributor.sendToPlayer(p, fx);
+            // the sealed door is not the System's to find: no HIDDEN DUNGEON moment, no XP (the awakening has its own)
+            if (kind == HiddenKind.SEALED) continue;
             PacketDistributor.sendToPlayer(p, new DepthsPayload(DepthsPayload.HIDDEN, kind.ordinal(), g.rank().ordinal(),
                     (float) at.x, (float) at.y, (float) at.z,
                     Component.translatable("depths.beyondsolo.hidden.found"), kind.title()));
@@ -199,7 +208,8 @@ public final class HiddenRooms {
         if (g == null) return;
         GateDepths d = g.depths();
         int found = 0;
-        DepthsBuild.Mouth m = d.hidden(g) != null && !d.hiddenOpen() ? DepthsBuild.sealMouth(g) : null;
+        HiddenKind hidden = d.hidden(g);
+        DepthsBuild.Mouth m = hidden != null && hidden != HiddenKind.SEALED && !d.hiddenOpen() ? DepthsBuild.sealMouth(g) : null;
         if (m != null && m.center().distanceTo(p.position()) <= radius + 6) found++;
         for (var e : d.traps(g).entrySet()) {
             if (!e.getValue().hasCore() || d.trapDone(e.getKey())) continue;
@@ -229,7 +239,8 @@ public final class HiddenRooms {
         GateDepths d = g.depths();
         HiddenKind kind = d.hidden(g);
         DungeonLayout.Room room = g.layout().hidden();
-        if (kind == null || room == null || !d.hiddenOpen()) return;
+        // the sealed door's chamber has nothing to step into: its door is the awakening's (awakening.AwakeningService)
+        if (kind == null || kind == HiddenKind.SEALED || room == null || !d.hiddenOpen()) return;
         List<ServerPlayer> in = new ArrayList<>();
         for (ServerPlayer p : players) if (inside(g, room, p.position(), 1)) in.add(p);
         if (!d.hiddenEntered() && !in.isEmpty()) enter(level, g, room, kind, in);
@@ -247,6 +258,7 @@ public final class HiddenRooms {
             case VAULT -> "depths.beyondsolo.hidden.enter.vault";
             case SHRINE -> "depths.beyondsolo.hidden.enter.shrine";
             case LAIR -> "depths.beyondsolo.hidden.enter.lair";
+            case SEALED -> "depths.beyondsolo.hidden.enter.sealed";
         };
         for (ServerPlayer p : GateService.playersIn(level, g)) {
             PacketDistributor.sendToPlayer(p, new DepthsPayload(DepthsPayload.HIDDEN_ENTER, kind.ordinal(), g.rank().ordinal(),
