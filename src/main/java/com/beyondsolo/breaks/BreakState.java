@@ -111,6 +111,11 @@ public final class BreakState {
         lastWave = now;
     }
 
+    /** Tests: the last wave came {@code ticks} earlier than it did. */
+    void backdateWave(long ticks) {
+        lastWave -= ticks;
+    }
+
     public void countKill() {
         killed++;
     }

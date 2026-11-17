@@ -63,6 +63,10 @@ If you change an English line's meaning, fix the Spanish too: the test only chec
 | Rune Stone / Engraving | Piedra Rúnica / Grabado |
 | Monster Core / Mana Stone | Núcleo de Monstruo / Piedra de Maná |
 | Dungeon Key / run / chain / re-run | Llave de Mazmorra / incursión / cadena / repetir |
+| Dungeon Break / Unstable Gate / Break Imminent | Ruptura de Mazmorra / Portal Inestable / Ruptura Inminente |
+| Suppressed (a break) / held from inside | Contenida / contenido desde dentro |
+| sense a gate (Pulse Scan) | detectar un portal |
+| Directions: north, northeast, ... ("to the %s") | norte, noreste, ... ("al %s", from `npc.beyondsolo.dir.*`) |
 | Shadow Army / extract / raise | Ejército de Sombras / extraer / alzar |
 | Gold (G) | Oro (G) |
 | Storage / Shop / Hunter License | Almacén / Tienda / Licencia de Cazador |

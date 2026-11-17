@@ -34,7 +34,7 @@ public final class ParticleGuard {
     }
 
     /** True if a burst reaching {@code r*} around the point stays more than {@link #CLOSE} from {@code eye}. */
-    static boolean clear(Vec3 eye, double x, double y, double z, double rx, double ry, double rz) {
+    public static boolean clear(Vec3 eye, double x, double y, double z, double rx, double ry, double rz) {
         double ox = Math.max(0, Math.abs(eye.x - x) - rx);
         double oy = Math.max(0, Math.abs(eye.y - y) - ry);
         double oz = Math.max(0, Math.abs(eye.z - z) - rz);

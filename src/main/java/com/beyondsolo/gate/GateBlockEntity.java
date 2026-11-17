@@ -214,7 +214,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         // a few motes drawn in towards the vortex; the light itself is drawn by the renderer
         RandomSource r = level.random;
         float open = gate.openness(0);
-        if (open > 0.05f && (gate.isUnstable() || gate.isBroken())) leak(level, gate, r);
+        // a gate coming apart leaks red out of its rim instead (client.breaks.BreakWorldFx)
+        if (open > 0.05f && (gate.isUnstable() || gate.isBroken())) com.beyondsolo.client.breaks.BreakWorldFx.leak(gate);
         if (open <= 0.05f || r.nextInt(3) != 0) return;
         Vec3 c = gate.center();
         boolean alongX = gate.facing().getAxis() == Direction.Axis.Z;
@@ -230,34 +231,6 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         }
         level.addParticle(gate.sealed ? ParticleTypes.END_ROD : gate.rank.tier() >= 4 ? ParticleTypes.SMALL_FLAME : ParticleTypes.REVERSE_PORTAL,
                 x, y, z, (c.x - x) * 0.05, (c.y - y) * 0.05, (c.z - z) * 0.05);
-    }
-
-    /**
-     * A gate coming apart leaks: red motes thrown out of the rim instead of drawn in, more of them as it nears the
-     * break, and once broken a steady spill and ash rising off it. None of them come near a first-person camera.
-     */
-    private static void leak(Level level, GateBlockEntity gate, RandomSource r) {
-        if (!(level instanceof net.minecraft.client.multiplayer.ClientLevel client)) return;
-        float k = gate.instability(0);
-        float chance = gate.isBroken() ? 0.7f : 0.12f + 0.5f * k;
-        if (r.nextFloat() > chance) return;
-        Vec3 c = gate.center();
-        boolean alongX = gate.facing().getAxis() == Direction.Axis.Z;
-        double a = r.nextDouble() * Math.PI * 2;
-        double ox = Math.cos(a) * HALF_WIDTH * 0.95, oy = Math.sin(a) * HALF_HEIGHT * 0.95;
-        double x = c.x + (alongX ? ox : 0), y = c.y + oy, z = c.z + (alongX ? 0 : ox);
-        double sp = 0.05 + 0.08 * k + (gate.isBroken() ? 0.08 : 0);
-        double vx = (alongX ? Math.cos(a) : (r.nextDouble() - 0.5)) * sp, vz = (alongX ? (r.nextDouble() - 0.5) : Math.cos(a)) * sp;
-        org.joml.Vector3f red = new org.joml.Vector3f(1f, 0.16f + 0.2f * (1 - k), 0.12f);
-        com.beyondsolo.client.render.CameraParticles.add(client, new net.minecraft.core.particles.DustParticleOptions(red, 1.1f + 0.6f * k),
-                x, y, z, vx, Math.sin(a) * sp, vz);
-        if (r.nextFloat() < 0.25f + 0.4f * k) {
-            com.beyondsolo.client.render.CameraParticles.add(client, ParticleTypes.ELECTRIC_SPARK, x, y, z, vx * 2, Math.sin(a) * sp * 2, vz * 2);
-        }
-        if (gate.isBroken() && r.nextFloat() < 0.35f) {
-            com.beyondsolo.client.render.CameraParticles.add(client, ParticleTypes.LARGE_SMOKE, c.x + (r.nextDouble() - 0.5) * 2, c.y + HALF_HEIGHT,
-                    c.z + (r.nextDouble() - 0.5) * 2, 0, 0.05, 0);
-        }
     }
 
     // ------------------------------------------------------------------ saving and sync

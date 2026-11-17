@@ -65,7 +65,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Dungeon breaks. An uncleared gate does not hold forever: its clock starts the first time it is looked at
+ * Dungeon breaks. An uncleared gate does not hold forever: its clock starts as soon as it stands in the world
  * ({@code gates.breakMinutes}, give or take a fifth), and for the last third of it the gate comes apart in plain
  * sight: cracks, a red leak, and the collapse timer on the HUD of anyone near. Its last minute is counted down only in
  * front of someone, with the System warning everyone around; then it breaks. The ground shakes, its monsters pour out
@@ -542,7 +542,7 @@ public final class DungeonBreaks {
         QuestEngine.progress(p, MOB_KEY, Short.MAX_VALUE);
         QuestEngine.progress(p, BOSS_KEY, 1);
         QuestEngine.progress(p, GateService.CLEAR_KEY, 1);
-        boolean system = SystemAPI.hasSystem(p);
+        boolean system = SystemAPI.isAwakened(p);
         if (system) SystemAPI.grantXp(p, xp, BeyondSolo.id("dungeon_break"));
         com.beyondsolo.economy.EconomyHooks.gateCleared(p, g.rank(), REWARD);
         PacketDistributor.sendToPlayer(p, new BreakPayload(BreakPayload.SUPPRESSED, g.rank().ordinal(), 4, g.gatePos(), system ? (int) Math.min(Integer.MAX_VALUE, xp) : 0, 0, title, sub));
