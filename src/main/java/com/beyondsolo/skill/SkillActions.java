@@ -951,9 +951,9 @@ public final class SkillActions {
         });
     }
 
-    /** Healing done by a skill, raised by Benediction. */
+    /** Healing done by a skill, raised by Benediction and by what the healer's subclass adds to it. */
     private static float healing(ServerPlayer p, float amount) {
-        return amount * (1 + 0.04f * SkillAPI.level(p, Skills.BENEDICTION));
+        return HealerPath.healing(p, amount);
     }
 
     private static boolean undead(LivingEntity e) {
