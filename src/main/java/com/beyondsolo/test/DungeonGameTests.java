@@ -143,6 +143,35 @@ public final class DungeonGameTests {
         helper.succeed();
     }
 
+    /**
+     * A realm's creatures live there: of every gate's three to five kinds at least two are at home in the realm (when
+     * its rank has two), one fights up close, all are the gate's own, and the realm's ruling affinity holds.
+     */
+    @GameTest(template = ARENA)
+    public static void realmsFavourTheirCreatures(GameTestHelper helper) {
+        for (GateRealm realm : GateRealm.values()) {
+            if (realm.weight == 0) continue;
+            for (PlayerRank rank : PlayerRank.values()) {
+                if (rank.ordinal() < realm.minRank.ordinal() || rank.ordinal() > realm.maxRank.ordinal()) continue;
+                long home = com.beyondsolo.enemy.EnemyRoster.pool(rank).stream()
+                        .filter(e -> com.beyondsolo.enemy.Habitat.fits(e.type().get(), realm.habitats)).count();
+                for (long seed = 0; seed < 40; seed++) {
+                    GateInstance g = new GateInstance(UUID.randomUUID(), rank, seed * 7919L + realm.ordinal(), 5, Level.OVERWORLD, BlockPos.ZERO);
+                    g.setDungeon(realm, realm.shapeFor(seed));
+                    com.beyondsolo.enemy.EnemyRoster.Mix mix = g.mix();
+                    String what = realm.id() + " " + rank + ": " + com.beyondsolo.enemy.EnemyRoster.describe(mix);
+                    helper.assertTrue(mix.types().size() >= 3 && mix.types().size() <= 5, what + ": three to five kinds");
+                    helper.assertTrue(mix.types().stream().allMatch(t -> com.beyondsolo.enemy.EnemyRoster.kindOf(t) != null), what + ": all the gate's own");
+                    helper.assertTrue(mix.types().stream().anyMatch(com.beyondsolo.enemy.EnemyRoster::isFront), what + ": one fights up close");
+                    long here = mix.types().stream().filter(t -> com.beyondsolo.enemy.Habitat.fits(t, realm.habitats)).count();
+                    helper.assertTrue(here >= Math.min(2, home), what + ": at least two live in the realm (" + home + " could)");
+                    if (realm.affinity != null) helper.assertTrue(mix.affinity() == realm.affinity, what + ": ruled by " + realm.affinity);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = ARENA)
     public static void realmAndShapeAreSaved(GameTestHelper helper) {
         GateInstance g = new GateInstance(UUID.randomUUID(), PlayerRank.B, 99L, 5, Level.OVERWORLD, BlockPos.ZERO);
@@ -282,6 +311,8 @@ public final class DungeonGameTests {
 
         DungeonLayout layout = g.layout();
         for (Tunnel t : layout.tunnels()) {
+            // the way into the hidden chamber is walled off: it's walked once the wall is down
+            if (t == layout.hiddenTunnel()) continue;
             int n = Math.max(8, (int) (t.length() * 2));
             for (int i = 0; i <= n; i++) {
                 double[] at = DungeonLayout.along(t, i / (double) n);
