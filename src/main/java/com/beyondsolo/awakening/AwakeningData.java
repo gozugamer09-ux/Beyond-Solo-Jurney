@@ -16,8 +16,9 @@ import java.util.UUID;
 
 /**
  * Where one player is on the road to the System (kept through death):
- * {@code DORMANT} (no System; waiting for a first D-rank clear), {@code CALLED} (a sealed gate is waiting and won't
- * let them leave), {@code TRIAL} (inside it), {@code AWAKENING} (the binding is playing), {@code DONE}.
+ * {@code DORMANT} (no System; their next gate of rank D or higher hides the sealed door), {@code CALLED} (the door's
+ * gate was cleared: the door has opened, or is about to, and the cave won't let them leave), {@code TRIAL} (through
+ * it), {@code AWAKENING} (the binding is playing), {@code DONE}.
  */
 public final class AwakeningData implements INBTSerializable<CompoundTag> {
     public enum Stage { DORMANT, CALLED, TRIAL, AWAKENING, DONE }
@@ -28,8 +29,6 @@ public final class AwakeningData implements INBTSerializable<CompoundTag> {
     @Nullable private ResourceKey<Level> sealedDim;
     private boolean arbiterSlain;
     private boolean hinted;
-    /** Game time from which the sealed gate may open (a breath after stepping out of the cleared gate), or -1. */
-    private long readyAt = -1;
 
     public Stage stage() { return stage; }
     public void setStage(Stage stage) { this.stage = stage; }
@@ -40,8 +39,6 @@ public final class AwakeningData implements INBTSerializable<CompoundTag> {
     public void setArbiterSlain(boolean slain) { this.arbiterSlain = slain; }
     public boolean hinted() { return hinted; }
     public void setHinted(boolean hinted) { this.hinted = hinted; }
-    public long readyAt() { return readyAt; }
-    public void setReadyAt(long time) { this.readyAt = time; }
 
     public void setSealedGate(@Nullable UUID trial, @Nullable ResourceKey<Level> dim, @Nullable BlockPos pos) {
         this.trial = trial;
@@ -73,6 +70,5 @@ public final class AwakeningData implements INBTSerializable<CompoundTag> {
         sealedDim = tag.contains("sealedDim") ? ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(tag.getString("sealedDim"))) : null;
         arbiterSlain = tag.getBoolean("arbiterSlain");
         hinted = tag.getBoolean("hinted");
-        readyAt = -1;
     }
 }

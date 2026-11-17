@@ -36,8 +36,14 @@ public class QuestLogTab implements SystemTab {
     private double selectedAt = -10;
     private UUID shownDetail;
     private double confirmUntil = -1;
-    // click areas, set while drawing
-    private final List<Object[]> rows = new ArrayList<>();
+    /**
+     * A quest row's click area, set while drawing. Typed on purpose: this used to be an {@code Object[]} read back with
+     * {@code (float)} casts, and the row's x went in as a boxed {@code Integer}, so any click on the list crashed the
+     * game (0.1.0 playtest).
+     */
+    private record Row(UUID id, float x, float y) {}
+
+    private final List<Row> rows = new ArrayList<>();
     private float[] acceptBtn, declineBtn, abandonBtn;
 
     @Override
@@ -91,7 +97,7 @@ public class QuestLogTab implements SystemTab {
             if (ly + ROW_H > y + h - 12) break;
             if (q.id().equals(selected)) selY = ly;
             drawRow(g, q, x, ly, mouseX, mouseY, q.id().equals(selected), index);
-            rows.add(new Object[]{q.id(), x, ly});
+            rows.add(new Row(q.id(), x, ly));
             ly += ROW_H + 3;
             index++;
         }
@@ -270,12 +276,10 @@ public class QuestLogTab implements SystemTab {
             SystemScreen.playClick();
             return true;
         }
-        for (Object[] row : rows) {
-            float rx = (float) row[1];
-            float ry = (float) row[2];
-            if (Ui.inside(mouseX, mouseY, rx, ry, LIST_W, ROW_H)) {
-                if (!row[0].equals(selected)) {
-                    selected = (UUID) row[0];
+        for (Row row : rows) {
+            if (Ui.inside(mouseX, mouseY, row.x(), row.y(), LIST_W, ROW_H)) {
+                if (!row.id().equals(selected)) {
+                    selected = row.id();
                     SystemScreen.playClick();
                 }
                 return true;

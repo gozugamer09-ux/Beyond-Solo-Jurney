@@ -416,6 +416,9 @@ HIDDEN = {
                "A calm settles over you as you step inside."),
     "lair": ("Hidden Lair", "Something guards this chamber. Defeat its guardians to claim their hoard.",
              "Its guardians wake. Defeat them all to claim the hoard."),
+    # the awakening's door (never rolled, never shown on a banner: no icon)
+    "sealed": ("Sealed Door", "A door that was never meant to be found. It waits for someone the System has not touched.",
+               "The door is waiting for you."),
 }
 
 TRAPS = {
@@ -443,6 +446,7 @@ def lang() -> dict:
         "depths.beyondsolo.hidden.found": "Hidden Dungeon",
         "depths.beyondsolo.hidden.found.title": "Hidden dungeon found: %s",
         "depths.beyondsolo.hidden.hollow": "The wall sounds hollow. Knock again.",
+        "depths.beyondsolo.hidden.sealed.knock": "Something on the other side is waiting. Not yet.",
         "depths.beyondsolo.hidden.lair_cleared.title": "Lair Cleared",
         "depths.beyondsolo.hidden.lair_cleared.body": "Its guardians have fallen. Their hoard is yours.",
         "depths.beyondsolo.hidden.blessing.title": "Shrine's Blessing",

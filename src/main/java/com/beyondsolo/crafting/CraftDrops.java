@@ -99,7 +99,7 @@ public final class CraftDrops {
             out.add(MonsterCoreItem.of(rank, false, traits.affinity(), v == Variant.CHAMPION ? 2 : 1));
         }
         if (dead instanceof GateMonsterEntity m) {
-            var mat = CraftingModule.MATERIALS.get(m.kind());
+            var mat = CraftingModule.MATERIALS.get(m.kind().kin());
             if (mat != null && r.nextFloat() < Math.min(1f, MATERIAL_CHANCE * v.reward)) {
                 out.add(new ItemStack(mat.get(), v.special() ? 2 : 1));
             }

@@ -141,6 +141,7 @@ public final class GateService {
         UUID id = UUID.randomUUID();
         GateInstance g = GateData.get(level.getServer()).create(id, PlayerRank.D, level.random.nextLong(), level.dimension(), pos);
         g.setOwner(owner.getUUID());
+        g.setTemple(true);
         gate.setup(id, PlayerRank.D, false, level.getGameTime());
         gate.setSealed(true);
         level.playSound(null, pos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.8f, 0.5f);
@@ -201,8 +202,8 @@ public final class GateService {
 
     /** Players who come close to a gate for the first time are told about it (and warned if it is above them). */
     public static void noticeNearby(ServerLevel level, GateBlockEntity gate) {
-        // a keyed gate was opened on purpose, by someone standing right there
-        if (gate.gateId() == null || gate.isKeyed()) return;
+        // a keyed gate was opened on purpose, by someone standing right there; a sealed one is nobody's business
+        if (gate.gateId() == null || gate.isKeyed() || gate.isSealed()) return;
         GateTheme theme = GateTheme.of(gate.rank());
         for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(gate.getBlockPos()).inflate(40))) {
             Set<UUID> seen = NOTICED.computeIfAbsent(p.getUUID(), k -> new HashSet<>());
@@ -243,6 +244,8 @@ public final class GateService {
             BeyondSolo.LOGGER.error("The gate dimension {} is missing; is the mod's datapack loaded?", DIMENSION.location());
             return;
         }
+        // the first gate of rank D or higher that a player without the System walks into hides the sealed door
+        com.beyondsolo.awakening.AwakeningService.enteringGate(player, g);
         startBuilding(level.getServer(), g);
         // a keyed gate's door shuts a little after the first one through (see key.KeyedRuns)
         if (g.isKeyed() && !g.keyed().entered()) {
@@ -266,6 +269,19 @@ public final class GateService {
         if (busy(player)) return;
         GateInstance g = GateData.get(player.server).bySlotPos(player.blockPosition());
         if (g == null) return;
+        // a player whose sealed door has opened in this cave is not let out: the door is the only way on
+        if (com.beyondsolo.awakening.AwakeningService.heldBack(player)) {
+            if (COOLDOWN.getOrDefault(player.getUUID(), 0L) <= player.level().getGameTime()) {
+                player.displayClientMessage(Component.translatable("message.beyondsolo.gate.held_back"), true);
+                player.level().playSound(null, player.blockPosition(), SoundEvents.CHAIN_PLACE, SoundSource.PLAYERS, 1.2f, 0.5f);
+                COOLDOWN.put(player.getUUID(), player.level().getGameTime() + 60);
+            }
+            Vec3 away = player.position().subtract(gate.center()).multiply(1, 0, 1);
+            away = away.lengthSqr() < 1.0E-4 ? Vec3.directionFromRotation(0, gate.facing().toYRot()) : away.normalize();
+            player.push(away.x * 0.6, 0.25, away.z * 0.6);
+            player.hurtMarked = true;
+            return;
+        }
         TRANSITS.put(player.getUUID(), new Transit(g.id(), true, player.level().getGameTime()));
         freeze(player, true);
         player.level().playSound(null, gate.getBlockPos(), SoundEvents.PORTAL_TRAVEL, SoundSource.BLOCKS, 0.3f, 1.8f);
@@ -305,6 +321,7 @@ public final class GateService {
         ServerLevel dungeon = dungeon(player.server);
         if (dungeon == null) return false;
         if (!g.built()) {
+            com.beyondsolo.awakening.AwakeningService.enteringGate(player, g);
             DungeonBuilder b = BUILDERS.computeIfAbsent(g.id(), k -> builder(player.server, g));
             b.finish(dungeon);
             finishBuilding(dungeon, g);
@@ -335,17 +352,8 @@ public final class GateService {
     public static void leave(ServerPlayer player, GateInstance g) {
         player.getPersistentData().remove(IN_GATE_TAG);
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.left(player, g);
-        Home home = home(player.server, g, player.getYRot());
-        ServerLevel level = player.server.getLevel(home.dimension());
-        if (level == null) level = player.server.overworld();
-        Vec3 to = home.pos();
-        float yaw = home.yaw();
-        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, BlockPos.containing(to));
-        double y = Math.abs(ground.getY() - to.y) < 4 ? ground.getY() : to.y;
-        player.teleportTo(level, to.x, y, to.z, yaw, 0f);
-        if (player.distanceToSqr(to.x, y, to.z) > 4) player.moveTo(to.x, y, to.z, yaw, 0f);
-        player.setDeltaMovement(Vec3.ZERO);
-        COOLDOWN.put(player.getUUID(), level.getGameTime() + 80);
+        place(player, home(player.server, g, player.getYRot()));
+        COOLDOWN.put(player.getUUID(), player.level().getGameTime() + 80);
         PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.RETURN, g.theme().ordinal(), -1, 0,
                 Component.translatable(g.bossDefeated() ? "gate.beyondsolo.cleared" : "gate.beyondsolo.returned"), g.theme().dungeonName()));
         com.beyondsolo.awakening.AwakeningService.leftGate(player, g);
@@ -353,6 +361,20 @@ public final class GateService {
 
     /** Where someone leaving a cave comes out. */
     public record Home(ResourceKey<Level> dimension, Vec3 pos, float yaw) {}
+
+    /** Puts a player down at a home: on the ground there if the ground is close above or below. */
+    public static void place(ServerPlayer player, Home home) {
+        ServerLevel level = player.server.getLevel(home.dimension());
+        if (level == null) level = player.server.overworld();
+        Vec3 to = home.pos();
+        float yaw = home.yaw();
+        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, BlockPos.containing(to));
+        double y = Math.abs(ground.getY() - to.y) < 4 ? ground.getY() : to.y;
+        player.teleportTo(level, to.x, y, to.z, yaw, 0f);
+        // fake players (tests) ignore same-level teleports
+        if (player.distanceToSqr(to.x, y, to.z) > 4) player.moveTo(to.x, y, to.z, yaw, 0f);
+        player.setDeltaMovement(Vec3.ZERO);
+    }
 
     /** In front of the gate in the world, or for a keyed run, where its key (the chain's first) was turned. */
     public static Home home(MinecraftServer server, GateInstance g, float yaw) {
@@ -419,7 +441,7 @@ public final class GateService {
     // ------------------------------------------------------------------ inside a cave
 
     /** Every half second, for each player in the gate dimension: wake the packs and the boss as they come near. */
-    private static void watch(ServerPlayer player) {
+    static void watch(ServerPlayer player) {
         ServerLevel dungeon = player.serverLevel();
         GateData data = GateData.get(player.server);
         GateInstance g = data.bySlotPos(player.blockPosition());
@@ -442,6 +464,8 @@ public final class GateService {
             if (room.kind() == DungeonLayout.Kind.BOSS) {
                 if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - (g.isTrial() ? 8 : 4)) wakeBoss(dungeon, g);
             } else if (room.kind() != DungeonLayout.Kind.ENTRANCE && room.kind() != DungeonLayout.Kind.HIDDEN
+                    // the awakening trial holds nothing but its Arbiter
+                    && !g.isTrial()
                     && !g.roomTriggered(room.index()) && dist < room.reach() + 7) {
                 g.triggerRoom(room.index());
                 data.setDirty();
@@ -465,7 +489,7 @@ public final class GateService {
             BlockPos p = new BlockPos(c.getX() + Math.round(Mth.cos(a) * d * room.rx()), floor, c.getZ() + Math.round(Mth.sin(a) * d * room.rz()));
             for (int dy = 0; dy < 5 && !dungeon.getBlockState(p).isAir(); dy++) p = p.above();
             if (mix == null) {
-                spawnMonster(dungeon, g, theme.monsters.get(r.nextInt(theme.monsters.size())), p);
+                spawnMonster(dungeon, g, com.beyondsolo.enemy.EnemyRoster.trial().pick(r), p);
                 continue;
             }
             EntityType<?> type = mix.pick(r);
@@ -562,7 +586,7 @@ public final class GateService {
         data.setDirty();
 
         List<ServerPlayer> players = playersIn(level, g);
-        com.beyondsolo.awakening.AwakeningService.gateCleared(g, players);
+        com.beyondsolo.awakening.AwakeningService.gateCleared(level, g, players);
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.cleared(level, g, players);
         for (ServerPlayer p : players) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_DEFEATED, g.rank().ordinal(), boss.getId(), 0,
