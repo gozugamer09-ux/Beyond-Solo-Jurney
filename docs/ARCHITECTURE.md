@@ -670,10 +670,19 @@ for the worn texture) and the ARMORY creative tab. Lang lives in `assets/beyonds
 
 Gates no longer hold the same creatures and the same boss every time.
 
-- **Creatures** (`enemy/`): six of the gate's own kinds (`MonsterKind`: gloomfang, broodling, shardback, hollow acolyte,
-  ashen sentinel, emberwisp), one entity class `GateMonsterEntity` with a behaviour per style (hound, swarm, charger,
-  caster, guard, bomber), mixed with vanilla mobs per rank in `EnemyRoster`. A gate's mix comes from its seed
-  (`GateInstance.mix()`): three or four kinds, at least two of them the gate's own, plus an affinity.
+- **Creatures** (`enemy/`): 25 of the gate's own kinds (`MonsterKind`), one entity class `GateMonsterEntity` whose
+  moves come from its kind's style (`MonsterGoals`): hound and swarm (bite, leap), charger (wind-up, rush), caster
+  (bolts; the tusk shaman also mends its kin, the brimling blinks away), guard (a shield or claws take hits from the
+  front), bomber (flies in, bursts), brute (a ground slam inside a ring telegraph), archer (bow, sidesteps), skirmisher
+  (dashes in, backs off), swooper (circles overhead, dives), lunger (strikes along a strip from out of reach, or leaps:
+  the hive reaver), haunt (floats; a pulse: the wraith's wail saps strength, the drifter's discharge shocks), shambler
+  (the grave thrall gets up once unless finished while down) and turret (the thorn spitter is rooted and spits). Each
+  hard move shows a ground telegraph timed to the strike of its animation. Creatures never hurt one another.
+- **No vanilla mobs** behind a gate: `EnemyRoster` pools per rank hold only the gate's own kinds, the awakening trial
+  draws from `EnemyRoster.trial()` and the job-change trial's echoes are gate creatures too. A gate's mix comes from
+  its seed (`GateInstance.mix()`): three to five kinds, always one that fights up close, plus an affinity.
+- **Kin**: the six originals (gloomfang, broodling, shardback, hollow acolyte, ashen sentinel, emberwisp) carry the
+  drops (crafting material, rune art, armour sets); every later kind names one of them as its `kin()` and shares those.
 - **Affinity** (flame, frost, venom, storm, shade, blood): texture, aura, what its hits leave, and an elemental
   strength and weakness (`Affinity.multiplier`, applied to skills in `SkillCombat.strike` through `EnemyHooks.skillMultiplier`).
 - **Variants** (`Variant`: normal, veteran, elite, champion) scale health, damage, size and rewards; elites and champions
@@ -691,8 +700,10 @@ Reuse for dungeon breaks and events: `EnemyRoster.random(rank, r)`, `Enemies.rol
 `GateBossEntity.configure(rank, kind, ascended)` then `wake()` for a boss outside a gate (its death opens nothing).
 
 Test commands: `/system enemy spawn <kind> [rank] [variant] [affinity]`, `/system enemy boss <kind> [rank] [ascended]`,
-`/system enemy mix [rank]`, `/system gate spawnboss <rank> <boss> [ascended]`. Assets come from
-`tools/gen_enemy_assets.py`, texts from `tools/enemy_lang.py`.
+`/system enemy mix [rank]`, `/system gate spawnboss <rank> <boss> [ascended]`. Creature assets come from
+`tools/gen_creatures.py` (model, animations, and the seven skins painted on the model by `tools/creature_skins.py`;
+`python3 tools/gen_creatures.py <name>` redoes one), bosses and the gloomfang from `tools/gen_enemy_assets.py`, texts
+from `tools/enemy_lang.py`.
 
 ## Cores, materials, potions and crafting
 
@@ -708,8 +719,8 @@ blockstates come from `tools/gen_crafting_assets.py`.
   variant's reward multiplier). Other hostile monsters: 4% for an E-rank core. Bosses add a boss core (two when
   ascended), 2-4 cores, materials and mana stones through `GateLoot.BossLootEvent`; a boss outside a gate drops them.
   A core tearing free flashes a `NOVA` in its colour.
-- **Materials**: one per gate creature kind (gloomfang fang, brood silk, shard carapace, hollow essence, ashen plate,
-  ember cinder), `CraftingModule.MATERIALS`.
+- **Materials**: one per original gate creature kind (gloomfang fang, brood silk, shard carapace, hollow essence, ashen
+  plate, ember cinder), `CraftingModule.MATERIALS`; the later kinds drop their kin's.
 - **Mana stones** (`ManaStoneItem`: shard 15, stone 40, greater 100 mana): hold use to absorb (fails when mana is full),
   plays `CombatFxPayload.Kind.ABSORB`. They come from **mana veins** that `DungeonBuilder.decorate` sets into cavern and
   side-cave walls (`ManaVeins.place`, size by gate rank: E/D lesser, C/B plain, A/S greater). The vein model lays a
@@ -786,8 +797,8 @@ the two poses and all the text come from `tools/gen_rune_assets.py` (`--preview 
   answer (`Runes.refusal`, worked out on the client too so the channel never starts; the server decides). When it
   shatters it teaches the skill at level 1, or raises a known one by `RAISE_LEVELS`; `SkillEvent.Source.RUNE`.
   Letting go early loses nothing.
-- **Rune arts** (`skill/RuneArts`, 14): the essence of each gate creature and boss, plus two *deep* runes no creature
-  carries. Never unlocked by level and no tome rolls them (`Skill.rune()`); a class change keeps them. Gloomfang:
+- **Rune arts** (`skill/RuneArts`, 14): the essence of each original gate creature (later kinds carry their kin's) and
+  boss, plus two *deep* runes no creature carries. Never unlocked by level and no tome rolls them (`Skill.rune()`); a class change keeps them. Gloomfang:
   Hunter's Howl. Broodling: Skittering Brood. Shardback: Crystal Carapace (passive). Hollow Acolyte: Hollow Lance.
   Ashen Sentinel: Ashen Bulwark. Emberwisp: Cinder Wisp. Bosses: Titan's Fall (Brute), Widow's Snare (Broodmother),
   Dread Presence (Alpha), Phantom Flurry (Knight), Sigil Cascade (Magus, the only one with a cast circle), Wyrmfire

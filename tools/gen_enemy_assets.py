@@ -11,8 +11,7 @@ Gate bosses (each with idle, walk, intro, death and its own attacks; one texture
 (The rock brute is the original gate boss from gen_gate_assets.py.)
 
 Gate monsters (idle, walk, attack, death; one texture per element affinity, plain included):
-- gloomfang (cave hound), broodling (small spider), shardback (crystal-backed beetle), hollow_acolyte (robed
-  caster), ashen_sentinel (shield knight), emberwisp (floating burning skull)
+- gloomfang (cave hound). Every other gate creature is made by gen_creatures.py.
 
 Run from the repo root:  python3 tools/gen_enemy_assets.py            (or only some: ... gen_enemy_assets.py alpha wyrm)
 Needs: pillow, numpy.
@@ -282,7 +281,7 @@ def write_geo(name, model):
         print(f"  {name}: {size}px atlas, {density} texels per unit")
     for b in geo["bones"]:
         for c in b.get("cubes", []):
-            for key in ("_mat", "_tag", "_skip", "_part"):
+            for key in ("_mat", "_tag", "_skip", "_part", "_paint"):
                 c.pop(key, None)
     write_json(os.path.join(GEO, "entity", f"{name}.geo.json"), model)
 
@@ -1344,224 +1343,6 @@ def gloomfang():
     hound_anims(name, 0.55, intro=False, big=False)
 
 
-def broodling():
-    name = "broodling"
-    uvs, size = monster_textures(name, (46, 36, 50), (74, 60, 80), (130, 110, 96), 900, cloth=(92, 44, 70))
-    m = Model(uvs)
-    c = m.c
-    m.bone("root", None, [0, 0, 0])
-    m.bone("body", "root", [0, 5, 0], [c([-4, 3, -5], [8, 5, 7], HIDE), c([-3.5, 7.5, -4.5], [7, 1.2, 6], PLATE)])
-    m.bone("head", "body", [0, 5, -5], [
-        c([-3, 2.5, -9], [6, 4.5, 4], DARK),
-        c([-2.2, 5, -9.3], [1.3, 1.3, 0.5], EYE), c([0.9, 5, -9.3], [1.3, 1.3, 0.5], EYE),
-        c([-2, 0.5, -9.5], [1.2, 2.5, 1.2], BONE), c([0.8, 0.5, -9.5], [1.2, 2.5, 1.2], BONE),
-    ])
-    m.bone("abdomen", "body", [0, 6, 2], [c([-5, 3, 2], [10, 8, 9], CLOTH), c([-2, 8, 6], [3, 3, 3], GLOW), c([1.5, 6, 9.5], [2, 2, 2], GLOW)])
-    for i, (z, yaw) in enumerate(((-4, -30), (-1.5, -10), (1, 10), (3.5, 30))):
-        for side, sx in (("r", -1), ("l", 1)):
-            m.bone(f"leg{i}{side}", "body", [sx * 3.5, 5, z], [
-                c([sx * 3.5 + (0 if sx > 0 else -7), 4.3, z - 0.6], [7, 1.2, 1.2], HIDE),
-                c([sx * 10.5 - 0.5, -0.5, z - 0.5], [1, 5.5, 1], DARK),
-            ], rotation=[0, -sx * yaw, sx * 15])
-    write_geo(name, m.geo(name, size, 2, 1.2, 0.4))
-    A = {}
-
-    def legs(fn):
-        return {f"leg{i}{s}": rot(lambda t, i=i, sx=sx: fn(t, i, sx)) for i in range(4) for s, sx in (("r", -1), ("l", 1))}
-    L = 2.0
-    A["idle"] = anim(L, True, {"abdomen": rot(lambda t: [3 * wave(t, L), 0, 0]), "head": rot(lambda t: [0, 8 * wave(t, L), 0])}, 0.1)
-    L = 0.4
-    A["walk"] = anim(L, True, {
-        "body": {"position": lambda t: [0, 0.3 * abs(wave(t, L / 2)), 0]},
-        **legs(lambda t, i, sx: [0, -sx * 25 * wave(t, L, (i + (sx > 0)) % 2 * 0.5), sx * 10 * max(0, wave(t, L, (i + (sx > 0)) % 2 * 0.5 + 0.25))]),
-    }, 0.025)
-    L = 0.6
-    A["bite"] = anim(L, False, {
-        "body": {"position": lambda t: [0, 1.5 * math.sin(math.pi * window(t, 0.1, 0.45)), -3 * math.sin(math.pi * window(t, 0.15, 0.5))],
-                 "rotation": lambda t: [-15 * math.sin(math.pi * window(t, 0.05, 0.3)) + 10 * math.sin(math.pi * window(t, 0.3, 0.55)), 0, 0]},
-    }, 0.025)
-    L = 1.0
-    A["death"] = anim(L, "hold", {
-        "root": {"rotation": lambda t: [0, 0, 180 * ease_in_out(window(t, 0, 0.4))], "position": lambda t: [0, 7 * ease_in_out(window(t, 0, 0.4)), 0]},
-        **legs(lambda t, i, sx: [0, 0, sx * (-40 * ease_in_out(window(t, 0.3, 0.9))) + 6 * math.sin(t * 40) * (1 - window(t, 0.4, 1.0))]),
-    }, 0.025)
-    write_anims(name, A)
-
-
-def shardback():
-    name = "shardback"
-    uvs, size = monster_textures(name, (70, 66, 60), (96, 90, 82), (150, 140, 120), 1000)
-    m = Model(uvs)
-    c = m.c
-    m.bone("root", None, [0, 0, 0])
-    m.bone("body", "root", [0, 9, 0], [
-        c([-8, 4, -9], [16, 10, 18], HIDE),
-        c([-8.5, 12, -8], [17, 3, 16], PLATE),
-        c([-7, 15, -6], [14, 2, 12], DARK),
-        c([-2, 16, -5], [4, 8, 4], GLOW, pivot=[0, 17, -3], rotation=[-15, 0, 10]),
-        c([-6, 15, 0], [3, 6, 3], GLOW, pivot=[-4.5, 16, 1.5], rotation=[10, 0, 25]),
-        c([3, 15, 1], [3, 7, 3], GLOW, pivot=[4.5, 16, 2.5], rotation=[10, 0, -25]),
-        c([-1.5, 15.5, 4], [3, 5, 3], GLOW, pivot=[0, 16, 5.5], rotation=[-25, 0, 0]),
-    ])
-    m.bone("head", "body", [0, 9, -9], [
-        c([-5, 5, -15], [10, 8, 7], PLATE),
-        c([-5.5, 11, -15.5], [11, 3, 8], DARK),
-        c([-3.5, 9, -15.6], [2, 1.5, 0.6], EYE), c([1.5, 9, -15.6], [2, 1.5, 0.6], EYE),
-        c([-1.5, 10, -18], [3, 3, 4], BONE, pivot=[0, 11, -16], rotation=[20, 0, 0]),
-    ])
-    for side, sx in (("right", -1), ("left", 1)):
-        for leg, z in (("front", -6), ("mid", 0), ("hind", 6)):
-            m.bone(f"{side}_{leg}", "body", [sx * 8, 7, z], [
-                c([sx * 8 + (0 if sx > 0 else -5), 5.5, z - 1.5], [5, 3, 3], DARK),
-                c([sx * 12.5 - 1.5, 0, z - 1.5], [3, 6, 3], PLATE),
-            ])
-    write_geo(name, m.geo(name, size, 3, 2, 0.6))
-    A = {}
-
-    def legs(fn):
-        out = {}
-        for side, sx in (("right", -1), ("left", 1)):
-            for j, leg in enumerate(("front", "mid", "hind")):
-                out[f"{side}_{leg}"] = rot(lambda t, j=j, sx=sx: fn(t, j, sx))
-        return out
-    L = 3.0
-    A["idle"] = anim(L, True, {"body": {"position": lambda t: [0, 0.3 * wave(t, L), 0]}, "head": rot(lambda t: [3 * wave(t, L), 5 * wave(t, L * 2), 0])}, 0.1)
-    L = 1.0
-    A["walk"] = anim(L, True, {
-        "body": rot(lambda t: [0, 3 * wave(t, L), 2 * wave(t, L / 2)]),
-        **legs(lambda t, j, sx: [0, -sx * 20 * wave(t, L, ((j + (sx > 0)) % 2) * 0.5), sx * 10 * max(0, wave(t, L, ((j + (sx > 0)) % 2) * 0.5 + 0.25))]),
-    })
-    L = 1.0
-    A["bite"] = anim(L, False, {
-        "head": rot(lambda t: [-30 * ease_in_out(window(t, 0, 0.4)) * (1 - window(t, 0.4, 0.5)) + 25 * ease_in(window(t, 0.4, 0.5)) * (1 - window(t, 0.6, 1.0)), 0, 0]),
-        "body": {"position": lambda t: [0, 0, -4 * ease_in(window(t, 0.4, 0.5)) * (1 - window(t, 0.6, 1.0))]},
-    })
-    L = 1.5
-    A["death"] = anim(L, "hold", {
-        "root": {"position": lambda t: [0, -4 * ease_in(window(t, 0.3, 0.9)), 0]},
-        "body": rot(lambda t: [6 * math.sin(t * 40) * (1 - window(t, 0, 0.6)), 0, 12 * ease_in(window(t, 0.4, 1.0))]),
-        "head": rot(lambda t: [30 * ease_in(window(t, 0.5, 1.2)), 0, 0]),
-        **legs(lambda t, j, sx: [0, 0, sx * 50 * ease_in_out(window(t, 0.3, 1.0))]),
-    })
-    write_anims(name, A)
-
-
-def humanoid(m, c, tiles, hood=True):
-    """A plain humanoid frame (24 px hip, about two blocks tall). Returns nothing; adds bones to m."""
-    m.bone("root", None, [0, 0, 0])
-    m.bone("body", "root", [0, 12, 0], [c([-4, 12, -2.5], [8, 12, 5], tiles["chest"]), c([-4.3, 12, -2.8], [8.6, 2, 5.6], TRIM)])
-    head = [c([-4, 24, -4], [8, 8, 8], tiles["head"])]
-    if hood:
-        head += [c([-4.5, 24.5, -4.5], [9, 8.5, 9], CLOTH), c([-3.5, 25, -4.7], [7, 6, 0.5], DARK),
-                 c([-2.5, 28, -4.9], [1.6, 1, 0.5], EYE), c([0.9, 28, -4.9], [1.6, 1, 0.5], EYE)]
-    m.bone("head", "body", [0, 24, 0], head)
-    for side, sx in (("right", -1), ("left", 1)):
-        m.bone(f"{side}_arm", "body", [sx * 5, 22, 0], [c([sx * 5 - 2 + sx * 1, 12, -2], [4, 12, 4], tiles["arm"])])
-        m.bone(f"{side}_leg", "root", [sx * 2, 12, 0], [c([sx * 2 - 2, 0, -2], [4, 12, 4], tiles["leg"])])
-
-
-def biped_anims(name, attack, extra_attack=None):
-    A = {}
-    L = 3.0
-    A["idle"] = anim(L, True, {
-        "body": rot(lambda t: [1.5 * wave(t, L), 0, 0]),
-        "right_arm": rot(lambda t: [-4 + 3 * wave(t, L), 0, 4]), "left_arm": rot(lambda t: [-4 - 3 * wave(t, L), 0, -4]),
-        "head": rot(lambda t: [0, 6 * wave(t, L * 2), 0]),
-    }, 0.1)
-    L = 1.0
-    A["walk"] = anim(L, True, {
-        "right_leg": rot(lambda t: [-30 * wave(t, L), 0, 0]), "left_leg": rot(lambda t: [30 * wave(t, L), 0, 0]),
-        "right_arm": rot(lambda t: [20 * wave(t, L), 0, 4]), "left_arm": rot(lambda t: [-20 * wave(t, L), 0, -4]),
-        "body": {"position": lambda t: [0, -0.4 * abs(wave(t, L)), 0]},
-    })
-    A.update(attack)
-    if extra_attack:
-        A.update(extra_attack)
-    L = 1.2
-    A["death"] = anim(L, "hold", {
-        "root": {"rotation": lambda t: [-85 * ease_in(window(t, 0.2, 0.8)), 0, 0], "position": lambda t: [0, 0, 2 * ease_in(window(t, 0.2, 0.8))]},
-        "right_arm": rot(lambda t: [-30 * window(t, 0, 0.3), 0, 30 * window(t, 0.3, 0.8)]),
-        "left_arm": rot(lambda t: [-30 * window(t, 0, 0.3), 0, -30 * window(t, 0.3, 0.8)]),
-        "head": rot(lambda t: [-20 * window(t, 0, 0.3) + 25 * window(t, 0.7, 1.0), 0, 0]),
-    }, 0.025)
-    write_anims(name, A)
-
-
-def hollow_acolyte():
-    name = "hollow_acolyte"
-    uvs, size = monster_textures(name, (60, 52, 72), (80, 72, 96), (190, 165, 110), 1100, bone=(232, 226, 210), cloth=(48, 42, 64))
-    m = Model(uvs)
-    c = m.c
-    humanoid(m, c, {"chest": CLOTH, "head": BONE, "arm": CLOTH, "leg": CLOTH})
-    m.bones[1]["cubes"].append(c([-4.5, 4, -3], [9, 9, 6], CLOTH))  # robe skirt
-    m.bone("orb", "right_arm", [-6, 10, -2], [c([-7.2, 8.8, -3.2], [2.4, 2.4, 2.4], GLOW)])
-    write_geo(name, m.geo(name, size, 2, 3, 1))
-    L = 1.0
-    cast = {"cast": anim(L, False, {
-        "right_arm": rot(lambda t: [70 * ease_in_out(window(t, 0, 0.4)) * (1 - window(t, 0.4, 0.5)) - 100 * ease_in(window(t, 0.4, 0.55)) * (1 - ease_in_out(window(t, 0.7, 1.0))), 0, 0]),
-        "left_arm": rot(lambda t: [-60 * math.sin(math.pi * window(t, 0, 1.0)), 0, -20 * math.sin(math.pi * window(t, 0, 1.0))]),
-        "body": rot(lambda t: [-6 * window(t, 0, 0.4) * (1 - window(t, 0.4, 0.55)) + 8 * window(t, 0.45, 0.55) * (1 - window(t, 0.7, 1.0)), 0, 0]),
-        "orb": {"scale": lambda t: [1 + 1.2 * math.sin(math.pi * window(t, 0.1, 0.55))] * 3},
-    })}
-    biped_anims(name, cast)
-
-
-def ashen_sentinel():
-    name = "ashen_sentinel"
-    uvs, size = monster_textures(name, (52, 52, 58), (100, 100, 108), (160, 140, 100), 1200, cloth=(60, 30, 30))
-    m = Model(uvs)
-    c = m.c
-    humanoid(m, c, {"chest": PLATE, "head": PLATE, "arm": PLATE, "leg": DARK}, hood=False)
-    m.bones[2]["cubes"] += [c([-4.4, 24, -4.4], [8.8, 9, 8.8], PLATE), c([-3, 28, -4.6], [6, 1, 0.5], GLOW),
-                           c([-0.5, 33, -3], [1, 4, 7], CLOTH)]
-    m.bones[1]["cubes"] += [c([-5.5, 20, -3], [11, 4, 6], PLATE)]
-    m.bone("blade", "right_arm", [-6, 13, 0], [c([-6.6, 12, -16], [1.2, 2.4, 16], PLATE), c([-7, 11.5, -2], [2, 3.4, 2], TRIM),
-                                              c([-6.4, 12.9, -15], [0.8, 0.6, 13], GLOW)])
-    m.bone("shield", "left_arm", [7, 17, -3], [c([5.5, 10, -5], [1.5, 13, 9], PLATE), c([5, 15, -1.5], [1, 3, 2], GLOW),
-                                               c([5.2, 10.5, -5.3], [1.6, 12, 0.6], TRIM)], rotation=[0, 0, 0])
-    write_geo(name, m.geo(name, size, 2, 3, 1))
-    L = 0.9
-    swing = {"attack": anim(L, False, {
-        "right_arm": rot(lambda t: [70 * ease_in_out(window(t, 0, 0.35)) * (1 - window(t, 0.35, 0.45)) - 60 * ease_in(window(t, 0.35, 0.5)) * (1 - ease_in_out(window(t, 0.6, 0.9))), 30 * window(t, 0, 0.35) * (1 - window(t, 0.35, 0.5)), 0]),
-        "body": rot(lambda t: [0, 20 * window(t, 0, 0.35) * (1 - window(t, 0.35, 0.5)) - 25 * window(t, 0.35, 0.5) * (1 - window(t, 0.6, 0.9)), 0]),
-    }), "block": anim(1.0, False, {
-        "left_arm": rot(lambda t: [-70 * math.sin(math.pi * window(t, 0, 1.0)), 40 * math.sin(math.pi * window(t, 0, 1.0)), 0]),
-    })}
-    biped_anims(name, swing)
-
-
-def emberwisp():
-    name = "emberwisp"
-    uvs, size = monster_textures(name, (70, 60, 56), (110, 100, 92), (200, 170, 120), 1300)
-    m = Model(uvs)
-    c = m.c
-    m.bone("root", None, [0, 0, 0])
-    m.bone("head", "root", [0, 6, 0], [
-        c([-3.5, 2, -3.5], [7, 6, 7], BONE),
-        c([-2.5, 0.5, -3.6], [5, 2, 5], BONE),
-        c([-2.6, 4.5, -3.7], [2, 1.6, 0.5], EYE), c([0.6, 4.5, -3.7], [2, 1.6, 0.5], EYE),
-        c([-0.5, 2.8, -3.7], [1, 1, 0.5], DARK),
-        c([-3, 7.5, -3], [6, 3, 6], GLOW),
-        c([-2, 10, -2], [4, 2.5, 4], GLOW, pivot=[0, 10, 0], rotation=[0, 45, 0]),
-    ])
-    m.bone("embers", "root", [0, 6, 0], [c([4 * math.cos(a), 4 + 2 * math.sin(a * 2), 4 * math.sin(a)] , [1.2, 1.2, 1.2], GLOW)
-                                         for a in (0, 2.1, 4.2)])
-    write_geo(name, m.geo(name, size, 1.5, 1.5, 0.4))
-    A = {}
-    L = 2.0
-    A["idle"] = anim(L, True, {"root": {"position": lambda t: [0, 1.0 * wave(t, L), 0]}, "embers": rot(lambda t: [0, 180 * t, 0]),
-                               "head": rot(lambda t: [4 * wave(t, L), 0, 3 * wave(t, L / 2)])}, 0.1)
-    A["walk"] = anim(L, True, {"root": {"position": lambda t: [0, 0.6 * wave(t, L), 0]}, "embers": rot(lambda t: [0, 360 * t, 0]),
-                               "head": rot(lambda t: [15, 0, 0])}, 0.1)
-    L = 1.0
-    A["attack"] = anim(L, False, {"head": {"scale": lambda t: [1 + 0.35 * window(t, 0, 1.0) + 0.08 * math.sin(t * 60)] * 3},
-                                  "embers": {"rotation": lambda t: [0, 900 * t, 0], "scale": lambda t: [1 + window(t, 0, 1.0)] * 3}}, 0.025)
-    L = 0.5
-    A["death"] = anim(L, "hold", {"head": {"scale": lambda t: [max(0.01, 1 + 0.6 * window(t, 0, 0.2) - 1.6 * window(t, 0.2, 0.5))] * 3},
-                                  "embers": {"scale": lambda t: [max(0.01, 1 + 2 * window(t, 0, 0.5))] * 3}}, 0.025)
-    write_anims(name, A)
-
-
 def telegraphs_and_eggs():
     """The telegraph textures (a soft fill and a bright rim) and the spawn egg item models."""
     import json
@@ -1584,7 +1365,7 @@ def telegraphs_and_eggs():
             f.write('{"texture": {"blur": true, "clamp": true}}')
     items = os.path.join(TEX, "..", "models", "item")
     os.makedirs(items, exist_ok=True)
-    for k in ("gloomfang", "broodling", "shardback", "hollow_acolyte", "ashen_sentinel", "emberwisp"):
+    for k in ("gloomfang",):
         with open(os.path.join(items, k + "_spawn_egg.json"), "w") as f:
             json.dump({"parent": "minecraft:item/template_spawn_egg"}, f, indent=2)
 
@@ -1594,8 +1375,9 @@ def main():
         os.makedirs(os.path.join(GEO, d), exist_ok=True)
         os.makedirs(os.path.join(ANIM, d), exist_ok=True)
         os.makedirs(os.path.join(TEX, d), exist_ok=True)
-    makers = [broodmother, knight, magus, wyrm, alpha, gloomfang, broodling, shardback, hollow_acolyte, ashen_sentinel, emberwisp,
-              telegraphs_and_eggs]
+    # the other gate creatures (broodling, shardback, hollow_acolyte, ashen_sentinel, emberwisp and the rest) are
+    # made by gen_creatures.py
+    makers = [broodmother, knight, magus, wyrm, alpha, gloomfang, telegraphs_and_eggs]
     only = sys.argv[1:]     # e.g. "alpha gloomfang" while working on the hounds
     for make in makers:
         if not only or make.__name__ in only:

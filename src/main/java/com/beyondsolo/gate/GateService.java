@@ -496,7 +496,7 @@ public final class GateService {
         for (int i = 0; i < count; i++) {
             BlockPos p = packSpot(dungeon, c, floor, room, r);
             if (mix == null) {
-                spawnMonster(dungeon, g, theme.monsters.get(r.nextInt(theme.monsters.size())), p);
+                spawnMonster(dungeon, g, com.beyondsolo.enemy.EnemyRoster.trial().pick(r), p);
                 continue;
             }
             EntityType<?> type = mix.pick(r);

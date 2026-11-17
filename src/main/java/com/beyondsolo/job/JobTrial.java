@@ -1,6 +1,8 @@
 package com.beyondsolo.job;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.enemy.EnemyModule;
+import com.beyondsolo.enemy.MonsterKind;
 import com.beyondsolo.gate.GateBossEntity;
 import com.beyondsolo.gate.GateInstance;
 import com.beyondsolo.gate.GateService;
@@ -43,8 +45,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -382,13 +383,18 @@ public final class JobTrial {
         waveBanner(s);
     }
 
+    /** The echoes of each wave: the gate's own creatures, the dead first, then soldiers, casters and a brute. */
     private static List<EntityType<? extends Mob>> roster(int wave) {
-        return switch (wave) {
-            case 1 -> List.of(EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SKELETON);
-            case 2 -> List.of(EntityType.SKELETON, EntityType.STRAY, EntityType.HUSK, EntityType.HUSK, EntityType.ZOMBIE, EntityType.STRAY);
-            default -> List.of(EntityType.WITHER_SKELETON, EntityType.WITHER_SKELETON, EntityType.VINDICATOR, EntityType.VINDICATOR,
-                    EntityType.PILLAGER, EntityType.SKELETON);
+        List<MonsterKind> kinds = switch (wave) {
+            case 1 -> List.of(MonsterKind.GRAVE_THRALL, MonsterKind.GRAVE_THRALL, MonsterKind.GRAVE_THRALL, MonsterKind.BONE_ARCHER, MonsterKind.BONE_ARCHER);
+            case 2 -> List.of(MonsterKind.BONE_ARCHER, MonsterKind.GUTTERKIN, MonsterKind.GUTTERKIN, MonsterKind.GRAVE_THRALL, MonsterKind.DEEPKIN,
+                    MonsterKind.HOLLOW_ACOLYTE);
+            default -> List.of(MonsterKind.ASHEN_SENTINEL, MonsterKind.ASHEN_SENTINEL, MonsterKind.RIME_STALKER, MonsterKind.TUSKBRUTE,
+                    MonsterKind.HOLLOW_ACOLYTE, MonsterKind.BONE_ARCHER);
         };
+        List<EntityType<? extends Mob>> out = new java.util.ArrayList<>();
+        for (MonsterKind k : kinds) out.add(EnemyModule.type(k));
+        return out;
     }
 
     /** Echoes: the System's copies of hunters who failed this trial. Tougher with the player's rank and level. */
@@ -404,7 +410,6 @@ public final class JobTrial {
         AttributeInstance follow = mob.getAttribute(Attributes.FOLLOW_RANGE);
         if (follow != null) follow.setBaseValue(64);
         mob.setHealth(mob.getMaxHealth());
-        if (mob.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) mob.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.CHAINMAIL_HELMET));
         mob.setDropChance(EquipmentSlot.HEAD, 0);
         mob.setDropChance(EquipmentSlot.MAINHAND, 0);
         mob.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, -1, 0, false, false));

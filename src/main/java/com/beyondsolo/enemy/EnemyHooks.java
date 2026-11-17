@@ -121,8 +121,10 @@ public final class EnemyHooks {
         LivingEntity victim = event.getEntity();
         if (victim.level().isClientSide || event.getNewDamage() <= 0) return;
         Entity src = event.getSource().getEntity();
-        // a roster creature's melee hit carries its affinity (bolts and bursts apply their own)
-        if (src instanceof LivingEntity attacker && event.getSource().getDirectEntity() == attacker && EnemyTraits.has(attacker)
+        // a roster creature's melee hit (or an archer's arrow) carries its affinity (bolts and bursts apply their own)
+        Entity direct = event.getSource().getDirectEntity();
+        if (src instanceof LivingEntity attacker && (direct == attacker || direct instanceof net.minecraft.world.entity.projectile.AbstractArrow)
+                && EnemyTraits.has(attacker)
                 && !(attacker instanceof com.beyondsolo.gate.GateBossEntity)) {
             EnemyTraits t = EnemyTraits.of(attacker);
             affinityHit(attacker, victim, 1f);

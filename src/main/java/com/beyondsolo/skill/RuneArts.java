@@ -146,7 +146,8 @@ public final class RuneArts {
 
     /** The rune a gate creature of this kind can leave. */
     public static @Nullable Skill of(MonsterKind kind) {
-        return BY_MONSTER.get(kind);
+        // the later creatures carry the rune of the original they are kin to
+        return BY_MONSTER.get(kind.kin());
     }
 
     /** The rune a boss of this kind can leave. */
