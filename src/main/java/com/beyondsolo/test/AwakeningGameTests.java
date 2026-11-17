@@ -4,6 +4,7 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.awakening.ArbiterEntity;
 import com.beyondsolo.awakening.AwakeningData;
 import com.beyondsolo.awakening.AwakeningService;
+import com.beyondsolo.awakening.AwakeningTestAccess;
 import com.beyondsolo.evaluation.EvaluationManager;
 import com.beyondsolo.gate.GateBlockEntity;
 import com.beyondsolo.gate.GateData;
@@ -23,17 +24,23 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.common.CommonHooks;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** The awakening trial: no System at the start, the sealed gate, the Arbiter, and what a fall or a kill gives. */
 @GameTestHolder(BeyondSolo.MOD_ID)
@@ -188,6 +195,55 @@ public final class AwakeningGameTests {
                     helper.assertTrue(AwakeningService.SLAYER_TITLE.equals(SystemAPI.get(p).title()), "and the title");
                 })
                 .thenSucceed();
+    }
+
+    /**
+     * Regression for the 0.1.0 playtest crash: a ring or a pillar that fells the challenger ends the fight in the
+     * middle of the Arbiter's attack tick (the trial refuses the death, the Arbiter passes its verdict and clears every
+     * ring and mark). Walking the rings while that happened threw ConcurrentModificationException and stopped the
+     * server. A cow stands in for the challenger here (test players can't be hurt): the moment it is hit, the verdict
+     * is passed, as the fall of a real challenger would.
+     */
+    @GameTest(template = ARENA)
+    public static void aFallMidStrikeEndsTheFightCleanly(GameTestHelper helper) {
+        ArbiterEntity rings = helper.spawn(com.beyondsolo.registry.ModEntities.ARBITER.get(), new BlockPos(5, 2, 5));
+        ArbiterEntity pillars = helper.spawn(com.beyondsolo.registry.ModEntities.ARBITER.get(), new BlockPos(1, 2, 1));
+        AwakeningTestAccess.ready(rings);
+        AwakeningTestAccess.ready(pillars);
+        Cow first = helper.spawn(EntityType.COW, new BlockPos(1, 2, 5));
+        Cow second = helper.spawn(EntityType.COW, new BlockPos(5, 2, 1));
+        Consumer<LivingIncomingDamageEvent> falls = e -> {
+            if (e.getEntity() == first) rings.passVerdict();
+            if (e.getEntity() == second) pillars.passVerdict();
+        };
+        NeoForge.EVENT_BUS.addListener(falls);
+        try {
+            // two rings from where the first cow stands: the first ring fells it, and the second must not be walked
+            AwakeningTestAccess.wave(rings, first.position(), 0);
+            AwakeningTestAccess.wave(rings, first.position(), 0);
+            // a pillar not due yet, then two due on the second cow
+            AwakeningTestAccess.mark(pillars, second.position(), 40);
+            AwakeningTestAccess.mark(pillars, second.position(), 0);
+            AwakeningTestAccess.mark(pillars, second.position(), 0);
+            AwakeningTestAccess.tickAttacks(rings);
+            AwakeningTestAccess.tickAttacks(pillars);
+        } catch (ConcurrentModificationException e) {
+            helper.fail("the fight ending mid-strike broke the Arbiter's attack tick: " + e);
+        } finally {
+            NeoForge.EVENT_BUS.unregister(falls);
+        }
+        helper.assertTrue(first.isDeadOrDying() && second.isDeadOrDying(), "both were struck down");
+        helper.assertTrue(rings.isVerdict() && AwakeningTestAccess.pending(rings) == 0, "the verdict stops every ring");
+        helper.assertTrue(pillars.isVerdict() && AwakeningTestAccess.pending(pillars) == 0, "and every pillar");
+        // and with the fight over, its next tick strikes nothing
+        AwakeningTestAccess.wave(rings, first.position(), 0);
+        Cow third = helper.spawn(EntityType.COW, new BlockPos(1, 2, 5));
+        AwakeningTestAccess.tickAttacks(rings);
+        helper.assertTrue(third.getHealth() == third.getMaxHealth(), "a judged Arbiter strikes no one");
+        rings.discard();
+        pillars.discard();
+        third.discard();
+        helper.succeed();
     }
 
     @GameTest(template = ARENA)

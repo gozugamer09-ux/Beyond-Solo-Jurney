@@ -46,7 +46,6 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -193,7 +192,10 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         level().playSound(null, blockPosition(), SoundEvents.CHAIN_BREAK, SoundSource.HOSTILE, 3f, 0.5f);
     }
 
-    /** Its challenger has fallen: it raises its sword over them and holds. */
+    /**
+     * Its challenger has fallen: it raises its sword over them and holds. This can happen in the middle of one of its
+     * own attacks (the blow that fells them), so the attacks check {@link #fighting()} after every strike.
+     */
     public void passVerdict() {
         entityData.set(VERDICT, true);
         getNavigation().stop();
@@ -201,6 +203,27 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         waves.clear();
         marks.clear();
         level().playSound(null, blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 3f, 0.5f);
+    }
+
+    /** Still fighting: alive and no verdict passed (a strike can end the fight halfway through an attack). */
+    private boolean fighting() {
+        return isAlive() && !isVerdict();
+    }
+
+    // for AwakeningTestAccess: tests drive the attacks by hand
+
+    /** Done rising: awake and fighting at once. */
+    void finishRising() {
+        entityData.set(AWAKE, true);
+        entityData.set(INTRO, 0);
+    }
+
+    void addMark(Vec3 at, long strikesAt) {
+        marks.add(new Mark(at, strikesAt));
+    }
+
+    int pendingAttacks() {
+        return waves.size() + marks.size();
     }
 
     @Override
@@ -318,6 +341,7 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
     private void cleave() {
         Vec3 look = Vec3.directionFromRotation(0, yBodyRot);
         for (LivingEntity e : victims(position(), 11)) {
+            if (!fighting()) break;
             Vec3 to = e.position().subtract(position());
             if (to.horizontalDistance() > 10.5 || e.getY() > getY() + 4.5) continue;
             if (to.horizontalDistance() > 2.5 && to.multiply(1, 0, 1).normalize().dot(look) < 0.05) continue;
@@ -333,6 +357,7 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         Vec3 look = Vec3.directionFromRotation(0, yBodyRot);
         Vec3 impact = position().add(look.scale(6.5));
         for (LivingEntity e : victims(impact, 4.2)) {
+            if (!fighting()) break;
             if (e.position().subtract(impact).horizontalDistance() <= 4.2) strike(e, 1.25f, impact, 1.2, 0.7);
         }
         BlockState ground = level().getBlockState(BlockPos.containing(impact).below());
@@ -342,11 +367,13 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         level().playSound(null, BlockPos.containing(impact), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 3f, 0.5f);
         level().playSound(null, BlockPos.containing(impact), SoundEvents.MACE_SMASH_GROUND_HEAVY, SoundSource.HOSTILE, 3f, 0.5f);
         GateService.shake(server, this, 1f, 60);
+        // the blow itself may have felled its challenger: then no ring follows
+        if (!fighting()) return;
         startWave(server, impact, 0);
         if (isEnraged()) startWave(server, impact, 12);
     }
 
-    private void startWave(ServerLevel server, Vec3 origin, int delay) {
+    void startWave(ServerLevel server, Vec3 origin, int delay) {
         waves.add(new Wave(origin, server.getGameTime() + delay));
         com.beyondsolo.util.ServerScheduler.schedule(delay, () -> {
             if (!isAlive()) return;
@@ -356,20 +383,22 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         });
     }
 
-    /** The ring catches whoever is standing on the floor as it passes: jump it. */
-    private void tickWaves(ServerLevel server) {
+    /**
+     * The ring catches whoever is standing on the floor as it passes: jump it.
+     *
+     * <p>A strike can end the fight then and there: the challenger falls, the trial refuses their death and the
+     * Arbiter passes its verdict, which clears every ring. So the rings are walked as a copy, and the walk stops as
+     * soon as the fight is over (walking the list itself crashed the server in the 0.1.0 playtest).</p>
+     */
+    void tickWaves(ServerLevel server) {
         long now = server.getGameTime();
-        Iterator<Wave> it = waves.iterator();
-        while (it.hasNext()) {
-            Wave w = it.next();
+        waves.removeIf(w -> (now - w.started) * WAVE_SPEED > WAVE_REACH);
+        for (Wave w : List.copyOf(waves)) {
             float age = now - w.started;
             if (age < 0) continue;
             float r = age * WAVE_SPEED;
-            if (r > WAVE_REACH) {
-                it.remove();
-                continue;
-            }
             for (LivingEntity e : victims(w.origin, r + 2)) {
+                if (!fighting()) return;
                 double d = e.position().subtract(w.origin).horizontalDistance();
                 if (d < r - 1.1 || d > r + 0.4) continue;
                 if (e.getY() > w.origin.y + 0.7 || !e.onGround() && e.getY() > w.origin.y + 0.35) continue;
@@ -410,14 +439,19 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
         return new Vec3(at.x, p.getY(), at.z);
     }
 
-    private void tickMarks(ServerLevel server) {
+    /** The pillars fall on the marks that are due. As with the rings, a strike can end the fight: then the rest go. */
+    void tickMarks(ServerLevel server) {
         long now = server.getGameTime();
-        Iterator<Mark> it = marks.iterator();
-        while (it.hasNext()) {
-            Mark m = it.next();
-            if (now < m.strikesAt) continue;
-            it.remove();
+        List<Mark> due = new ArrayList<>();
+        marks.removeIf(m -> {
+            if (now < m.strikesAt) return false;
+            due.add(m);
+            return true;
+        });
+        for (Mark m : due) {
+            if (!fighting()) return;
             for (LivingEntity e : victims(m.at, MARK_RADIUS + 1)) {
+                if (!fighting()) return;
                 if (e.position().subtract(m.at).horizontalDistance() <= MARK_RADIUS && Math.abs(e.getY() - m.at.y) < 12) strike(e, 1.15f, m.at, 0.4, 0.5);
             }
             server.sendParticles(ParticleTypes.END_ROD, m.at.x, m.at.y + 0.3, m.at.z, 40, 1.2, 0.2, 1.2, 0.15);
