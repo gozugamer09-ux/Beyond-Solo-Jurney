@@ -436,9 +436,13 @@ public final class KeyGameTests {
         ServerLevel d = GateService.dungeon(server);
         GateService.buildNow(server, g);
         BlockPos e = g.entrance();
-        helper.assertTrue(d.getBlockState(e).isAir(), "carved");
+        // carved: you arrive in the open, perhaps on a hall's carpet or a patch of moss
+        var underfoot = d.getBlockState(e).getCollisionShape(d, e);
+        helper.assertTrue(d.getBlockState(e).getFluidState().isEmpty() && (underfoot.isEmpty() || underfoot.max(Direction.Axis.Y) <= 0.5)
+                && d.getBlockState(e.above()).getCollisionShape(d, e.above()).isEmpty(), "carved, not " + d.getBlockState(e) + " in " + g.realm().id() + "/" + g.shape().id());
         Mob mob = GateService.spawnMonster(d, g, EntityType.ZOMBIE, e);
         helper.assertTrue(mob != null && g.id().equals(mob.getPersistentData().getUUID(GateWiper.GATE_ID_TAG)), "its monsters know their gate");
+        TestChunks.settle(d, () -> d.getEntity(mob.getUUID()) == mob);
         int slot = g.slot();
         helper.assertTrue(!GateWiper.wipeNow(server, g), "an open cave is left alone");
         g.setState(GateInstance.State.CLOSED);

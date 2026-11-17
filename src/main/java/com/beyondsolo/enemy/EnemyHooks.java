@@ -176,8 +176,12 @@ public final class EnemyHooks {
                 BlockPos p = BlockPos.containing(at.x + Math.cos(a) * 0.8, at.y, at.z + Math.sin(a) * 0.8);
                 EnemyTraits child = new EnemyTraits(t.affinity(), Variant.NORMAL, 0);
                 Mob m = Enemies.spawn(level, rank == null ? PlayerRank.E : rank, type, p, child, theme);
+                com.beyondsolo.breaks.DungeonBreaks.adopt(victim, m);
                 if (m != null) {
                     m.getPersistentData().putBoolean(SPLIT, true);
+                    if (victim.getPersistentData().contains(com.beyondsolo.gate.GateService.ELEMENT_TAG)) {
+                        m.getPersistentData().putString(com.beyondsolo.gate.GateService.ELEMENT_TAG, victim.getPersistentData().getString(com.beyondsolo.gate.GateService.ELEMENT_TAG));
+                    }
                     var scale = m.getAttribute(Attributes.SCALE);
                     if (scale != null) scale.addPermanentModifier(new AttributeModifier(BeyondSolo.id("split"), -0.3, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
                     var hp = m.getAttribute(Attributes.MAX_HEALTH);

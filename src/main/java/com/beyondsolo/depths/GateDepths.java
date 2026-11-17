@@ -65,7 +65,8 @@ public final class GateDepths {
     public GateWeather weather(GateInstance g) {
         if (g.isTrial()) return GateWeather.CLEAR;
         if (weatherOverride >= 0) return GateWeather.byIndex(weatherOverride);
-        return GateWeather.roll(g.seed(), g.rank(), g.theme());
+        // an old cave leans as its rank's did; any other as its realm does
+        return GateWeather.roll(g.seed(), g.rank(), g.legacy() ? GateWeather.themed(g.theme()) : GateWeather.themed(g.realm()));
     }
 
     public void setWeather(@Nullable GateWeather weather) {
@@ -90,20 +91,34 @@ public final class GateDepths {
         if (!enabled || g.isTrial()) return Collections.emptyMap();
         if (trapOverride != null) return trapOverride;
         if (traps != null) return traps;
+        traps = roll(g.seed(), g.rank().tier(), g.layout());
+        return traps;
+    }
+
+    /** The trap rooms a seed gives a plan (rank tier 0 for E up to 5 for S). */
+    static Map<Integer, TrapKind> roll(long seed, int tier, DungeonLayout layout) {
         Map<Integer, TrapKind> out = new LinkedHashMap<>();
-        int tier = g.rank().tier();
         int max = 1 + tier / 3;
         float chance = 0.12f + 0.03f * tier;
-        RandomSource r = new LegacyRandomSource(g.seed() ^ 0x5452415053215452L);
-        for (DungeonLayout.Room room : g.layout().rooms()) {
+        RandomSource r = new LegacyRandomSource(seed ^ 0x5452415053215452L);
+        for (DungeonLayout.Room room : layout.rooms()) {
             // never the first cavern: the run gets going before the cave starts playing tricks
             if (room.kind() != DungeonLayout.Kind.CAVERN || room.index() < 2) continue;
             boolean hit = r.nextFloat() < chance;
             int kind = r.nextInt(100);
-            if (hit && out.size() < max) out.put(room.index(), TrapKind.pick(kind));
+            if (hit && out.size() < max) {
+                TrapKind k = TrapKind.pick(kind);
+                // a lockdown needs a room it can shut (every room of the original caves is one)
+                if (k == TrapKind.LOCKDOWN && !layout.enclosed(room)) k = TrapKind.pickOpen(kind);
+                out.put(room.index(), k);
+            }
         }
-        traps = out;
         return out;
+    }
+
+    /** The cave was planned again (another realm or shape, a hidden chamber added): its trap rooms follow the new plan. */
+    public void replanned() {
+        traps = null;
     }
 
     @Nullable

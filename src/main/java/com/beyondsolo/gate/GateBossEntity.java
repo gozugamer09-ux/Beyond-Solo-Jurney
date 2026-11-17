@@ -6,6 +6,7 @@ import com.beyondsolo.enemy.EnemyFx;
 import com.beyondsolo.enemy.EnemyTraits;
 import com.beyondsolo.enemy.Variant;
 import com.beyondsolo.system.PlayerRank;
+import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -131,6 +132,7 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     public void configure(GateInstance gate) {
         configure(gate.rank(), gate.bossKind(), gate.bossAscended());
         this.gateId = gate.id();
+        getPersistentData().putString(GateService.ELEMENT_TAG, gate.element().id().toString());
         setCustomName(gate.bossName());
         setCustomNameVisible(false);
     }
@@ -196,12 +198,12 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         return GateTheme.of(rank());
     }
 
-    /** The element its hits carry: its own for the broodmother (poison) and wyrm (fire), else its gate's. */
+    /** The element its hits carry: its own for the broodmother (poison) and wyrm (fire), else its gate's realm's. */
     public DamageElement element() {
         return switch (kind()) {
             case BROODMOTHER -> DamageElement.POISON;
             case WYRM -> DamageElement.FIRE;
-            default -> theme().element;
+            default -> getPersistentData().contains(GateService.ELEMENT_TAG) ? GateService.elementOf(this) : theme().element;
         };
     }
 
@@ -479,10 +481,11 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         if (level() instanceof ServerLevel server) {
             if (deathTime == 30 || deathTime == 46) shockwave(3f, 0f, false);
             if (deathTime % 4 == 0) {
-                server.sendParticles(ParticleTypes.SOUL, getX(), getY() + getBbHeight() * 0.5, getZ(), 2, getBbWidth() * 0.4, 1, getBbWidth() * 0.4, 0.02);
+                ParticleGuard.send(server, ParticleTypes.SOUL, getX(), getY() + getBbHeight() * 0.5, getZ(), 2, getBbWidth() * 0.4, 1, getBbWidth() * 0.4, 0.02);
             }
             if (deathTime >= DEATH_TICKS) {
-                server.sendParticles(ParticleTypes.POOF, getX(), getY() + 1, getZ(), 40, 1, 1.2, 1, 0.05);
+                // its last puff, for everyone not standing in it
+                ParticleGuard.send(server, ParticleTypes.POOF, getX(), getY() + 1, getZ(), 40, 1, 1.2, 1, 0.05);
                 remove(RemovalReason.KILLED);
             }
         }

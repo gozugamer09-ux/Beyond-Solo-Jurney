@@ -239,6 +239,486 @@
       {
         "model": "beyondsolo:block/hidden_seal/polished_diorite_2"
       }
+    ],
+    "look=rooted_dirt": [
+      {
+        "model": "beyondsolo:block/hidden_seal/rooted_dirt",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/rooted_dirt_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/rooted_dirt_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/rooted_dirt_2"
+      }
+    ],
+    "look=packed_mud": [
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_mud",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_mud_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_mud_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_mud_2"
+      }
+    ],
+    "look=dirt": [
+      {
+        "model": "beyondsolo:block/hidden_seal/dirt",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dirt_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dirt_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dirt_2"
+      }
+    ],
+    "look=coarse_dirt": [
+      {
+        "model": "beyondsolo:block/hidden_seal/coarse_dirt",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/coarse_dirt_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/coarse_dirt_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/coarse_dirt_2"
+      }
+    ],
+    "look=mossy_stone_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_stone_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_stone_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_stone_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/mossy_stone_bricks_2"
+      }
+    ],
+    "look=stone_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/stone_bricks_2"
+      }
+    ],
+    "look=cracked_stone_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_stone_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_stone_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_stone_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_stone_bricks_2"
+      }
+    ],
+    "look=chiseled_stone_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_stone_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_stone_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_stone_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_stone_bricks_2"
+      }
+    ],
+    "look=sandstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/sandstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/sandstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/sandstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/sandstone_2"
+      }
+    ],
+    "look=cut_sandstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/cut_sandstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cut_sandstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cut_sandstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cut_sandstone_2"
+      }
+    ],
+    "look=smooth_sandstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/smooth_sandstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/smooth_sandstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/smooth_sandstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/smooth_sandstone_2"
+      }
+    ],
+    "look=chiseled_sandstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_sandstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_sandstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_sandstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_sandstone_2"
+      }
+    ],
+    "look=deepslate_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_bricks_2"
+      }
+    ],
+    "look=cracked_deepslate_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_deepslate_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_deepslate_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_deepslate_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/cracked_deepslate_bricks_2"
+      }
+    ],
+    "look=deepslate_tiles": [
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_tiles",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_tiles_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_tiles_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/deepslate_tiles_2"
+      }
+    ],
+    "look=polished_deepslate": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_deepslate",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_deepslate_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_deepslate_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_deepslate_2"
+      }
+    ],
+    "look=brown_terracotta": [
+      {
+        "model": "beyondsolo:block/hidden_seal/brown_terracotta",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/brown_terracotta_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/brown_terracotta_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/brown_terracotta_2"
+      }
+    ],
+    "look=terracotta": [
+      {
+        "model": "beyondsolo:block/hidden_seal/terracotta",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/terracotta_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/terracotta_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/terracotta_2"
+      }
+    ],
+    "look=prismarine_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_bricks_2"
+      }
+    ],
+    "look=prismarine": [
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/prismarine_2"
+      }
+    ],
+    "look=dark_prismarine": [
+      {
+        "model": "beyondsolo:block/hidden_seal/dark_prismarine",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dark_prismarine_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dark_prismarine_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/dark_prismarine_2"
+      }
+    ],
+    "look=packed_ice": [
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_ice",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_ice_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_ice_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/packed_ice_2"
+      }
+    ],
+    "look=blue_ice": [
+      {
+        "model": "beyondsolo:block/hidden_seal/blue_ice",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blue_ice_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blue_ice_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/blue_ice_2"
+      }
+    ],
+    "look=snow_block": [
+      {
+        "model": "beyondsolo:block/hidden_seal/snow_block",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/snow_block_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/snow_block_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/snow_block_2"
+      }
+    ],
+    "look=polished_andesite": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_andesite",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_andesite_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_andesite_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_andesite_2"
+      }
+    ],
+    "look=tuff_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/tuff_bricks_2"
+      }
+    ],
+    "look=polished_tuff": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_tuff",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_tuff_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_tuff_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_tuff_2"
+      }
+    ],
+    "look=waxed_weathered_cut_copper": [
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_weathered_cut_copper",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_weathered_cut_copper_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_weathered_cut_copper_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_weathered_cut_copper_2"
+      }
+    ],
+    "look=waxed_oxidized_cut_copper": [
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_oxidized_cut_copper",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_oxidized_cut_copper_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_oxidized_cut_copper_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/waxed_oxidized_cut_copper_2"
+      }
+    ],
+    "look=chiseled_polished_blackstone": [
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_polished_blackstone",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_polished_blackstone_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_polished_blackstone_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/chiseled_polished_blackstone_2"
+      }
+    ],
+    "look=nether_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/nether_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/nether_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/nether_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/nether_bricks_2"
+      }
+    ],
+    "look=polished_blackstone_bricks": [
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_bricks",
+        "weight": 5
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_bricks_0"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_bricks_1"
+      },
+      {
+        "model": "beyondsolo:block/hidden_seal/polished_blackstone_bricks_2"
+      }
     ]
   }
 }

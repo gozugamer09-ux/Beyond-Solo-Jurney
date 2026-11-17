@@ -1,5 +1,6 @@
 package com.beyondsolo.enemy;
 
+import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -351,7 +352,7 @@ public class GateMonsterEntity extends Monster implements GeoEntity {
                 setHealth(Math.max(getHealth(), getMaxHealth() * 0.5f));
                 level().playSound(null, blockPosition(), SoundEvents.ZOMBIE_AMBIENT, SoundSource.HOSTILE, 1.2f, 0.6f);
                 if (level() instanceof ServerLevel s) {
-                    s.sendParticles(ParticleTypes.SOUL, getX(), getY() + 1, getZ(), 12, 0.3, 0.6, 0.3, 0.03);
+                    ParticleGuard.send(s, ParticleTypes.SOUL, getX(), getY() + 1, getZ(), 12, 0.3, 0.6, 0.3, 0.03);
                     EnemyFx.burst(s, position().add(0, 1, 0), affinity() == Affinity.NONE ? 0x96FFE1 : affinity().color, 1.4f);
                 }
             }
@@ -394,7 +395,7 @@ public class GateMonsterEntity extends Monster implements GeoEntity {
         if (!(level() instanceof ServerLevel server) || !isAlive()) return;
         float damage = (float) getAttributeValue(Attributes.ATTACK_DAMAGE);
         server.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.3, getZ(), 1, 0, 0, 0, 0);
-        server.sendParticles(affinity() == Affinity.NONE || affinity() == Affinity.FLAME ? ParticleTypes.FLAME : ParticleTypes.SOUL_FIRE_FLAME,
+        ParticleGuard.send(server, affinity() == Affinity.NONE || affinity() == Affinity.FLAME ? ParticleTypes.FLAME : ParticleTypes.SOUL_FIRE_FLAME,
                 getX(), getY() + 0.3, getZ(), 30, 0.6, 0.6, 0.6, 0.12);
         level().playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 0.9f, 1.5f);
         for (LivingEntity e : server.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(2.8), e -> e != this && e.isAlive() && !(e instanceof Monster))) {
@@ -575,5 +576,15 @@ public class GateMonsterEntity extends Monster implements GeoEntity {
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return cache;
+    }
+
+    /** Its death puff, without the puffs that would fill a first-person camera standing over it. */
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == 60 && level().isClientSide()) {
+            com.beyondsolo.client.render.CameraParticles.poof(this);
+            return;
+        }
+        super.handleEntityEvent(id);
     }
 }

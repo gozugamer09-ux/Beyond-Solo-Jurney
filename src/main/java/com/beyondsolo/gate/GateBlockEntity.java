@@ -33,7 +33,8 @@ import java.util.UUID;
 /**
  * A gate. Knows which {@link GateInstance} it leads into (or, for an exit gate, out of), its rank, and when it
  * opened or started to close, so every client can play the same opening and closing. Walking into the vortex
- * starts the trip through ({@link GateService}).
+ * starts the trip through ({@link GateService}). It also carries what clients see of its dungeon break (its phase,
+ * when it started to come apart, when it breaks and when it broke), set by {@code breaks.DungeonBreaks}.
  */
 public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     /** Opening animation length in ticks (the model's "open" plus the vortex growing). */
@@ -60,6 +61,12 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     private boolean sealed;
     /** A gate opened with a dungeon key: a lock of light at its heart, and no beam (see key.DungeonKeys). */
     private boolean keyed;
+    /** Its dungeon break as clients see it: {@link #HOLDING}, {@link #UNSTABLE}, {@link #IMMINENT} or {@link #BROKEN}. */
+    private int breakPhase;
+    /** Game time it started to come apart and when it breaks (-1 while it holds), and when it broke (-1 until it has). */
+    private long unstableAt = -1, breakAt = -1, brokeAt = -1;
+
+    public static final int HOLDING = 0, UNSTABLE = 1, IMMINENT = 2, BROKEN = 3;
 
     public GateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.GATE.get(), pos, state);
@@ -76,6 +83,36 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     public boolean isClosing() { return closingAt >= 0; }
     public boolean isSealed() { return sealed; }
     public boolean isKeyed() { return keyed; }
+    public int breakPhase() { return breakPhase; }
+    /** Coming apart, its collapse timer running. */
+    public boolean isUnstable() { return breakPhase == UNSTABLE || breakPhase == IMMINENT; }
+    public boolean isBroken() { return breakPhase == BROKEN; }
+    public long breakAt() { return breakAt; }
+    public long brokeAt() { return brokeAt; }
+
+    /** 0..1 how far it has come apart: 0 while it holds, 1 at the break (and after). */
+    public float instability(float partialTick) {
+        if (breakPhase == BROKEN) return 1f;
+        if (!isUnstable() || level == null || breakAt <= unstableAt) return 0f;
+        float t = level.getGameTime() + partialTick;
+        return Mth.clamp((t - unstableAt) / (float) (breakAt - unstableAt), 0f, 1f);
+    }
+
+    /**
+     * What clients see of its break. Sends an update only when something they would see changed: the phase, the
+     * moment it broke, or its time to break by more than a few seconds (it is pushed back a second at a time while
+     * someone is inside its cave).
+     */
+    public void setBreak(int phase, long unstableAt, long breakAt, long brokeAt) {
+        boolean show = phase != breakPhase || brokeAt != this.brokeAt || unstableAt != this.unstableAt || Math.abs(breakAt - this.breakAt) > 100;
+        boolean save = show || breakAt != this.breakAt;
+        this.breakPhase = phase;
+        this.unstableAt = unstableAt;
+        this.breakAt = breakAt;
+        this.brokeAt = brokeAt;
+        if (show) changed();
+        else if (save) setChanged();
+    }
 
     public void setSealed(boolean sealed) {
         this.sealed = sealed;
@@ -141,12 +178,22 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         return new Vec3(worldPosition.getX() + 0.5 + f.getStepX() * 2.2, worldPosition.getY(), worldPosition.getZ() + 0.5 + f.getStepZ() * 2.2);
     }
 
+    /**
+     * Ticks from {@code then} to {@code now}, on the whole game clock (never the time of day, which starts over every
+     * 24000 ticks). A moment far in the future, from a clock that went back, counts as long ago.
+     */
+    public static float ticksSince(long now, long then, float partialTick) {
+        long d = now - then;
+        return d < -100 ? 999_999f : d + partialTick;
+    }
+
     /** 0..1 how far the gate has opened. */
     public float openness(float partialTick) {
         if (level == null) return 1f;
-        float t = level.getGameTime() + partialTick;
-        float open = openedAt < 0 ? 1f : Mth.clamp((t - openedAt) / OPEN_TICKS, 0f, 1f);
-        if (closingAt >= 0) open *= 1f - Mth.clamp((t - closingAt) / CLOSE_TICKS, 0f, 1f);
+        // differences taken on the whole numbers first: a float of the game time itself loses the ticks in an old world
+        long now = level.getGameTime();
+        float open = openedAt < 0 ? 1f : Mth.clamp((now - openedAt + partialTick) / OPEN_TICKS, 0f, 1f);
+        if (closingAt >= 0) open *= 1f - Mth.clamp((now - closingAt + partialTick) / CLOSE_TICKS, 0f, 1f);
         return open;
     }
 
@@ -177,6 +224,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         // a few motes drawn in towards the vortex; the light itself is drawn by the renderer
         RandomSource r = level.random;
         float open = gate.openness(0);
+        // a gate coming apart leaks red out of its rim instead (client.breaks.BreakWorldFx)
+        if (open > 0.05f && (gate.isUnstable() || gate.isBroken())) com.beyondsolo.client.breaks.BreakWorldFx.leak(gate);
         if (open <= 0.05f || r.nextInt(3) != 0) return;
         Vec3 c = gate.center();
         boolean alongX = gate.facing().getAxis() == Direction.Axis.Z;
@@ -206,6 +255,10 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         tag.putLong("closingAt", closingAt);
         tag.putBoolean("sealed", sealed);
         tag.putBoolean("keyed", keyed);
+        tag.putInt("breakPhase", breakPhase);
+        tag.putLong("unstableAt", unstableAt);
+        tag.putLong("breakAt", breakAt);
+        tag.putLong("brokeAt", brokeAt);
     }
 
     @Override
@@ -219,6 +272,10 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         closingAt = tag.contains("closingAt") ? tag.getLong("closingAt") : -1;
         sealed = tag.getBoolean("sealed");
         keyed = tag.getBoolean("keyed");
+        breakPhase = tag.getInt("breakPhase");
+        unstableAt = tag.contains("unstableAt") ? tag.getLong("unstableAt") : -1;
+        breakAt = tag.contains("breakAt") ? tag.getLong("breakAt") : -1;
+        brokeAt = tag.contains("brokeAt") ? tag.getLong("brokeAt") : -1;
     }
 
     @Override

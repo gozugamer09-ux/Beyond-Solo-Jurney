@@ -75,11 +75,13 @@ public final class GateGameTests {
         return d;
     }
 
+    /** The original caves (every realm and shape is checked in {@link DungeonGameTests}). */
     @GameTest(template = ARENA)
     public static void layoutIsDeterministicAndSpaced(GameTestHelper helper) {
         for (GateTheme theme : GateTheme.values()) {
-            DungeonLayout a = DungeonLayout.plan(1234L + theme.ordinal(), theme);
-            DungeonLayout b = DungeonLayout.plan(1234L + theme.ordinal(), theme);
+            com.beyondsolo.gate.GateRealm realm = theme == GateTheme.TRIAL ? com.beyondsolo.gate.GateRealm.THRESHOLD : com.beyondsolo.gate.GateRealm.classic(theme.rank);
+            DungeonLayout a = DungeonLayout.plan(1234L + theme.ordinal(), theme, realm, com.beyondsolo.gate.DungeonShape.CAVERNS);
+            DungeonLayout b = DungeonLayout.plan(1234L + theme.ordinal(), theme, realm, com.beyondsolo.gate.DungeonShape.CAVERNS);
             helper.assertTrue(a.rooms().equals(b.rooms()), "same seed, same cave");
             helper.assertTrue(a.rooms().get(0).kind() == DungeonLayout.Kind.ENTRANCE, "starts at the entrance");
             helper.assertTrue(a.boss().rx() > a.entrance().rx(), "the boss arena is the biggest room");
@@ -100,13 +102,22 @@ public final class GateGameTests {
         helper.succeed();
     }
 
+    /** A new gate's rank is a roll of the configured weights alone: not the player's rank, level or where it opens. */
     @GameTest(template = ARENA)
-    public static void worldgenRankGrowsWithDistance(GameTestHelper helper) {
+    public static void gateRanksAreFullyRandom(GameTestHelper helper) {
         RandomSource r = RandomSource.create(5);
-        for (int i = 0; i < 200; i++) {
-            helper.assertTrue(GateService.worldgenRank(new BlockPos(100, 70, 100), r).tier() <= 3, "near the centre gates are low");
-            helper.assertTrue(GateService.worldgenRank(new BlockPos(7000, 70, 0), r).tier() >= 3, "far out gates are high");
-        }
+        int[] seen = new int[PlayerRank.values().length];
+        for (int i = 0; i < 6000; i++) seen[GateService.randomRank(r, List.of(30, 25, 20, 13, 8, 4)).ordinal()]++;
+        for (PlayerRank rank : PlayerRank.values()) helper.assertTrue(seen[rank.ordinal()] > 0, rank + " gates open too");
+        helper.assertTrue(seen[PlayerRank.E.ordinal()] > seen[PlayerRank.S.ordinal()] * 3, "S gates are the rarest");
+        for (int i = 0; i < 50; i++) helper.assertTrue(GateService.randomRank(r, List.of(0, 0, 0, 0, 0, 1)) == PlayerRank.S, "the weights decide");
+        int[] even = new int[PlayerRank.values().length];
+        for (int i = 0; i < 6000; i++) even[GateService.randomRank(r, List.of(0, 0, 0, 0, 0, 0)).ordinal()]++;
+        for (int n : even) helper.assertTrue(n > 800 && n < 1200, "no weights: every rank alike (" + n + ")");
+        // gates open around everyone alike: the same roll for an E-rank as for an S-rank hunter, near spawn or far out
+        int[] config = new int[PlayerRank.values().length];
+        for (int i = 0; i < 3000; i++) config[GateService.randomRank(r).ordinal()]++;
+        for (PlayerRank rank : PlayerRank.values()) helper.assertTrue(config[rank.ordinal()] > 0, "the configured roll reaches " + rank);
         helper.succeed();
     }
 
@@ -126,6 +137,8 @@ public final class GateGameTests {
     @GameTest(template = ARENA, timeoutTicks = 200)
     public static void caveIsCarvedWithBoss(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.C);
+        // the original cave (every realm in every shape is carved and walked in DungeonGameTests)
+        g.setDungeon(com.beyondsolo.gate.GateRealm.classic(PlayerRank.C), com.beyondsolo.gate.DungeonShape.CAVERNS);
         ServerLevel d = dungeon(helper);
         GateService.buildNow(helper.getLevel().getServer(), g);
         helper.assertTrue(g.built(), "built");
@@ -139,6 +152,7 @@ public final class GateGameTests {
         BlockPos m = g.world(BlockPos.containing(mid[0], mid[1], mid[2]));
         helper.assertTrue(d.getBlockState(m).isAir(), "tunnels are dug");
         helper.assertTrue(g.bossSpawned() && g.boss() != null, "the boss is waiting");
+        TestChunks.settle(d, () -> d.getEntity(g.boss()) instanceof GateBossEntity);
         helper.assertTrue(d.getEntity(g.boss()) instanceof GateBossEntity boss && !boss.isAwake()
                 && boss.kind() == g.bossKind()
                 && Math.abs(boss.getMaxHealth() - GateTheme.C.bossHealth() * g.bossKind().healthScale * (g.bossAscended() ? 1.4f : 1f)
@@ -154,6 +168,8 @@ public final class GateGameTests {
         GateService.buildNow(helper.getLevel().getServer(), g);
         ChunkPos chunk = new ChunkPos(g.bossRoomCenter());
         for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) d.setChunkForced(chunk.x + x, chunk.z + z, true);
+        TestChunks.settle(d, () -> g.boss() != null && d.getEntity(g.boss()) instanceof GateBossEntity);
+        helper.assertTrue(g.boss() != null && d.getEntity(g.boss()) instanceof GateBossEntity, "the boss is waiting in " + g.realm().id() + "/" + g.shape().id());
         GateBossEntity boss = (GateBossEntity) d.getEntity(g.boss());
         helper.assertTrue(boss.isInvulnerableTo(d.damageSources().generic()), "can't be hurt while dormant");
         GateService.wakeBossNow(d, g);
@@ -216,6 +232,8 @@ public final class GateGameTests {
     @GameTest(template = ARENA)
     public static void gateMonstersAreScaledAndElemental(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.A);
+        // an A-rank gate into the forge halls, whose element is fire
+        g.setDungeon(com.beyondsolo.gate.GateRealm.EMBERFORGE, null);
         Mob mob = GateService.spawnMonster(helper.getLevel(), g, EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
         helper.assertTrue(mob != null && mob.getPersistentData().contains(GateService.MOB_TAG), "tagged as a gate monster");
         // the size roll moves health too (a small one has less), so the rank's health is measured at the size it rolled
@@ -224,7 +242,7 @@ public final class GateGameTests {
                 "tougher by rank: " + mob.getMaxHealth() + " at size " + size);
         Zombie target = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1));
         mob.doHurtTarget(target);
-        helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "an A-rank gate's monsters burn");
+        helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "the forge's monsters burn");
         mob.discard();
         target.discard();
         helper.succeed();
@@ -241,6 +259,17 @@ public final class GateGameTests {
         helper.assertTrue(high > low * 2, "S caches hold much more than E caches");
         List<ItemStack> s = GateLoot.roll(PlayerRank.S, r);
         helper.assertTrue(s.stream().anyMatch(st -> st.is(net.minecraft.world.item.Items.NETHERITE_SCRAP)), "S caches have netherite");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void gateTimesSurviveTheDayStartingOver(GameTestHelper helper) {
+        // opened late one day (tick 20000), looked at the next morning (tick 32248): 12248 ticks ago, not "just now",
+        // which is what the time of day said, and the gate's tear flash stayed lit all morning
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 20000, 0) == 12248f, "counted on the whole clock");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32238, 0.5f) == 10.5f, "a moment ago, with the partial tick");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32250, 0) == -2f, "a client a tick or two behind the server");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 90000, 0) > 1000, "a moment from the future counts as long ago");
         helper.succeed();
     }
 

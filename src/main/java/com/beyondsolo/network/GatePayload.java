@@ -10,7 +10,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
  * Server -> client: a gate moment for the overlay (going through a gate, arriving, a boss waking up or falling,
- * the gate cleared) or a camera shake.
+ * the gate cleared), a camera shake, or the realm a player is in (for its fog and air).
  *
  * @param kind    one of the constants below
  * @param rank    the gate's rank (ordinal)
@@ -29,6 +29,8 @@ public record GatePayload(int kind, int rank, int entity, float value, Component
     public static final int CLEARED = 6;
     public static final int SHAKE = 7;
     public static final int ENRAGED = 8;
+    /** The realm the player is in now ({@code rank} holds its ordinal, -1 for none; {@code value} the shape's). */
+    public static final int REALM = 9;
 
     public static final Type<GatePayload> TYPE = new Type<>(BeyondSolo.id("gate"));
     public static final StreamCodec<RegistryFriendlyByteBuf, GatePayload> STREAM_CODEC = StreamCodec.composite(

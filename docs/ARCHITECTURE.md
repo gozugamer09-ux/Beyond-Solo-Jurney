@@ -33,6 +33,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `rune`, `client.rune` | Rune stones: inscribed and sealed stones, absorbing, engraving runes, drops, recipes, the stone's composite model, the absorb on screen and in the world (see "Rune stones"); the rune arts themselves are in `skill/RuneArts` |
 | `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
 | `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
+| `breaks`, `client.breaks` | Dungeon breaks: the collapse timer on every uncleared gate, the break itself (waves, the boss coming through, suppression), and gate sensing in Pulse Scan; the break's banners, timer chip, gate compass and world effects (see "Dungeon breaks and gate sensing") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -321,16 +322,31 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 
 | Piece | Does |
 | --- | --- |
-| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
-| `DungeonLayout` | The plan of a cave from its seed: a winding chain of caverns, side caves with a chest, the boss arena at the end, curved tunnels between them. Pure logic, tested without a world |
-| `DungeonBuilder` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick), then decorates: wall lights, fill light, stalagmites, pillars round the arena, side-cave loot |
+| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the element, the monsters, how many rooms, boss stats, clear XP. The look now comes from the realm |
+| `GateRealm` | The kind of place behind the gate: 20 realms, several per rank (a gate's seed picks one, `forSeed`), each with its rank range, how it is built (natural caves, built halls, a hive of cells), its blocks (walls, floors, accents, trimmings, lights, liquid, carpet and banners), the decorations it uses (`Decor`), the shapes it suits with their weights, its affinity and element, the creature habitats it draws from (`enemy/Habitat`), the bosses it favours, and its fog colour, fog distance, drifting particles and the colour of its light (`glow`). The first six are the original rank caves (`classic(rank)`), `THRESHOLD` is the trial's |
+| `DungeonShape` | How the whole dungeon is laid out: caverns (the original chain), labyrinth (a grid maze with dead ends and loops), gauntlet (great halls one after another through gatehouses), spire (a tower climbed up winding stairs), descent (a ramp down a deep shaft with ledge caves), chasm (islands joined by bridges over a sea of water or lava), hollow (one vast cavern with camps, a lake and pillars), hive (round cells grown off each other). The realm says which shapes suit it and the seed picks one (`GateRealm.shapeFor`) |
+| `DungeonPlanner`, `DungeonLayout` | The plan of a dungeon from its seed, realm and shape: rooms (`Kind` entrance, cavern, side with a cache, boss, passage; `Shape` cave, hall, round hall, cell, island), passages (`Style` tube, corridor, bridge, spiral stairs) and open spaces (`SpaceShape` void, shaft, hollow, pool). One boss room, the biggest; every room reachable; nothing overlapping; between `FLOOR_LIMIT` and `CEILING_LIMIT` and inside its slot. Pure logic, tested without a world. `CAVERNS` takes exactly the draws the original planner took, so classic caves and the trial come out as before |
+| `DungeonBuilder`, `DungeonDecor` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick): spaces, rooms, passages, the realm's skin on every surface, liquids, islands, the floor of rooms on a chasm's rim (a ledge where the chasm ate into it) and stair landings, walkways, then dresses it: lights per room shape, fill light, the boss's arena (pillar rows, standing stones, braziers, a throne in built halls), side-room caches, mana veins, and the realm's decorations, kept off the paths between doors |
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
 | `GateBossEntity` | GeckoLib boss: dormant until someone enters the arena, then a roar intro; swipe and slam attacks with the gate's element; enrages under half health (adds, faster); long death animation |
 | `RewardCacheBlock(Entity)` | Falls in a beam of light, lands, opens with a lid animation and bursts out `GateLoot` |
-| `GateFeature`, `GateSpawner` | World-gen (`worldgen/placed_feature/gate.json`, rarity 1 in 220 chunks, rank grows with distance from 0,0) and gates tearing open near players (config `gates.openChancePerMinute`) |
+| `GateFeature`, `GateSpawner` | World-gen (`worldgen/placed_feature/gate.json`, rarity 1 in 220 chunks) and gates tearing open near players (config `gates.openChancePerMinute`). Both roll the rank at random (`GateService.randomRank`, weights `gates.rankWeights`, E most common, S 4 in 100): never by the player's rank or the distance from spawn |
 
 Instances sit `SLOT_SPACING` (2048) blocks apart along x in the gate dimension; `GateData.bySlotPos` finds the gate
 for a position there. A cleared cave closes once nobody is left in it, and its gate in the world collapses.
+
+A `GateInstance` keeps its realm and shape (`realm()`, `shape()`, saved as `realm` and `shape`). Its name in the
+pop-ups is the realm's (`dungeonName()`), its arrival title adds the shape, its creature mix comes from the realm's
+habitats and affinity (`EnemyRoster.forSeed(rank, seed, habitats, affinity)`), its boss favours the realm's
+(`BossKind.forSeed(rank, seed, realm)`), and its monsters carry the realm's element (`GateService.ELEMENT_TAG`, read by
+`elementOf`). A cave saved as built before realms existed is a **legacy** cave: it keeps the classic realm of its
+rank, the caverns shape, its old boss and its old mix, so players still arrive in it where it was carved; one that
+was never carved takes a realm like any new gate. On the client `GateAtmosphere` tints the fog with the realm's
+colour (at normal priority, so the gate's weather can tint over it), shortens it to the realm's distance, drifts
+its particles (ash, snow, spores, motes) and turns the light to the realm's `glow` (`tintLight`, from the gate
+dimension's `adjustLightmapColors` in `GateClientEvents`: icy in Rimefrost, violet in the Crystal Seam, sea green in
+the Sunken Sanctum; the classic caves keep warm torchlight); the server sends the realm with `GatePayload.REALM` on
+arrival and login.
 
 Hooks: the gate quest (`QuestCategory.GATE`, started on entering, fails if you die inside) uses CUSTOM objectives
 `beyondsolo:gate_mob` and `beyondsolo:gate_boss`; any quest can use `beyondsolo:gate_clear` (the System line's
@@ -343,9 +359,15 @@ arriving, leaving, boss intro with cinema bars, defeated stamp, dungeon cleared,
 Models, animations and textures come from `tools/gen_gate_assets.py`.
 
 The game-test server does not load datapack dimensions, so there (only) caves are carved into the overworld and
-walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
+walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`). It also runs its turns back to back without
+waiting, so chunks that other threads finish (generating, loading, handing a chunk over to the world) can lag a
+thousand turns behind, and a creature added to a chunk not yet handed over can't be found in the world. A test that
+needs chunks ready (the boss a dungeon was just built with, a wave that just rose) waits for them by the clock with
+`test/TestChunks`, not over turns.
 
-`/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
+`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|info|cache [rank]|list` for testing: `spawn`
+opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `info` names the
+dungeon you are in (realm, shape, rooms, boss, element, seed).
 
 ## The awakening
 
@@ -357,9 +379,9 @@ a player anything that belongs to the System; check `isAwakened` for anything th
 
 | Stage (`AwakeningData.Stage`) | What happens |
 | --- | --- |
-| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's hall instead of off a cavern. Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
+| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's room instead of off a cavern (a gate whose own layout has no room there, a boss on an island over a chasm say, is laid out as caverns instead: `DungeonLayout.shapeForDoor`). Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
 | `CALLED` | Set by `AwakeningService.gateCleared` when the boss of the cave that hides their door falls with them inside. `REVEAL_DELAY` later (the boss has crumbled, the exit is not open yet) `revealDoors` breaks the wall (no HIDDEN DUNGEON moment, no XP: knocks and Pulse Scan get nothing from this wall) and opens a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`, `temple` set) for each called player in the chamber (`DepthsBuild.sealedDoor`), with `trialHome` set to the cave's own home. While it stands the cave's exit turns them back (`heldBack`, checked in `GateService.beginExit`). Out of the gate depths without going through (they fell, logged out and the cave closed), the call lapses back to `DORMANT` (`tether`, `leftGate`); a door opened out in the world (`/system trial call` outside a cave, old saves) still pulls them back past `awakening.tetherRadius`. Only the owner can enter |
-| `TRIAL` | Inside. The door shuts behind them (`arrived`). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonBuilder.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
+| `TRIAL` | Inside. The door shuts behind them (`arrived`). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonDecor.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
 | `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black; to `trialHome`, in front of the gate they first went into, or for a door out in the world, in front of it), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
 | `DONE` | Has the System. The evaluation follows as before |
 
@@ -887,8 +909,9 @@ icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` 
   creatures rarely leave one. The CRAFT tab's KEYS page forges a key of each rank around a boss core (plus four cores,
   mana stones and metal). The shop sells E to C keys a few a day and buys keys back (`DungeonKeys.SELL`, sealed x1.5,
   ascendant x2). All numbers are first guesses for the balancing pass.
-- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock
-  after `GRACE_TICKS` (20 s) with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
+- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock,
+  box by box (`DungeonLayout.boxes`: every room, passage and open space, with a margin), after `GRACE_TICKS` (20 s)
+  with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
   in it (items, monsters tagged with `GATE_ID_TAG`) is removed, its slot goes back to `GateData.freeSlots` for the
   next gate and its record is forgotten (an awakening trial's is kept). Monsters saved in unloaded chunks are turned
   away when they load; a player who logs in inside a cave that is gone is sent home. Without this every run would
@@ -940,16 +963,19 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   own (low priority, so the gate's fog runs first), the air itself drawn as light (motes, sparks, snow, spores, ash,
   wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock.
 - **Hidden chambers** (`HiddenKind`, `HiddenRooms`, `DepthsBuild`): 30% of E caves up to 55% of S ones hide a
-  chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonLayout.placeHidden`,
-  appended after the rest of the plan with its own random so the cave is otherwise unchanged). The tunnel's mouth is
-  plugged with `HiddenSealBlock`s that pass for the cave's own rock (its model points at that rock's textures; some
+  chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonPlanner.placeHidden`,
+  appended after the rest of the plan with its own random so the cave is otherwise unchanged). Classic caves place it
+  exactly as they always did; the other layouts also keep it clear of open spaces, built rooms' corners and the slot's
+  edge, and hide it off any room on the way (not the boss's, not an island) when no cavern has room: a chasm's
+  entrance, a descent's ledge caves. The tunnel's mouth is plugged with `HiddenSealBlock`s that pass for the realm's
+  own walls (a look for every realm's wall blocks, course by course; each look's model points at that block's textures; some
   blocks have faint cracks with a violet speck; now and then a mote of light seeps out). It can't be mined: three
   knocks (hits, or arrows) bring it down; Pulse Scan within range outlines it through the rock and says something is
   hidden. Opening it gives the party XP and the System's HIDDEN DUNGEON moment. A vault holds a cache one rank above
   the gate's; a shrine blesses each who steps in once (strength, regeneration and resistance for 5 minutes); a lair
   wakes guardians of one rank higher and drops its hoard when the last one falls. Hidden caches have the violet look.
   `SEALED` is the awakening's door (see "The awakening"): never rolled (weight 0), forced into a player's first D-rank
-  cave, placed past the boss's hall (`DungeonLayout.planSealed`, `placeOffBoss`) and dressed like the temple behind
+  cave, placed past the boss's room (`DungeonLayout.planSealed`, `DungeonPlanner.placeOffBoss`) and dressed like the temple behind
   it (`DepthsBuild.dressSealed`); its wall ignores knocks and scans and breaks once the boss falls.
 - **Trap rooms** (`TrapKind`, `TrapRooms`): past the first cavern, a cavern may be a trap room (12% plus 3% a rank,
   at most 1 + rank/3 a cave). It springs on the first step in, with the System's call-out: spikes under the party's
@@ -957,7 +983,11 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   lockdown: walls of red light (`TrapWardBlock`) across every way out and two waves of the gate's creatures, then it
   lets go and leaves treasure. The first three stop when their `TrapCoreBlock` breaks (four strikes; Pulse Scan shows
   cores; a core broken before its trap springs disarms it). A lockdown nobody is left in stands down after 20 s and
-  springs again. Beating a trap pays XP. Strikes hurt the cave's creatures too.
+  springs again. Beating a trap pays XP. Strikes hurt the cave's creatures too. A lockdown only goes in a room rock
+  shuts in (`DungeonLayout.enclosed`): a camp out in a hollow, an island over a chasm or a ledge cave open onto a
+  shaft rolls one of the other traps instead (`TrapKind.pickOpen`; every room of the original caves is shut in, so
+  their traps roll as before). A rockfall room's loose ceiling never hangs lower than four blocks over the floor under
+  it, whatever it hangs from (`DepthsBuild.hang`).
 - **Looks**: banners (`DepthsHud`: the weather's condition card, the glitching HIDDEN DUNGEON stamp, the red TRAP
   stamp, waves, cleared), the weather and trap chips under the run clock, the weakness tag under the crosshair;
   world moments (`DepthsWorldFx`): knocks cracking the wall, Pulse Scan's ring with walls and cores outlined through
@@ -969,7 +999,60 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
 - **Commands** (`/system depths ...`, level 2): `gate <rank> [weather] [hidden] [trap]` opens a gate five steps ahead
   with its depths forced (`seed` keeps what the seed says), `weather <id|seed>`, `info`, `hidden` (go to the wall),
   `open`, `reveal`, `trap` (just outside the next trap room), `core` (beside the nearest trap core), `bolt`, `rock`,
-  `profile` (of the creature looked at), `weaknesses reset`. All numbers are first guesses for the balancing pass.
+  `profile` (of the creature looked at), `weaknesses reset`. A forced trap goes in the first cavern past the first
+  that it works in, or another room past the entrance (`DepthsCommand.trapRoom`). All numbers are first guesses for
+  the balancing pass.
+
+## Dungeon breaks and gate sensing
+
+Code in `breaks/` (server) and `client/breaks/` (client); lang in `assets/beyondsolo_breaks/lang`. `BreakModule`
+registers the payloads (`BreakPayload`, `GateSensePayload`). A gate's clock is a `BreakState` on its
+`GateInstance`, saved with it.
+
+- **The clock** (`DungeonBreaks.step`, every second for each gate that `canBreak`: open, uncleared, not a trial, a
+  keyed door or a gate in the gate dimension). It starts as soon as the gate stands in the world and runs
+  `gates.breakMinutes` (40, give or take a fifth; 0 turns breaks off). STABLE, then UNSTABLE for the last third (the
+  System's ALERT pop-up to everyone within `WATCH`, 160 blocks, with rank, distance and direction; the collapse timer
+  on their HUD), then IMMINENT for the last minute (a second warning), then BROKEN. Fair to the player: the clock waits
+  while anyone is in the cave or on their way in (`GateService.playersIn`, `inTransitTo`); a gate nobody is near
+  (`watched`: a living player within `WATCH`, the spot ticking, not peaceful) holds at one minute left and its last
+  minute only counts down in front of someone. A gate whose block is gone from a loaded spot (taken out with a
+  command; players can't break one) has nothing left to break and stops counting. The gate block gets the phase and
+  times (`GateBlockEntity.setBreak`) for its looks.
+- **The break** (`breakOpen`): sounds, the BREAK moment for everyone within 200 blocks (shake by distance), the
+  System's quest (`QUEST_TEMPLATE`, objectives `MOB_KEY` and `BOSS_KEY`) for everyone with the System within 96
+  blocks: an emergency, started at once, when the break is at most one rank above them, offered otherwise; then the
+  first wave. Waves
+  (`spill`) are the gate's own creatures (`GateInstance.mix`, through `Enemies.spawn`), `waveSize` at a time every
+  `WAVE_TICKS` (20 s) while someone watches, up to `waves` in all and `cap` out at once; the boss comes through with
+  wave `BOSS_WAVE` (3) (`bossOut`: `GateBossEntity.configure` + `wake()`, its own entrance up close, a banner
+  further off). Everything that came out carries `BREAK_TAG` (the gate's id) and is leashed to the gate (`LEASH`, 40
+  blocks: walked back, or pulled back through the rift when far out). What they bring out later joins the break too
+  (`adopt`: the boss's summoned adds, its enrage adds, the halves of a creature that splits), so it is leashed and
+  crumbles with the rest. A boss lost without falling comes through again after 30 s. A broken gate turns everyone
+  away (`message.beyondsolo.gate.broken`).
+- **Suppression** (`suppress`, when the boss dies): the gate collapses (CLOSED), the rest of the break crumbles to
+  ash (no loot), the boss's reward cache lands where it fell, and everyone within `SHARE` (64) of the boss or the gate gets
+  `REWARD` (1.25) times the gate's clear XP and gold, the SUPPRESSED moment, and their break quest done. Break creatures that load back in
+  after their break ended crumble too (`onJoin`).
+- **Gate sensing** (`GateSense`): Pulse Scan also sends `GateSensePayload`: every gate within `range(level)` (112
+  blocks at level 1, 16 more a level), nearest first, at most 12, with rank, state (holding, unstable, imminent,
+  broken, cleared, or the viewer's own sealed door) and ticks left. Others' sealed doors and keyed gates are left out.
+- **Looks** (`client.breaks`): `BreakClient` keeps the statuses, banners and sensed gates. `BreakHud`: the collapse
+  timer chip under the boss bar and run clock (amber, then red with a heartbeat in the last minute, crimson with
+  monsters out and the boss once broken, dimmed with an hourglass while hunters inside hold it), the gate compass
+  across the top while a pulse lasts (rank letters, red pulse for gates coming apart, labels with distance and
+  countdown) with the same marker hanging over each sensed gate in view, and the banners: the torn DUNGEON BREAK stamp, the boss's arrival, BREAK SUPPRESSED with its XP. Quest
+  windows wait for a break banner (`QuestOverlay` checks `bannerPending`). `BreakWorldFx`: the break's flash, pillar
+  and shock rings, each wave's pulse, the boss's ash column, the red leak from a gate coming apart, and sensed gates
+  as pillars of their rank's light seen through the ground (far ones drawn nearer along the same line, so fog doesn't
+  hide them). `GateRenderer` cracks the ring, tints and speeds up the vortex and makes it tremble in the last minute;
+  a broken gate stays torn wide with a red beam. Near a broken gate the air turns red (`BreakClientEvents.fogColor`)
+  and the screen's edge throbs. Without the System a player only feels it: the shake, the flash, the red air; no
+  banners, chip, compass or System sounds.
+- **Commands** (`/system break ...`, level 2, on the nearest gate within 96 blocks): `gate <rank>`, `status`,
+  `unstable`, `imminent`, `clock <seconds>`, `now`, `boss`, `suppress`, `sense [level]`. All numbers are first
+  guesses for the balancing pass.
 
 ## World generation
 
@@ -1022,8 +1105,19 @@ was pushed), buildup on players, weapon hits, resistances, armor set bonuses, st
 exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
-`test/GateGameTests` covers: the cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
-`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, the first D-rank gate (not an E-rank one, not one walked into by someone with the System) hiding the sealed door past its boss's hall and its clear calling only players without the System, the door's chamber fitting behind nearly every boss and the temple being short, the whole road (the wall ignoring knocks, breaking once the boss falls, the door in the chamber, the exit turning them back, the door shutting behind them, the tenets, no creatures in the temple, waking in front of the first gate with everything they carried), the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), a fall in the middle of the Arbiter's attack tick ending the fight cleanly (the 0.1.0 crash), and the legendary roll.
+`test/DungeonGameTests` covers: every realm in every shape planning a whole dungeon over many seeds (same seed same
+plan, one entrance, one boss room and the biggest, nothing overlapping, everything reachable through passages or open
+spaces, inside the rock and its slot), the original caves coming out exactly as before realms (fingerprints of the
+old planner's layouts), traps going where they work (lockdowns only in rooms that shut, a forced trap finding a room
+in every dungeon), gates picking every realm of their rank and every shape of their realm, realms favouring
+their bosses and their creatures (three to five kinds, one up close, two at home in the realm, its ruling affinity),
+realm and shape being saved (and old caves staying classic), and a dungeon of each shape and of each realm carved,
+walked along every passage, walked on foot from the entrance to every room (stepping, jumping a block, dropping no
+more than a harmless fall) with a loose rockfall ceiling over every cavern, its hidden chamber sealed off on foot behind a wall that passes for the realm's own and
+walkable once the wall is down, and wiped back to rock to the last block; the same for the awakening's sealed door
+behind the boss of a dungeon of each shape. A failed walk draws a map of what was reached. Set `EXPLORE` to carve every realm in every one of its shapes (about 80 more dungeons, several minutes).
+`test/GateGameTests` covers: the classic cave plan (same seed same cave, spacing, rooms per rank), gate ranks being fully random (every rank turns up, E far more often than S, the weights obeyed), a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
+`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, the first D-rank gate (not an E-rank one, not one walked into by someone with the System) hiding the sealed door past its boss's room (laid out as caverns if its own shape has no room there) and its clear calling only players without the System, the door's chamber fitting behind nearly every boss and the temple being short, the whole road (the wall ignoring knocks, breaking once the boss falls, the door in the chamber, the exit turning them back, the door shutting behind them, the tenets, no creatures in the temple, waking in front of the first gate with everything they carried), the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), a fall in the middle of the Arbiter's attack tick ending the fight cleanly (the 0.1.0 crash), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage
@@ -1036,7 +1130,8 @@ checks use zombies.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
-`test/DepthsGameTests` covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
+`test/DepthsGameTests` (in the original cave of each gate's rank, so every run tests the same) covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
+`test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.

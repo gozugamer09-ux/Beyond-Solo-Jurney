@@ -3,7 +3,7 @@ package com.beyondsolo.depths;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.gate.DungeonLayout;
 import com.beyondsolo.gate.GateInstance;
-import com.beyondsolo.gate.GateTheme;
+import com.beyondsolo.gate.GateRealm;
 import com.beyondsolo.gate.RewardCacheBlockEntity;
 import com.beyondsolo.registry.ModBlocks;
 import com.beyondsolo.system.PlayerRank;
@@ -57,7 +57,7 @@ public final class DepthsBuild {
     /** Where {@code t} leaves {@code room} (either end of it). */
     public static Mouth mouth(GateInstance g, DungeonLayout.Tunnel t, DungeonLayout.Room room) {
         boolean forward = t.from() == room.index();
-        double len = Math.sqrt(t.start().distSqr(t.end()));
+        double len = t.length();
         int steps = Math.max(16, (int) (len * 6));
         double u0 = forward ? 1 : 0;
         for (int i = 0; i <= steps; i++) {
@@ -74,7 +74,15 @@ public final class DepthsBuild {
         if (!forward) dir = dir.scale(-1);
         double[] c = DungeonLayout.along(t, u0);
         BlockPos o = g.origin();
-        return new Mouth(new Vec3(c[0] + o.getX(), c[1] + o.getY(), c[2] + o.getZ()), dir, t.radius());
+        // a tube's points are its middle; a corridor's, a bridge's and a stair's are where you walk, and the opening's
+        // middle is two above (as wide as the corridor, the deck between its railings, the band of the stairs)
+        if (t.style() == DungeonLayout.Style.TUBE) return new Mouth(new Vec3(c[0] + o.getX(), c[1] + o.getY(), c[2] + o.getZ()), dir, t.radius());
+        float radius = switch (t.style()) {
+            case CORRIDOR -> com.beyondsolo.gate.DungeonBuilder.corridorHalf(t) + 0.5f;
+            case BRIDGE -> 2f;
+            default -> 1.5f;
+        };
+        return new Mouth(new Vec3(c[0] + o.getX(), c[1] + 2 + o.getY(), c[2] + o.getZ()), dir, radius);
     }
 
     /** The mouth of the way into the hidden chamber (where its wall stands), or null. */
@@ -117,19 +125,19 @@ public final class DepthsBuild {
         return s.isAir() || s.is(Blocks.LIGHT) || s.canBeReplaced();
     }
 
-    /** The hidden wall: a plug of rock dressed as the cave's own walls, flush with the cavern's side. */
+    /** The hidden wall: a plug of rock dressed as the dungeon's own walls, flush with the room's side. */
     static void seal(ServerLevel level, GateInstance g, RandomSource r) {
         Mouth m = sealMouth(g);
         if (m == null) return;
-        GateTheme theme = g.theme();
-        fillSlab(level, m, m.radius() + 1.1f, 1.25f, at -> sealState(theme, r), DepthsBuild::open);
+        GateRealm realm = g.realm();
+        fillSlab(level, m, m.radius() + 1.1f, 1.25f, at -> sealState(realm, at.getY(), r), DepthsBuild::open);
     }
 
-    /** A hidden-wall block that passes for one of the theme's walls. */
-    static BlockState sealState(GateTheme theme, RandomSource r) {
+    /** A hidden-wall block that passes for one of the realm's walls at that height. */
+    static BlockState sealState(GateRealm realm, int y, RandomSource r) {
         HiddenSealBlock.Look look = null;
-        for (int i = 0; i < 4 && look == null; i++) look = HiddenSealBlock.Look.of(theme.wall(r));
-        if (look == null) look = HiddenSealBlock.Look.of(theme.mainWall());
+        for (int i = 0; i < 4 && look == null; i++) look = HiddenSealBlock.Look.of(realm.wallAt(y, r));
+        if (look == null) look = HiddenSealBlock.Look.of(realm.mainWall());
         if (look == null) look = HiddenSealBlock.Look.STONE;
         return DepthsModule.HIDDEN_SEAL.get().defaultBlockState().setValue(HiddenSealBlock.LOOK, look);
     }
@@ -159,7 +167,7 @@ public final class DepthsBuild {
 
     static void dressHidden(ServerLevel level, GateInstance g, DungeonLayout.Room room, HiddenKind kind, RandomSource r) {
         BlockPos center = floorCenter(level, g, room);
-        GateTheme theme = g.theme();
+        GateRealm realm = g.realm();
         switch (kind) {
             case VAULT -> {
                 // a gilded plinth with the cache on it, candles around, chains with lanterns from the roof
@@ -208,7 +216,7 @@ public final class DepthsBuild {
                     level.setBlock(at, s, FLAGS);
                 }
                 hang(level, g, room, center, r, 4, Blocks.COBWEB.defaultBlockState());
-                level.setBlock(center.below(), theme.accent(r), FLAGS);
+                level.setBlock(center.below(), realm.accent(r), FLAGS);
             }
             case SEALED -> dressSealed(level, g, room, center, r);
         }
@@ -337,10 +345,10 @@ public final class DepthsBuild {
         return out;
     }
 
-    /** The floor block a vent of this gate is set into. */
-    static BlockState ventBlock(GateTheme theme) {
-        if (theme.element == DamageElement.FIRE) return Blocks.MAGMA_BLOCK.defaultBlockState();
-        if (theme.element == DamageElement.POISON) return Blocks.SCULK.defaultBlockState();
+    /** The floor block a vent of this gate is set into, by the element it blasts. */
+    static BlockState ventBlock(DamageElement element) {
+        if (element == DamageElement.FIRE) return Blocks.MAGMA_BLOCK.defaultBlockState();
+        if (element == DamageElement.POISON) return Blocks.SCULK.defaultBlockState();
         return Blocks.CRYING_OBSIDIAN.defaultBlockState();
     }
 
@@ -350,20 +358,20 @@ public final class DepthsBuild {
             case VENTS -> {
                 for (int[] v : ventSpots(g, room)) {
                     BlockPos at = floorAt(level, v[0], v[1], floor);
-                    level.setBlock(at.below(), ventBlock(g.theme()), FLAGS);
+                    level.setBlock(at.below(), ventBlock(g.element()), FLAGS);
                 }
             }
             case ROCKFALL -> {
                 // a cracked, sagging roof
                 BlockPos c = g.world(room.center());
-                hang(level, g, room, new BlockPos(c.getX(), floor, c.getZ()), r, 9, g.theme().mainWall());
+                hang(level, g, room, new BlockPos(c.getX(), floor, c.getZ()), r, 9, g.realm().mainWall());
             }
             case SPIKES -> {
                 // the floor is scored: accent stone in the cracks
                 BlockPos c = g.world(room.center());
                 for (int i = 0; i < 10; i++) {
                     BlockPos at = scatter(level, g, room, new BlockPos(c.getX(), floor, c.getZ()), r, 0.8f);
-                    if (at != null) level.setBlock(at.below(), g.theme().accent(r), FLAGS);
+                    if (at != null) level.setBlock(at.below(), g.realm().accent(r), FLAGS);
                 }
             }
             default -> {
@@ -372,7 +380,7 @@ public final class DepthsBuild {
         // the core goes in last: a floor crack or a vent set into the floor right under it used to overwrite it
         if (kind.hasCore()) {
             BlockPos core = coreSpot(level, g, room);
-            level.setBlock(core.below(), g.theme().accent(r), FLAGS);
+            level.setBlock(core.below(), g.realm().accent(r), FLAGS);
             level.setBlock(core, DepthsModule.TRAP_CORE.get().defaultBlockState(), FLAGS);
         }
     }
@@ -408,11 +416,14 @@ public final class DepthsBuild {
         for (int i = 0; i < n; i++) {
             float a = r.nextFloat() * Mth.TWO_PI, d = r.nextFloat() * 0.65f;
             BlockPos p = new BlockPos(center.getX() + Math.round(Mth.cos(a) * d * room.rx()), center.getY() + 2, center.getZ() + Math.round(Mth.sin(a) * d * room.rz()));
+            // whatever it hangs from (the roof, or a stalactite or an icicle hanging lower), it stays well over head
+            // height above the floor under it, so it never stands in anyone's way
+            int lowest = floorAt(level, p.getX(), p.getZ(), center.getY()).getY() + 4;
             for (int up = 1; up < room.ry() * 2 + 4; up++) {
                 BlockPos q = p.above(up);
                 if (open(level.getBlockState(q))) continue;
                 int len = s.getBlock() instanceof LanternBlock || s.is(Blocks.COBWEB) ? 1 : 1 + r.nextInt(3);
-                for (int k = 1; k <= len; k++) placeIfOpen(level, q.below(k), s);
+                for (int k = 1; k <= len && q.getY() - k >= lowest; k++) placeIfOpen(level, q.below(k), s);
                 break;
             }
         }

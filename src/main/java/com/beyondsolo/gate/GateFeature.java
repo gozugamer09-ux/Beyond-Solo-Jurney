@@ -35,7 +35,7 @@ public class GateFeature extends Feature<NoneFeatureConfiguration> {
         Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(ctx.random());
         level.setBlock(pos, ModBlocks.GATE.get().defaultBlockState().setValue(GateBlock.FACING, facing), 2);
         if (level.getBlockEntity(pos) instanceof GateBlockEntity gate) {
-            gate.setup(null, GateService.worldgenRank(pos, ctx.random()), false, -1);
+            gate.setup(null, GateService.randomRank(ctx.random()), false, -1);
         }
         return true;
     }
