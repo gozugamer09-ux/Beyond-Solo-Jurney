@@ -115,7 +115,7 @@ public class LicenseScreen extends Screen {
         Shapes.icon(Icons.ID_CARD, x + 14, y + 12.5f, 10).fill(0xFFFFFFFF).glow(2, Gfx.alpha(rc, 0.8f)).draw(g);
         SysFont.spaced(g, Component.translatable("license.beyondsolo.title").getString(), x + 23, y + 8, 8f, SystemTheme.TEXT, true, 2.2f, 0f);
         SysFont.draw(g, Component.translatable("license.beyondsolo.registry").getString(), x + CW - 10, y + 6.5f, 5.2f, Gfx.alpha(SystemTheme.TEXT, 0.7f), true, 1f);
-        SysFont.draw(g, "No. " + info.number(), x + CW - 10, y + 13.5f, 6f, SystemTheme.TEXT, true, 1f);
+        SysFont.draw(g, Component.translatable("tooltip.beyondsolo.license.number", info.number()).getString(), x + CW - 10, y + 13.5f, 6f, SystemTheme.TEXT, true, 1f);
 
         float content = Anim.clamp01((t - 0.35f) / 0.35f);
         float co = Gfx.fade(content);

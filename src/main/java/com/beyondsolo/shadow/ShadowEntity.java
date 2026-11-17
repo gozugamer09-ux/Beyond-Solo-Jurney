@@ -144,7 +144,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         applyStats(r, ShadowService.intellect(owner));
         setHealth(getMaxHealth());
         if (r.named()) {
-            setCustomName(Component.literal(r.name()));
+            setCustomName(r.displayName());
             setCustomNameVisible(true);
         }
         refreshDimensions();

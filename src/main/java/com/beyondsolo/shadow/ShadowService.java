@@ -288,7 +288,7 @@ public final class ShadowService {
         army.add(r);
         PacketDistributor.sendToPlayersNear(level, null, s.pos.x, s.pos.y, s.pos.z, 64, new ShadowFxPayload(
                 ShadowFxPayload.Kind.EXTRACTED.ordinal(), s.id, (float) s.pos.x, (float) s.pos.y, (float) s.pos.z, r.rank().color(),
-                s.boss ? 1 : 0, r.displayName().getString()));
+                s.boss ? 1 : 0, r.wireName()));
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.WARDEN_EMERGE, SoundSource.PLAYERS, 0.8f, 1.4f);
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1.5f, 0.6f);
         // it rises where it fell, if there is room in the field
@@ -540,7 +540,7 @@ public final class ShadowService {
         ShadowEntity e = entity(p, r.id());
         Vec3 at = e != null ? e.position() : p.position();
         ShadowFxPayload fx = new ShadowFxPayload(ShadowFxPayload.Kind.RANK_UP.ordinal(), e != null ? e.getId() : -1,
-                (float) at.x, (float) at.y, (float) at.z, r.rank().color(), r.rank().ordinal(), r.displayName().getString());
+                (float) at.x, (float) at.y, (float) at.z, r.rank().color(), r.rank().ordinal(), r.wireName());
         if (e != null) PacketDistributor.sendToPlayersTrackingEntity(e, fx);
         PacketDistributor.sendToPlayer(p, fx);
         p.serverLevel().playSound(null, at.x, at.y, at.z, SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 0.6f);
@@ -764,7 +764,7 @@ public final class ShadowService {
         if (!hasMount) {
             ShadowRecord steed = new ShadowRecord(UUID.randomUUID(), ResourceLocation.withDefaultNamespace("skeleton_horse"),
                     ShadowRecord.Role.MOUNT, ShadowRank.SOLDIER, 30, 4, 0.3f, p.level().getGameTime());
-            steed.setName(Component.translatable("shadow.beyondsolo.starter_steed").getString());
+            steed.setName(ShadowNames.STARTER_STEED);
             army.add(steed);
         }
         Notifications.send(p, SystemNotification.of(SystemNotification.Kind.INFO, Component.translatable("shadow.beyondsolo.unlocked"),
