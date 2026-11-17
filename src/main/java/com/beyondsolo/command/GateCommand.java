@@ -98,11 +98,11 @@ public final class GateCommand {
                             ServerPlayer p = ctx.getSource().getPlayerOrException();
                             GateInstance g = inside(p);
                             DungeonLayout layout = g.layout();
-                            Component text = Component.empty().append(g.dungeonName()).append(" (" + g.realm().id() + ") · ")
-                                    .append(g.shape().displayName()).append(" · " + g.rank() + " · " + layout.rooms().size() + " rooms, "
-                                            + layout.tunnels().size() + " passages, " + layout.spaces().size() + " spaces · boss " + g.bossKind().id
-                                            + " · " + g.element().id().getPath() + (g.legacy() ? " · old cave" : "") + " · seed " + g.seed());
+                            Component text = Component.translatable("command.beyondsolo.gate.info", g.dungeonName(), g.realm().id(),
+                                    g.shape().displayName(), g.rank().name(), layout.rooms().size(), layout.tunnels().size(), layout.spaces().size(),
+                                    g.bossKind().name(g.rank()), g.element().displayName(), Long.toString(g.seed()));
                             ctx.getSource().sendSuccess(() -> text, false);
+                            if (g.legacy()) ctx.getSource().sendSuccess(() -> Component.translatable("command.beyondsolo.gate.info_legacy"), false);
                             return 1;
                         }))
                         .then(Commands.literal("wake").executes(ctx -> {

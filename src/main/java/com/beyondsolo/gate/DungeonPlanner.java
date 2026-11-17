@@ -468,6 +468,8 @@ final class DungeonPlanner {
         Shape small = natural ? Shape.CAVE : Shape.HALL;
         int halls = packs();
         int dir = r.nextInt(4);
+        // the run heads one way and drifts to one side, never back on itself, so it can't box itself in
+        int ahead = dir, aside = (dir + (r.nextBoolean() ? 1 : 3)) & 3;
         rooms.add(room(0, BASE_Y, 0, 7, natural ? 5 : 4, 7, Kind.ENTRANCE, small));
         Room prev = rooms.get(0);
         List<Room> great = new ArrayList<>();
@@ -483,9 +485,10 @@ final class DungeonPlanner {
             int[] turns = turnFirst ? new int[]{left ? 1 : 3, 0, left ? 3 : 1} : new int[]{0, left ? 1 : 3, left ? 3 : 1};
             Shape hs = boss ? small : round ? Shape.ROUND : s;
             boolean placed = false;
-            for (int extra = 0; extra <= 12 && !placed; extra += 4) {
+            for (int extra = 0; extra <= 24 && !placed; extra += 4) {
                 for (int t : turns) {
                     int d2 = (dir + t) & 3;
+                    if (d2 != ahead && d2 != aside) continue;
                     int gr = natural ? 4 : 3;
                     int out = extent(prev, dir) + 6 + gr + extra;
                     int gx = prev.center().getX() + DX[dir] * out, gz = prev.center().getZ() + DZ[dir] * out;
@@ -511,10 +514,10 @@ final class DungeonPlanner {
                 }
             }
             if (!placed) {
-                // hemmed in: straight on, well clear
-                int out = extent(prev, dir) + 40;
-                int hx = DX[dir] != 0 ? along : across, hz = DX[dir] != 0 ? across : along;
-                Room hall = room(prev.center().getX() + DX[dir] * out, prev.floorY(), prev.center().getZ() + DZ[dir] * out, hx, ry, hz,
+                // hemmed in: on ahead, well clear
+                int out = extent(prev, ahead) + 40;
+                int hx = DX[ahead] != 0 ? along : across, hz = DX[ahead] != 0 ? across : along;
+                Room hall = room(prev.center().getX() + DX[ahead] * out, prev.floorY(), prev.center().getZ() + DZ[ahead] * out, hx, ry, hz,
                         boss ? Kind.BOSS : Kind.CAVERN, hs);
                 rooms.add(hall);
                 tunnels.add(link(r, prev, hall));
@@ -666,7 +669,7 @@ final class DungeonPlanner {
                 (int) Math.round(Math.sin(endA) * ld)), lr, 3, lr, Kind.PASSAGE, ledge);
         Shape arenaShape = built ? Shape.HALL : s;
         int[] bs = bossSize(arenaShape);
-        double bd = ld + lr + 8 + bs[0];
+        double bd = ld + lr + 8 + reachToward(arenaShape, bs[0], bs[2], endA);
         Room arena = room((int) Math.round(Math.cos(endA) * bd), landFloor, (int) Math.round(Math.sin(endA) * bd), bs[0], bs[1], bs[2], Kind.BOSS, arenaShape);
         reserved.add(landing);
         reserved.add(renumber(arena, -2));
@@ -765,11 +768,8 @@ final class DungeonPlanner {
         spaces.add(new Space(new BlockPos(vcx, vy, vcz), voidR, vry, voidR, SpaceShape.VOID));
         int floor0 = BASE_Y;
         rooms.add(room(0, floor0, 0, 8, built ? 4 : 6, 8, Kind.ENTRANCE, s));
-        int[] bs = bossSize(s);
-        int bossD = voidR + Math.max(bs[0], bs[2]) - 3;
         int bossFloor = floor0 + r.nextInt(5) - 2;
-        Room lair = room((int) Math.round(vcx + hx * bossD), bossFloor, (int) Math.round(vcz + hz * bossD), bs[0], bs[1], bs[2], Kind.BOSS, s);
-        reserved.add(renumber(lair, -1));
+        // the way leads across to the far side
         double gx = vcx + hx * (voidR - 3), gz = vcz + hz * (voidR - 3);
 
         Room prev = rooms.get(0);
@@ -784,38 +784,55 @@ final class DungeonPlanner {
                 double a = toGoal + (r.nextDouble() - 0.5) * (attempt < 40 ? 2.6 : 1.4);
                 double len = prev.reach() + ir + 9 + r.nextInt(6);
                 double cx = px + Math.cos(a) * len, cz = pz + Math.sin(a) * len;
-                double ox = cx - vcx, oz = cz - vcz;
-                if (ox * ox + oz * oz > sq(voidR - ir - 5)) continue;
+                if (sq(cx - vcx) + sq(cz - vcz) > sq(voidR - ir - 5)) continue;
                 double rem = Math.sqrt(sq(cx - gx) + sq(cz - gz));
-                if (rem > (left - 1) * 26 + 22 || (left == 1 && rem < ir + 8)) continue;
+                if (rem > (left - 1) * 26 + 22) continue;
                 int f = left == 1 ? Mth.clamp(bossFloor + r.nextInt(5) - 2, prev.floorY() - 3, prev.floorY() + 3)
                         : Mth.clamp(prev.floorY() + r.nextInt(5) - 2, floor0 - 5, floor0 + 4);
-                Room cand = room((int) Math.round(cx), f, (int) Math.round(cz), ir, 4, ir, Kind.CAVERN, Shape.ISLAND);
-                if (!clear(cand, 7) || lineHits(prev, cand)) continue;
-                rooms.add(cand);
-                Tunnel b = bridge(r, prev, cand);
-                rooms.remove(rooms.size() - 1);
-                if (blocked(b)) continue;
-                island = cand;
+                island = islandIfFree(r, prev, cx, f, cz, ir);
             }
-            if (island == null) {
-                // nowhere better: a step straight on toward the lair
-                double px = prev.center().getX(), pz = prev.center().getZ();
-                double a = Math.atan2(gz - pz, gx - px), len = prev.reach() + ir + 10;
-                island = room((int) Math.round(px + Math.cos(a) * len), prev.floorY(), (int) Math.round(pz + Math.sin(a) * len), ir, 4, ir, Kind.CAVERN, Shape.ISLAND);
-            }
+            // nowhere at random: the free spot nearest the way on, or no more islands if the chasm is full
+            if (island == null) island = stepToward(r, prev, ir, gx, gz, vcx, vcz, voidR);
+            if (island == null) break;
             rooms.add(island);
             tunnels.add(bridge(r, prev, island));
             chain.add(island);
             prev = island;
         }
-        reserved.clear();
-        lair = renumber(lair, rooms.size());
+
+        // the boss's lair, cut into the chasm's far wall out beyond the last island, its floor's edge on the drop
+        int[] bs = bossSize(s);
+        double la = Math.atan2(prev.center().getZ() - vcz, prev.center().getX() - vcx);
+        if (prev == rooms.get(0)) la = a0;
+        la = a0 + Mth.clamp(wrap(la - a0), -1.0, 1.0);
+        Room lair = null;
+        Tunnel way = null;
+        // swing toward the far side, and further into the wall, until it is clear of everything and the bridge to it
+        // crosses nothing
+        for (int push = 0; push <= 9 && lair == null; push += 3) {
+            for (int k = 0; k <= 12 && lair == null; k++) {
+                double a = la + (a0 - la) * k / 12.0;
+                Room cand = lairAt(vcx, vcz, voidR - 3 + reachToward(s, bs[0], bs[2], a) + push, a, bossFloor, bs, s);
+                if (!clear(cand, 3)) continue;
+                rooms.add(cand);
+                Tunnel b = bridge(r, prev, cand);
+                rooms.remove(rooms.size() - 1);
+                if (blocked(b)) continue;
+                lair = cand;
+                way = b;
+            }
+        }
+        if (lair == null) {
+            lair = lairAt(vcx, vcz, voidR + 6 + reachToward(s, bs[0], bs[2], a0), a0, bossFloor, bs, s);
+            rooms.add(lair);
+            way = bridge(r, prev, lair);
+            rooms.remove(rooms.size() - 1);
+        }
         rooms.add(lair);
-        tunnels.add(bridge(r, prev, lair));
+        tunnels.add(way);
 
         // side islands with a cache
-        for (int k = 0; k < sides(); k++) {
+        for (int k = 0; k < sides() && !chain.isEmpty(); k++) {
             for (int attempt = 0; attempt < 40; attempt++) {
                 Room from = chain.get(r.nextInt(Math.max(1, chain.size() - 1)));
                 double a = r.nextDouble() * Mth.TWO_PI;
@@ -836,6 +853,44 @@ final class DungeonPlanner {
                 break;
             }
         }
+    }
+
+    private Room lairAt(int cx, int cz, double d, double a, int floor, int[] bs, Shape s) {
+        return room((int) Math.round(cx + Math.cos(a) * d), floor, (int) Math.round(cz + Math.sin(a) * d), bs[0], bs[1], bs[2], Kind.BOSS, s);
+    }
+
+    /** How far a room reaches from its middle in a direction: a hall's box reaches further toward its corners. */
+    private static double reachToward(Shape s, int rx, int rz, double a) {
+        if (s != Shape.HALL) return Math.max(rx, rz);
+        double c = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
+        return Math.min(c < 1e-6 ? Double.MAX_VALUE : rx / c, sn < 1e-6 ? Double.MAX_VALUE : rz / sn);
+    }
+
+    /** An island at a spot, if it keeps clear of everything and a bridge can reach it from {@code prev}; else null. */
+    private Room islandIfFree(RandomSource r, Room prev, double cx, int floor, double cz, int ir) {
+        Room cand = room((int) Math.round(cx), floor, (int) Math.round(cz), ir, 4, ir, Kind.CAVERN, Shape.ISLAND);
+        if (!clear(cand, 7) || lineHits(prev, cand)) return null;
+        rooms.add(cand);
+        Tunnel b = bridge(r, prev, cand);
+        rooms.remove(rooms.size() - 1);
+        return blocked(b) ? null : cand;
+    }
+
+    /** The free spot for an island nearest the way toward the far side, looking all round {@code prev}; or null. */
+    private Room stepToward(RandomSource r, Room prev, int ir, double gx, double gz, int vcx, int vcz, int voidR) {
+        double px = prev.center().getX(), pz = prev.center().getZ();
+        double toGoal = Math.atan2(gz - pz, gx - px);
+        for (int k = 0; k <= 32; k++) {
+            double a = toGoal + (k % 2 == 0 ? 1 : -1) * ((k + 1) / 2) * (Math.PI / 16);
+            for (int extra = 0; extra <= 12; extra += 4) {
+                double len = prev.reach() + ir + 9 + extra;
+                double cx = px + Math.cos(a) * len, cz = pz + Math.sin(a) * len;
+                if (sq(cx - vcx) + sq(cz - vcz) > sq(voidR - ir - 5)) continue;
+                Room island = islandIfFree(r, prev, cx, prev.floorY(), cz, ir);
+                if (island != null) return island;
+            }
+        }
+        return null;
     }
 
     /** True if the straight way between two rooms passes over another. */

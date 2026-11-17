@@ -75,11 +75,13 @@ public final class GateGameTests {
         return d;
     }
 
+    /** The original caves (every realm and shape is checked in {@link DungeonGameTests}). */
     @GameTest(template = ARENA)
     public static void layoutIsDeterministicAndSpaced(GameTestHelper helper) {
         for (GateTheme theme : GateTheme.values()) {
-            DungeonLayout a = DungeonLayout.plan(1234L + theme.ordinal(), theme);
-            DungeonLayout b = DungeonLayout.plan(1234L + theme.ordinal(), theme);
+            com.beyondsolo.gate.GateRealm realm = theme == GateTheme.TRIAL ? com.beyondsolo.gate.GateRealm.THRESHOLD : com.beyondsolo.gate.GateRealm.classic(theme.rank);
+            DungeonLayout a = DungeonLayout.plan(1234L + theme.ordinal(), theme, realm, com.beyondsolo.gate.DungeonShape.CAVERNS);
+            DungeonLayout b = DungeonLayout.plan(1234L + theme.ordinal(), theme, realm, com.beyondsolo.gate.DungeonShape.CAVERNS);
             helper.assertTrue(a.rooms().equals(b.rooms()), "same seed, same cave");
             helper.assertTrue(a.rooms().get(0).kind() == DungeonLayout.Kind.ENTRANCE, "starts at the entrance");
             helper.assertTrue(a.boss().rx() > a.entrance().rx(), "the boss arena is the biggest room");
@@ -216,6 +218,8 @@ public final class GateGameTests {
     @GameTest(template = ARENA)
     public static void gateMonstersAreScaledAndElemental(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.A);
+        // an A-rank gate into the forge halls, whose element is fire
+        g.setDungeon(com.beyondsolo.gate.GateRealm.EMBERFORGE, null);
         Mob mob = GateService.spawnMonster(helper.getLevel(), g, EntityType.ZOMBIE, helper.absolutePos(new BlockPos(1, 2, 1)));
         helper.assertTrue(mob != null && mob.getPersistentData().contains(GateService.MOB_TAG), "tagged as a gate monster");
         // the size roll moves health too (a small one has less), so the rank's health is measured at the size it rolled
@@ -224,7 +228,7 @@ public final class GateGameTests {
                 "tougher by rank: " + mob.getMaxHealth() + " at size " + size);
         Zombie target = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1));
         mob.doHurtTarget(target);
-        helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "an A-rank gate's monsters burn");
+        helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "the forge's monsters burn");
         mob.discard();
         target.discard();
         helper.succeed();

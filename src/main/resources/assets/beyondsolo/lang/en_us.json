@@ -477,6 +477,8 @@
   "command.beyondsolo.gate.not_inside": "You are not inside a gate.",
   "command.beyondsolo.gate.done": "Done.",
   "command.beyondsolo.gate.unknown": "There is no realm or layout called %s.",
+  "command.beyondsolo.gate.info": "%s (%s) · %s · Rank %s · %s rooms, %s passages, %s open spaces · boss: %s · element: %s · seed %s",
+  "command.beyondsolo.gate.info_legacy": "An old cave: it keeps the look and layout it was built with.",
   "tab.beyondsolo.skills": "SKILLS",
   "key.beyondsolo.skill_1": "Skill slot 1",
   "key.beyondsolo.skill_2": "Skill slot 2",

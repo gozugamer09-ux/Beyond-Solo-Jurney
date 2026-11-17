@@ -93,7 +93,7 @@ public enum BossKind {
 
     /**
      * The boss of a gate of a realm: those the realm favours are four times as likely (seven times for one it names
-     * twice), so a hive ends with its broodmother more often than not, but any boss of the rank can still wait there.
+     * twice), so about half of all hives end with their broodmother, but any boss of the rank can still wait there.
      */
     public static BossKind forSeed(PlayerRank rank, long seed, GateRealm realm) {
         RandomSource r = RandomSource.create(seed * 31 + 0xB055L);

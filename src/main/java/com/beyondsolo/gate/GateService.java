@@ -324,9 +324,7 @@ public final class GateService {
             finishBuilding(dungeon, g);
         }
         BlockPos at = g.entrance();
-        DungeonLayout.Room next = g.layout().rooms().size() > 1 ? g.layout().rooms().get(1) : g.layout().entrance();
-        BlockPos look = g.world(next.center());
-        float yaw = (float) (Mth.atan2(look.getZ() - at.getZ(), look.getX() - at.getX()) * Mth.RAD_TO_DEG) - 90f;
+        float yaw = arrivalYaw(g);
         player.teleportTo(dungeon, at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0f);
         // fake players (tests) ignore same-level teleports
         if (player.distanceToSqr(Vec3.atBottomCenterOf(at)) > 4) player.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0f);
@@ -341,6 +339,29 @@ public final class GateService {
         if (g.isTrial()) com.beyondsolo.awakening.AwakeningService.arrived(player, g);
         else giveQuest(player, g);
         return true;
+    }
+
+    /**
+     * Which way a player arriving faces: toward the way on, where the first passage leaves the entrance (a tower's
+     * stairs, a bridge, a corridor's door), or else toward the next room.
+     */
+    static float arrivalYaw(GateInstance g) {
+        DungeonLayout layout = g.layout();
+        DungeonLayout.Room first = layout.entrance();
+        Vec3 look = null;
+        for (DungeonLayout.Tunnel t : layout.tunnels()) {
+            if (t.from() != 0 && t.to() != 0) continue;
+            for (int i = 0; i <= 48 && look == null; i++) {
+                double[] p = DungeonLayout.along(t, t.from() == 0 ? i / 48.0 : 1 - i / 48.0);
+                if (!first.contains(p[0], first.floorY() + 1, p[2], 0.85)) look = new Vec3(p[0], p[1], p[2]);
+            }
+            if (look != null) break;
+        }
+        if (look == null && layout.rooms().size() > 1) look = Vec3.atCenterOf(layout.rooms().get(1).center());
+        if (look == null) return 0f;
+        double dx = look.x - (first.center().getX() + 0.5), dz = look.z - (first.center().getZ() + 0.5);
+        if (dx * dx + dz * dz < 1) return 0f;
+        return (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90f;
     }
 
     /**

@@ -319,9 +319,11 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 
 | Piece | Does |
 | --- | --- |
-| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the cave's rock, floor, accents and lights, the element, the monsters, how many rooms, boss stats, clear XP |
-| `DungeonLayout` | The plan of a cave from its seed: a winding chain of caverns, side caves with a chest, the boss arena at the end, curved tunnels between them. Pure logic, tested without a world |
-| `DungeonBuilder` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick), then decorates: wall lights, fill light, stalagmites, pillars round the arena, side-cave loot |
+| `GateTheme` | One per rank (plus `TRIAL`, the awakening trial's; monsters carry the theme's ordinal in `GateService.MOB_TAG`): the element, the monsters, how many rooms, boss stats, clear XP. The look now comes from the realm |
+| `GateRealm` | The kind of place behind the gate: 20 realms, several per rank (a gate's seed picks one, `forSeed`), each with its rank range, how it is built (natural caves, built halls, a hive of cells), its blocks (walls, floors, accents, trimmings, lights, liquid, carpet and banners), the decorations it uses (`Decor`), the shapes it suits with their weights, its affinity and element, the creature habitats it draws from (`enemy/Habitat`), the bosses it favours, and its fog colour, fog distance and drifting particles. The first six are the original rank caves (`classic(rank)`), `THRESHOLD` is the trial's |
+| `DungeonShape` | How the whole dungeon is laid out: caverns (the original chain), labyrinth (a grid maze with dead ends and loops), gauntlet (great halls one after another through gatehouses), spire (a tower climbed up winding stairs), descent (a ramp down a deep shaft with ledge caves), chasm (islands joined by bridges over a sea of water or lava), hollow (one vast cavern with camps, a lake and pillars), hive (round cells grown off each other). The realm says which shapes suit it and the seed picks one (`GateRealm.shapeFor`) |
+| `DungeonPlanner`, `DungeonLayout` | The plan of a dungeon from its seed, realm and shape: rooms (`Kind` entrance, cavern, side with a cache, boss, passage; `Shape` cave, hall, round hall, cell, island), passages (`Style` tube, corridor, bridge, spiral stairs) and open spaces (`SpaceShape` void, shaft, hollow, pool). One boss room, the biggest; every room reachable; nothing overlapping; between `FLOOR_LIMIT` and `CEILING_LIMIT` and inside its slot. Pure logic, tested without a world. `CAVERNS` takes exactly the draws the original planner took, so classic caves and the trial come out as before |
+| `DungeonBuilder`, `DungeonDecor` | Carves the plan into `beyondsolo:gate_depths` (a flat dimension of solid rock, `data/beyondsolo/dimension`) a slice at a time (`BUDGET` blocks per tick): spaces, rooms, passages, the realm's skin on every surface, liquids, islands and stair landings, walkways, then dresses it: lights per room shape, fill light, the boss's arena (pillar rows, standing stones, braziers, a throne in built halls), side-room caches, mana veins, and the realm's decorations, kept off the paths between doors |
 | `GateService` | Registering gates, going through (enter / exit with a short freeze while the overlay plays and the cave finishes building), waking monster packs as players reach each cavern, waking the boss, the boss's defeat (reward cache, exit gate, XP, quest progress), closing cleared gates |
 | `GateBossEntity` | GeckoLib boss: dormant until someone enters the arena, then a roar intro; swipe and slam attacks with the gate's element; enrages under half health (adds, faster); long death animation |
 | `RewardCacheBlock(Entity)` | Falls in a beam of light, lands, opens with a lid animation and bursts out `GateLoot` |
@@ -329,6 +331,16 @@ A gate is a portal (`gate/GateBlock` + `GateBlockEntity`) with a rank, E to S. E
 
 Instances sit `SLOT_SPACING` (2048) blocks apart along x in the gate dimension; `GateData.bySlotPos` finds the gate
 for a position there. A cleared cave closes once nobody is left in it, and its gate in the world collapses.
+
+A `GateInstance` keeps its realm and shape (`realm()`, `shape()`, saved as `realm` and `shape`). Its name in the
+pop-ups is the realm's (`dungeonName()`), its arrival title adds the shape, its creature mix comes from the realm's
+habitats and affinity (`EnemyRoster.forSeed(rank, seed, habitats, affinity)`), its boss favours the realm's
+(`BossKind.forSeed(rank, seed, realm)`), and its monsters carry the realm's element (`GateService.ELEMENT_TAG`, read by
+`elementOf`). A cave saved as built before realms existed is a **legacy** cave: it keeps the classic realm of its
+rank, the caverns shape, its old boss and its old mix, so players still arrive in it where it was carved; one that
+was never carved takes a realm like any new gate. On the client `GateAtmosphere` tints the fog with the realm's
+colour (at normal priority, so the gate's weather can tint over it), shortens it to the realm's distance and drifts
+its particles (ash, snow, spores, motes); the server sends the realm with `GatePayload.REALM` on arrival and login.
 
 Hooks: the gate quest (`QuestCategory.GATE`, started on entering, fails if you die inside) uses CUSTOM objectives
 `beyondsolo:gate_mob` and `beyondsolo:gate_boss`; any quest can use `beyondsolo:gate_clear` (the System line's
@@ -343,7 +355,9 @@ Models, animations and textures come from `tools/gen_gate_assets.py`.
 The game-test server does not load datapack dimensions, so there (only) caves are carved into the overworld and
 walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
 
-`/system gate spawn [rank]|near|enter|boss|wake|kill|cache [rank]|list` for testing.
+`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|info|cache [rank]|list` for testing: `spawn`
+opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `info` names the
+dungeon you are in (realm, shape, rooms, boss, element, seed).
 
 ## The awakening
 
@@ -838,8 +852,9 @@ icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` 
   creatures rarely leave one. The CRAFT tab's KEYS page forges a key of each rank around a boss core (plus four cores,
   mana stones and metal). The shop sells E to C keys a few a day and buys keys back (`DungeonKeys.SELL`, sealed x1.5,
   ascendant x2). All numbers are first guesses for the balancing pass.
-- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock
-  after `GRACE_TICKS` (20 s) with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
+- **Cave recycling** (`gate/GateWiper`): a closed cave (cleared and left, run over, given up) is put back to rock,
+  box by box (`DungeonLayout.boxes`: every room, passage and open space, with a margin), after `GRACE_TICKS` (20 s)
+  with nobody in its slot, `BUDGET` blocks a tick, one cave at a time; whatever was left
   in it (items, monsters tagged with `GATE_ID_TAG`) is removed, its slot goes back to `GateData.freeSlots` for the
   next gate and its record is forgotten (an awakening trial's is kept). Monsters saved in unloaded chunks are turned
   away when they load; a player who logs in inside a cave that is gone is sent home. Without this every run would
@@ -908,7 +923,13 @@ blood pop through armor, buildup on players, weapon hits, resistances, armor set
 exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
-`test/GateGameTests` covers: the cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
+`test/DungeonGameTests` covers: every realm in every shape planning a whole dungeon over many seeds (same seed same
+plan, one entrance, one boss room and the biggest, nothing overlapping, everything reachable through passages or open
+spaces, inside the rock and its slot), the original caves coming out exactly as before realms (fingerprints of the
+old planner's layouts), gates picking every realm of their rank and every shape of their realm, realms favouring
+their bosses, realm and shape being saved (and old caves staying classic), and a dungeon of each shape carved, walked
+along every passage, and wiped back to rock to the last block.
+`test/GateGameTests` covers: the classic cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
 `test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, only a D-rank or higher clear calls a player, the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
