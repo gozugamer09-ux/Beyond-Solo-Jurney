@@ -17,6 +17,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -160,6 +161,7 @@ public final class SubclassPassives {
         MagePath.tickSecond(p, data);
         GuardianPath.tickSecond(p, data);
         HealerPath.tickSecond(p, data);
+        RangerPath.tickSecond(p, data);
     }
 
     // ================================================================ hits
@@ -176,7 +178,8 @@ public final class SubclassPassives {
         if (attacker instanceof ServerPlayer p && target != p) {
             SkillData data = SkillAPI.get(p);
             boolean melee = direct == p;
-            boolean projectile = direct instanceof Projectile;
+            // an arrow loosed by a ranger's skill is as much a projectile as one from the bow
+            boolean projectile = direct instanceof Projectile || RangerPath.shooting();
             boolean magic = event.getSource().is(DamageTypeTags.WITCH_RESISTANT_TO) || event.getSource().is(DamageTypeTags.BYPASSES_ARMOR);
             float bonus = 0;
 
@@ -221,12 +224,14 @@ public final class SubclassPassives {
             bonus += MagePath.strikeBonus(p, data, target);
             bonus += GuardianPath.strikeBonus(p, data, target, now);
             bonus += HealerPath.strikeBonus(p, data, target, now);
+            bonus += RangerPath.strikeBonus(p, data, target, now);
             if (bonus != 0) amount *= 1 + bonus / 100f;
             WarriorPath.afterStrike(p, data, target, melee, now);
             AssassinPath.afterStrike(p, data, target);
             MagePath.afterStrike(p, data, target);
             GuardianPath.afterStrike(p, data, target, melee, now);
             HealerPath.afterStrike(p, data, target, amount, now);
+            RangerPath.afterStrike(p, data, target, now);
 
             // on-hit statuses
             int virulence = data.level(SubclassSkills.VIRULENCE.path());
@@ -245,6 +250,9 @@ public final class SubclassPassives {
             }
         }
 
+        // a wildcaller's beast bites
+        if (attacker instanceof TamableAnimal beast && target != beast) amount = RangerPath.beastStrike(beast, target, amount, now);
+
         // Execution Order: the marked creature takes more from everyone
         if (attacker != null && attacker != target) {
             float order = WarriorPath.orderBonus(target, now);
@@ -261,6 +269,7 @@ public final class SubclassPassives {
             if (amount >= 0) amount = MagePath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount >= 0) amount = GuardianPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount >= 0) amount = HealerPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
+            if (amount >= 0) amount = RangerPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, event.getSource(), amount, now);
             if (amount < 0) {
                 event.setCanceled(true);
                 return;
@@ -338,6 +347,7 @@ public final class SubclassPassives {
         MagePath.onKill(p, data, dead);
         GuardianPath.onKill(p, data, dead);
         HealerPath.onKill(p, data, dead);
+        RangerPath.onKill(p, data, dead);
         int pact = data.level(SubclassSkills.GRAVE_PACT.path());
         if (pact > 0) {
             p.heal(pactHeal(pact));

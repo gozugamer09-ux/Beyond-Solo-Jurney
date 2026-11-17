@@ -53,7 +53,10 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         SHOT,
         /** Smoke and shadow swallowing the caster. */
         VEIL,
-        /** Something rolling along the ground from the caster to (x,y,z), {@code size} wide. Duration picks the look: 0 fire, 1 rock spikes, 2 a charge's wake. */
+        /**
+         * Something rolling along the ground from the caster to (x,y,z), {@code size} wide. Duration picks the look:
+         * 0 fire, 1 rock spikes, 2 a charge's wake, 3 a crescent of wind flying at chest height.
+         */
         WAVE,
         /** Blades of light circling the caster for {@code duration} ticks. */
         SPIN,
@@ -115,8 +118,67 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
          */
         ORBIT,
         /** A low bank of fog lying around (x,y,z) for {@code duration} ticks; size = its radius. */
-        MIST
+        MIST,
+        /**
+         * An arrow of light shot from the entity to (x,y,z); size = its scale. With a {@code duration} it stays
+         * stuck where it landed for that many ticks.
+         */
+        ARROW,
+        /** An arrow of light falling out of the sky onto (x,y,z), landing after {@code duration} ticks; size = its scale. */
+        SKYSHOT,
+        /** An arrow that curves from over the entity's shoulder onto (x,y,z) in {@code duration} ticks; size = its scale. */
+        SEEKER,
+        /**
+         * A thin sight line from the entity's eye for {@code duration} ticks. Size 0 follows their gaze, size 1
+         * holds on (x,y,z), and a negative size only takes the gaze line away.
+         */
+        SIGHT,
+        /** An arrow from the entity to (x,y,z) that drags the wind with it: rings opening down the line; size = their radius. */
+        GALE,
+        /** Wind spiralling up around the entity for {@code duration} ticks; size = its radius. */
+        UPDRAFT,
+        /**
+         * Arrows of light hovering in a fan behind the entity's shoulders for {@code duration} ticks; size = how
+         * many. A new one replaces the old one, and size 0 only takes it away.
+         */
+        QUIVER,
+        /** A wall of rising wind across the caster's facing, centred on (x,y,z), for {@code duration} ticks; size = its width. */
+        WINDWALL,
+        /**
+         * A beast of starlight. Duration is {@code ticks * 10 + species} (see {@link #BEAST_HAWK} and the rest): a
+         * hawk stoops from behind the caster onto (x,y,z) in that many ticks, a wolf or a boar runs the way the
+         * caster faces to end at (x,y,z), a bear rears at (x,y,z) and comes down on it, a howling wolf sits by the
+         * caster that long. Size = its scale.
+         */
+        BEAST,
+        /** Three claw marks torn through the air at (x,y,z); size = their length. */
+        CLAW,
+        /** Small lights swarming around the entity for {@code duration} ticks; size = how far out they fly. */
+        SWARM,
+        /**
+         * Iron jaws on the ground at (x,y,z); size = their radius. With a {@code duration} they lie open that long.
+         * Duration 0 snaps them shut there and takes the open ones at that spot away; size 0 only takes them away.
+         */
+        TRAP,
+        /**
+         * A wire between two stakes across the caster's facing, centred on (x,y,z), for {@code duration} ticks;
+         * size = its length. Size 0 takes the wire at that spot away.
+         */
+        WIRE,
+        /** A net thrown from the entity onto (x,y,z), lying there for {@code duration} ticks; size = its radius. */
+        NET,
+        /** A sprung pole standing at (x,y,z) that holds the entity up by a rope for {@code duration} ticks. */
+        ROPE,
+        /** A storm cloud hanging over (x,y,z) for {@code duration} ticks; size = its radius. */
+        CLOUD,
+        /** A ball of lightning drifting from the entity to (x,y,z) in {@code duration} ticks; size = its radius. */
+        BALL,
+        /** Arcs of electricity crawling over the entity, or around (x,y,z) without one, for {@code duration} ticks; size = how far they reach. */
+        STATIC
     }
+
+    /** The species a {@link Kind#BEAST} can be. */
+    public static final int BEAST_HAWK = 0, BEAST_WOLF = 1, BEAST_BOAR = 2, BEAST_BEAR = 3, BEAST_HOWL = 4;
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));
     public static final StreamCodec<ByteBuf, SkillFxPayload> STREAM_CODEC = StreamCodec.of(
