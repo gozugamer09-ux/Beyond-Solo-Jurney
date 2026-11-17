@@ -33,8 +33,10 @@ public enum GateTheme {
             blocks(Blocks.OBSIDIAN, Blocks.RED_NETHER_BRICKS, Blocks.BLACKSTONE), blocks(Blocks.CRIMSON_NYLIUM, Blocks.BLACKSTONE, Blocks.NETHER_WART_BLOCK),
             blocks(Blocks.CRYING_OBSIDIAN, Blocks.NETHER_WART_BLOCK), Blocks.CRIMSON_ROOTS, Blocks.SHROOMLIGHT, Blocks.POINTED_DRIPSTONE),
     /**
-     * The awakening trial behind a sealed gate (not a rank of its own: its monsters are D-rank). Bone-white stone with
-     * gold seams over dark tiled floors, cold soul light, and a long way down to the Hollow Arbiter.
+     * The awakening trial behind a sealed gate (not a rank of its own). Bone-white stone with gold seams over dark tiled
+     * floors, cold soul light, and the way down to the Hollow Arbiter: since 0.1.1 a short temple
+     * ({@link DungeonLayout#temple}) with nothing else alive in it. {@link #rooms} is the old long descent, kept for trials
+     * carved before then.
      */
     TRIAL(PlayerRank.D, DamageElement.CRIMSON, 11, 2,
             blocks(Blocks.CALCITE, Blocks.POLISHED_DIORITE, Blocks.CALCITE), blocks(Blocks.POLISHED_DEEPSLATE, Blocks.DEEPSLATE_TILES, Blocks.CRACKED_DEEPSLATE_TILES),
