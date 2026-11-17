@@ -19,7 +19,9 @@ public final class DungeonLayout {
     public enum Kind {
         ENTRANCE, CAVERN, SIDE, BOSS,
         /** A junction, a landing or an empty cell on the way: carved and lit, but nothing waits there. */
-        PASSAGE;
+        PASSAGE,
+        /** A chamber behind a disguised wall off one of the caverns ({@code depths.HiddenRooms}). */
+        HIDDEN;
 
         /** Monsters wait in rooms of this kind. */
         public boolean hasPack() {
@@ -236,15 +238,64 @@ public final class DungeonLayout {
         return in;
     }
 
+    /** The hidden chamber, if the dungeon has one. */
+    @org.jetbrains.annotations.Nullable
+    public Room hidden() {
+        for (Room r : rooms) if (r.kind == Kind.HIDDEN) return r;
+        return null;
+    }
+
+    /** The tunnel into the hidden chamber (from the room it hides off), if there is one. */
+    @org.jetbrains.annotations.Nullable
+    public Tunnel hiddenTunnel() {
+        Room h = hidden();
+        if (h == null) return null;
+        for (Tunnel t : tunnels) if (t.to() == h.index()) return t;
+        return null;
+    }
+
+    /** The tunnels that open into a room (either end). */
+    public List<Tunnel> tunnelsOf(int room) {
+        List<Tunnel> out = new ArrayList<>();
+        for (Tunnel t : tunnels) if (t.from() == room || t.to() == room) out.add(t);
+        return out;
+    }
+
     /** Builds the plan for a gate: its realm and shape from the seed (the trial always has its own). */
     public static DungeonLayout plan(long seed, GateTheme theme) {
+        return plan(seed, theme, false);
+    }
+
+    /** The same, with or without a hidden chamber ({@code depths}). */
+    public static DungeonLayout plan(long seed, GateTheme theme, boolean hidden) {
         GateRealm realm = theme == GateTheme.TRIAL ? GateRealm.THRESHOLD : GateRealm.forSeed(theme.rank, seed);
-        return plan(seed, theme, realm, theme == GateTheme.TRIAL ? DungeonShape.CAVERNS : realm.shapeFor(seed));
+        return plan(seed, theme, realm, theme == GateTheme.TRIAL ? DungeonShape.CAVERNS : realm.shapeFor(seed), hidden);
     }
 
     /** Builds the plan for a gate of a realm and shape. */
     public static DungeonLayout plan(long seed, GateTheme theme, GateRealm realm, DungeonShape shape) {
-        return new DungeonPlanner(seed, theme, realm, shape).plan();
+        return plan(seed, theme, realm, shape, false);
+    }
+
+    /**
+     * Builds the plan for a gate of a realm and shape. With {@code hidden}, a chamber is tucked off one of the later
+     * caverns where nothing else passes ({@link DungeonPlanner#placeHidden}); it comes last and has its own random, so
+     * the rest of the dungeon is the same with or without it.
+     */
+    public static DungeonLayout plan(long seed, GateTheme theme, GateRealm realm, DungeonShape shape, boolean hidden) {
+        return new DungeonPlanner(seed, theme, realm, shape).plan(hidden);
+    }
+
+    /**
+     * True if {@code p} is inside a room grown by {@code scale}: a cave's ellipsoid, or the shape of a built room
+     * ({@link Room#contains}).
+     */
+    public static boolean within(double[] p, Room room, double scale) {
+        if (!room.natural()) return room.contains(p[0], p[1], p[2], scale);
+        double dx = (p[0] - room.center().getX()) / room.rx();
+        double dy = (p[1] - room.center().getY()) / room.ry();
+        double dz = (p[2] - room.center().getZ()) / room.rz();
+        return dx * dx + dy * dy + dz * dz < scale * scale;
     }
 
     /** A point along a passage, {@code u} from 0 (its start) to 1 (its end). */

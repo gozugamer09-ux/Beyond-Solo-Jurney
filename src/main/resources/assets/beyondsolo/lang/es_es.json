@@ -525,7 +525,6 @@
   "skills.beyondsolo.cooldown": "%s s",
   "skills.beyondsolo.recharging": "quedan %s s",
   "skills.beyondsolo.always_on": "Siempre activa",
-  "skills.beyondsolo.gaze.weak": "Débil contra %s",
   "skill.beyondsolo.pulse_scan.found": "Pulso de Escaneo: %s hostiles revelados",
   "command.beyondsolo.skill.unknown": "Habilidad desconocida.",
   "skill_element.beyondsolo.physical": "Físico",

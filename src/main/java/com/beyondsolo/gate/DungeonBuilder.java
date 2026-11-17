@@ -89,6 +89,8 @@ public final class DungeonBuilder {
         for (Room room : layout.rooms()) steps.add(once(level -> decor.room(level, room)));
         for (Tunnel t : layout.tunnels()) steps.add(once(level -> decor.passage(level, t)));
         steps.add(once(this::joinUp));
+        // the hidden chamber's wall and dressing, the trap rooms' cores and vents
+        steps.add(once(level -> com.beyondsolo.depths.DepthsBuild.build(level, gate)));
     }
 
     private static Step once(Consumer<ServerLevel> work) {
@@ -467,7 +469,7 @@ public final class DungeonBuilder {
     }
 
     /** Half the width of a corridor, in whole blocks beside its middle (1: three wide, 2: five wide). */
-    static int corridorHalf(Tunnel t) {
+    public static int corridorHalf(Tunnel t) {
         return Math.max(1, (int) Math.floor(t.radius() - 0.5));
     }
 

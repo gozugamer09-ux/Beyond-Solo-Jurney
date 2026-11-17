@@ -544,7 +544,15 @@ public final class GateService {
         return belongs(com.beyondsolo.enemy.Enemies.spawn(level, g.rank(), type, p, com.beyondsolo.enemy.EnemyTraits.NONE, g.theme().ordinal()), g);
     }
 
-    /** Marks a monster as one of this gate's, so it is turned away if its cave is gone when it is loaded again. */
+    /**
+     * Marks a monster as one of this gate's (it is turned away if its cave is gone when it is loaded again) and gives
+     * its hits the gate's element. Everything a gate spawns goes through here.
+     */
+    @Nullable
+    public static Mob claim(@Nullable Mob mob, GateInstance g) {
+        return belongs(mob, g);
+    }
+
     @Nullable
     private static Mob belongs(@Nullable Mob mob, GateInstance g) {
         if (mob != null) {
@@ -654,8 +662,8 @@ public final class GateService {
             BlockPos cachePos = ground(level, center.relative(facing, 3));
             level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
             if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
-            // a chain of keyed runs pays a little more for each run in it
-            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g);
+            // a chain of keyed runs pays a little more for each run in it, and so does a cave with weather
+            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g) * com.beyondsolo.depths.WeatherService.rewardBonus(g);
             long xp = Math.round(g.theme().clearXp() * (double) bonus);
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));

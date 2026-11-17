@@ -59,7 +59,7 @@ final class DungeonPlanner {
         this.tier = Mth.clamp(theme.rank.tier(), 0, 5);
     }
 
-    DungeonLayout plan() {
+    DungeonLayout plan(boolean hidden) {
         switch (shape) {
             case LABYRINTH -> labyrinth(random(0x1AB1L));
             case GAUNTLET -> gauntlet(random(0x6A47L));
@@ -70,7 +70,166 @@ final class DungeonPlanner {
             case HIVE -> hive(random(0x41E5L));
             default -> caverns();
         }
+        if (hidden && !trial) placeHidden();
         return new DungeonLayout(rooms, tunnels, spaces, realm, shape);
+    }
+
+    // ------------------------------------------------------------------ the hidden chamber
+
+    /**
+     * The hidden chamber ({@code depths}): a cave off a cavern in the back two thirds of the dungeon, behind a wall that
+     * passes for rock, reached by a tunnel of its own that nothing else comes near. Its own random, so the rest of the
+     * dungeon is the same with or without it. Caves of the original kind place it exactly as they did before realms
+     * (caves carved then are still standing); every other dungeon also keeps it out of open spaces, clear of built
+     * rooms' corners and inside its slot, and may hide it off another room on the way if no cavern has room (a chasm's
+     * caverns are all islands).
+     */
+    private void placeHidden() {
+        if (rooms.size() >= 64) return;
+        RandomSource h = new LegacyRandomSource(seed * 0x9E3779B97F4A7C15L + 0x48494444L);
+        boolean exact = shape == DungeonShape.CAVERNS && realm.build == GateRealm.Build.CAVE && !realm.corridors;
+        List<Room> caverns = new ArrayList<>();
+        for (Room room : rooms) if (room.kind() == Kind.CAVERN) caverns.add(room);
+        if (!caverns.isEmpty() && hideOff(h, caverns, caverns.size() / 3, exact ? 60 : 120, exact)) return;
+        if (exact) return;
+        List<Room> others = new ArrayList<>();
+        for (Room room : rooms) if (room.kind() != Kind.BOSS && room.kind() != Kind.CAVERN && room.shape() != Shape.ISLAND) others.add(room);
+        if (!others.isEmpty()) hideOff(h, others, 0, 60, false);
+    }
+
+    private boolean hideOff(RandomSource h, List<Room> from, int first, int attempts, boolean exact) {
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            Room at = from.get(first + h.nextInt(Math.max(1, from.size() - first)));
+            float a = h.nextFloat() * Mth.TWO_PI;
+            int rx = 6 + h.nextInt(2), rz = 6 + h.nextInt(2), ry = 5;
+            int dist = at.reach() + Math.max(rx, rz) + 8 + h.nextInt(6);
+            int dy = h.nextInt(5) - 2;
+            // a cave of the original kind sat by its cavern's middle; elsewhere the chamber's floor is near the room's
+            int y = exact ? Mth.clamp(at.center().getY() + dy, MIN_Y + ry + 2, MAX_Y - ry - 2)
+                    : Mth.clamp(at.floorY() + Math.round(ry * 0.55f) + dy, FLOOR_LIMIT + ry + 4, CEILING_LIMIT - ry - 4);
+            Room room = new Room(rooms.size(), new BlockPos(at.center().getX() + Math.round(Mth.cos(a) * dist), y,
+                    at.center().getZ() + Math.round(Mth.sin(a) * dist)), rx, ry, rz, Kind.HIDDEN);
+            if (!centersClear(room, 7)) continue;
+            if (!exact && (!clear(room, 7) || !inSlot(room, 8) || nearSpaces(room, 4))) continue;
+            Tunnel t = tube(h, at, room);
+            if (!secluded(at, room, t, exact)) continue;
+            rooms.add(room);
+            tunnels.add(t);
+            return true;
+        }
+        return false;
+    }
+
+    /** The original check: every room's middle keeps both rooms' reach and {@code gap} away. */
+    private boolean centersClear(Room candidate, int gap) {
+        for (Room o : rooms) {
+            double need = o.reach() + candidate.reach() + gap;
+            if (o.center().distSqr(candidate.center()) < need * need) return false;
+        }
+        return true;
+    }
+
+    /** True if a room stays well inside the dungeon's slot of the gate dimension. */
+    private static boolean inSlot(Room room, int margin) {
+        int half = GateInstance.SLOT_SPACING / 2 - 16 - margin;
+        return Math.abs(room.center().getX()) + room.reach() < half && Math.abs(room.center().getZ()) + room.reach() < half;
+    }
+
+    /** True if a cave room (or the rock round it, {@code margin} deep) reaches into an open space. */
+    private boolean nearSpaces(Room room, int margin) {
+        for (Space s : spaces) {
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    for (int k = -1; k <= 1; k++) {
+                        double x = room.center().getX() + i * (room.rx() + margin), y = room.center().getY() + j * (room.ry() + margin);
+                        double z = room.center().getZ() + k * (room.rz() + margin);
+                        if (s.contains(x, y, z, 1.05)) return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True if nothing else reaches the hidden chamber or its tunnel: no other passage comes near either, and the tunnel
+     * passes through no room but the one it leaves (nor, away from caves of the original kind, near an open space).
+     */
+    private boolean secluded(Room from, Room hidden, Tunnel t, boolean exact) {
+        int n = exact ? 24 : 48;
+        for (int i = 0; i <= n; i++) {
+            double[] p = DungeonLayout.along(t, i / (double) n);
+            for (Room o : rooms) {
+                if (o == from) continue;
+                if (exact) {
+                    double dx = (p[0] - o.center().getX()) / (o.rx() + t.radius() + 3);
+                    double dy = (p[1] - o.center().getY()) / (o.ry() + t.radius() + 3);
+                    double dz = (p[2] - o.center().getZ()) / (o.rz() + t.radius() + 3);
+                    if (dx * dx + dy * dy + dz * dz < 1) return false;
+                } else if (gap(o, p) < t.radius() + 3) {
+                    return false;
+                }
+            }
+            if (!exact) {
+                for (Space s : spaces) {
+                    double grow = 1 + (t.radius() + 4) / Math.max(1, Math.min(s.rx(), s.rz()));
+                    if (s.contains(p[0], p[1], p[2], grow)) return false;
+                }
+            }
+            boolean pInFrom = DungeonLayout.within(p, from, 1.35);
+            for (Tunnel other : tunnels) {
+                boolean shares = other.from() == from.index() || other.to() == from.index();
+                int m = exact ? 24 : Math.max(24, (int) (other.length() * 1.5));
+                for (int j = 0; j <= m; j++) {
+                    double[] q = middle(other, j / (double) m, exact);
+                    // where both are still inside the room they leave, they are the room itself
+                    if (shares && pInFrom && DungeonLayout.within(q, from, 1.35)) continue;
+                    double need = t.radius() + other.radius() + 3 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
+                    double ddx = p[0] - q[0], ddy = p[1] - q[1], ddz = p[2] - q[2];
+                    if (ddx * ddx + ddy * ddy + ddz * ddz < need * need) return false;
+                }
+            }
+        }
+        for (Tunnel other : tunnels) {
+            int m = exact ? 24 : Math.max(24, (int) (other.length() * 1.5));
+            for (int j = 0; j <= m; j++) {
+                double[] q = middle(other, j / (double) m, exact);
+                double grow = other.radius() + 4 + (exact || other.style() == Style.TUBE ? 0 : 1.5);
+                double dx = (q[0] - hidden.center().getX()) / (hidden.rx() + grow);
+                double dy = (q[1] - hidden.center().getY()) / (hidden.ry() + grow);
+                double dz = (q[2] - hidden.center().getZ()) / (hidden.rz() + grow);
+                if (dx * dx + dy * dy + dz * dz < 1) return false;
+            }
+        }
+        return true;
+    }
+
+    /** The middle of a passage's opening at a point: a tube's own points, two above the walkway of the others. */
+    private static double[] middle(Tunnel t, double u, boolean exact) {
+        double[] q = DungeonLayout.along(t, u);
+        if (!exact && t.style() != Style.TUBE) q[1] += 2;
+        return q;
+    }
+
+    /** About how far a point is from a room's carved shape (0 inside it). */
+    private static double gap(Room o, double[] p) {
+        double dx = p[0] - o.center().getX(), dy = p[1] - o.center().getY(), dz = p[2] - o.center().getZ();
+        switch (o.shape()) {
+            case HALL -> {
+                double gx = Math.max(0, Math.abs(dx) - o.rx() - 0.5), gy = Math.max(0, Math.abs(dy) - o.ry() - 0.5), gz = Math.max(0, Math.abs(dz) - o.rz() - 0.5);
+                return Math.sqrt(gx * gx + gy * gy + gz * gz);
+            }
+            case ROUND, ISLAND -> {
+                double gh = Math.max(0, Math.sqrt(dx * dx + dz * dz) - o.rx() - 0.5), gy = Math.max(0, Math.abs(dy) - o.ry() - 0.5);
+                return Math.sqrt(gh * gh + gy * gy);
+            }
+            default -> {
+                double k = Math.sqrt(sq(dx / o.rx()) + sq(dy / o.ry()) + sq(dz / o.rz()));
+                if (k <= 1) return 0;
+                // the ellipsoid's own radius toward the point is (distance / k)
+                return Math.sqrt(dx * dx + dy * dy + dz * dz) * (1 - 1 / k);
+            }
+        }
     }
 
     private RandomSource random(long salt) {

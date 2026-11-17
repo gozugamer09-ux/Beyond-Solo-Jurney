@@ -95,13 +95,15 @@ final class DungeonDecor {
         lights(level, room, c, floor, r);
         fillLight(level, room, c, floor);
         if (kind == Kind.SIDE) cache(level, c, floor, r);
-        if (!trial && (kind == Kind.CAVERN || kind == Kind.SIDE)) veins(level, room, c, floor, r);
+        if (!trial && (kind == Kind.CAVERN || kind == Kind.SIDE || kind == Kind.HIDDEN)) veins(level, room, c, floor, r);
         if (trial) {
             trial(level, room, c, floor, r);
         } else if (kind == Kind.BOSS) {
             arena(level, room, c, floor, r);
         }
         scatter(level, a, r, Math.round((10 + r.nextInt(8)) * size(a)));
+        // a hidden chamber is dressed for what it holds (depths.DepthsBuild): none of the realm's things stand in it
+        if (kind == Kind.HIDDEN) return;
         decorations(level, a, r, switch (kind) {
             case BOSS -> 0.6f;
             case PASSAGE -> 0.55f;
@@ -210,9 +212,9 @@ final class DungeonDecor {
         };
     }
 
-    /** Mana veins in the walls of caverns and side rooms. */
+    /** Mana veins in the walls of caverns and side rooms, and plenty in a hidden chamber. */
     private void veins(ServerLevel level, Room room, BlockPos c, int floor, RandomSource r) {
-        int veins = 1 + r.nextInt(room.kind() == Kind.SIDE ? 3 : 2);
+        int veins = room.kind() == Kind.HIDDEN ? 3 + r.nextInt(2) : 1 + r.nextInt(room.kind() == Kind.SIDE ? 3 : 2);
         for (int i = 0; i < veins; i++) {
             float ang = r.nextFloat() * Mth.TWO_PI;
             BlockPos hit = march(level, new BlockPos(c.getX(), floor + 1 + r.nextInt(3), c.getZ()), Mth.cos(ang), 0, Mth.sin(ang), room.reach() + 6);
