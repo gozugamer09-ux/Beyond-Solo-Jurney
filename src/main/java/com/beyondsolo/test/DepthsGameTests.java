@@ -86,6 +86,8 @@ public final class DepthsGameTests {
         GateBlockEntity door = GateService.spawnGate(helper.getLevel(), helper.absolutePos(new BlockPos(3, 2, 3)), PlayerRank.C, Direction.NORTH, false);
         GateInstance g = GateData.get(helper.getLevel().getServer()).get(door.gateId());
         if (g == null) throw new IllegalStateException("gate was not registered");
+        // the original cave of its rank, so every run tests the same thing (DungeonGameTests carves every realm and shape)
+        g.setDungeon(com.beyondsolo.gate.GateRealm.classic(g.rank()), com.beyondsolo.gate.DungeonShape.CAVERNS);
         DepthsCommand.force(g, weather, hidden, trap);
         return g;
     }
@@ -96,7 +98,10 @@ public final class DepthsGameTests {
         return d;
     }
 
-    /** Keeps the chunks around a room loaded (and ticking) for a test; returns them to release later. */
+    /**
+     * Keeps the chunks around a room loaded (and ticking) for a test, waiting until they are, so creatures that rise in
+     * the room can be found at once; returns them to release later.
+     */
     private static List<ChunkPos> hold(ServerLevel level, BlockPos center, int radius) {
         List<ChunkPos> out = new ArrayList<>();
         ChunkPos c = new ChunkPos(center);
@@ -105,7 +110,13 @@ public final class DepthsGameTests {
             level.setChunkForced(c.x + x, c.z + z, true);
             out.add(new ChunkPos(c.x + x, c.z + z));
         }
+        TestChunks.ticking(level, out);
         return out;
+    }
+
+    /** Which dungeon a gate made here leads to (they are random), for a failure message. */
+    private static String where(GateInstance g) {
+        return " (" + g.realm().id() + "/" + g.shape().id() + " " + g.rank() + " seed " + g.seed() + ")";
     }
 
     private static void release(ServerLevel level, List<ChunkPos> chunks) {
@@ -367,7 +378,7 @@ public final class DepthsGameTests {
         p.moveTo(floor.getX() + 0.5, floor.getY() + 1, floor.getZ() + 0.5);
         DepthsTestAccess.tickHidden(d, g, List.of(p));
         int guardians = DepthsTestAccess.creaturesIn(d, g, room);
-        helper.assertTrue(g.depths().hiddenEntered() && guardians >= 3, "its guardians wake: " + guardians);
+        helper.assertTrue(g.depths().hiddenEntered() && guardians >= 3, "its guardians wake: " + guardians + where(g));
         DepthsTestAccess.tickHidden(d, g, List.of(p));
         helper.assertTrue(!g.depths().hiddenDone(), "not while they stand");
         killAll(d, g, room);
@@ -435,7 +446,7 @@ public final class DepthsGameTests {
             helper.assertTrue(here > 0, "every way out is walled with light");
             wards += here;
         }
-        helper.assertTrue(wards > 0 && DepthsTestAccess.creaturesIn(d, g, room) > 0, "and the first wave rises");
+        helper.assertTrue(wards > 0 && DepthsTestAccess.creaturesIn(d, g, room) > 0, "and the first wave rises" + where(g));
         final int total = wards;
         helper.startSequence()
                 .thenExecute(() -> {
@@ -446,7 +457,7 @@ public final class DepthsGameTests {
                 .thenIdle(41)
                 .thenExecute(() -> {
                     DepthsTestAccess.tickTraps(d, g, List.of(p));
-                    helper.assertTrue(DepthsTestAccess.wave(g, room.index()) == 2 && DepthsTestAccess.creaturesIn(d, g, room) > 0, "wave two");
+                    helper.assertTrue(DepthsTestAccess.wave(g, room.index()) == 2 && DepthsTestAccess.creaturesIn(d, g, room) > 0, "wave two" + where(g));
                     helper.assertTrue(g.depths().trapActive(room.index()), "still sealed in (" + total + " ward blocks)");
                     killAll(d, g, room);
                     DepthsTestAccess.tickTraps(d, g, List.of(p));

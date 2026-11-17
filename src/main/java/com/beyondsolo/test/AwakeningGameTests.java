@@ -293,6 +293,7 @@ public final class AwakeningGameTests {
         ServerLevel d = GateService.dungeon(helper.getLevel().getServer());
         GateService.buildNow(helper.getLevel().getServer(), g);
         helper.assertTrue(g.built() && g.boss() != null, "built, with its master");
+        TestChunks.settle(d, () -> d.getEntity(g.boss()) instanceof ArbiterEntity);
         helper.assertTrue(d.getEntity(g.boss()) instanceof ArbiterEntity a && !a.isAwake() && a.isInvulnerableTo(d.damageSources().generic()), "the Arbiter kneels, untouchable");
         helper.assertTrue(g.layout().boss().center().getY() < g.layout().entrance().center().getY(), "the way leads down");
         helper.succeed();

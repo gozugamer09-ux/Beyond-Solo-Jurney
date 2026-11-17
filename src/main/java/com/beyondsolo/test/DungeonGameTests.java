@@ -2,8 +2,10 @@ package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.depths.DepthsBuild;
+import com.beyondsolo.depths.DepthsTestAccess;
 import com.beyondsolo.depths.HiddenKind;
 import com.beyondsolo.depths.HiddenSealBlock;
+import com.beyondsolo.depths.TrapKind;
 import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.gate.DungeonLayout;
 import com.beyondsolo.gate.DungeonLayout.Room;
@@ -97,6 +99,54 @@ public final class DungeonGameTests {
         }
         if (!problems.isEmpty()) {
             helper.fail(problems.size() + " problem(s) in " + plans + " plans:\n  " + String.join("\n  ", problems.subList(0, Math.min(20, problems.size()))));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Traps go where they work, in every realm and shape: a lockdown only in a room rock shuts in (never a camp out in a
+     * hollow, an island or a ledge over a shaft, which get another trap), every room of the original caves is one (so
+     * their traps roll as before), and a trap forced by command finds a room in every dungeon.
+     */
+    @GameTest(template = ARENA, timeoutTicks = 400)
+    public static void trapsGoWhereTheyWork(GameTestHelper helper) {
+        List<String> problems = new ArrayList<>();
+        int lockdowns = 0, openTraps = 0;
+        for (GateRealm realm : GateRealm.values()) {
+            if (realm.weight == 0) continue;
+            for (DungeonShape shape : realm.shapes()) {
+                for (int i = 0; i < SEEDS * 3; i++) {
+                    PlayerRank rank = PlayerRank.values()[realm.minRank.ordinal() + i % (realm.maxRank.ordinal() - realm.minRank.ordinal() + 1)];
+                    long seed = (realm.ordinal() * 131L + shape.ordinal()) * 104729L + i * 0x5851F42D4C957F2DL;
+                    DungeonLayout l = DungeonLayout.plan(seed, GateTheme.of(rank), realm, shape);
+                    String where = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + ": ";
+                    if (shape == DungeonShape.CAVERNS) {
+                        for (Room room : l.rooms()) {
+                            if (room.kind() == DungeonLayout.Kind.CAVERN && !l.enclosed(room)) problems.add(where + "cavern " + room.index() + " can't be shut");
+                        }
+                    }
+                    for (var e : DepthsTestAccess.rollTraps(seed, rank, l).entrySet()) {
+                        Room room = l.rooms().get(e.getKey());
+                        boolean shut = l.enclosed(room);
+                        if (e.getValue() == TrapKind.LOCKDOWN) {
+                            lockdowns++;
+                            if (!shut) problems.add(where + "a lockdown in room " + room.index() + ", which can't be shut");
+                        } else if (!shut) {
+                            openTraps++;
+                        }
+                    }
+                    for (TrapKind kind : TrapKind.values()) {
+                        Room room = DepthsTestAccess.forcedTrapRoom(l, kind);
+                        if (kind == TrapKind.LOCKDOWN ? room != null && !l.enclosed(room) : room == null) {
+                            problems.add(where + "a forced " + kind.id() + " goes in " + (room == null ? "no room" : "room " + room.index() + ", which can't be shut"));
+                        }
+                    }
+                }
+            }
+        }
+        helper.assertTrue(lockdowns > 0 && openTraps > 0, "lockdowns still turn up (" + lockdowns + "), and open rooms get other traps (" + openTraps + ")");
+        if (!problems.isEmpty()) {
+            helper.fail(problems.size() + " problem(s):\n  " + String.join("\n  ", problems.subList(0, Math.min(20, problems.size()))));
         }
         helper.succeed();
     }
@@ -324,13 +374,13 @@ public final class DungeonGameTests {
         // (a vault off a cavern, or the awakening's sealed door behind the boss)
         g.depths().setHidden(kind);
         g.replan();
+        // a loose ceiling in every cavern a trap can go in: its rock hangs over the way, and must never be in it
+        for (Room room : g.layout().rooms()) {
+            if (room.kind() == DungeonLayout.Kind.CAVERN && room.index() >= 2) g.depths().setTrap(room.index(), TrapKind.ROCKFALL);
+        }
         ServerLevel d = GateService.dungeon(server);
         helper.assertTrue(d != null, "there is somewhere to carve");
         GateService.buildNow(server, g);
-        // the chunks loaded last (often the boss's) only finish loading on the server thread's next turn; until then
-        // a creature added to them is there but not yet in the world's lookup
-        while (d.getChunkSource().pollTask()) {
-        }
         helper.assertTrue(g.built() && g.realm() == realm && g.shape() == shape, "built as asked");
         String what = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + (kind == HiddenKind.SEALED ? " (sealed door)" : "") + ": ";
         if (kind == HiddenKind.SEALED) {
@@ -345,8 +395,9 @@ public final class DungeonGameTests {
         helper.assertTrue(open(d, g.bossRoomCenter().above()) && open(d, g.bossRoomCenter().above(2)), what + "the boss's room is hollow");
         helper.assertTrue(g.bossSpawned() && g.boss() != null, what + "the boss was spawned");
         UUID bossId = g.boss();
-        boolean bossNow = d.getEntity(bossId) instanceof GateBossEntity;
-        if (!bossNow) BeyondSolo.LOGGER.info("{}the boss isn't in the world's lookup yet{}", what, bossWhere(d, g, bossId));
+        // its chunk is handed over to the world once the chunks around it are ready, which other threads finish in
+        // their own time; until then it can't be found there
+        if (!TestChunks.settle(d, () -> d.getEntity(bossId) instanceof GateBossEntity)) helper.fail(what + "the boss is waiting" + bossWhere(d, g, bossId));
 
         DungeonLayout layout = g.layout();
         for (Tunnel t : layout.tunnels()) {
@@ -437,43 +488,24 @@ public final class DungeonGameTests {
             }
         }
 
-        Runnable wipe = () -> {
-            g.setState(GateInstance.State.CLOSED);
-            helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
-            // the builder walled the dungeon in rock first (the game-test world is open air), so any air left anywhere
-            // near it is a part the wipe missed
-            for (int[] b : layout.boxes(6)) {
-                BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-                for (int x = b[0]; x <= b[3]; x++) {
-                    for (int y = b[1]; y <= b[4]; y++) {
-                        for (int z = b[2]; z <= b[5]; z++) {
-                            p.set(o.getX() + x, o.getY() + y, o.getZ() + z);
-                            if (!d.getBlockState(p).isAir()) continue;
-                            helper.fail(what + "air left after the wipe at " + p.toShortString() + " (layout " + x + " " + y + " " + z + ")");
-                        }
+        g.setState(GateInstance.State.CLOSED);
+        helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
+        // the builder walled the dungeon in rock first (the game-test world is open air), so any air left anywhere
+        // near it is a part the wipe missed
+        for (int[] b : layout.boxes(6)) {
+            BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+            for (int x = b[0]; x <= b[3]; x++) {
+                for (int y = b[1]; y <= b[4]; y++) {
+                    for (int z = b[2]; z <= b[5]; z++) {
+                        p.set(o.getX() + x, o.getY() + y, o.getZ() + z);
+                        if (!d.getBlockState(p).isAir()) continue;
+                        helper.fail(what + "air left after the wipe at " + p.toShortString() + " (layout " + x + " " + y + " " + z + ")");
                     }
                 }
             }
-        };
-        if (bossNow) {
-            wipe.run();
-            helper.succeed();
-            return;
         }
-        // a creature added to a chunk loaded a moment ago is in the world, but only turns up in its lookup once the
-        // chunk has finished loading (the last step of that runs on a later turn of the server); hold the chunk so it
-        // isn't put away first, and give it a few turns
-        net.minecraft.world.level.ChunkPos held = new net.minecraft.world.level.ChunkPos(g.bossRoomCenter());
-        d.getChunkSource().addRegionTicket(BOSS_CHECK, held, 1, held);
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(d.getEntity(bossId) instanceof GateBossEntity, what + "the boss is waiting" + bossWhere(d, g, bossId)))
-                .thenExecute(wipe)
-                .thenSucceed();
+        helper.succeed();
     }
-
-    /** Holds a boss's chunk loaded for ten seconds while a test waits for it to finish loading. */
-    private static final net.minecraft.server.level.TicketType<net.minecraft.world.level.ChunkPos> BOSS_CHECK =
-            net.minecraft.server.level.TicketType.create("beyondsolo_boss_check", java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong), 200);
 
     /** Where the boss should be and what the world knows of it, for a failure message. */
     private static String bossWhere(ServerLevel d, GateInstance g, UUID id) {

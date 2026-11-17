@@ -416,11 +416,14 @@ public final class DepthsBuild {
         for (int i = 0; i < n; i++) {
             float a = r.nextFloat() * Mth.TWO_PI, d = r.nextFloat() * 0.65f;
             BlockPos p = new BlockPos(center.getX() + Math.round(Mth.cos(a) * d * room.rx()), center.getY() + 2, center.getZ() + Math.round(Mth.sin(a) * d * room.rz()));
+            // whatever it hangs from (the roof, or a stalactite or an icicle hanging lower), it stays well over head
+            // height above the floor under it, so it never stands in anyone's way
+            int lowest = floorAt(level, p.getX(), p.getZ(), center.getY()).getY() + 4;
             for (int up = 1; up < room.ry() * 2 + 4; up++) {
                 BlockPos q = p.above(up);
                 if (open(level.getBlockState(q))) continue;
                 int len = s.getBlock() instanceof LanternBlock || s.is(Blocks.COBWEB) ? 1 : 1 + r.nextInt(3);
-                for (int k = 1; k <= len; k++) placeIfOpen(level, q.below(k), s);
+                for (int k = 1; k <= len && q.getY() - k >= lowest; k++) placeIfOpen(level, q.below(k), s);
                 break;
             }
         }

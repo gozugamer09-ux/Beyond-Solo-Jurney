@@ -143,7 +143,7 @@ public final class GateInstance {
         this.realm = realm;
         this.shape = shape;
         this.legacy = false;
-        this.layout = null;
+        replan();
     }
 
     /** The element its creatures' hits carry: its realm's, or its rank's where the realm has none. */
@@ -214,6 +214,7 @@ public final class GateInstance {
     /** Plans the cave again (after its hidden chamber was forced). Only before it is built. */
     public void replan() {
         this.layout = null;
+        depths.replanned();
     }
 
     /** Where the cave's origin is in the gate dimension. */

@@ -358,7 +358,11 @@ arriving, leaving, boss intro with cinema bars, defeated stamp, dungeon cleared,
 Models, animations and textures come from `tools/gen_gate_assets.py`.
 
 The game-test server does not load datapack dimensions, so there (only) caves are carved into the overworld and
-walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`).
+walled in first (`GateService.dungeon`, `DungeonBuilder.walledIn`). It also runs its turns back to back without
+waiting, so chunks that other threads finish (generating, loading, handing a chunk over to the world) can lag a
+thousand turns behind, and a creature added to a chunk not yet handed over can't be found in the world. A test that
+needs chunks ready (the boss a dungeon was just built with, a wave that just rose) waits for them by the clock with
+`test/TestChunks`, not over turns.
 
 `/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|info|cache [rank]|list` for testing: `spawn`
 opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `info` names the
@@ -978,7 +982,11 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   lockdown: walls of red light (`TrapWardBlock`) across every way out and two waves of the gate's creatures, then it
   lets go and leaves treasure. The first three stop when their `TrapCoreBlock` breaks (four strikes; Pulse Scan shows
   cores; a core broken before its trap springs disarms it). A lockdown nobody is left in stands down after 20 s and
-  springs again. Beating a trap pays XP. Strikes hurt the cave's creatures too.
+  springs again. Beating a trap pays XP. Strikes hurt the cave's creatures too. A lockdown only goes in a room rock
+  shuts in (`DungeonLayout.enclosed`): a camp out in a hollow, an island over a chasm or a ledge cave open onto a
+  shaft rolls one of the other traps instead (`TrapKind.pickOpen`; every room of the original caves is shut in, so
+  their traps roll as before). A rockfall room's loose ceiling never hangs lower than four blocks over the floor under
+  it, whatever it hangs from (`DepthsBuild.hang`).
 - **Looks**: banners (`DepthsHud`: the weather's condition card, the glitching HIDDEN DUNGEON stamp, the red TRAP
   stamp, waves, cleared), the weather and trap chips under the run clock, the weakness tag under the crosshair;
   world moments (`DepthsWorldFx`): knocks cracking the wall, Pulse Scan's ring with walls and cores outlined through
@@ -990,7 +998,9 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
 - **Commands** (`/system depths ...`, level 2): `gate <rank> [weather] [hidden] [trap]` opens a gate five steps ahead
   with its depths forced (`seed` keeps what the seed says), `weather <id|seed>`, `info`, `hidden` (go to the wall),
   `open`, `reveal`, `trap` (just outside the next trap room), `core` (beside the nearest trap core), `bolt`, `rock`,
-  `profile` (of the creature looked at), `weaknesses reset`. All numbers are first guesses for the balancing pass.
+  `profile` (of the creature looked at), `weaknesses reset`. A forced trap goes in the first cavern past the first
+  that it works in, or another room past the entrance (`DepthsCommand.trapRoom`). All numbers are first guesses for
+  the balancing pass.
 
 ## World generation
 
@@ -1046,11 +1056,12 @@ timeouts and penalties, fleeing, offers, inventory and level objectives, the dai
 `test/DungeonGameTests` covers: every realm in every shape planning a whole dungeon over many seeds (same seed same
 plan, one entrance, one boss room and the biggest, nothing overlapping, everything reachable through passages or open
 spaces, inside the rock and its slot), the original caves coming out exactly as before realms (fingerprints of the
-old planner's layouts), gates picking every realm of their rank and every shape of their realm, realms favouring
+old planner's layouts), traps going where they work (lockdowns only in rooms that shut, a forced trap finding a room
+in every dungeon), gates picking every realm of their rank and every shape of their realm, realms favouring
 their bosses and their creatures (three to five kinds, one up close, two at home in the realm, its ruling affinity),
 realm and shape being saved (and old caves staying classic), and a dungeon of each shape and of each realm carved,
 walked along every passage, walked on foot from the entrance to every room (stepping, jumping a block, dropping no
-more than a harmless fall), its hidden chamber sealed off on foot behind a wall that passes for the realm's own and
+more than a harmless fall) with a loose rockfall ceiling over every cavern, its hidden chamber sealed off on foot behind a wall that passes for the realm's own and
 walkable once the wall is down, and wiped back to rock to the last block; the same for the awakening's sealed door
 behind the boss of a dungeon of each shape. A failed walk draws a map of what was reached. Set `EXPLORE` to carve every realm in every one of its shapes (about 80 more dungeons, several minutes).
 `test/GateGameTests` covers: the classic cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
@@ -1067,7 +1078,7 @@ checks use zombies.
 `test/PenaltyGameTests` covers: a failed or abandoned daily owing a sentence instead of debuffs, the sentence waiting until the player is free, no zone without the System, the whole sentence (pulled in, the pillar and red ground, creatures rising inside the edge, time running out, home with the sentence served), falling (death cancelled, home collapsed and weak), surges and eruptions, and the daily training's four drills and its full restore.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
-`test/DepthsGameTests` covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
+`test/DepthsGameTests` (in the original cave of each gate's rank, so every run tests the same) covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.

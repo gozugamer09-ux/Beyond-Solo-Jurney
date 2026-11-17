@@ -442,6 +442,7 @@ public final class KeyGameTests {
                 && d.getBlockState(e.above()).getCollisionShape(d, e.above()).isEmpty(), "carved, not " + d.getBlockState(e) + " in " + g.realm().id() + "/" + g.shape().id());
         Mob mob = GateService.spawnMonster(d, g, EntityType.ZOMBIE, e);
         helper.assertTrue(mob != null && g.id().equals(mob.getPersistentData().getUUID(GateWiper.GATE_ID_TAG)), "its monsters know their gate");
+        TestChunks.settle(d, () -> d.getEntity(mob.getUUID()) == mob);
         int slot = g.slot();
         helper.assertTrue(!GateWiper.wipeNow(server, g), "an open cave is left alone");
         g.setState(GateInstance.State.CLOSED);

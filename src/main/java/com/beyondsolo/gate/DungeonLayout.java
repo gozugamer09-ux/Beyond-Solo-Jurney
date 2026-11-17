@@ -261,6 +261,25 @@ public final class DungeonLayout {
         return out;
     }
 
+    /**
+     * True if rock shuts the room in all round, so its passages are its only ways out (what a lockdown seals): not a
+     * camp out in a hollow, an island over a chasm or a ledge cave open onto a shaft. Looks just past the room's edge,
+     * at head height, for open space (a lake doesn't count).
+     */
+    public boolean enclosed(Room room) {
+        if (tunnelsOf(room.index()).isEmpty()) return false;
+        BlockPos c = room.center();
+        for (Space s : spaces) {
+            if (s.shape() == SpaceShape.POOL) continue;
+            for (int i = 0; i < 24; i++) {
+                double a = i * Mth.TWO_PI / 24;
+                double x = c.getX() + Mth.cos((float) a) * (room.rx() + 1.5), z = c.getZ() + Mth.sin((float) a) * (room.rz() + 1.5);
+                for (int dy = 1; dy <= 3; dy++) if (s.contains(x, room.floorY() + dy, z, 1.0)) return false;
+            }
+        }
+        return true;
+    }
+
     /** Builds the plan for a gate: its realm and shape from the seed (the trial always has its own). */
     public static DungeonLayout plan(long seed, GateTheme theme) {
         return plan(seed, theme, false);
