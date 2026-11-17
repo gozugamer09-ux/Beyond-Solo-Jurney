@@ -1,0 +1,196 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "ear",
+   "part": "head",
+   "origin": [
+    -1.25,
+    -3.5,
+    -0.75
+   ],
+   "size": [
+    2.5,
+    3.5,
+    1.5
+   ],
+   "uv": [
+    10,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -3.25,
+    -9,
+    0.5
+   ],
+   "rotation": [
+    -8,
+    0,
+    -12
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "ear_l",
+   "part": "head",
+   "origin": [
+    -1.25,
+    -3.5,
+    -0.75
+   ],
+   "size": [
+    2.5,
+    3.5,
+    1.5
+   ],
+   "uv": [
+    10,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    3.25,
+    -9,
+    0.5
+   ],
+   "rotation": [
+    -8,
+    0,
+    12
+   ],
+   "mirror": true,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "scarf1",
+   "part": "body",
+   "origin": [
+    -1.0,
+    0,
+    0
+   ],
+   "size": [
+    2,
+    10,
+    0.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -1.25,
+    1.0,
+    2.6
+   ],
+   "rotation": [
+    8,
+    0,
+    6
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "scarf2",
+   "part": "body",
+   "origin": [
+    -1.0,
+    0,
+    0
+   ],
+   "size": [
+    2,
+    7.5,
+    0.5
+   ],
+   "uv": [
+    5,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    1.0,
+    1.0,
+    2.7
+   ],
+   "rotation": [
+    12,
+    0,
+    -10
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "bspike",
+   "part": "right_leg",
+   "origin": [
+    -1,
+    -0.75,
+    -0.75
+   ],
+   "size": [
+    2.5,
+    1.5,
+    1.5
+   ],
+   "uv": [
+    30,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -2.9,
+    8.5,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    -20
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.15
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.25
+   ],
+   "uv": [
+    18,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  }
+ ]
+}

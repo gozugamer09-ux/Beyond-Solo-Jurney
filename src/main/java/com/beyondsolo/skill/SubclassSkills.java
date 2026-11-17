@@ -176,6 +176,7 @@ public final class SubclassSkills {
         MagePath.init();
         GuardianPath.init();
         HealerPath.init();
+        RangerPath.init();
     }
 
     private SubclassSkills() {}

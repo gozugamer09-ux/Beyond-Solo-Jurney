@@ -1,0 +1,128 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "pauldron",
+   "part": "right_arm",
+   "origin": [
+    -5.75,
+    -4.25,
+    -4.25
+   ],
+   "size": [
+    7.5,
+    6.5,
+    8.5
+   ],
+   "uv": [
+    19,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -2,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    -10
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "cape",
+   "part": "body",
+   "origin": [
+    -4.5,
+    0,
+    0
+   ],
+   "size": [
+    9,
+    19,
+    0.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    0,
+    3.0
+   ],
+   "rotation": [
+    5,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.4
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.5
+   ],
+   "uv": [
+    51,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  },
+  {
+   "name": "tasset",
+   "part": "right_leg",
+   "origin": [
+    -2.75,
+    -0.5,
+    -2.75
+   ],
+   "size": [
+    5.5,
+    5,
+    5.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "legs",
+   "layer": 2
+  }
+ ]
+}

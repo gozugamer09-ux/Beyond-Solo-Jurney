@@ -249,11 +249,12 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
   rank (`GateLoot.GRADE_WEIGHTS`: E gates drop common and rare, S gates drop epic and up with about 2% divine).
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
-- **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers 128x64).
-  `tools/gen_hd_gear.py` renders the weapon designs above at that size with smooth multi-tone shading and grade
-  dressing (runes and aura from epic, sparkles from legendary, white-gold radiance on divine), and draws the armor
-  of all nine sets (`tools/hd_armor.py`) and the forge stones with the shared painter `tools/hd_paint.py`. Run it
-  after the other generators, which still own models, names and the 32x32 originals.
+- **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers are
+  128 pixels wide, see "Worn armor art"). `tools/gen_hd_gear.py` renders the weapon designs above at that size with
+  smooth multi-tone shading and grade dressing (runes and aura from epic, sparkles from legendary, white-gold radiance
+  on divine) and the forge stones with the shared painter `tools/hd_paint.py`, and has the nine first sets' armor drawn
+  by the armory's art pipeline. Run it after the other generators, which still own models, names and the 32x32
+  originals.
 
 ## Quests
 
@@ -612,8 +613,8 @@ Textures come from `tools/gen_gear_assets.py`.
 
 Code in `armory/`; `ArmoryModule.init` registers the items, one armor material per set (`ArmorMaterial.Layer(<set>)`
 for the worn texture) and the ARMORY creative tab. Lang lives in `assets/beyondsolo_armory/lang` (written by
-`tools/armory_lang.py`); icons, worn layers and item models come from `tools/gen_armory_assets.py` on top of
-`tools/hd_armor.py` (`--sheet <png>` writes a contact sheet of every icon).
+`tools/armory_lang.py`); icons, worn layers, 3D parts and item models come from `tools/gen_armory_assets.py`
+(`--sheet <png>` writes a contact sheet of every icon), see "Worn armor art".
 
 - **The catalogue** (`ArmorCatalog`): 39 sets on top of the brute's six, 45 class sets in all, every one made for a
   single class. Each class has a set at every gate rank E..S and a divine set. Sources: the villages (one plain
@@ -658,6 +659,37 @@ for the worn texture) and the ARMORY creative tab. Lang lives in `assets/beyonds
 - **Commands**: `/system gear set <name>` puts on any set; `/system gear bossloot <rank> [n]` now includes the brute's
   pieces as an ascended kill would.
 
+## Worn armor art
+
+Every armor set of the mod (the 39 armory sets and the nine first sets: hunter, knight, dusk, stonehide, mirefang,
+rimeguard, gloomreaver, emberwrought, sovereign) is drawn by one pipeline from a design, and worn with its own 3D
+model.
+
+- **Designs** (`tools/armor_designs.py`, `D`): per set a palette and, per piece, a kind and options: the helm style
+  (sallet, greathelm, bascinet, kettle, barbute, cheek, nasal, bars, mask, cap; open-faced helms let the face show),
+  hoods, bone masks and hats; plate, leather, robe or vestment bodies and sleeves; legs, waists and boots; and the
+  extra parts (`extras`: pauldrons, plumes, crests, horns, wings, capes, tabards, quivers, crystals, halos, wolf heads,
+  wizard hats, brims, tassets, skirts, toe caps...). `CLASS` lists the sets by class for line-ups.
+- **Painting** (`tools/armor_worn.py`, `Worn(design).build()`): paints both layers on a tone canvas with hue-shifted
+  ramps (`tools/armor_kit.py`): plates shaded as curved forms with a lit side, a core shadow and a specular streak,
+  lames, rivets, etched borders, cracks and wear, mail, quilting, leather grain, cloth folds, fur, scales; helm backs
+  get a nape guard and a spine, hood backs draped folds. Every boot gets a toe cap unless the design says `toes=False`.
+- **Geometry** (`tools/armor_rig.py`): the vanilla armor boxes plus the extra parts, packed into the texture below the
+  vanilla layout. Textures are 128 pixels wide (two pixels per model unit); a set whose parts don't fit gets a taller
+  texture.
+- **Writing** (`tools/gen_armory_assets.py [set ...]`): the two layers (`textures/models/armor/<set>_layer_{1,2}.png`),
+  the parts (`models/armor/<set>.json`: texture heights per layer and one entry per part: body part, origin, size,
+  uv, inflate, pivot, rotation, mirror, layer) and the item icons. Icons are drawn from the worn model itself
+  (`tools/armor_icons.py`): an orthographic three-quarter view (the chestplate with short sleeves, the boots in
+  profile), drawn four times too big and brought down by keeping each block's most common colour, then outlined and
+  given the grade's aura and sparkles.
+- **In game** (`client/armor/ArmorModels`): a reload listener reads every `models/armor/*.json` and builds an outer
+  and an inner `HumanoidModel` per set; `IClientItemExtensions.getHumanoidArmorModel` hands them out for every armor
+  item of the mod (found by the material's texture name). Parts on the right arm or leg are mirrored onto the left
+  one there; head and body parts come with their own twins. NeoForge copies the pose and part visibility, so head
+  parts only show with the helmet and so on. Arms are a hair bigger than the body so the shoulders don't flicker.
+- **Looking at it without the game:** `python3 tools/armor_preview.py <set>` (a mannequin from five sides,
+  `--walk`), `python3 tools/armor_icons.py <set>` (the four icons, big).
 ## Enemy roster and boss pool
 
 Gates no longer hold the same creatures and the same boss every time.

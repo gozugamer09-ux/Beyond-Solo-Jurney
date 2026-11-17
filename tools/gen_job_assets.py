@@ -210,6 +210,20 @@ SKILLS.update({
     "gilded_soul": "crown", "rapture": "caret-double-up", "sanctum": "columns", "radiant_soul": "star-four", "avatar_of_dawn": "crown-simple",
 })
 
+# the Ranger subclasses' own skill sets (keep in sync with RangerPath.java)
+SKILLS.update({
+    "ricochet": "arrow-bend-double-up-right", "pinning_shot": "push-pin", "marksmans_eye": "binoculars", "gale_arrow": "wind", "take_aim": "crosshair-simple",
+    "patient_hunter": "hourglass-medium", "killshot": "target", "rapid_fire": "fast-forward", "clean_kill": "check-circle", "hunters_verdict": "gavel",
+    "hawk_strike": "bird", "pounce": "paw-print", "pack_tactics": "dog", "tusker": "cow", "rallying_howl": "megaphone",
+    "alpha": "crown", "hornet_swarm": "bug", "bears_wrath": "hand-fist", "wild_heart": "heart", "wild_hunt": "horse",
+    "jaw_trap": "gear", "tripwire": "line-segment", "patient_trapper": "timer", "weighted_net": "grid-four", "spring_snare": "anchor-simple",
+    "scavenger": "recycle", "shrapnel_charge": "bomb", "deadfall": "arrow-fat-lines-down", "killing_ground": "map-pin", "no_way_out": "prohibit",
+    "lightning_rod": "cell-tower", "flash_step": "sneaker-move", "conductive": "plug", "wandering_spark": "atom", "live_wire": "plug-charging",
+    "storm_battery": "battery-high", "thunderhead": "cloud", "thunderbolt_arrow": "cloud-lightning", "chain_reaction": "share-network", "stormfall": "tornado",
+    "starseekers": "shooting-star", "ascend": "arrow-fat-up", "skys_grace": "feather", "falling_star": "asterisk-simple", "arrow_halo": "arrows-out-cardinal",
+    "unerring": "crosshair", "windcutter": "scissors", "gale_barrier": "wall", "killing_wind": "paper-plane-tilt", "fall_of_heaven": "cloud-arrow-down",
+})
+
 
 def fetch(src_dir):
     for name in sorted(set(SUBCLASSES.values()) | set(SKILLS.values())):

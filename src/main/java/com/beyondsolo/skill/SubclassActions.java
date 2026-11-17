@@ -69,7 +69,7 @@ public final class SubclassActions {
     /** Tag on summoned wolves and storm arrows. */
     public static final String SUMMON_TAG = "beyondsolo_summon";
     public static final String STORM_ARROW_TAG = "beyondsolo_storm_arrow";
-    static final String SUMMON_EXPIRES = "beyondsolo_expires";
+    public static final String SUMMON_EXPIRES = "beyondsolo_expires";
 
     /** Death Sentence marks: creature -> {end game time, bonus percent, caster entity id}. Server thread only. */
     static final Map<LivingEntity, long[]> SENTENCES = new WeakHashMap<>();
@@ -834,10 +834,12 @@ public final class SubclassActions {
 
     public static boolean deadeyeShot(ServerPlayer p, Skill s, int l) {
         float dmg = deadeyeDamage(l, tier(p)) + stat(p, Stat.AGI, 0.3f) + stat(p, Stat.SENSE, 0.2f);
-        Vec3 end = line(p, s, 48, 0.4, dmg, 0.6, SkillFxPayload.Kind.SHOT, s.color());
+        // a skill's arrow is a projectile like any other (see RangerPath.shooting)
+        Vec3[] end = new Vec3[1];
+        RangerPath.asShot(() -> end[0] = line(p, s, 48, 0.4, dmg, 0.6, SkillFxPayload.Kind.SHOT, s.color()));
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.5f);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 1.3f);
-        SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 0.6f, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end[0], 0.6f, 0);
         return true;
     }
 
@@ -876,7 +878,8 @@ public final class SubclassActions {
                 if (p.level() != level) return;
                 for (LivingEntity e : around(p, center, 4, x -> canHit(p, x))) {
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 5));
-                    hit(p, s, e, snareDamage(l, tier(p)) + stat(p, Stat.SENSE, 0.05f), false);
+                    hit(p, s, e, (snareDamage(l, tier(p)) + stat(p, Stat.SENSE, 0.05f)) * RangerPath.trapPower(p), false);
+                    RangerPath.snared(p, e, 30);
                 }
             });
         }
@@ -891,7 +894,7 @@ public final class SubclassActions {
             Vec3 eye = p.getEyePosition();
             Vec3 end = clip(p, eye, eye.add(dir.scale(28)));
             for (LivingEntity e : struckAlong(p, eye, end, 0.4)) {
-                hit(p, s, e, dmg, false);
+                RangerPath.asShot(() -> hit(p, s, e, dmg, false));
                 LivingEntity arc = null;
                 for (LivingEntity o : around(p, e.position(), 5, x -> canHit(p, x) && x != e)) {
                     arc = o;
@@ -911,10 +914,11 @@ public final class SubclassActions {
 
     public static boolean heavensArrow(ServerPlayer p, Skill s, int l) {
         float dmg = heavensDamage(l, tier(p)) + stat(p, Stat.AGI, 0.5f) + stat(p, Stat.SENSE, 0.3f);
-        Vec3 end = line(p, s, 80, 1.1, dmg, 1.4, SkillFxPayload.Kind.SHOT, s.color());
+        Vec3[] end = new Vec3[1];
+        RangerPath.asShot(() -> end[0] = line(p, s, 80, 1.1, dmg, 1.4, SkillFxPayload.Kind.SHOT, s.color()));
         sound(p, SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.4f);
-        SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 1.4f, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end[0], 1.4f, 0);
         SkillFx.play(p, SkillFxPayload.Kind.ROAR, s.color(), p.position(), 4, 0);
         return true;
     }

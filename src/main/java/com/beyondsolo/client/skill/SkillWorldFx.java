@@ -22,7 +22,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -55,6 +59,8 @@ public final class SkillWorldFx {
         final Vec3 origin;
         final float yaw;
         final long seed;
+        /** Took the place of an older one of its kind: it is simply there, without fading in again. */
+        boolean settled;
 
         Fx(SkillFxPayload p, float start, Vec3 origin, float yaw, long seed) {
             this.p = p;
@@ -66,6 +72,11 @@ public final class SkillWorldFx {
 
         Vec3 target() {
             return new Vec3(p.x(), p.y(), p.z());
+        }
+
+        /** Seconds an arrow is in the air on its way from the shooter to the point. */
+        float arrowFlight() {
+            return Mth.clamp((float) target().distanceTo(origin) / 60f, 0.08f, 0.6f);
         }
 
         /** Seconds the effect lives. */
@@ -105,6 +116,21 @@ public final class SkillWorldFx {
                 case HALO, WINGS, BUBBLE, ORBIT -> Math.max(0.4f, lasting);
                 case MIST -> Math.max(1f, lasting);
                 case STREAM -> Math.max(0.3f, lasting) + 0.1f;
+                case ARROW -> arrowFlight() + lasting + 0.3f;
+                case SKYSHOT -> lasting + 0.9f;
+                case SEEKER -> Math.max(0.1f, lasting) + 0.25f;
+                case SIGHT -> Math.max(0.15f, lasting);
+                case GALE -> 0.9f;
+                case UPDRAFT -> Math.max(0.5f, lasting);
+                case QUIVER, SWARM, WIRE -> Math.max(0.3f, lasting);
+                case WINDWALL, STATIC -> Math.max(0.4f, lasting);
+                case BEAST -> StarBeasts.life(p.duration() % 10, p.duration() / 10 / 20f);
+                case CLAW -> 0.5f;
+                case TRAP -> p.duration() > 0 ? lasting : 0.75f;
+                case NET -> 0.25f + lasting + 0.2f;
+                case ROPE -> Math.max(0.4f, lasting);
+                case CLOUD -> Math.max(1f, lasting);
+                case BALL -> Math.max(0.1f, lasting) + 0.15f;
             };
         }
     }
@@ -140,7 +166,25 @@ public final class SkillWorldFx {
             com.beyondsolo.skill.SkillReaction[] all = com.beyondsolo.skill.SkillReaction.values();
             ComboHud.reaction(all[Math.floorMod(p.duration(), all.length)], new Vec3(p.x(), p.y(), p.z()));
         }
+        if (p.kind() == SkillFxPayload.Kind.SIGHT && p.size() < 0.5f) {
+            // one line of sight follows a hunter's gaze at a time, and a negative size only puts it out
+            ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.SIGHT && f.p.entityId() == p.entityId() && f.p.size() < 0.5f);
+            if (p.size() < -0.5f) return;
+        }
+        boolean settled = false;
+        if (p.kind() == SkillFxPayload.Kind.QUIVER) {
+            // one fan of arrows per hunter: a new count replaces the old one, and none takes it away
+            settled = ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.QUIVER && f.p.entityId() == p.entityId());
+            if (p.size() < 0.5f) return;
+        }
+        if (p.kind() == SkillFxPayload.Kind.TRAP && p.duration() == 0 || p.kind() == SkillFxPayload.Kind.WIRE && p.size() < 0.5f) {
+            // sprung, snapped or taken up: what lay at that spot is gone
+            Vec3 spot = new Vec3(p.x(), p.y(), p.z());
+            ACTIVE.removeIf(f -> f.p.kind() == p.kind() && f.p.duration() > 0 && f.target().distanceToSqr(spot) < 0.25);
+            if (p.size() < 0.05f) return;
+        }
         Fx fx = new Fx(p, now(0), origin, yaw, RANDOM.nextLong());
+        fx.settled = settled;
         ACTIVE.add(fx);
         if (ACTIVE.size() > 96) ACTIVE.remove(0);
         burstParticles(mc.level, fx, e);
@@ -272,6 +316,8 @@ public final class SkillWorldFx {
                         o.x + rnd(0.5), o.y + RANDOM.nextDouble() * 1.9, o.z + rnd(0.5), rnd(0.08), 0.02, rnd(0.08));
             }
             case WAVE -> {
+                // a blade of wind (duration 3) flies at chest height and tears nothing out of the ground
+                if (p.duration() == 3) break;
                 Vec3 to = fx.target();
                 Vec3 d = to.subtract(o);
                 BlockState ground = level.getBlockState(BlockPos.containing(o.x, o.y - 0.5, o.z));
@@ -361,6 +407,10 @@ public final class SkillWorldFx {
                     double a = i / 24.0 * Math.PI * 2;
                     level.addParticle(dust, p.x() + Math.cos(a) * 0.5, p.y() + 0.2, p.z() + Math.sin(a) * 0.5, Math.cos(a) * 0.35, 0.02, Math.sin(a) * 0.35);
                 }
+            }
+            case TRAP -> {
+                // iron on iron as the jaws meet
+                if (p.duration() == 0) for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.CRIT, p.x(), p.y() + 0.3, p.z(), rnd(0.3), 0.15 + RANDOM.nextDouble() * 0.2, rnd(0.3));
             }
             default -> {}
         }
@@ -493,6 +543,44 @@ public final class SkillWorldFx {
                     if (e == null || RANDOM.nextFloat() > 0.1f) break;
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     mc.level.addParticle(ParticleTypes.BUBBLE_POP, e.getX() + Math.cos(a) * fx.p.size(), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + Math.sin(a) * fx.p.size(), 0, 0.02, 0);
+                }
+                case ARROW -> {
+                    // the moment it strikes
+                    float land = fx.arrowFlight();
+                    if (age >= land && age < land + 0.051f) {
+                        for (int i = 0; i < 4; i++) mc.level.addParticle(ParticleTypes.CRIT, fx.p.x(), fx.p.y(), fx.p.z(), rnd(0.25), rnd(0.25), rnd(0.25));
+                    }
+                }
+                case SKYSHOT -> {
+                    // the moment it lands: the ground jumps
+                    float land = fx.p.duration() / 20f;
+                    if (age >= land && age < land + 0.051f) {
+                        BlockState ground = mc.level.getBlockState(BlockPos.containing(fx.p.x(), fx.p.y() - 0.5, fx.p.z()));
+                        ParticleOptions debris = ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground);
+                        int n = Math.round(14 * fx.p.size());
+                        for (int i = 0; i < n; i++) {
+                            double a = RANDOM.nextDouble() * Math.PI * 2;
+                            mc.level.addParticle(i % 3 == 0 ? dust : debris, fx.p.x() + Math.cos(a) * 0.4, fx.p.y() + 0.1, fx.p.z() + Math.sin(a) * 0.4,
+                                    Math.cos(a) * 0.3, 0.3 + RANDOM.nextDouble() * 0.4, Math.sin(a) * 0.3);
+                        }
+                        mc.level.addParticle(ParticleTypes.FLASH, fx.p.x(), fx.p.y() + 0.6, fx.p.z(), 0, 0, 0);
+                    }
+                }
+                case BALL -> {
+                    if (RANDOM.nextFloat() > 0.4f) break;
+                    Vec3 pos = fx.origin.add(0, 1.2, 0).lerp(fx.target(), Mth.clamp(age / Math.max(0.1f, fx.p.duration() / 20f), 0, 1));
+                    mc.level.addParticle(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y, pos.z, rnd(0.3), rnd(0.3), rnd(0.3));
+                }
+                case STATIC -> {
+                    if (RANDOM.nextFloat() > 0.12f || (e == mc.player && firstPerson)) break;
+                    Vec3 c = e != null ? e.position() : fx.target();
+                    mc.level.addParticle(ParticleTypes.ELECTRIC_SPARK, c.x + rnd(0.4), c.y + RANDOM.nextDouble() * (e != null ? e.getBbHeight() : 1), c.z + rnd(0.4), rnd(0.1), 0.05, rnd(0.1));
+                }
+                case UPDRAFT -> {
+                    if (RANDOM.nextFloat() > 0.5f) break;
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    mc.level.addParticle(ParticleTypes.CLOUD, fx.origin.x + Math.cos(a) * fx.p.size(), fx.origin.y + 0.1, fx.origin.z + Math.sin(a) * fx.p.size(),
+                            -Math.sin(a) * 0.1, 0.25, Math.cos(a) * 0.1);
                 }
                 default -> {}
             }
@@ -733,6 +821,37 @@ public final class SkillWorldFx {
                     }
                 }
                 case WAVE -> {
+                    if (p.duration() == 3) {
+                        // a blade of wind: a crescent flying flat at chest height, its horns swept back, and the cut it leaves
+                        Vec3 a0 = fx.origin.subtract(at).add(0, 1.0, 0), b0 = fx.target().subtract(at).add(0, 1.0, 0);
+                        float flown = Mth.clamp(age / 0.32f, 0, 1);
+                        Vec3 fly = b0.subtract(a0).normalize();
+                        Vec3 wide = new Vec3(-fly.z, 0, fly.x);
+                        float seen = age < 0.32f ? 1 : Mth.clamp(1 - (age - 0.32f) / 0.3f, 0, 1);
+                        float sweep = p.size() * 0.55f;
+                        for (int ghost = 0; ghost < 3; ghost++) {
+                            Vec3 mid = a0.lerp(b0, Math.max(0, flown - ghost * 0.07f));
+                            float ga = seen * (ghost == 0 ? 1f : ghost == 1 ? 0.45f : 0.22f);
+                            Vec3 last = null;
+                            for (int i = -5; i <= 5; i++) {
+                                float u = i / 5f;
+                                Vec3 pt = mid.add(wide.scale(u * p.size())).add(fly.scale(-sweep * u * u)).add(0, 0.12 * u, 0);
+                                if (last != null) {
+                                    float thick = 1 - 0.75f * Math.abs(u - 0.1f);
+                                    streak(pose, buffers, camera, at, last, pt, 0.5f * thick + 0.08f, c, ga);
+                                    if (ghost == 0) streak(pose, buffers, camera, at, last, pt, 0.16f * thick + 0.03f, 0xFFFFFF, ga);
+                                }
+                                last = pt;
+                            }
+                        }
+                        Vec3 head = a0.lerp(b0, flown);
+                        for (int sgn = -1; sgn <= 1; sgn += 2) {
+                            Vec3 horn = head.add(wide.scale(sgn * p.size())).add(fly.scale(-sweep));
+                            Vec3 back = a0.lerp(b0, Math.max(0, flown - 0.4f)).add(wide.scale(sgn * p.size())).add(fly.scale(-sweep));
+                            streak(pose, buffers, camera, at, back, horn, 0.12f, light, seen * 0.5f);
+                        }
+                        break;
+                    }
                     Vec3 a = fx.origin.subtract(at);
                     Vec3 b = fx.target().subtract(at);
                     float k = Mth.clamp(age / 0.3f, 0, 1);
@@ -1332,6 +1451,460 @@ public final class SkillWorldFx {
                     // where it ends, on the ground
                     disc(pose, buffers, RING, 0.04f, r * (0.97f + 0.03f * Mth.sin(time * 0.06f)), time * 0.2f, pale, hold * 0.22f);
                 }
+                case ARROW -> {
+                    Vec3 from = shotFrom(fx, e).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    Vec3 path = to.subtract(from);
+                    double dist = path.length();
+                    if (dist < 0.05) break;
+                    Vec3 dir = path.scale(1 / dist);
+                    float flight = fx.arrowFlight();
+                    float scale = p.size();
+                    if (age < flight) {
+                        double flown = dist * age / flight;
+                        Vec3 head = from.add(dir.scale(flown));
+                        // the light it leaves behind it
+                        streak(pose, buffers, camera, at, from.add(dir.scale(Math.max(0, flown - 5 * scale))), head, 0.18f * scale, c, 0.45f);
+                        arrow(pose, buffers, camera, at, head, dir, scale, c, 1f);
+                        break;
+                    }
+                    float since = age - flight;
+                    float stuck = p.duration() / 20f;
+                    if (since < 0.25f) {
+                        // where it struck
+                        float k = since / 0.25f;
+                        dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, (0.3f + 0.8f * k) * scale, light, (1 - k) * 1.1f, fx.seed % 360);
+                        dot(pose, buffers, camera, (float) to.x, (float) to.y, (float) to.z, 0.5f * scale * (1 - k), c, (1 - k) * 0.7f);
+                    }
+                    if (stuck <= 0) break;
+                    // it stands where it landed and shakes itself still. A shaft that came in flat is shown steeper,
+                    // so that it is seen standing in the ground and not lying on it
+                    Vec3 level = new Vec3(dir.x, 0, dir.z);
+                    Vec3 lean = dir.y > -0.66 ? (level.lengthSqr() < 1.0e-6 ? new Vec3(0, -1, 0) : level.normalize().scale(0.75).add(0, -0.66, 0).normalize()) : dir;
+                    float shake = since < 0.5f ? 0.1f * (1 - since / 0.5f) * Mth.sin(since * 70) : 0;
+                    Vec3 d2 = lean.add(new Vec3(-lean.z, 0, lean.x).scale(shake)).normalize();
+                    float a = Mth.clamp((stuck + 0.3f - since) / 0.3f, 0, 1);
+                    arrow(pose, buffers, camera, at, to.add(d2.scale(0.14 * scale)), d2, scale, c, a);
+                    if (since < 0.4f) {
+                        pose.pushPose();
+                        pose.translate(to.x, to.y, to.z);
+                        disc(pose, buffers, RING, 0.04f, (0.2f + 0.9f * since / 0.4f) * scale, 0, light, 1 - since / 0.4f);
+                        pose.popPose();
+                    }
+                }
+                case SKYSHOT -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float fall = Math.max(0.05f, p.duration() / 20f);
+                    float scale = p.size();
+                    // it comes down a little aslant, never quite the same way twice
+                    Vec3 sky = new Vec3((Math.floorMod(fx.seed, 5) - 2) * 1.5, 30, (Math.floorMod(fx.seed / 5, 5) - 2) * 1.5);
+                    Vec3 dir = sky.scale(-1).normalize();
+                    float drop = Math.min(0.2f, fall);
+                    if (age < fall) {
+                        float k = age / fall;
+                        // the ground knows first: a ring closing on the spot, and a thread of light down from the sky
+                        disc(pose, buffers, RING, 0.06f, scale * (1.7f - 1.0f * k), time * 5, c, 0.3f + 0.6f * k);
+                        streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.06f + 0.06f * k, light, 0.4f * k);
+                        float d = (age - (fall - drop)) / drop;
+                        if (d > 0) {
+                            Vec3 head = sky.scale(1 - d);
+                            Vec3 tail = sky.scale(Math.min(1, 1 - d + 0.4f));
+                            streak(pose, buffers, camera, base, tail, head, 0.55f * scale, c, 0.8f);
+                            streak(pose, buffers, camera, base, tail, head, 0.18f * scale, 0xFFFFFF, 0.9f);
+                            arrow(pose, buffers, camera, base, head, dir, scale * 1.4f, c, 1f);
+                        }
+                    } else {
+                        float k = Mth.clamp((age - fall) / 0.9f, 0, 1);
+                        float o = 1 - (1 - k) * (1 - k) * (1 - k);
+                        float a = 1 - k;
+                        // the arrow stands in the ground, and the light it came down in hangs over it for a moment
+                        arrow(pose, buffers, camera, base, dir.scale(0.2 * scale), dir, scale * 1.4f, c, Mth.clamp(a * 1.6f, 0, 1));
+                        streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.7f * scale * (1 - k), c, a * 0.7f);
+                        streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.2f * scale * (1 - k), 0xFFFFFF, a * 0.6f);
+                        disc(pose, buffers, RING, 0.08f, scale * (0.5f + 2.1f * o), 0, light, a * 1.2f);
+                        disc(pose, buffers, RING, 0.4f, scale * 1.4f * o, 0, c, a * 0.8f);
+                        disc(pose, buffers, GLOW, 0.05f, scale * 1.6f, 0, c, a * 0.6f);
+                        dotTex(pose, buffers, camera, BURST, 0, 0.5f, 0, scale * (0.6f + 1.2f * o), light, a * 1.2f, fx.seed % 360);
+                    }
+                }
+                case SEEKER -> {
+                    Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
+                    Vec3 right = new Vec3(-look.z, 0, look.x);
+                    float turn = (fx.seed & 1) == 0 ? 1 : -1;
+                    float wide = 0.35f + ((fx.seed >>> 3) & 7) / 7f * 0.5f;
+                    // loosed from over the shoulder, out to the side and up before it bends in on its mark
+                    Vec3 from = fx.origin.add(0, (e != null ? e.getEyeHeight() : 1.5) + 0.3, 0).add(look.scale(-0.3)).add(right.scale(turn * 0.45)).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    double dist = to.subtract(from).length();
+                    if (dist < 0.05) break;
+                    Vec3 bend = from.lerp(to, 0.35).add(right.scale(turn * wide * dist * 0.45)).add(0, dist * (0.16 + 0.12 * wide), 0);
+                    float flight = Math.max(0.1f, p.duration() / 20f);
+                    if (age < flight) {
+                        float k = age / flight;
+                        Vec3 head = StarBeasts.bezier(from, bend, to, k);
+                        Vec3 dir = head.subtract(StarBeasts.bezier(from, bend, to, Math.max(0, k - 0.04f)));
+                        dir = dir.lengthSqr() < 1.0e-8 ? bend.subtract(from).normalize() : dir.normalize();
+                        Vec3 last = head;
+                        for (int i = 1; i <= 6; i++) {
+                            float kk = k - i * 0.05f;
+                            if (kk < 0) break;
+                            Vec3 next = StarBeasts.bezier(from, bend, to, kk);
+                            streak(pose, buffers, camera, at, next, last, 0.16f * p.size() * (1 - i / 7f), c, 0.6f * (1 - i / 7f));
+                            last = next;
+                        }
+                        arrow(pose, buffers, camera, at, head, dir, 0.75f * p.size(), c, 1f);
+                    } else {
+                        float k = Mth.clamp((age - flight) / 0.25f, 0, 1);
+                        dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, (0.3f + 0.7f * k) * p.size(), light, (1 - k) * 1.1f, fx.seed % 360);
+                        dot(pose, buffers, camera, (float) to.x, (float) to.y, (float) to.z, 0.45f * p.size() * (1 - k), c, (1 - k) * 0.7f);
+                    }
+                }
+                case SIGHT -> {
+                    if (e == null) break;
+                    Vec3 view = e.getViewVector(partial);
+                    Vec3 eye = e.getEyePosition(partial);
+                    Vec3 right = view.cross(new Vec3(0, 1, 0));
+                    right = right.lengthSqr() > 1.0e-4 ? right.normalize() : Vec3.ZERO;
+                    boolean gaze = p.size() < 0.5f;
+                    // from beside the eye, so that the one who aims sees their own line
+                    Vec3 a = eye.add(right.scale(0.22)).add(0, -0.16, 0).add(view.scale(0.3)).subtract(at);
+                    Vec3 b = (gaze ? sightEnd(e, eye, view) : fx.target()).subtract(at);
+                    float seen = gaze ? Mth.clamp(age / 0.15f, 0, 1) * Mth.clamp((life - age) / 0.2f, 0, 1) : Mth.clamp(age / 0.05f, 0, 1);
+                    float blink = 0.8f + 0.2f * Mth.sin(time * 0.9f);
+                    ray(pose, buffers, camera, at, a, b, c, seen * 0.8f * blink);
+                    float far = (float) camera.getPosition().distanceTo(at.add(b));
+                    float ring = (gaze ? 0.16f + 0.03f * Mth.sin(time * 0.5f) : 0.6f - 0.42f * t) * Math.max(1, far / 9f);
+                    dot(pose, buffers, camera, (float) b.x, (float) b.y, (float) b.z, 0.09f * Math.max(1, far / 9f), 0xFFFFFF, seen);
+                    dotTex(pose, buffers, camera, RING, (float) b.x, (float) b.y, (float) b.z, ring, c, seen, time * 3);
+                }
+                case GALE -> {
+                    Vec3 from = shotFrom(fx, e).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    Vec3 path = to.subtract(from);
+                    double dist = path.length();
+                    if (dist < 0.5) break;
+                    Vec3 dir = path.scale(1 / dist);
+                    float flight = (float) dist / 80f;
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    Vec3 head = from.add(dir.scale(dist * k));
+                    if (age < flight + 0.1f) {
+                        float a = age < flight ? 1 : 1 - (age - flight) / 0.1f;
+                        streak(pose, buffers, camera, at, from.add(dir.scale(Math.max(0, dist * k - 6))), head, 0.3f, c, a * 0.8f);
+                        arrow(pose, buffers, camera, at, head, dir, 1.2f, c, a);
+                    }
+                    // the wind it drags along: rings that open one after another down the line, and a wake between them
+                    streak(pose, buffers, camera, at, from, head, p.size() * 1.1f, c, fade * 0.2f);
+                    float turn = (float) Math.atan2(dir.x, dir.z), tilt = (float) -Math.asin(dir.y);
+                    int rings = Math.max(2, (int) (dist / 3));
+                    for (int i = 0; i < rings; i++) {
+                        double along = 1.5 + i * (dist - 2) / rings;
+                        float rk = (age - (float) along / 80f) / 0.45f;
+                        if (rk <= 0 || rk >= 1) continue;
+                        Vec3 g = from.add(dir.scale(along));
+                        pose.pushPose();
+                        pose.translate(g.x, g.y, g.z);
+                        pose.mulPose(Axis.YP.rotation(turn));
+                        pose.mulPose(Axis.XP.rotation(tilt));
+                        pose.mulPose(Axis.ZP.rotationDegrees(time * 20 + i * 40));
+                        sprite(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose.last().pose(), 0.25f + p.size() * (1 - (1 - rk) * (1 - rk)), i % 2 == 0 ? light : c, (1 - rk) * 0.9f);
+                        pose.popPose();
+                    }
+                }
+                case UPDRAFT -> {
+                    // it turns around its owner's eyes too: in first person only a breath of it is drawn
+                    float seen = self ? hold * 0.3f : hold;
+                    for (int i = 0; i < 7; i++) {
+                        float phase = (age * 1.5f + i / 7f) % 1f;
+                        Vec3 last = null;
+                        for (int sgm = 0; sgm <= 3; sgm++) {
+                            float ph = phase - sgm * 0.035f;
+                            float ang = i * 0.9f + ph * 7.5f;
+                            float rad = p.size() * (1.05f - 0.45f * ph);
+                            Vec3 pt = new Vec3(Mth.cos(ang) * rad, -0.3 + ph * 3.6, Mth.sin(ang) * rad);
+                            if (last != null) streak(pose, buffers, camera, at, pt, last, 0.18f * (1 - sgm * 0.2f), i % 2 == 0 ? light : c, Mth.sin(phase * Mth.PI) * seen * (1 - sgm * 0.25f));
+                            last = pt;
+                        }
+                    }
+                    // and the dust it lifts where it started: thrown outwards once and gone, not a circle to stand in
+                    float k = age / 0.45f;
+                    if (k < 1) {
+                        Vec3 foot = fx.origin.subtract(at);
+                        pose.translate(foot.x, foot.y, foot.z);
+                        disc(pose, buffers, RING, 0.06f, p.size() * (0.5f + 2.2f * k), 0, light, (1 - k) * (1 - k) * 0.7f);
+                    }
+                }
+                case QUIVER -> {
+                    // behind their owner's back, so in first person there is nothing of them to see
+                    if (e == null || self) break;
+                    int n = Math.max(1, Math.round(p.size()));
+                    Vec3 fwd = Vec3.directionFromRotation(0, bodyYaw(e, partial));
+                    Vec3 side = new Vec3(-fwd.z, 0, fwd.x);
+                    float seen = (fx.settled ? 1 : Mth.clamp(age / 0.3f, 0, 1)) * Mth.clamp((life - age) / 0.4f, 0, 1);
+                    Vec3 hub = fwd.scale(-0.42).add(0, e.getBbHeight() * 0.72, 0);
+                    for (int i = 0; i < n; i++) {
+                        // a fan: the middle arrow straight up, the outer ones leaning out to the sides
+                        float u = n == 1 ? 0 : i / (float) (n - 1) * 2 - 1;
+                        float ang = u * Math.min(1.25f, 0.2f * n);
+                        Vec3 dir = side.scale(Mth.sin(ang)).add(0, Mth.cos(ang), 0).add(fwd.scale(-0.12)).normalize();
+                        float bob = 0.05f * Mth.sin(time * 0.14f + i * 1.7f);
+                        arrow(pose, buffers, camera, at, hub.add(dir.scale(1.45 + bob)), dir, 0.8f, c, seen);
+                    }
+                    dot(pose, buffers, camera, (float) hub.x, (float) hub.y + 0.5f, (float) hub.z, 0.9f, c, seen * 0.2f);
+                }
+                case WINDWALL -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
+                    Vec3 side = new Vec3(-look.z, 0, look.x);
+                    float half = p.size() / 2 * (1 - (1 - Mth.clamp(age / 0.25f, 0, 1)) * (1 - Mth.clamp(age / 0.25f, 0, 1)));
+                    float tall = 3.4f;
+                    int n = Math.round(p.size() * 2.4f);
+                    for (int i = 0; i < n; i++) {
+                        long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        float period = 0.55f + 0.4f * v;
+                        float phase = ((age + w * period) / period) % 1f;
+                        float x = (u * 2 - 1) * half;
+                        // each gust climbs the wall in a slow S, the way smoke does in a draught: straight lines would be rain
+                        Vec3 last = null;
+                        for (int sgm = 0; sgm <= 4; sgm++) {
+                            float ph = phase - sgm * 0.07f;
+                            if (ph < 0) break;
+                            float sway = 0.5f * Mth.sin(ph * 7.5f + i * 2.3f);
+                            float bow = 0.22f * Mth.sin(ph * Mth.TWO_PI + i);
+                            Vec3 pt = side.scale(Mth.clamp(x + sway, -half, half)).add(look.scale(bow)).add(0, ph * tall, 0);
+                            if (last != null) streak(pose, buffers, camera, base, pt, last, (0.17f + 0.1f * w) * (1 - sgm * 0.15f), i % 3 == 0 ? light : c,
+                                    Mth.sin(phase * Mth.PI) * hold * 0.8f * (1 - sgm * 0.2f));
+                            last = pt;
+                        }
+                    }
+                    // the wall itself: a sheet of pale air between the line it stands on and the line it ends at
+                    for (int row = 0; row < 3; row++) {
+                        float y = 0.6f + row * 1.1f + 0.1f * Mth.sin(time * 0.2f + row);
+                        streak(pose, buffers, camera, base, side.scale(-half).add(0, y, 0), side.scale(half).add(0, y, 0), 1.2f, c, hold * 0.16f);
+                    }
+                    streak(pose, buffers, camera, base, side.scale(-half).add(0, 0.08, 0), side.scale(half).add(0, 0.08, 0), 0.22f, light, hold * 0.7f);
+                    streak(pose, buffers, camera, base, side.scale(-half).add(0, tall, 0), side.scale(half).add(0, tall, 0), 0.1f, c, hold * 0.35f);
+                }
+                case BEAST -> StarBeasts.render(pose, buffers, camera, at, fx.origin, fx.yaw, fx.target(), p.duration() % 10, p.duration() / 10 / 20f, p.size(), c, age, time);
+                case CLAW -> {
+                    // torn across whatever is looked at: drawn in the plane of the screen, so it is never seen edge-on
+                    Vec3 cc = fx.target().subtract(at);
+                    Vector3f cl = camera.getLeftVector(), cu = camera.getUpVector();
+                    Vec3 left = new Vec3(cl.x(), cl.y(), cl.z()), upward = new Vec3(cu.x(), cu.y(), cu.z());
+                    float len = p.size();
+                    float a = Mth.clamp(1 - (age - 0.14f) / (life - 0.14f), 0, 1);
+                    for (int i = 0; i < 3; i++) {
+                        float k = Mth.clamp((age - i * 0.03f) / 0.07f, 0, 1);
+                        if (k <= 0) continue;
+                        float reach = (i == 1 ? 0.62f : 0.5f) * len;
+                        Vec3 top = cc.add(upward.scale(reach)).add(left.scale((i - 1) * 0.3 * len + 0.28 * len));
+                        Vec3 bottom = cc.add(upward.scale(-reach)).add(left.scale((i - 1) * 0.3 * len - 0.28 * len));
+                        Vec3 end = top.lerp(bottom, k);
+                        streak(pose, buffers, camera, at, top, end, 0.22f * len, c, a);
+                        streak(pose, buffers, camera, at, top, end, 0.07f * len, 0xFFFFFF, a);
+                    }
+                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, len * 0.9f * (1 - t), c, fade * 0.3f);
+                }
+                case SWARM -> {
+                    if (e == null) break;
+                    float mid = e.getBbHeight() * 0.6f;
+                    for (int i = 0; i < 22; i++) {
+                        long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        // each on its own crooked little orbit, darting in and out
+                        float speed = 0.5f + 0.6f * u;
+                        Vec3 pos = hornet(time, i, speed, v, w, p.size(), mid);
+                        streak(pose, buffers, camera, at, hornet(time - 0.9f, i, speed, v, w, p.size(), mid), pos, 0.07f, c, hold * 0.7f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.13f, c, hold * 0.6f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.06f, 0xFFFFFF, hold);
+                    }
+                }
+                case TRAP -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    // the same spot always lies the same way round, set or sprung
+                    float turn = (float) ((Math.abs(base.x) * 12.9898 + Math.abs(base.z) * 78.233) % Math.PI);
+                    if (p.duration() > 0) {
+                        // set: it opens as it is laid down, and then it waits. A glint runs round the iron now and then
+                        float open = 1 - (1 - Mth.clamp(age / 0.35f, 0, 1)) * (1 - Mth.clamp(age / 0.35f, 0, 1));
+                        float a = Mth.clamp(age / 0.1f, 0, 1) * Mth.clamp((life - age) / 0.5f, 0, 1);
+                        jaws(pose, buffers, camera, base, p.size(), 1 - open, turn, c, a * 0.9f);
+                        disc(pose, buffers, RING, 0.05f, p.size() * 0.32f, 0, c, a * 0.6f);
+                        float glint = (age % 2.6f) / 0.5f;
+                        if (glint < 1) {
+                            float ga = glint * Mth.TWO_PI + turn;
+                            dot(pose, buffers, camera, Mth.cos(ga) * p.size(), 0.1f, Mth.sin(ga) * p.size(), 0.16f, 0xFFFFFF, a * Mth.sin(glint * Mth.PI));
+                        }
+                    } else {
+                        // sprung: shut in a blink, and gone a moment later
+                        float a = Mth.clamp(1 - (age - 0.35f) / 0.4f, 0, 1);
+                        jaws(pose, buffers, camera, base, p.size(), Mth.clamp(age / 0.06f, 0, 1), turn, c, a);
+                        if (age < 0.3f) {
+                            float k = age / 0.3f;
+                            disc(pose, buffers, RING, 0.07f, p.size() * (0.6f + 1.6f * k), 0, light, 1 - k);
+                            dot(pose, buffers, camera, 0, 0.5f, 0, 0.25f + 0.5f * (1 - k), 0xFFFFFF, (1 - k) * 0.9f);
+                        }
+                    }
+                }
+                case WIRE -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
+                    Vec3 right = new Vec3(-look.z, 0, look.x).scale(p.size() / 2);
+                    Vec3 left = right.scale(-1);
+                    float a = Mth.clamp((life - age) / 0.5f, 0, 1);
+                    for (Vec3 stake : new Vec3[]{left, right}) {
+                        streak(pose, buffers, camera, base, stake.add(0, -0.05, 0), stake.add(0, 0.6, 0), 0.16f, c, a);
+                        streak(pose, buffers, camera, base, stake.add(0, -0.05, 0), stake.add(0, 0.6, 0), 0.05f, light, a * 0.8f);
+                        dot(pose, buffers, camera, (float) stake.x, 0.62f, (float) stake.z, 0.11f, light, a);
+                    }
+                    // the wire runs out from one stake to the other, and then it is hard to see: a thread, and a glint that runs along it
+                    float strung = Mth.clamp(age / 0.25f, 0, 1);
+                    streak(pose, buffers, camera, base, left.add(0, 0.35, 0), left.lerp(right, strung).add(0, 0.35, 0), 0.06f, light, a * 0.6f);
+                    float glint = (age % 2.2f) / 0.7f;
+                    if (glint < 1 && strung >= 1) {
+                        Vec3 g = left.lerp(right, glint).add(0, 0.35, 0);
+                        dot(pose, buffers, camera, (float) g.x, (float) g.y, (float) g.z, 0.13f, 0xFFFFFF, a * Mth.sin(glint * Mth.PI));
+                    }
+                }
+                case NET -> {
+                    Vec3 hand = shotFrom(fx, e).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    float flight = 0.25f;
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    // flying it is a spinning disc that opens; landed it hangs over whatever is under it
+                    float r = p.size() * (0.12f + 0.88f * k * k);
+                    Vec3 centre = hand.lerp(to, k).add(0, Mth.sin(k * Mth.PI) * 1.6, 0);
+                    float a = Mth.clamp((life - age) / 0.5f, 0, 1);
+                    float spin = Math.min(age, flight) * 9;
+                    float crown = age < flight ? 0.3f : 1.9f - 0.25f * Mth.clamp((age - flight) / 0.3f, 0, 1);
+                    Vec3 top = centre.add(0, crown, 0);
+                    int n = 10;
+                    Vec3 lastRim = null, lastIn = null;
+                    for (int i = 0; i <= n; i++) {
+                        float ang = spin + i * Mth.TWO_PI / n;
+                        Vec3 rim = centre.add(Mth.cos(ang) * r, 0.05, Mth.sin(ang) * r);
+                        Vec3 in = centre.add(Mth.cos(ang) * r * 0.5, crown * 0.8, Mth.sin(ang) * r * 0.5);
+                        if (lastRim != null) {
+                            streak(pose, buffers, camera, at, lastRim, rim, 0.09f, c, a * 0.9f);
+                            streak(pose, buffers, camera, at, lastIn, in, 0.07f, c, a * 0.75f);
+                        }
+                        if (i < n) {
+                            // the cords from the middle out to the rim, and a weight where each one ends
+                            streak(pose, buffers, camera, at, top, in, 0.06f, light, a * 0.7f);
+                            streak(pose, buffers, camera, at, in, rim, 0.06f, light, a * 0.7f);
+                            dot(pose, buffers, camera, (float) rim.x, (float) rim.y, (float) rim.z, 0.12f, light, a);
+                        }
+                        lastRim = rim;
+                        lastIn = in;
+                    }
+                }
+                case ROPE -> {
+                    if (e == null) break;
+                    float tall = e.getBbHeight();
+                    // a pole that was bent to the ground whips upright beside the creature and takes it up by the rope
+                    Vec3 foot = fx.target();
+                    float sprung = 1 - (1 - Mth.clamp(age / 0.3f, 0, 1)) * (1 - Mth.clamp(age / 0.3f, 0, 1));
+                    Vec3 tip = fx.origin.add(0, 0.3, 0).lerp(fx.origin.add(0, tall + 5.6, 0), sprung);
+                    Vec3 knee = foot.add(0, 2.2, 0).lerp(new Vec3(foot.x, fx.origin.y + tall + 6.2, foot.z), sprung);
+                    float a = Mth.clamp((life - age) / 0.4f, 0, 1);
+                    Vec3 last = foot.subtract(at);
+                    for (int i = 1; i <= 8; i++) {
+                        Vec3 next = StarBeasts.bezier(foot, knee, tip, i / 8f).subtract(at);
+                        streak(pose, buffers, camera, at, last, next, 0.2f * (1 - i * 0.07f), c, a);
+                        streak(pose, buffers, camera, at, last, next, 0.06f, light, a * 0.7f);
+                        last = next;
+                    }
+                    Vec3 knot = new Vec3(0, tall + 0.05, 0);
+                    streak(pose, buffers, camera, at, tip.subtract(at), knot, 0.06f, light, a * 0.9f);
+                    dot(pose, buffers, camera, 0, tall + 0.05f, 0, 0.11f, 0xFFFFFF, a);
+                    // the noose
+                    disc(pose, buffers, RING, tall * 0.85f, Math.max(0.35f, e.getBbWidth() * 0.75f), time * 2, light, a * 0.9f);
+                }
+                case CLOUD -> {
+                    Vec3 cc = fx.target().subtract(at);
+                    pose.translate(cc.x, cc.y, cc.z);
+                    Vec3 base = fx.target();
+                    float r = p.size();
+                    float gather = 1 - (1 - Mth.clamp(age / 0.6f, 0, 1)) * (1 - Mth.clamp(age / 0.6f, 0, 1));
+                    float a = Mth.clamp(age / 0.4f, 0, 1) * Mth.clamp((life - age) / 0.8f, 0, 1);
+                    int dark = mix(c, 0x3A475E, 0.7f);
+                    int n = Mth.clamp(Math.round(r * r * 0.9f), 30, 110);
+                    // from the ground a wide cloud is looked through edge-on, many puffs deep: the wider, the fainter each one
+                    float thin = Math.min(1f, (float) Math.sqrt(6 / r));
+                    // lightning somewhere inside it lights the cloud around it, a few times a second
+                    long beat = (long) (time / 3);
+                    for (int i = 0; i < n; i++) {
+                        long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        float dist = (float) Math.sqrt(u) * r * 0.95f * gather;
+                        float ang = v * Mth.TWO_PI + time * 0.006f * (0.5f + w);
+                        float x = Mth.cos(ang) * dist, y = 7f + 1.1f * (w - 0.5f) + 0.12f * Mth.sin(time * 0.04f + i), z = Mth.sin(ang) * dist;
+                        boolean lit = Math.floorMod((fx.seed ^ beat) * 0xC2B2AE3D27D4EB4FL + i * 0x165667B19E3779F9L >>> 20, 11) == 0;
+                        dot(pose, buffers, camera, x, y, z, 1.5f + 1.3f * w, lit ? mix(c, 0xFFFFFF, 0.6f) : dark, a * (lit ? 0.5f : 0.26f) * thin);
+                    }
+                    // thin rain under it
+                    for (int i = 0; i < 18; i++) {
+                        long h = (fx.seed + 500 + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        float k = (age / (0.45f + 0.25f * w) + v) % 1f;
+                        float dist = (float) Math.sqrt(u) * r * 0.9f;
+                        float ang = (v + w) * Mth.TWO_PI;
+                        Vec3 head = new Vec3(Mth.cos(ang) * dist, 6.6 * (1 - k), Mth.sin(ang) * dist);
+                        streak(pose, buffers, camera, base, head.add(0.05, 1.1, 0), head, 0.05f, light, a * 0.32f);
+                    }
+                    disc(pose, buffers, RING, 0.05f, r, time * 0.3f, c, a * 0.3f);
+                }
+                case BALL -> {
+                    Vec3 from = fx.origin.add(0, 1.2, 0).subtract(at);
+                    Vec3 to = fx.target().subtract(at);
+                    float flight = Math.max(0.1f, p.duration() / 20f);
+                    Vec3 pos = from.lerp(to, Mth.clamp(age / flight, 0, 1)).add(0, 0.12 * Mth.sin(age * 9), 0);
+                    float a = Mth.clamp(age / 0.12f, 0, 1) * (age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.12f, 0, 1));
+                    float r = p.size();
+                    float pulse = 1 + 0.12f * Mth.sin(time * 1.3f);
+                    float px = (float) pos.x, py = (float) pos.y, pz = (float) pos.z;
+                    dot(pose, buffers, camera, px, py, pz, r * 2.4f * pulse, c, a * 0.5f);
+                    dot(pose, buffers, camera, px, py, pz, r * 1.3f * pulse, light, a * 0.9f);
+                    dot(pose, buffers, camera, px, py, pz, r * 0.6f, 0xFFFFFF, a);
+                    dotTex(pose, buffers, camera, BURST, px, py, pz, r * 1.6f, light, a * 0.7f, time * 11);
+                    // the arcs that reach out of it and are gone again
+                    RandomSource arcs = RandomSource.create(fx.seed + (long) (time / 2));
+                    for (int i = 0; i < 4; i++) {
+                        Vec3 reach = new Vec3(arcs.nextDouble() - 0.5, arcs.nextDouble() - 0.5, arcs.nextDouble() - 0.5).normalize().scale(r * (1.6 + arcs.nextDouble() * 1.6));
+                        spark(pose, buffers, camera, at, pos, pos.add(reach), arcs.nextLong(), 0.1f, light, a);
+                    }
+                }
+                case STATIC -> {
+                    // it crawls over its owner's eyes too: in first person only a little of it is drawn
+                    float seen = self ? hold * 0.3f : hold;
+                    float tall = e != null ? e.getBbHeight() : 1.1f;
+                    float rad = e != null ? Math.max(0.35f, e.getBbWidth() * 0.5f + 0.12f) * p.size() / 0.9f : p.size();
+                    RandomSource arcs = RandomSource.create(fx.seed + (long) (time / 3));
+                    for (int i = 0; i < 3; i++) {
+                        double a1 = arcs.nextDouble() * Math.PI * 2, y1 = arcs.nextDouble() * tall;
+                        Vec3 p1, p2;
+                        if (e != null) {
+                            // over the body: from one place on it to another near by
+                            double a2 = a1 + (arcs.nextDouble() - 0.5) * 1.8, y2 = Mth.clamp(y1 + (arcs.nextDouble() - 0.5) * 1.1, 0, tall);
+                            p1 = new Vec3(Math.cos(a1) * rad, y1, Math.sin(a1) * rad);
+                            p2 = new Vec3(Math.cos(a2) * rad, y2, Math.sin(a2) * rad);
+                        } else {
+                            // from the thing that hums to the ground around it
+                            double out2 = rad * (0.5 + arcs.nextDouble() * 0.5);
+                            p1 = new Vec3(0, 0.2 + y1 * 0.7, 0);
+                            p2 = new Vec3(Math.cos(a1) * out2, 0.05, Math.sin(a1) * out2);
+                        }
+                        spark(pose, buffers, camera, at, p1, p2, arcs.nextLong(), 0.09f, c, seen);
+                    }
+                    dot(pose, buffers, camera, 0, tall * 0.5f, 0, rad * 1.6f, c, seen * (0.1f + 0.05f * Mth.sin(time * 0.7f)));
+                }
                 case VEIL -> {
                     disc(pose, buffers, SIGIL, 0.04f, 1.1f, -time * 2, c, hold * 0.5f);
                     if (age < 0.6f) disc(pose, buffers, RING, 0.06f, 0.4f + 2.2f * (age / 0.6f), 0, c, 1 - age / 0.6f);
@@ -1344,14 +1917,14 @@ public final class SkillWorldFx {
 
     // ---- drawing helpers (each fetches its buffer right before drawing; see the gates' "Not building!" note) ----
 
-    private static int mix(int a, int b, float t) {
+    static int mix(int a, int b, float t) {
         int r = Math.round(Mth.lerp(t, (a >> 16) & 0xFF, (b >> 16) & 0xFF));
         int g = Math.round(Mth.lerp(t, (a >> 8) & 0xFF, (b >> 8) & 0xFF));
         int bl = Math.round(Mth.lerp(t, a & 0xFF, b & 0xFF));
         return (r << 16) | (g << 8) | bl;
     }
 
-    private static void disc(PoseStack pose, MultiBufferSource buffers, ResourceLocation tex, float y, float radius, float degrees, int rgb, float alpha) {
+    static void disc(PoseStack pose, MultiBufferSource buffers, ResourceLocation tex, float y, float radius, float degrees, int rgb, float alpha) {
         if (alpha <= 0.01f || radius <= 0.01f) return;
         pose.pushPose();
         pose.translate(0, y, 0);
@@ -1361,7 +1934,7 @@ public final class SkillWorldFx {
         pose.popPose();
     }
 
-    private static void dot(PoseStack pose, MultiBufferSource buffers, Camera camera, float x, float y, float z, float half, int rgb, float alpha) {
+    static void dot(PoseStack pose, MultiBufferSource buffers, Camera camera, float x, float y, float z, float half, int rgb, float alpha) {
         dotTex(pose, buffers, camera, GLOW, x, y, z, half, rgb, alpha, 0);
     }
 
@@ -1393,7 +1966,7 @@ public final class SkillWorldFx {
      * A streak of light from a to b (relative to the current pose origin, which sits at {@code origin} in the
      * world), turned to face the camera.
      */
-    private static void streak(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 a, Vec3 b, float width, int rgb, float alpha) {
+    static void streak(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 a, Vec3 b, float width, int rgb, float alpha) {
         if (alpha <= 0.01f || width <= 0.005f) return;
         Vec3 dir = b.subtract(a);
         if (dir.lengthSqr() < 1.0e-4) return;
@@ -1423,6 +1996,116 @@ public final class SkillWorldFx {
             streak(pose, buffers, camera, origin, prev, next, width, rgb, alpha);
             prev = next;
         }
+    }
+
+    /**
+     * Where a shot leaves its shooter: beside the eyes on the bow-hand side for a player, so that their own shots are
+     * seen leaving in first person, and the middle of a creature (an arrow glancing off it).
+     */
+    private static Vec3 shotFrom(Fx fx, Entity e) {
+        if (e == null) return fx.origin;
+        if (!(e instanceof Player)) return fx.origin.add(0, e.getBbHeight() * 0.55, 0);
+        Vec3 look = Vec3.directionFromRotation(0, fx.yaw);
+        return fx.origin.add(-look.z * 0.3, e.getEyeHeight() - 0.25, look.x * 0.3);
+    }
+
+    /** An arrow of light with its head at {@code head}, flying along {@code dir}: shaft, barbs and feathers. */
+    private static void arrow(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 head, Vec3 dir, float scale, int rgb, float alpha) {
+        if (alpha <= 0.01f) return;
+        Vec3 tail = head.subtract(dir.scale(1.15 * scale));
+        // the barbs and the feathers lie in the plane that faces the camera
+        Vec3 flat = dir.cross(camera.getPosition().subtract(origin.add(head)));
+        if (flat.lengthSqr() < 1.0e-6) flat = dir.cross(new Vec3(0, 1, 0));
+        if (flat.lengthSqr() < 1.0e-6) flat = new Vec3(1, 0, 0);
+        flat = flat.normalize();
+        int pale = mix(rgb, 0xFFFFFF, 0.55f);
+        streak(pose, buffers, camera, origin, tail, head, 0.2f * scale, rgb, alpha * 0.9f);
+        streak(pose, buffers, camera, origin, tail, head, 0.07f * scale, 0xFFFFFF, alpha);
+        for (int s = -1; s <= 1; s += 2) {
+            streak(pose, buffers, camera, origin, head.subtract(dir.scale(0.3 * scale)).add(flat.scale(0.13 * scale * s)), head, 0.09f * scale, pale, alpha);
+            for (int i = 0; i < 2; i++) {
+                Vec3 root = tail.add(dir.scale((0.08 + 0.13 * i) * scale));
+                streak(pose, buffers, camera, origin, root.subtract(dir.scale(0.16 * scale)).add(flat.scale(0.12 * scale * s)), root, 0.07f * scale, pale, alpha * 0.9f);
+            }
+        }
+        dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.22f * scale, pale, alpha * 0.8f);
+    }
+
+    /** What a hunter's gaze rests on: the first block or creature along it. */
+    private static Vec3 sightEnd(Entity e, Vec3 eye, Vec3 view) {
+        Vec3 far = eye.add(view.scale(48));
+        Vec3 end = e.level().clip(new ClipContext(eye, far, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, e)).getLocation();
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(e, eye, end, e.getBoundingBox().expandTowards(view.scale(48)).inflate(1),
+                x -> x instanceof LivingEntity && x.isAlive() && !x.isSpectator(), eye.distanceToSqr(end));
+        return hit != null ? hit.getLocation() : end;
+    }
+
+    /**
+     * A thin line of light over a long way. One long streak would thin to nothing with distance, so it is drawn in
+     * pieces that widen the further they are from the eye.
+     */
+    private static void ray(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 a, Vec3 b, int rgb, float alpha) {
+        int n = Mth.clamp((int) (b.subtract(a).length() / 4), 1, 10);
+        Vec3 prev = a;
+        for (int i = 1; i <= n; i++) {
+            Vec3 next = a.lerp(b, i / (double) n);
+            float far = (float) camera.getPosition().distanceTo(origin.add(prev.add(next).scale(0.5)));
+            streak(pose, buffers, camera, origin, prev, next, 0.05f + 0.012f * far, rgb, alpha);
+            streak(pose, buffers, camera, origin, prev, next, 0.018f + 0.004f * far, 0xFFFFFF, alpha * 0.8f);
+            prev = next;
+        }
+    }
+
+    /** A small crooked arc of electricity from a to b. */
+    private static void spark(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 a, Vec3 b, long seed, float width, int rgb, float alpha) {
+        RandomSource r = RandomSource.create(seed);
+        double jitter = b.subtract(a).length() * 0.22;
+        Vec3 prev = a;
+        for (int i = 1; i <= 4; i++) {
+            Vec3 next = a.lerp(b, i / 4.0);
+            if (i < 4) next = next.add((r.nextDouble() - 0.5) * jitter, (r.nextDouble() - 0.5) * jitter, (r.nextDouble() - 0.5) * jitter);
+            streak(pose, buffers, camera, origin, prev, next, width, rgb, alpha);
+            streak(pose, buffers, camera, origin, prev, next, width * 0.4f, 0xFFFFFF, alpha * 0.8f);
+            prev = next;
+        }
+    }
+
+    /**
+     * Iron jaws on the ground: two toothed half rings on a hinge. {@code shut} 0 is lying open, 1 is snapped shut.
+     * Drawn line by line, so that they are seen from the side as well as from above.
+     */
+    private static void jaws(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, float radius, float shut, float turn, int rgb, float alpha) {
+        if (alpha <= 0.01f) return;
+        int pale = mix(rgb, 0xFFFFFF, 0.6f);
+        float lift = shut * 1.4f;
+        Vec3 hinge = new Vec3(Mth.cos(turn), 0, Mth.sin(turn));
+        Vec3 across = new Vec3(-Mth.sin(turn), 0, Mth.cos(turn));
+        for (int s = -1; s <= 1; s += 2) {
+            // each half lies out along the ground when open and stands up when shut
+            Vec3 outward = across.scale(s * Mth.cos(lift)).add(0, Mth.sin(lift), 0);
+            // its teeth stand up out of an open jaw, and point at the other half when it has shut
+            Vec3 tooth = across.scale(-s * Mth.sin(lift)).add(0, Mth.cos(lift), 0);
+            Vec3 last = null;
+            int n = 6;
+            for (int i = 0; i <= n; i++) {
+                float a = i * Mth.PI / n;
+                Vec3 pt = hinge.scale(Mth.cos(a) * radius).add(outward.scale(Mth.sin(a) * radius)).add(0, 0.06, 0);
+                if (last != null) {
+                    streak(pose, buffers, camera, origin, last, pt, 0.13f, rgb, alpha);
+                    streak(pose, buffers, camera, origin, last, pt, 0.045f, pale, alpha * 0.8f);
+                }
+                if (i > 0 && i < n) streak(pose, buffers, camera, origin, pt, pt.add(tooth.scale(0.34 * radius)), 0.08f, pale, alpha);
+                last = pt;
+            }
+        }
+        streak(pose, buffers, camera, origin, hinge.scale(-radius).add(0, 0.06, 0), hinge.scale(radius).add(0, 0.06, 0), 0.09f, rgb, alpha * 0.8f);
+    }
+
+    /** Where one light of a swarm is at a moment: its own crooked little orbit around the creature it harries. */
+    private static Vec3 hornet(float time, int i, float speed, float v, float w, float radius, float mid) {
+        float a = time * speed + v * 40, b = time * speed * 1.31f + w * 40, c = time * speed * 0.77f + i;
+        float rad = radius * (0.55f + 0.45f * Mth.sin(c * 1.7f));
+        return new Vec3(Mth.cos(a) * rad, mid + Mth.sin(b) * radius * 0.55f, Mth.sin(a) * rad * (0.75f + 0.25f * Mth.cos(c)));
     }
 
     private static void sprite(VertexConsumer out, Matrix4f m, float half, int rgb, float alpha) {
