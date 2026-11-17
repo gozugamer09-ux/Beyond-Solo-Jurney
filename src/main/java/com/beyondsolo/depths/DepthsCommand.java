@@ -28,6 +28,7 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -153,8 +154,8 @@ public final class DepthsCommand {
                             BlockPos best = null;
                             for (Map.Entry<Integer, TrapKind> e : g.depths().traps(g).entrySet()) {
                                 if (!e.getValue().hasCore() || g.depths().trapDone(e.getKey())) continue;
-                                BlockPos core = DepthsBuild.coreSpot(level, g, g.layout().rooms().get(e.getKey()));
-                                if (best == null || core.distSqr(p.blockPosition()) < best.distSqr(p.blockPosition())) best = core;
+                                BlockPos core = findCore(level, g, g.layout().rooms().get(e.getKey()));
+                                if (core != null && (best == null || core.distSqr(p.blockPosition()) < best.distSqr(p.blockPosition()))) best = core;
                             }
                             if (best == null) {
                                 ctx.getSource().sendFailure(Component.literal("no trap core standing in this cave"));
@@ -166,8 +167,11 @@ public final class DepthsCommand {
                             away = away.lengthSqr() < 1.0e-4 ? new Vec3(1, 0, 0) : away.normalize();
                             Vec3 at = c.add(away.scale(2.5));
                             BlockPos floor = DepthsBuild.floorAt(level, Mth.floor(at.x), Mth.floor(at.z), best.getY());
-                            float yaw = (float) (Mth.atan2(-away.z, -away.x) * Mth.RAD_TO_DEG) - 90f;
-                            p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, yaw, 25f);
+                            // aimed from the eyes at the spot it lands on (the floor there may be higher or lower)
+                            Vec3 to = c.subtract(floor.getX() + 0.5, floor.getY() + p.getEyeHeight(), floor.getZ() + 0.5);
+                            float yaw = (float) (Mth.atan2(to.z, to.x) * Mth.RAD_TO_DEG) - 90f;
+                            float pitch = (float) (-Mth.atan2(to.y, to.horizontalDistance()) * Mth.RAD_TO_DEG);
+                            p.teleportTo(level, floor.getX() + 0.5, floor.getY(), floor.getZ() + 0.5, yaw, pitch);
                             return 1;
                         }))
                         .then(Commands.literal("bolt").executes(ctx -> {
@@ -268,6 +272,17 @@ public final class DepthsCommand {
         parts.add("traps " + (traps.isEmpty() ? "none" : String.join(", ", traps)));
         if (!d.enabled()) parts.add("(older cave: weather only)");
         return String.join(" | ", parts);
+    }
+
+    /** The core standing in a trap room, or null (looked for, since the spot it was put on is taken now). */
+    @Nullable
+    private static BlockPos findCore(ServerLevel level, GateInstance g, DungeonLayout.Room room) {
+        BlockPos c = g.world(room.center());
+        int rx = room.rx() + 2, ry = room.ry() + 3, rz = room.rz() + 2;
+        for (BlockPos at : BlockPos.betweenClosed(c.offset(-rx, -ry, -rz), c.offset(rx, ry, rz))) {
+            if (level.getBlockState(at).is(DepthsModule.TRAP_CORE.get())) return at.immutable();
+        }
+        return null;
     }
 
     /** The living thing the player is looking at, within 24 blocks. */

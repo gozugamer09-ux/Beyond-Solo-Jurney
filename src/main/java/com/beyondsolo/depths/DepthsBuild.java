@@ -256,11 +256,6 @@ public final class DepthsBuild {
 
     static void dressTrap(ServerLevel level, GateInstance g, DungeonLayout.Room room, TrapKind kind, RandomSource r) {
         int floor = g.world(new BlockPos(0, room.floorY(), 0)).getY();
-        if (kind.hasCore()) {
-            BlockPos core = coreSpot(level, g, room);
-            level.setBlock(core.below(), g.theme().accent(r), FLAGS);
-            level.setBlock(core, DepthsModule.TRAP_CORE.get().defaultBlockState(), FLAGS);
-        }
         switch (kind) {
             case VENTS -> {
                 for (int[] v : ventSpots(g, room)) {
@@ -283,6 +278,12 @@ public final class DepthsBuild {
             }
             default -> {
             }
+        }
+        // the core goes in last: a floor crack or a vent set into the floor right under it used to overwrite it
+        if (kind.hasCore()) {
+            BlockPos core = coreSpot(level, g, room);
+            level.setBlock(core.below(), g.theme().accent(r), FLAGS);
+            level.setBlock(core, DepthsModule.TRAP_CORE.get().defaultBlockState(), FLAGS);
         }
     }
 
