@@ -52,7 +52,7 @@ public final class TowerModule {
     public static final DeferredItem<DominionSigilItem> SIGIL_OF_DOMINION = ITEMS.register("sigil_of_dominion",
             () -> new DominionSigilItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
 
-    /** Ozrath, Lord of the Crimson Citadel. */
+    /** Vharos, the Crimson King: lord of the Crimson Citadel, at the top of its hundred floors. */
     public static final DeferredHolder<EntityType<?>, EntityType<CitadelLordEntity>> CITADEL_LORD = ENTITY_TYPES.register("citadel_lord",
             () -> EntityType.Builder.<CitadelLordEntity>of(CitadelLordEntity::new, MobCategory.MONSTER)
                     .sized(1.4f, 3.4f).eyeHeight(3.0f).fireImmune().clientTrackingRange(12).build("citadel_lord"));
