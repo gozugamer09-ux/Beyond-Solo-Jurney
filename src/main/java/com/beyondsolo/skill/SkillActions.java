@@ -138,7 +138,10 @@ public final class SkillActions {
         }
         sound(p, SoundEvents.BEACON_ACTIVATE, 0.7f, 1.8f);
         sound(p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1f, 1.4f);
-        p.displayClientMessage(Component.translatable("skill.beyondsolo.pulse_scan.found", found), true);
+        // the ring reaches much further for gates: their rank, which way they lie, and how close they are to breaking
+        int gates = com.beyondsolo.breaks.GateSense.pulse(p, l, Math.round(scanSeconds(l)));
+        p.displayClientMessage(gates > 0 ? Component.translatable("skill.beyondsolo.pulse_scan.found_gates", found, gates)
+                : Component.translatable("skill.beyondsolo.pulse_scan.found", found), true);
         SkillFx.play(p, SkillFxPayload.Kind.PULSE, s.color(), p.position(), r, 0);
         // in a gate, hidden walls and trap cores within reach show through the rock
         com.beyondsolo.depths.HiddenRooms.scan(p, r);

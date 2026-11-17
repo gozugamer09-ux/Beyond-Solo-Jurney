@@ -6,6 +6,7 @@ import com.beyondsolo.enemy.EnemyFx;
 import com.beyondsolo.enemy.EnemyTraits;
 import com.beyondsolo.enemy.Variant;
 import com.beyondsolo.system.PlayerRank;
+import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -480,10 +481,11 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         if (level() instanceof ServerLevel server) {
             if (deathTime == 30 || deathTime == 46) shockwave(3f, 0f, false);
             if (deathTime % 4 == 0) {
-                server.sendParticles(ParticleTypes.SOUL, getX(), getY() + getBbHeight() * 0.5, getZ(), 2, getBbWidth() * 0.4, 1, getBbWidth() * 0.4, 0.02);
+                ParticleGuard.send(server, ParticleTypes.SOUL, getX(), getY() + getBbHeight() * 0.5, getZ(), 2, getBbWidth() * 0.4, 1, getBbWidth() * 0.4, 0.02);
             }
             if (deathTime >= DEATH_TICKS) {
-                server.sendParticles(ParticleTypes.POOF, getX(), getY() + 1, getZ(), 40, 1, 1.2, 1, 0.05);
+                // its last puff, for everyone not standing in it
+                ParticleGuard.send(server, ParticleTypes.POOF, getX(), getY() + 1, getZ(), 40, 1, 1.2, 1, 0.05);
                 remove(RemovalReason.KILLED);
             }
         }

@@ -69,6 +69,8 @@ public final class GateInstance {
     private boolean legacy;
     /** Weather, the hidden chamber, trap rooms and how far the party got with them ({@code depths} package). */
     private com.beyondsolo.depths.GateDepths depths = com.beyondsolo.depths.GateDepths.fresh();
+    /** Its clock towards a dungeon break, and the break once it has come ({@code breaks} package). */
+    private com.beyondsolo.breaks.BreakState breakState = com.beyondsolo.breaks.BreakState.fresh();
 
     private transient DungeonLayout layout;
 
@@ -177,6 +179,7 @@ public final class GateInstance {
     public boolean slotFreed() { return slotFreed; }
     public void setSlotFreed(boolean freed) { this.slotFreed = freed; }
     public com.beyondsolo.depths.GateDepths depths() { return depths; }
+    public com.beyondsolo.breaks.BreakState breakState() { return breakState; }
 
     /** The boss's name as the System says it. */
     public net.minecraft.network.chat.Component bossName() {
@@ -275,6 +278,7 @@ public final class GateInstance {
         tag.putString("shape", shape().id());
         if (legacy) tag.putBoolean("legacy", true);
         tag.put("depths", depths.save());
+        tag.put("break", breakState.save());
         return tag;
     }
 
@@ -315,6 +319,8 @@ public final class GateInstance {
             g.shape = tag.contains("shape") ? DungeonShape.byId(tag.getString("shape")) : null;
         }
         g.depths = tag.contains("depths") ? com.beyondsolo.depths.GateDepths.load(tag.getCompound("depths")) : com.beyondsolo.depths.GateDepths.legacy();
+        // a gate saved before breaks existed starts its clock the next time it is looked at
+        g.breakState = tag.contains("break") ? com.beyondsolo.breaks.BreakState.load(tag.getCompound("break")) : com.beyondsolo.breaks.BreakState.fresh();
         return g;
     }
 

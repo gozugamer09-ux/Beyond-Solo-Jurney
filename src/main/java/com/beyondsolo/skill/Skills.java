@@ -27,7 +27,7 @@ public final class Skills {
     public static final Skill SURGE_STEP = active("surge_step", null, PlayerRank.E, 1, 0x7FD8FF, 8, 100, 50,
             SkillActions::surgeStep, (l, t) -> a(f(SkillActions.surgeDistance(l))));
     public static final Skill PULSE_SCAN = active("pulse_scan", null, PlayerRank.E, 3, 0x4FC3F7, 12, 400, 200,
-            SkillActions::pulseScan, (l, t) -> a(f(SkillActions.scanRadius(l)), f(SkillActions.scanSeconds(l))));
+            SkillActions::pulseScan, (l, t) -> a(f(SkillActions.scanRadius(l)), f(SkillActions.scanSeconds(l)), f(com.beyondsolo.breaks.GateSense.range(l))));
     public static final Skill APPRAISING_GAZE = active("appraising_gaze", null, PlayerRank.D, 4, 0xFFE27A, 10, 600, 300,
             SkillActions::appraisingGaze, (l, t) -> a(f(SkillActions.gazeSeconds(l)), f(SkillActions.weakSpotBonus(l))));
     public static final Skill PHANTOM_SHROUD = active("phantom_shroud", null, PlayerRank.C, 12, 0x8A9BC8, 20, 900, 500,

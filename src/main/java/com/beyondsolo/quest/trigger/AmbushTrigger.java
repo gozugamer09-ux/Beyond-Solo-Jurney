@@ -1,6 +1,7 @@
 package com.beyondsolo.quest.trigger;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.breaks.DungeonBreaks;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestTemplate;
@@ -28,8 +29,10 @@ public final class AmbushTrigger implements QuestTrigger {
     @Override
     @Nullable
     public Quest test(ServerPlayer player, QuestData data) {
+        // a dungeon break's monsters are not an ambush: the System already has its break quest for that (and only
+        // offers it when the break is far above the hunter, which an ambush would force on them anyway)
         int hunters = player.level().getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(RADIUS),
-                m -> m instanceof Enemy && m.isAlive() && m.getTarget() == player).size();
+                m -> m instanceof Enemy && m.isAlive() && m.getTarget() == player && !DungeonBreaks.fromBreak(m)).size();
         if (hunters < MIN_HUNTERS) return null;
         return QuestTemplates.create(QuestTemplates.AMBUSH, player, QuestTemplate.Context.at(player.blockPosition()));
     }

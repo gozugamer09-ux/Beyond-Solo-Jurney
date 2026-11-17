@@ -74,6 +74,12 @@ public final class Config {
     public static final ModConfigSpec.DoubleValue GATE_SPAWN_CHANCE = B
             .comment("Chance, checked once a minute for each evaluated player in the overworld, that a gate opens 40-80 blocks away (never near another open gate). 0 turns it off; world generation still places gates.")
             .defineInRange("gates.openChancePerMinute", 0.08, 0.0, 1.0);
+    public static final ModConfigSpec.ConfigValue<java.util.List<? extends Integer>> GATE_RANK_WEIGHTS = B
+            .comment("How often a new gate is each rank, E to S (six weights). A gate's rank is rolled at random wherever it opens and whoever is near: it never follows the player's rank or the distance from spawn. The default makes E-rank gates the most common and S-rank gates rare (4 in 100).")
+            .defineList("gates.rankWeights", java.util.List.of(30, 25, 20, 13, 8, 4), () -> 10, o -> o instanceof Integer i && i >= 0);
+    public static final ModConfigSpec.IntValue GATE_BREAK_MINUTES = B
+            .comment("Minutes (real time, give or take a fifth) an uncleared gate holds before it breaks and its monsters pour out into the world (a dungeon break). Its collapse timer shows for the last third. The clock stops while anyone is inside its cave, and a gate only breaks with someone near to see it (one left alone breaks a minute after someone comes back). 0 turns dungeon breaks off.")
+            .defineInRange("gates.breakMinutes", 40, 0, 100_000);
 
     // --- Awakening ---
     public static final ModConfigSpec.BooleanValue AWAKENING_TRIAL = B
