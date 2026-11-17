@@ -4,6 +4,7 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.combat.BuildupData;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.system.SystemData;
+import com.mojang.serialization.Codec;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
@@ -41,6 +42,13 @@ public final class ModAttachments {
     /** What the evaluation crystal remembers between evaluations (re-evaluation module). Survives death. */
     public static final Supplier<AttachmentType<com.beyondsolo.evaluation.EvaluationRecord>> EVALUATION_RECORD = ATTACHMENT_TYPES.register("evaluation_record",
             () -> AttachmentType.serializable(com.beyondsolo.evaluation.EvaluationRecord::new).copyOnDeath().build());
+
+    /**
+     * Minutes a player has spent in the overworld since a gate last opened near them or was pointed out to them
+     * ({@code gate.GateSpawner}); -1 until their first gate. Survives death.
+     */
+    public static final Supplier<AttachmentType<Integer>> GATE_QUIET = ATTACHMENT_TYPES.register("gate_quiet",
+            () -> AttachmentType.builder(() -> -1).serialize(Codec.INT).copyOnDeath().build());
 
     private ModAttachments() {}
 }

@@ -306,6 +306,8 @@ public final class BreakGameTests {
         BlockPos away = g.gatePos().offset(80, 0, 0);
         ChunkPos chunk = new ChunkPos(away);
         level.setChunkForced(chunk.x, chunk.z, true);
+        // a creature moved into a chunk that isn't handed over yet can't be found there (TestChunks): wait for it
+        helper.assertTrue(TestChunks.ticking(level, List.of(chunk)), "the far chunk is loaded");
         m.teleportTo(away.getX() + 0.5, m.getY(), away.getZ() + 0.5);
         helper.assertTrue(DungeonBreaks.flat(m.position(), g.gatePos()) > DungeonBreaks.LEASH * 1.6, "strayed far");
         BreakTestAccess.leash(level, g);
