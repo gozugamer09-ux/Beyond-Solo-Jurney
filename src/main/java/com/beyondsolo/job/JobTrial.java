@@ -144,7 +144,8 @@ public final class JobTrial {
         }
         if (GateService.isDungeon(player.level()) || GateService.inTransit(player)
                 || com.beyondsolo.awakening.AwakeningService.inSequence(player)
-                || com.beyondsolo.penalty.PenaltyZone.busy(player)) {
+                || com.beyondsolo.penalty.PenaltyZone.busy(player)
+                || com.beyondsolo.redgate.RedGates.occupied(player)) {
             info(player, "job_not_here");
             return;
         }

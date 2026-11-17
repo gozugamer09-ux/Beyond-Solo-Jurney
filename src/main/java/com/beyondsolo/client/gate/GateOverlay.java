@@ -50,6 +50,8 @@ public final class GateOverlay {
     private static float cover;
     private static boolean coverWhite;
     private static double coverSince;
+    /** When a red gate's arrival lifted the cover instead of the usual name card (-1: not lifting). */
+    private static double liftedAt = -1;
     private static boolean shakePlayed;
 
     private static float trauma;
@@ -72,8 +74,14 @@ public final class GateOverlay {
                 addTrauma(0.8f);
                 sound(SoundEvents.WARDEN_ROAR, 1.3f, 0.5f);
             }
-            case GatePayload.ENTER -> QUEUE.addFirst(new Moment(p, 2.3f));
-            case GatePayload.EXIT -> QUEUE.addFirst(new Moment(p, 2.1f));
+            case GatePayload.ENTER -> {
+                QUEUE.addFirst(new Moment(p, 2.3f));
+                liftedAt = -1;
+            }
+            case GatePayload.EXIT -> {
+                QUEUE.addFirst(new Moment(p, 2.1f));
+                liftedAt = -1;
+            }
             case GatePayload.ARRIVE, GatePayload.RETURN -> QUEUE.addLast(new Moment(p, 4.4f));
             case GatePayload.BOSS_INTRO -> {
                 bossId = p.entity();
@@ -93,6 +101,20 @@ public final class GateOverlay {
         return current != null || cover > 0.01f;
     }
 
+    /** True while the player is going through a gate (the light swallowing the screen, or the cover after it). */
+    public static boolean passing() {
+        return current != null && (current.p.kind() == GatePayload.ENTER || current.p.kind() == GatePayload.EXIT) || cover > 0.01f;
+    }
+
+    /**
+     * Lifts the cover held after going in, without a name card: a red gate's arrival plays its own moment (the
+     * System's warning, see {@code client.redgate.RedGateOverlay}).
+     */
+    public static void lift() {
+        if (cover <= 0.01f && (current == null || current.p.kind() != GatePayload.ENTER)) return;
+        liftedAt = Anim.now();
+    }
+
     /** How far the boss bar is in (0..1): things at the top of the screen move down under it. */
     public static float bossBarIn() {
         return barIn;
@@ -106,6 +128,7 @@ public final class GateOverlay {
         QUEUE.clear();
         current = null;
         cover = 0;
+        liftedAt = -1;
         trauma = 0;
         bossId = -1;
         NotificationManager.setHeld(false);
@@ -139,8 +162,27 @@ public final class GateOverlay {
         return true;
     }
 
+    /**
+     * A world is loading behind its own screen (after going through, or joining): nothing drawn here can be seen, so
+     * nothing here moves on. Without this the name card coming home (and the cover's lifting) played out unseen behind
+     * "Loading terrain" when the chunks at home took a few seconds.
+     */
+    public static boolean loading() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level == null || mc.player == null
+                || mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                || mc.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen;
+    }
+
     public static void frame() {
         float dt = Anim.dt();
+        if (loading()) {
+            // the moment showing (and the cover) wait for the world to show
+            if (current != null) startedAt += dt;
+            if (cover > 0) coverSince += dt;
+            if (liftedAt >= 0) liftedAt += dt;
+            return;
+        }
         trauma = Math.max(0f, trauma - dt * 1.1f);
         shakeTime += dt;
         if (current != null && current.p.kind() == GatePayload.BOSS_INTRO && Anim.since(startedAt) < 1.8f) lookAtBoss(dt);
@@ -177,6 +219,10 @@ public final class GateOverlay {
             }
         }
         if (current == null && cover > 0 && Anim.since(coverSince) > 12f) cover = 0;
+        if (liftedAt >= 0 && current == null && Anim.since(liftedAt) > 1.2f) {
+            cover = 0;
+            liftedAt = -1;
+        }
     }
 
     private static void sound(SoundEvent s, float pitch, float volume) {
@@ -217,9 +263,10 @@ public final class GateOverlay {
                 default -> {}
             }
         } else if (cover > 0.01f) {
-            Shapes.box(0, 0, w, h).fill(coverWhite ? 0xFFF4FBFF : 0xFF000000).draw(g);
+            float lift = liftedAt < 0 ? 1f : 1 - Anim.outCubic(Anim.window(Anim.since(liftedAt), 0f, 1.1f));
+            Shapes.box(0, 0, w, h).fill(Gfx.alpha(coverWhite ? 0xFFF4FBFF : 0xFF000000, lift)).draw(g);
             float dots = Anim.since(coverSince);
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 3 && liftedAt < 0; i++) {
                 float a = 0.3f + 0.7f * Math.max(0, Mth.sin(dots * 5f - i * 0.8f));
                 Shapes.circle(w / 2f - 8 + i * 8, h / 2f, 1.6f).fill(Gfx.alpha(coverWhite ? SystemTheme.ACCENT_DEEP : SystemTheme.ACCENT, a)).draw(g);
             }
@@ -233,12 +280,22 @@ public final class GateOverlay {
 
     /** The awakening trial has no rank. */
     private static boolean trial(Moment m) {
-        return m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal();
+        return !red(m) && m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal();
+    }
+
+    /** A red gate's moment ({@code redgate.RedGates}): drawn in its blood red, with the rank of what waits inside. */
+    private static boolean red(Moment m) {
+        return m.p.rank() >= GatePayload.RED;
+    }
+
+    private static PlayerRank rankOf(Moment m) {
+        return PlayerRank.values()[Mth.clamp(red(m) ? m.p.rank() - GatePayload.RED : m.p.rank(), 0, 5)];
     }
 
     private static int rankColor(Moment m) {
-        if (m.p.rank() >= com.beyondsolo.gate.GateTheme.TRIAL.ordinal()) return 0xFF000000 | com.beyondsolo.gate.GateTheme.TRIAL.color();
-        return SystemTheme.rank(PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)]);
+        if (red(m)) return 0xFF000000 | com.beyondsolo.redgate.RedGates.RED;
+        if (trial(m)) return 0xFF000000 | com.beyondsolo.gate.GateTheme.TRIAL.color();
+        return SystemTheme.rank(rankOf(m));
     }
 
     /** Going through a gate: light closes in and swallows the screen. */
@@ -285,7 +342,8 @@ public final class GateOverlay {
 
     /** Coming out on the other side: the cover lifts and the place is named. */
     private static void arrive(GuiGraphics g, int w, int h, float t, Moment m, boolean back) {
-        int color = back ? SystemTheme.ACCENT : rankColor(m);
+        // coming home from a red gate, the card keeps its red
+        int color = back && !red(m) ? SystemTheme.ACCENT : rankColor(m);
         float lift = 1 - Anim.outCubic(Anim.window(t, 0.1f, 1.1f));
         if (lift > 0.01f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(back ? 0xFFF4FBFF : 0xFF000000, lift)).draw(g);
         cover = 0;
@@ -328,7 +386,7 @@ public final class GateOverlay {
             if (subIn > 0.01f) {
                 float o3 = Gfx.fade(subIn);
                 float sw = SysFont.width(m.p.subtitle(), 7f, true);
-                if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
+                if (!trial(m)) Ui.rankEmblem(g, rankOf(m), cx - sw / 2f - 9, y + 31.5f, 5.5f, 1 - subIn);
                 SysFont.draw(g, m.p.subtitle(), cx + 4, y + 28, 7f, Gfx.mix(color, 0xFFFFFFFF, 0.4f), true, 0.5f);
                 Gfx.setAlpha(o3);
             }
@@ -371,7 +429,7 @@ public final class GateOverlay {
         float nameK = Anim.window(t, 0.9f, 1.9f);
         float nw = SysFont.width(m.p.title(), 18f, true);
         if (nameK > 0) {
-            if (!trial(m)) Ui.rankEmblem(g, PlayerRank.values()[Mth.clamp(m.p.rank(), 0, 5)], cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
+            if (!trial(m)) Ui.rankEmblem(g, rankOf(m), cx - nw / 2f - 16, y + 20, 9f, 1 - Anim.window(t, 1.2f, 2.4f));
             Shapes.box(cx - nw / 2f - 30, y + 10, nw + 60, 22).radius(11).fill(0x00000000).glow(18, Gfx.alpha(color, 0.25f * Anim.outCubic(nameK))).draw(g);
         }
         typed(g, m.p.title(), cx + 6, y + 11, 18f, 0xFFFFFFFF, nameK);
@@ -416,7 +474,9 @@ public final class GateOverlay {
     }
 
     private static void cleared(GuiGraphics g, int w, int h, float t, Moment m) {
-        int gold = SystemTheme.GOLD;
+        // a red gate's clear is drawn in its blood red
+        boolean red = red(m);
+        int gold = red ? 0xFF000000 | com.beyondsolo.redgate.RedGates.RED : SystemTheme.GOLD;
         float exitK = Anim.window(t, m.duration - 0.6f, m.duration);
         float live = 1 - Anim.outCubic(exitK);
         float cx = w / 2f, y = h * 0.26f;
@@ -431,10 +491,10 @@ public final class GateOverlay {
         Ui.panel(g, -pw / 2f, -ph / 2f, pw, ph, 10, gold, 1f);
         g.pose().popPose();
         if (open > 0.95f) {
-            String head = Component.translatable("gate.beyondsolo.overlay.cleared").getString();
+            String head = Component.translatable(red ? "redgate.beyondsolo.overlay.cleared" : "gate.beyondsolo.overlay.cleared").getString();
             float hk = Anim.outCubic(Anim.window(t, 0.45f, 0.9f));
             float o2 = Gfx.fade(hk);
-            SysFont.spaced(g, head, cx, y + 10 - 4 * (1 - hk), 11f, 0xFFFFE6A8, true, 2.6f, 0.5f);
+            SysFont.spaced(g, head, cx, y + 10 - 4 * (1 - hk), 11f, red ? 0xFFFFC2C2 : 0xFFFFE6A8, true, 2.6f, 0.5f);
             Gfx.setAlpha(o2);
             SysFont.draw(g, m.p.title(), cx, y + 27, 7.5f, Gfx.alpha(SystemTheme.TEXT_SOFT, hk), false, 0.5f);
             float count = Anim.outCubic(Anim.window(t, 0.9f, 2.2f));
@@ -505,7 +565,8 @@ public final class GateOverlay {
             Entity e = mc.level.getEntity(bossId);
             if (e instanceof DungeonBoss && e instanceof net.minecraft.world.entity.LivingEntity b && b.distanceTo(mc.player) < 72) boss = b;
         }
-        if (boss == null && mc.level != null && mc.level.dimension().equals(GateService.DIMENSION)) {
+        if (boss == null && mc.level != null && (mc.level.dimension().equals(GateService.DIMENSION)
+                || mc.level.dimension().equals(com.beyondsolo.redgate.RedWorld.DIMENSION))) {
             for (net.minecraft.world.entity.LivingEntity b : mc.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
                     mc.player.getBoundingBox().inflate(48), e -> e instanceof DungeonBoss db && db.isAwake())) {
                 boss = b;

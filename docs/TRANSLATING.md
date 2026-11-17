@@ -65,6 +65,8 @@ If you change an English line's meaning, fix the Spanish too: the test only chec
 | Dungeon Key / run / chain / re-run | Llave de Mazmorra / incursión / cadena / repetir |
 | Dungeon Break / Unstable Gate / Break Imminent | Ruptura de Mazmorra / Portal Inestable / Ruptura Inminente |
 | Suppressed (a break) / held from inside | Contenida / contenido desde dentro |
+| Red Gate / the Red Winter / seal (sealed) / the way out | Portal Rojo / el Invierno Rojo / sello (sellado) / la salida |
+| master of a red gate's land / camp / blizzard / chill, freezing | señor (de esta tierra) / campamento / ventisca / frío, congelarse |
 | sense a gate (Pulse Scan) | detectar un portal |
 | Directions: north, northeast, ... ("to the %s") | norte, noreste, ... ("al %s", from `npc.beyondsolo.dir.*`) |
 | Shadow Army / extract / raise | Ejército de Sombras / extraer / alzar |

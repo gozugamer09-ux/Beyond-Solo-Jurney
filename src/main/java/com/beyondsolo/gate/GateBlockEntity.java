@@ -67,6 +67,12 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     private long unstableAt = -1, breakAt = -1, brokeAt = -1;
 
     public static final int HOLDING = 0, UNSTABLE = 1, IMMINENT = 2, BROKEN = 3;
+    /**
+     * A red gate ({@code redgate.RedGates}): game time it turned red (-1 if it never has), and when the red started to
+     * drain out of it again (-1 while it burns: its hunters are still trapped). Red takes {@link #RED_TICKS} to come and go.
+     */
+    private long redAt = -1, redFadeAt = -1;
+    public static final int RED_TICKS = 40;
 
     public GateBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.GATE.get(), pos, state);
@@ -112,6 +118,32 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         this.brokeAt = brokeAt;
         if (show) changed();
         else if (save) setChanged();
+    }
+
+    /** True while it burns red: a red gate with hunters trapped behind it. */
+    public boolean isRed() { return redAt >= 0 && redFadeAt < 0; }
+
+    /** It turns red (over {@link #RED_TICKS}), from game time {@code at}. */
+    public void setRed(long at) {
+        this.redAt = at;
+        this.redFadeAt = -1;
+        changed();
+    }
+
+    /** The red drains out of it again (the red gate let its hunters go). */
+    public void fadeRed(long at) {
+        if (redAt < 0 || redFadeAt >= 0) return;
+        this.redFadeAt = at;
+        changed();
+    }
+
+    /** 0..1 how red it is now. */
+    public float redness(float partialTick) {
+        if (redAt < 0 || level == null) return 0f;
+        long now = level.getGameTime();
+        float in = Mth.clamp((now - redAt + partialTick) / RED_TICKS, 0f, 1f);
+        if (redFadeAt >= 0) in *= 1f - Mth.clamp((now - redFadeAt + partialTick) / (RED_TICKS * 2f), 0f, 1f);
+        return in;
     }
 
     public void setSealed(boolean sealed) {
@@ -228,12 +260,19 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         if (open > 0.05f && (gate.isUnstable() || gate.isBroken())) com.beyondsolo.client.breaks.BreakWorldFx.leak(gate);
         if (open <= 0.05f || r.nextInt(3) != 0) return;
         Vec3 c = gate.center();
+        float red = gate.redness(0);
         boolean alongX = gate.facing().getAxis() == Direction.Axis.Z;
         double a = r.nextDouble() * Math.PI * 2;
         double rad = 2.6 + r.nextDouble() * 1.5;
         double ox = Math.cos(a) * rad * 0.8, oy = Math.sin(a) * rad;
         double side = (r.nextDouble() - 0.5) * 2.5;
         double x = c.x + (alongX ? ox : side), y = c.y + oy, z = c.z + (alongX ? side : ox);
+        if (red > 0.3f && r.nextFloat() < red) {
+            // a red gate breathes out a slow red mist instead of drawing anything in
+            level.addParticle(new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.78f, 0.04f, 0.1f), 1.6f),
+                    x, y, z, (x - c.x) * 0.02, (y - c.y) * 0.02, (z - c.z) * 0.02);
+            return;
+        }
         if (gate.keyed) {
             // a keyed gate draws in runic letters, as a lock does its key (they fly to the given point)
             level.addParticle(ParticleTypes.ENCHANT, c.x, c.y, c.z, x - c.x, y - c.y, z - c.z);
@@ -259,6 +298,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         tag.putLong("unstableAt", unstableAt);
         tag.putLong("breakAt", breakAt);
         tag.putLong("brokeAt", brokeAt);
+        tag.putLong("redAt", redAt);
+        tag.putLong("redFadeAt", redFadeAt);
     }
 
     @Override
@@ -276,6 +317,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         unstableAt = tag.contains("unstableAt") ? tag.getLong("unstableAt") : -1;
         breakAt = tag.contains("breakAt") ? tag.getLong("breakAt") : -1;
         brokeAt = tag.contains("brokeAt") ? tag.getLong("brokeAt") : -1;
+        redAt = tag.contains("redAt") ? tag.getLong("redAt") : -1;
+        redFadeAt = tag.contains("redFadeAt") ? tag.getLong("redFadeAt") : -1;
     }
 
     @Override

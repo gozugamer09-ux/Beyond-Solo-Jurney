@@ -131,7 +131,9 @@ public final class DungeonBreaks {
             if (!on || !canBreak(g)) continue;
             // a gate taken out of the world by a command (players can't break one) has nothing left to break
             if (world.isLoaded(g.gatePos()) && !(world.getBlockEntity(g.gatePos()) instanceof GateBlockEntity)) continue;
-            boolean inside = dungeon != null && (!GateService.playersIn(dungeon, g).isEmpty() || GateService.inTransitTo(g.id()));
+            // a red gate holds its clock too, for as long as it holds its hunters
+            boolean inside = (dungeon != null && (!GateService.playersIn(dungeon, g).isEmpty() || GateService.inTransitTo(g.id())))
+                    || com.beyondsolo.redgate.RedGates.holding(g);
             step(world, data, g, world.getGameTime(), inside, watched(world, g.gatePos()));
             status(world, g, 0);
         }
