@@ -12,11 +12,18 @@ import java.util.Locale;
  * What waits behind a hidden wall ({@link HiddenRooms}). A vault holds a cache a rank above the gate's; a shrine
  * blesses whoever steps in for the rest of the run and holds a cache of the gate's rank; a lair is guarded by
  * creatures a rank above the gate's, and its cache (a rank above too) comes down when the last of them falls.
+ *
+ * <p>{@link #SEALED} is never rolled: it is the awakening's door ({@code awakening.AwakeningService#enteringGate}),
+ * forced into the first gate of rank D or higher that a player without the System walks into, off the boss's hall.
+ * Knocks and Pulse Scan get nothing from its wall; it breaks by itself once the boss falls, and the sealed gate that
+ * opens behind it leads to the Ashen Threshold.</p>
  */
 public enum HiddenKind {
     VAULT(0xFFD36A, 40),
     SHRINE(0x9FE8FF, 25),
-    LAIR(0xFF5A6A, 35);
+    LAIR(0xFF5A6A, 35),
+    /** The awakening's sealed door (weight 0: only ever forced). */
+    SEALED(0xF2D58A, 0);
 
     public final int color;
     final int weight;

@@ -218,7 +218,97 @@ public final class DepthsBuild {
                 hang(level, g, room, center, r, 4, Blocks.COBWEB.defaultBlockState());
                 level.setBlock(center.below(), realm.accent(r), FLAGS);
             }
+            case SEALED -> dressSealed(level, g, room, center, r);
         }
+    }
+
+    // ------------------------------------------------------------------ the sealed door's chamber
+
+    /** Where a sealed door stands and the way it faces (towards whoever comes in). */
+    public record Door(BlockPos pos, Direction facing) {}
+
+    /** The way into the sealed door's chamber, flat: from where its passage bends towards the chamber's middle. */
+    private static Vec3 inward(GateInstance g, DungeonLayout.Room room) {
+        DungeonLayout.Tunnel t = g.layout().hiddenTunnel();
+        BlockPos c = g.world(room.center());
+        Vec3 in = t == null ? Vec3.ZERO : Vec3.atCenterOf(c).subtract(Vec3.atCenterOf(g.world(t.bend()))).multiply(1, 0, 1);
+        return in.lengthSqr() < 1.0E-4 ? new Vec3(1, 0, 0) : in.normalize();
+    }
+
+    /**
+     * Where the {@code index}th sealed door stands ({@code awakening.AwakeningService}): at the far end of the chamber from
+     * the way in, on the dais, facing back towards the way in. More than one (a party of players without the System)
+     * stand side by side, four blocks apart.
+     */
+    public static Door sealedDoor(ServerLevel level, GateInstance g, int index) {
+        DungeonLayout.Room room = g.layout().hidden();
+        BlockPos c = g.world(room.center());
+        Vec3 in = inward(g, room);
+        Vec3 side = new Vec3(-in.z, 0, in.x);
+        int slot = (index + 1) / 2 * (index % 2 == 1 ? 1 : -1);
+        double along = room.reach() * 0.42, across = slot * 4.0;
+        int x = Mth.floor(c.getX() + 0.5 + in.x * along + side.x * across);
+        int z = Mth.floor(c.getZ() + 0.5 + in.z * along + side.z * across);
+        BlockPos at = floorAt(level, x, z, floorCenter(level, g, room).getY());
+        return new Door(at, Direction.getNearest(-in.x, 0, -in.z));
+    }
+
+    /**
+     * The sealed door's chamber, dressed like the temple behind it: a dark tiled floor with a line of gold from the way
+     * in to the dais where the door will stand, white columns down both sides with chains and soul lanterns from the
+     * roof, and soul fire either side of the dais. The door itself only opens once the boss has fallen.
+     */
+    static void dressSealed(ServerLevel level, GateInstance g, DungeonLayout.Room room, BlockPos center, RandomSource r) {
+        BlockPos c = g.world(room.center());
+        Vec3 in = inward(g, room);
+        Vec3 side = new Vec3(-in.z, 0, in.x);
+        int rx = room.rx(), rz = room.rz();
+        double dais = room.reach() * 0.42;
+        for (int x = -rx; x <= rx; x++) {
+            for (int z = -rz; z <= rz; z++) {
+                double d = Math.sqrt(x * x / (double) (rx * rx) + z * z / (double) (rz * rz));
+                if (d > 0.9) continue;
+                BlockPos top = floorAt(level, c.getX() + x, c.getZ() + z, center.getY());
+                if (Math.abs(top.getY() - center.getY()) > 2 || open(level.getBlockState(top.below()))) continue;
+                double along = (x + 0.5) * in.x + (z + 0.5) * in.z, across = (x + 0.5) * side.x + (z + 0.5) * side.z;
+                BlockState s;
+                if (Math.abs(along - dais) < 1.6 && Math.abs(across) < 3.6) {
+                    s = Math.abs(across) > 2.6 ? Blocks.GILDED_BLACKSTONE.defaultBlockState() : Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState();
+                } else if (Math.abs(across) < 0.75 && along < dais) {
+                    s = Blocks.GOLD_BLOCK.defaultBlockState();
+                } else {
+                    s = (Math.floorMod(x + z, 2) == 0 ? Blocks.POLISHED_DEEPSLATE : Blocks.DEEPSLATE_TILES).defaultBlockState();
+                }
+                level.setBlock(top.below(), s, FLAGS);
+                // nothing left lying on the tiles (lichen, bone, a stalagmite stub)
+                if (!level.getBlockState(top).isAir() && !level.getBlockState(top).is(Blocks.LIGHT)) level.setBlock(top, Blocks.CAVE_AIR.defaultBlockState(), FLAGS);
+            }
+        }
+        // columns down both sides of the way to the dais, up to the roof
+        for (int sideSign = -1; sideSign <= 1; sideSign += 2) {
+            for (double along : new double[]{-room.reach() * 0.3, room.reach() * 0.12}) {
+                double across = sideSign * rx * 0.62;
+                int x = Mth.floor(c.getX() + 0.5 + in.x * along + side.x * across);
+                int z = Mth.floor(c.getZ() + 0.5 + in.z * along + side.z * across);
+                BlockPos base = floorAt(level, x, z, center.getY());
+                for (int k = 0; k < room.ry() * 2 + 4; k++) {
+                    BlockPos p = base.above(k);
+                    if (k > 1 && !open(level.getBlockState(p))) break;
+                    level.setBlock(p, k == 0 || k % 5 == 4 ? Blocks.CHISELED_QUARTZ_BLOCK.defaultBlockState() : Blocks.QUARTZ_PILLAR.defaultBlockState(), FLAGS);
+                }
+            }
+            // soul fire beside the dais
+            double across = sideSign * 5.5;
+            int x = Mth.floor(c.getX() + 0.5 + in.x * dais + side.x * across);
+            int z = Mth.floor(c.getZ() + 0.5 + in.z * dais + side.z * across);
+            BlockPos fire = floorAt(level, x, z, center.getY());
+            if (open(level.getBlockState(fire)) && open(level.getBlockState(fire.above()))) {
+                level.setBlock(fire, Blocks.POLISHED_BLACKSTONE_WALL.defaultBlockState(), FLAGS);
+                level.setBlock(fire.above(), Blocks.SOUL_CAMPFIRE.defaultBlockState(), FLAGS);
+            }
+        }
+        hang(level, g, room, center, r, 4, Blocks.CHAIN.defaultBlockState());
+        hang(level, g, room, center, r, 3, Blocks.SOUL_LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
     }
 
     /** A reward cache of the hidden chamber. {@code droppedAt} -1: already standing there. */

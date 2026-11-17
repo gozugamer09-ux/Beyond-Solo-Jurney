@@ -274,6 +274,19 @@ public final class DungeonGameTests {
             out.add(new TestFunction("beyondsolo_realms_" + n++ / 5, "dungeongametests.realm_" + realm.id(), BeyondSolo.MOD_ID + ":" + ARENA,
                     900, 0, true, helper -> carveWalkWipe(helper, rank, realm, shape, seed)));
         }
+        // the awakening's sealed door behind the boss, in a dungeon of every shape (of rank D or higher, as it hides)
+        for (DungeonShape shape : DungeonShape.values()) {
+            GateRealm realm = null;
+            for (GateRealm r : GateRealm.values()) {
+                if (r.weight > 0 && r.maxRank.tier() >= 1 && r.shapes().contains(shape) && (realm == null || r.ordinal() % 3 == shape.ordinal() % 3)) realm = r;
+            }
+            if (realm == null) continue;
+            GateRealm r = realm;
+            PlayerRank rank = r.minRank.tier() >= 1 ? r.minRank : PlayerRank.D;
+            long seed = 0x5EA1EDL + shape.ordinal() * 6151L;
+            out.add(new TestFunction("beyondsolo_sealed_" + shape.ordinal() / 4, "dungeongametests.sealed_" + shape.id(), BeyondSolo.MOD_ID + ":" + ARENA,
+                    900, 0, true, helper -> carveWalkWipe(helper, rank, r, shape, seed, HiddenKind.SEALED)));
+        }
         if (EXPLORE) {
             for (GateRealm realm : GateRealm.values()) {
                 if (realm.weight == 0) continue;
@@ -288,7 +301,7 @@ public final class DungeonGameTests {
         return out;
     }
 
-    private static final boolean EXPLORE = true;
+    private static final boolean EXPLORE = false;
 
     /**
      * Opens a gate of the realm and shape, carves its dungeon, checks you can stand at the entrance, walk every
@@ -300,11 +313,16 @@ public final class DungeonGameTests {
     }
 
     private static void carveWalkWipe(GameTestHelper helper, PlayerRank rank, GateRealm realm, DungeonShape shape, long seed) {
+        carveWalkWipe(helper, rank, realm, shape, seed, HiddenKind.VAULT);
+    }
+
+    private static void carveWalkWipe(GameTestHelper helper, PlayerRank rank, GateRealm realm, DungeonShape shape, long seed, HiddenKind kind) {
         MinecraftServer server = helper.getLevel().getServer();
         GateInstance g = GateData.get(server).create(UUID.randomUUID(), rank, seed, helper.getLevel().dimension(), helper.absolutePos(new BlockPos(3, 2, 3)));
         g.setDungeon(realm, shape);
         // every dungeon carved here hides a chamber, so one is carved, sealed and opened in every realm and layout
-        g.depths().setHidden(HiddenKind.VAULT);
+        // (a vault off a cavern, or the awakening's sealed door behind the boss)
+        g.depths().setHidden(kind);
         g.replan();
         ServerLevel d = GateService.dungeon(server);
         helper.assertTrue(d != null, "there is somewhere to carve");
@@ -314,7 +332,11 @@ public final class DungeonGameTests {
         while (d.getChunkSource().pollTask()) {
         }
         helper.assertTrue(g.built() && g.realm() == realm && g.shape() == shape, "built as asked");
-        String what = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + ": ";
+        String what = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + (kind == HiddenKind.SEALED ? " (sealed door)" : "") + ": ";
+        if (kind == HiddenKind.SEALED) {
+            DungeonLayout.Tunnel way = g.layout().hiddenTunnel();
+            helper.assertTrue(way != null && g.layout().rooms().get(way.from()).kind() == DungeonLayout.Kind.BOSS, what + "the door's chamber lies past the boss");
+        }
 
         BlockPos e = g.entrance();
         helper.assertTrue(low(d, e) && open(d, e.above()), what + "room to stand at the entrance " + e + around(d, e));

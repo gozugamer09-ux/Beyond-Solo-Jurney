@@ -708,6 +708,10 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Lang keys of an awakening temple's stele ({@code .1} to {@code .3}, see {@link DungeonDecor}): its heading, then one tenet per sign. */
+    public static final String TENETS_TITLE = "trial.beyondsolo.tenets.title";
+    public static final String TENET = "trial.beyondsolo.tenet.";
+
     private static double sq(double v) {
         return v * v;
     }

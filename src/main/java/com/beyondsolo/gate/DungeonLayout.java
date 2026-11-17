@@ -278,6 +278,47 @@ public final class DungeonLayout {
     }
 
     /**
+     * The plan of a gate of this seed that hides the awakening's sealed door ({@code depths.HiddenKind.SEALED}): its
+     * chamber lies off the boss's room ({@link DungeonPlanner#placeOffBoss}), and the rest of the dungeon is the same as
+     * without it. Its realm and shape come from the seed, unless the door has no room there ({@link #shapeForDoor}).
+     */
+    public static DungeonLayout planSealed(long seed, GateTheme theme) {
+        GateRealm realm = GateRealm.forSeed(theme.rank, seed);
+        DungeonShape shape = shapeForDoor(seed, theme, realm, realm.shapeFor(seed));
+        return planSealed(seed, theme, realm, shape != null ? shape : realm.shapeFor(seed));
+    }
+
+    /** The same for a gate of a realm and shape; no door if the dungeon has no room behind its boss for the chamber. */
+    public static DungeonLayout planSealed(long seed, GateTheme theme, GateRealm realm, DungeonShape shape) {
+        return new DungeonPlanner(seed, theme, realm, shape).planSealed();
+    }
+
+    /**
+     * How a gate that is to hide the sealed door is laid out: its own way if the door's chamber fits behind its boss,
+     * else as caverns (a boss on an island over a chasm has nowhere to hide it; the realm stays), null if neither has room.
+     */
+    @org.jetbrains.annotations.Nullable
+    public static DungeonShape shapeForDoor(long seed, GateTheme theme, GateRealm realm, DungeonShape shape) {
+        if (planSealed(seed, theme, realm, shape).hidden() != null) return shape;
+        if (shape != DungeonShape.CAVERNS && planSealed(seed, theme, realm, DungeonShape.CAVERNS).hidden() != null) return DungeonShape.CAVERNS;
+        return null;
+    }
+
+    /** Caverns between an awakening temple's way in and the Arbiter's hall. */
+    public static final int TEMPLE_ROOMS = 1;
+
+    /**
+     * The plan of an awakening temple (a trial opened since 0.1.1, see {@code GateInstance#temple}): a short way down
+     * from the door to an antechamber and on to the Arbiter's hall. No side caves: nothing in there but the Arbiter.
+     */
+    public static DungeonLayout temple(long seed) {
+        return new DungeonPlanner(seed, GateTheme.TRIAL, GateRealm.THRESHOLD, DungeonShape.CAVERNS).temple();
+    }
+
+    /** Size of the sealed door's chamber: wider and taller than the others, a sealed gate stands in it. */
+    public static final int SEALED_RX = 8, SEALED_RY = 6;
+
+    /**
      * Builds the plan for a gate of a realm and shape. With {@code hidden}, a chamber is tucked off one of the later
      * caverns where nothing else passes ({@link DungeonPlanner#placeHidden}); it comes last and has its own random, so
      * the rest of the dungeon is the same with or without it.

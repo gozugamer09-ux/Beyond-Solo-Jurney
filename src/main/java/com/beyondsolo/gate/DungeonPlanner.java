@@ -60,6 +60,25 @@ final class DungeonPlanner {
     }
 
     DungeonLayout plan(boolean hidden) {
+        layOut();
+        if (hidden && !trial) placeHidden();
+        return done();
+    }
+
+    /** The plan with the awakening's sealed door off the boss's room ({@link #placeOffBoss}), if there is room for it. */
+    DungeonLayout planSealed() {
+        layOut();
+        if (!trial) placeOffBoss();
+        return done();
+    }
+
+    /** An awakening temple ({@link DungeonLayout#temple}): the original caverns, cut short, with no side caves. */
+    DungeonLayout temple() {
+        caverns(DungeonLayout.TEMPLE_ROOMS + 1, 0);
+        return done();
+    }
+
+    private void layOut() {
         switch (shape) {
             case LABYRINTH -> labyrinth(random(0x1AB1L));
             case GAUNTLET -> gauntlet(random(0x6A47L));
@@ -68,9 +87,11 @@ final class DungeonPlanner {
             case CHASM -> chasm(random(0xC4A5L));
             case HOLLOW -> hollow(random(0x4011L));
             case HIVE -> hive(random(0x41E5L));
-            default -> caverns();
+            default -> caverns(theme.rooms, 1 + (theme.rank.tier() >= 3 ? 1 : 0));
         }
-        if (hidden && !trial) placeHidden();
+    }
+
+    private DungeonLayout done() {
         return new DungeonLayout(rooms, tunnels, spaces, realm, shape);
     }
 
@@ -95,6 +116,43 @@ final class DungeonPlanner {
         List<Room> others = new ArrayList<>();
         for (Room room : rooms) if (room.kind() != Kind.BOSS && room.kind() != Kind.CAVERN && room.shape() != Shape.ISLAND) others.add(room);
         if (!others.isEmpty()) hideOff(h, others, 0, 60, false);
+    }
+
+    /**
+     * The awakening's sealed door ({@code depths.HiddenKind.SEALED}): a chamber past the boss's room, on the far side
+     * from the way in (wider round it if that fails), at the end of a short tunnel nothing else comes near, its floor
+     * about level with the room's. The door opens there once the boss falls. Caves of the original kind place it as
+     * they did before realms; elsewhere it also keeps out of open spaces and inside its slot, and a dungeon with no
+     * room for it there (a boss on an island over a chasm) hides no door: the next gate will.
+     */
+    private void placeOffBoss() {
+        if (rooms.size() >= 64) return;
+        RandomSource h = new LegacyRandomSource(seed * 0x9E3779B97F4A7C15L + 0x48494444L);
+        boolean exact = shape == DungeonShape.CAVERNS && realm.build == GateRealm.Build.CAVE && !realm.corridors;
+        Room boss = null;
+        for (Room room : rooms) if (room.kind() == Kind.BOSS) boss = room;
+        if (boss == null) return;
+        Tunnel in = null;
+        for (Tunnel t : tunnels) if (t.to() == boss.index()) in = t;
+        float back = in == null ? h.nextFloat() * Mth.TWO_PI
+                : (float) Math.atan2(boss.center().getZ() - in.start().getZ(), boss.center().getX() - in.start().getX());
+        int r = DungeonLayout.SEALED_RX, ry = DungeonLayout.SEALED_RY;
+        for (int attempt = 0; attempt < (exact ? 80 : 160); attempt++) {
+            float spread = Math.min(Mth.PI, 0.45f + attempt * 0.05f);
+            float a = back + (h.nextFloat() - 0.5f) * 2 * spread;
+            int dist = boss.reach() + r + 8 + h.nextInt(5);
+            int y = Mth.clamp(boss.floorY() + Math.round(ry * 0.55f) + h.nextInt(3) - 1,
+                    exact ? MIN_Y + ry + 2 : FLOOR_LIMIT + ry + 4, exact ? MAX_Y - ry - 2 : CEILING_LIMIT - ry - 4);
+            Room room = new Room(rooms.size(), new BlockPos(boss.center().getX() + Math.round(Mth.cos(a) * dist), y,
+                    boss.center().getZ() + Math.round(Mth.sin(a) * dist)), r, ry, r, Kind.HIDDEN);
+            if (!centersClear(room, 7)) continue;
+            if (!exact && (!clear(room, 7) || !inSlot(room, 8) || nearSpaces(room, 4))) continue;
+            Tunnel t = tube(h, boss, room);
+            if (!secluded(boss, room, t, exact)) continue;
+            rooms.add(room);
+            tunnels.add(t);
+            return;
+        }
     }
 
     private boolean hideOff(RandomSource h, List<Room> from, int first, int attempts, boolean exact) {
@@ -430,13 +488,12 @@ final class DungeonPlanner {
     // ------------------------------------------------------------------ caverns
 
     /** The original: a winding chain of caverns, a side cave or two, the boss at the far end. */
-    private void caverns() {
+    private void caverns(int main, int sides) {
         RandomSource r = new LegacyRandomSource(seed);
         Shape s = roomShape();
         boolean hall = s == Shape.HALL;
         rooms.add(new Room(0, new BlockPos(0, BASE_Y, 0), 8, hall ? 4 : 6, 8, Kind.ENTRANCE, s));
         float heading = r.nextFloat() * Mth.TWO_PI;
-        int main = theme.rooms;
         for (int i = 1; i <= main; i++) {
             Room prev = rooms.get(rooms.size() - 1);
             boolean boss = i == main;
@@ -471,7 +528,6 @@ final class DungeonPlanner {
         }
 
         // side caves off the middle rooms, each with a cache of loot
-        int sides = 1 + (theme.rank.tier() >= 3 ? 1 : 0);
         int mainCount = rooms.size();
         for (int k = 0; k < sides; k++) {
             Room from = rooms.get(1 + r.nextInt(Math.max(1, mainCount - 2)));

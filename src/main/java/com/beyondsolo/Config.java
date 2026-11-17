@@ -61,7 +61,7 @@ public final class Config {
             .comment("Crimson buildup per hit from beyondsolo:element_attackers/crimson mobs (100 = crimson burst).")
             .defineInRange("combat.mobCrimsonBuildup", 20.0, 0.0, 1000.0);
     public static final ModConfigSpec.DoubleValue MOB_BLOOD_BUILDUP = B
-            .comment("Blood buildup per hit from beyondsolo:element_attackers/blood mobs (100 = blood pop, 10% max health).")
+            .comment("Blood buildup per hit from beyondsolo:element_attackers/blood mobs (100 = blood pop: 10% of max health, 5% for bosses and elites).")
             .defineInRange("combat.mobBloodBuildup", 20.0, 0.0, 1000.0);
     public static final ModConfigSpec.DoubleValue BURNING_BUILDUP = B
             .comment("Burn buildup each time an entity takes fire damage from burning or fire blocks (lava counts triple).")

@@ -6,12 +6,14 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 
 - **You start with nothing.** No System, no windows, no quests: an ordinary player in an ordinary world, with gates
   tearing open around you. Low gates (rank D) open near players who have no System yet.
-- **The awakening trial.** The first time you clear a gate of rank D or higher, a **sealed gate** opens in front of
-  you as you step out. It will not let you leave: walk away and it pulls you back, run and it follows. Behind it lies
-  the **Ashen Threshold**, a long way down through bone-white caverns to the hall of the **Hollow Arbiter**, a
-  kneeling, faceless colossus in chains. It cannot reasonably be beaten. When it strikes you down you do not die and
-  you lose nothing: the screen goes dark, the first System window opens in the dark, and you wake outside with
-  **the System**. That is where the game begins.
+- **The awakening trial.** The first gate of rank D or higher you walk into without the System hides a **sealed
+  door**: a chamber past the boss's hall, walled off with rock that looks like the rest of the cave. Knocking gets you
+  nothing. When the boss falls, the wall breaks by itself and a sealed gate opens in the chamber, and the cave's way
+  out won't take you while it stands. Behind it lies the **Ashen Threshold**, a temple: a short way down past a stele
+  with the Arbiter's three tenets to the hall of the **Hollow Arbiter**, a kneeling, faceless colossus in chains, and
+  nothing else alive in there. The door shuts behind you. It cannot reasonably be beaten. When it strikes you down you
+  do not die and you lose nothing: the screen goes dark, the first System window opens in the dark, and you wake in
+  front of the gate you first went into, with **the System**. That is where the game begins.
 - **The hidden way.** The Arbiter can be killed. Whoever manages it still receives the System, with a title, and
   its cache holds one of four **legendary weapons** (Sunderveil, Ashen Oath, Nightglass Fang, Thorn Requiem),
   unbreakable and far beyond anything else in the game.
@@ -75,6 +77,13 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
   - **Blood:** a blood pop for a fixed 10% of max health that armor doesn't soften. A **Clotting Tonic** stops it.
 - **Combat HUD:** your buildups and statuses next to the status capsule, meters over the heads of creatures you
   fight, damage numbers in element colours, and a tinted screen edge while you burn, carry heavy venom or a brand.
+- **Gate dungeons: 20 realms in 8 shapes.** Every gate leads to a dungeon of one of 20 realms, several for each
+  rank (the Hollows, Mirewood, the Rootbound Den and the Mosswept Ruins at E, up to the Starless Expanse, the
+  Emberforge, the Infernal Citadel and the Crimson Abyss at S). Each has its own stone, decorations, lights, fog,
+  drifting particles, element, creatures and favourite bosses. It is laid out in one of 8 shapes: winding caverns, a
+  labyrinth with dead ends, a gauntlet of great halls through gatehouses, a spire climbed by winding stairs, a
+  descent down a deep shaft, islands joined by bridges over a chasm, one vast hollow with camps and a lake, or a hive
+  of round cells. The gate's seed picks both.
 
 ## Building and running
 
@@ -92,7 +101,8 @@ nearest crystal if there is one), `/system awaken [rank] [class]` (same result, 
 `/system xp <n>`, `/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`,
 `/system exhaustion <percent>`, `/system notify <text>`, `/system buildup <targets> <element> <amount>`,
 `/system status <targets> <deep_burn|venom|heavy_venom|crimson_brand> [stacks]`,
-`/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it).
+`/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it),
+`/system gate spawn [rank] [realm|any] [shape]` (a gate in front of you), `/system gate enter|info|boss|wake|kill`.
 
 Config: `config/beyondsolo-common.toml` (`awakening.required` turns the trial off so players start with
 the System, spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,

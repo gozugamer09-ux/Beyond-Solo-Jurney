@@ -165,7 +165,7 @@ buffs) and its key binding (blocked during a collapse), all behind `ModList` che
 | Fire | `BURN`, 100, -8/s | Deep Burn (infinite, 1 + 1% max HP every 3 s, half healing) | Quenching Elixir only |
 | Poison | `VENOM`, 35, -5/s | +1 Venom stack (I-IV), the 5th turns into Heavy Venom | Venom: milk, honey, Antidote. Heavy: Greater Antidote |
 | Crimson | `CRIMSON`, 100, -6/s | 8% max HP burst + Crimson Brand (10 s: +25% damage taken, half healing, attackers heal 10%) | milk, Clotting Tonic |
-| Blood | `BLOOD`, 100, -4/s | Blood pop: 10% max HP, ignores armor, enchantments and Resistance | (buildup) Clotting Tonic |
+| Blood | `BLOOD`, 100, -4/s | Blood pop: 10% max HP (5% for bosses, elites and champions, `Statuses.popCap`), ignores armor, enchantments and Resistance, and never more than that share whatever bonuses the hit carried (`ElementalHits.capPop`) | (buildup) Clotting Tonic |
 
 - Add buildup with `Statuses.apply(target, element, amount, source)` (or `Buildups.add`). The target's resistance
   attribute for that element shrinks it. Players and mobs work the same.
@@ -370,17 +370,19 @@ a player anything that belongs to the System; check `isAwakened` for anything th
 
 | Stage (`AwakeningData.Stage`) | What happens |
 | --- | --- |
-| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away |
-| `CALLED` | Set by `AwakeningService.gateCleared` when a gate of rank D or higher is cleared with them inside. When they step out, a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`) opens in front of them. `tether` pulls them back past `awakening.tetherRadius` and re-opens the gate beside them if they get far away or change dimension. Only the owner can enter |
-| `TRIAL` | Inside. Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last cavern reached (`GateInstance.checkpoint`), in the hall the awakening begins |
-| `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
+| `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`). Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's room instead of off a cavern (a gate whose own layout has no room there, a boss on an island over a chasm say, is laid out as caverns instead: `DungeonLayout.shapeForDoor`). Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
+| `CALLED` | Set by `AwakeningService.gateCleared` when the boss of the cave that hides their door falls with them inside. `REVEAL_DELAY` later (the boss has crumbled, the exit is not open yet) `revealDoors` breaks the wall (no HIDDEN DUNGEON moment, no XP: knocks and Pulse Scan get nothing from this wall) and opens a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`, `temple` set) for each called player in the chamber (`DepthsBuild.sealedDoor`), with `trialHome` set to the cave's own home. While it stands the cave's exit turns them back (`heldBack`, checked in `GateService.beginExit`). Out of the gate depths without going through (they fell, logged out and the cave closed), the call lapses back to `DORMANT` (`tether`, `leftGate`); a door opened out in the world (`/system trial call` outside a cave, old saves) still pulls them back past `awakening.tetherRadius`. Only the owner can enter |
+| `TRIAL` | Inside. The door shuts behind them (`arrived`). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonDecor.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
+| `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black; to `trialHome`, in front of the gate they first went into, or for a door out in the world, in front of it), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
 | `DONE` | Has the System. The evaluation follows as before |
 
 The Hollow Arbiter (`ArbiterEntity`, a `DungeonBoss` like `GateBossEntity`, so the boss bar and intro work for both)
 kneels dormant and invulnerable until its challenger is well inside the hall, rises for `INTRO_TICKS`, then uses
 three attacks: a cleave across everything in front of it, a sunder that sends a ring along the floor (jump it), and
 judgment, marks of light under each player that burst a moment later. Under half health it is unbound: faster,
-double rings, three marks. 1500 health, heavy armour, arrows do little. Killing it (`arbiterSlain`) drops a cache
+double rings, three marks. A strike that fells its challenger ends the fight in the middle of an attack
+(`passVerdict` clears every ring and mark), so the attacks walk copies and stop at once (`fighting()`); walking the
+lists themselves crashed the server in the 0.1.0 playtest. 1500 health, heavy armour, arrows do little. Killing it (`arbiterSlain`) drops a cache
 that holds one `ModItems.LEGENDARIES` weapon (`LegendaryWeaponItem`), then the awakening plays with
 `arbiterSlain` set, which also gives the title `title.beyondsolo.arbiter_slayer`.
 
@@ -390,7 +392,10 @@ lengths in that script must be changed together. In GeckoLib files a positive x 
 (top to the front, a hanging limb's end to the back); the script's poses are written as a body moves and converted.
 
 Testing: `/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant`. `reset` takes the System away again
-and closes the old trial; `grant` skips the trial.
+and closes the old trial; `grant` skips the trial. `call` inside a cave that hides the door breaks its wall and opens
+the door at once (as the boss's fall would); anywhere else it opens a sealed gate in front of you.
+`/system depths gate D seed sealed` opens a gate whose cave hides the door whoever goes in first (it still only opens
+for players without the System).
 
 ## Skills
 
@@ -929,6 +934,9 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   hidden. Opening it gives the party XP and the System's HIDDEN DUNGEON moment. A vault holds a cache one rank above
   the gate's; a shrine blesses each who steps in once (strength, regeneration and resistance for 5 minutes); a lair
   wakes guardians of one rank higher and drops its hoard when the last one falls. Hidden caches have the violet look.
+  `SEALED` is the awakening's door (see "The awakening"): never rolled (weight 0), forced into a player's first D-rank
+  cave, placed past the boss's room (`DungeonLayout.planSealed`, `DungeonPlanner.placeOffBoss`) and dressed like the temple behind
+  it (`DepthsBuild.dressSealed`); its wall ignores knocks and scans and breaks once the boss falls.
 - **Trap rooms** (`TrapKind`, `TrapRooms`): past the first cavern, a cavern may be a trap room (12% plus 3% a rank,
   at most 1 + rank/3 a cave). It springs on the first step in, with the System's call-out: spikes under the party's
   feet, vents blasting the gate's element in columns, rockfall on marked spots (all marked on the floor first), or a
@@ -995,7 +1003,8 @@ Look at every new screen and animation that way before merging it; code alone do
 stats and buffs, XP levels up and stat points raise attributes, no XP before evaluation, exhaustion collapse and
 recovery, and the blood buildup pop. `test/CombatGameTests` covers: burn into deep burn, deep burn ignores milk and
 totems but the elixir cures it, venom stacking into heavy venom and which cures work, crimson brand damage, the
-blood pop through armor, buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
+blood pop through armor, the pop taking at most 5% from a boss or an elite (and no more than its share however hard it
+was pushed), buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
 exhaustion resistance, and that every weapon has a Better Combat file. `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
@@ -1007,10 +1016,10 @@ their bosses and their creatures (three to five kinds, one up close, two at home
 realm and shape being saved (and old caves staying classic), and a dungeon of each shape and of each realm carved,
 walked along every passage, walked on foot from the entrance to every room (stepping, jumping a block, dropping no
 more than a harmless fall), its hidden chamber sealed off on foot behind a wall that passes for the realm's own and
-walkable once the wall is down, and wiped back to rock to the last block. A failed walk draws a map of what was
-reached. Set `EXPLORE` to carve every realm in every one of its shapes (about 80 more dungeons, several minutes).
+walkable once the wall is down, and wiped back to rock to the last block; the same for the awakening's sealed door
+behind the boss of a dungeon of each shape. A failed walk draws a map of what was reached. Set `EXPLORE` to carve every realm in every one of its shapes (about 80 more dungeons, several minutes).
 `test/GateGameTests` covers: the classic cave plan (same seed same cave, spacing, rooms per rank), world-gen ranks by distance, a placed gate registering, carving the cave with a dormant boss, the boss's defeat opening the exit and dropping the cache, entering starting one gate quest and leaving, Trial of the Depths needing a gate, gate monsters' scaling and element, loot by rank, and a closed gate collapsing.
-`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, only a D-rank or higher clear calls a player, the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), and the legendary roll.
+`test/AwakeningGameTests` covers: new players have no System and the crystal ignores them, evaluation after the System is bound, the first D-rank gate (not an E-rank one, not one walked into by someone with the System) hiding the sealed door past its boss's room (laid out as caverns if its own shape has no room there) and its clear calling only players without the System, the door's chamber fitting behind nearly every boss and the temple being short, the whole road (the wall ignoring knocks, breaking once the boss falls, the door in the chamber, the exit turning them back, the door shutting behind them, the tenets, no creatures in the temple, waking in front of the first gate with everything they carried), the sealed gate being personal, the trial holding a dormant Arbiter at the bottom, a fall being refused then granting the System with the inventory intact, slaying the Arbiter (System and title), a fall in the middle of the Arbiter's attack tick ending the fight cleanly (the 0.1.0 crash), and the legendary roll.
 `test/NpcGameTests` covers: board slots and the daily refresh, gather hand-in, rank scaling, the 3-request limit,
 hunt report-back, right-click opening the window, failing and being refused, the giver dying, escort arrival and
 death, parcel delivery, and the nest spawning. Fake players can't take damage, so damage

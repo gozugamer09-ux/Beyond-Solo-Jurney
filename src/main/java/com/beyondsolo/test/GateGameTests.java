@@ -128,6 +128,8 @@ public final class GateGameTests {
     @GameTest(template = ARENA, timeoutTicks = 200)
     public static void caveIsCarvedWithBoss(GameTestHelper helper) {
         GateInstance g = instance(helper, PlayerRank.C);
+        // the original cave (every realm in every shape is carved and walked in DungeonGameTests)
+        g.setDungeon(com.beyondsolo.gate.GateRealm.classic(PlayerRank.C), com.beyondsolo.gate.DungeonShape.CAVERNS);
         ServerLevel d = dungeon(helper);
         GateService.buildNow(helper.getLevel().getServer(), g);
         helper.assertTrue(g.built(), "built");

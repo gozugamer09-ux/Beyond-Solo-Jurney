@@ -4,6 +4,10 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.Config;
 import com.beyondsolo.awakening.AwakeningData.Stage;
 import com.beyondsolo.combat.Buildups;
+import com.beyondsolo.depths.DepthsBuild;
+import com.beyondsolo.depths.GateDepths;
+import com.beyondsolo.depths.HiddenKind;
+import com.beyondsolo.depths.HiddenRooms;
 import com.beyondsolo.gate.DungeonLayout;
 import com.beyondsolo.gate.GateBlockEntity;
 import com.beyondsolo.gate.GateData;
@@ -54,6 +58,7 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,15 +68,17 @@ import java.util.UUID;
  * How a player gets the System.
  *
  * <p>Everyone starts without it: no System window, no pop-ups, no quests ({@link SystemAPI#hasSystem}). Gates can
- * still be walked into. The first time a player without the System clears a gate of rank D or higher, a sealed gate
- * tears open next to them once they are back outside, and it does not let them walk away: past
- * {@code awakening.tetherRadius} blocks it pulls them back, and it follows them if they get away some other way.</p>
+ * still be walked into. The first gate of rank D or higher that a player without the System walks into hides the
+ * sealed door ({@link #enteringGate}, {@link HiddenKind#SEALED}): a chamber past the boss's hall, walled off like any
+ * hidden chamber. When the boss falls with them inside, the wall breaks by itself and a sealed gate opens in the
+ * chamber, their door ({@link #revealDoors}). The cave's way out won't take them while it stands ({@link #heldBack}).</p>
  *
- * <p>Behind it is the trial ({@link com.beyondsolo.gate.GateTheme#TRIAL}): a long descent that ends in the hall of
- * the {@link ArbiterEntity Hollow Arbiter}. Nobody dies in the trial. Falling on the way down puts the player back
- * on their feet at the last cavern they reached; falling to the Arbiter is what the trial is for: the death is
- * refused, the System binds to them (the awakening plays on screen), and they wake outside with everything they
- * carried. Then the usual road starts: find a village, get evaluated.</p>
+ * <p>Behind it is the trial ({@link com.beyondsolo.gate.GateTheme#TRIAL}): since 0.1.1 a temple, a short way down
+ * past the Arbiter's tenets to the hall of the {@link ArbiterEntity Hollow Arbiter}, and nothing else in there. The
+ * door closes behind them. Nobody dies in the trial. A fall on the way puts the player back on their feet at the last
+ * room they reached; falling to the Arbiter is what the trial is for: the death is refused, the System binds to them
+ * (the awakening plays on screen), and they wake outside the gate they first went into, with everything they carried.
+ * Then the usual road starts: find a village, get evaluated.</p>
  *
  * <p>The hidden way: the Arbiter can be killed. Then its cache holds one random legendary weapon, and the System
  * binds all the same.</p>
@@ -107,31 +114,142 @@ public final class AwakeningService {
 
     // ------------------------------------------------------------------ the call
 
-    /** A gate was cleared: players without the System who were in it are called, if it was rank D or higher. */
-    public static void gateCleared(GateInstance g, List<ServerPlayer> players) {
-        if (g.isTrial() || !Config.AWAKENING_TRIAL.get() || g.rank().tier() < 1) return;
+    /** Ticks from the boss's fall to the wall breaking: once it has crumbled, before the way out opens. */
+    public static final int REVEAL_DELAY = com.beyondsolo.gate.GateBossEntity.DEATH_TICKS + 20;
+
+    /**
+     * A player without the System is about to go into a gate. If it is of rank D or higher and nobody has been in yet,
+     * the sealed door is hidden in it ({@link HiddenKind#SEALED}, in place of whatever chamber its seed hid): a chamber
+     * past the boss's hall, behind a wall that breaks once the boss falls. Caves carved before hidden chambers existed,
+     * and the rare cave with no room for it, are passed over: the next gate does it.
+     */
+    public static void enteringGate(ServerPlayer player, GateInstance g) {
+        if (!Config.AWAKENING_TRIAL.get() || g.isTrial() || g.rank().tier() < 1 || g.built() || GateService.isBuilding(g.id())) return;
+        if (SystemAPI.hasSystem(player) || player.isSpectator() || stage(player) != Stage.DORMANT) return;
+        GateDepths depths = g.depths();
+        if (!depths.enabled() || depths.hidden(g) == HiddenKind.SEALED) return;
+        // the door hides behind the boss: a dungeon with no room for it there is laid out as caverns instead
+        com.beyondsolo.gate.DungeonShape shape = DungeonLayout.shapeForDoor(g.seed(), g.theme(), g.realm(), g.shape());
+        if (shape == null) return;
+        if (shape != g.shape()) g.setDungeon(g.realm(), shape);
+        depths.setHidden(HiddenKind.SEALED);
+        g.replan();
+        GateData.get(player.server).setDirty();
+    }
+
+    /** True if the sealed door is hidden in this cave. */
+    public static boolean holdsTheDoor(GateInstance g) {
+        return Config.AWAKENING_TRIAL.get() && !g.isTrial() && g.rank().tier() >= 1
+                && g.depths().hidden(g) == HiddenKind.SEALED && g.layout().hidden() != null;
+    }
+
+    /**
+     * A gate was cleared: players without the System who were in it are called, if their door was hidden in it, and a
+     * moment later (the boss has crumbled) the wall breaks and their doors open ({@link #revealDoors}).
+     */
+    public static void gateCleared(ServerLevel level, GateInstance g, List<ServerPlayer> players) {
+        if (!holdsTheDoor(g)) return;
+        boolean called = false;
         for (ServerPlayer p : players) {
             if (SystemAPI.hasSystem(p) || p.isSpectator()) continue;
             AwakeningData d = data(p);
-            if (d.stage() == Stage.DORMANT) d.setStage(Stage.CALLED);
+            if (d.stage() == Stage.DORMANT) {
+                d.setStage(Stage.CALLED);
+                called = true;
+            }
+        }
+        if (!called) return;
+        ServerScheduler.schedule(REVEAL_DELAY, () -> {
+            List<ServerPlayer> waiting = new ArrayList<>();
+            for (ServerPlayer p : GateService.playersIn(level, g)) {
+                if (!SystemAPI.hasSystem(p) && stage(p) == Stage.CALLED && data(p).sealedPos() == null) waiting.add(p);
+            }
+            revealDoors(level, g, waiting);
+        });
+    }
+
+    /**
+     * The wall past the boss's hall breaks (no System moment, no XP: this one is not the System's to find), and a
+     * sealed gate opens in the chamber behind it for each player called here: the door to their trial.
+     */
+    public static void revealDoors(ServerLevel level, GateInstance cave, List<ServerPlayer> called) {
+        if (called.isEmpty() || !holdsTheDoor(cave) || !cave.built()) return;
+        if (!cave.depths().hiddenOpen()) HiddenRooms.open(level, cave, null, null);
+        int index = 0;
+        for (ServerPlayer p : called) {
+            if (SystemAPI.hasSystem(p) || stage(p) != Stage.CALLED) continue;
+            openDoor(level, cave, p, index++);
         }
     }
 
-    /** A player stepped back out of a gate. The sealed gate opens a few seconds later (see the tick). */
-    public static void leftGate(ServerPlayer player, GateInstance g) {
+    /** One player's door, side by side with any others in the chamber, facing the way in. */
+    private static void openDoor(ServerLevel level, GateInstance cave, ServerPlayer player, int index) {
         AwakeningData d = data(player);
-        if (d.stage() == Stage.CALLED && d.sealedPos() == null) d.setReadyAt(player.level().getGameTime() + 70);
+        closeSealedGate(player.server, d);
+        DepthsBuild.Door spot = DepthsBuild.sealedDoor(level, cave, index);
+        BlockPos at = spot.pos();
+        Direction side = spot.facing().getClockWise();
+        // room for the door: nothing in the way of its arch
+        for (int y = 0; y <= 5; y++) {
+            for (int s = -2; s <= 2; s++) {
+                BlockPos q = at.above(y).relative(side, s);
+                if (!level.getBlockState(q).isAir()) level.setBlock(q, net.minecraft.world.level.block.Blocks.CAVE_AIR.defaultBlockState(), 3);
+            }
+        }
+        GateBlockEntity door = GateService.spawnSealedGate(level, at, spot.facing(), player);
+        GateInstance trial = GateData.get(player.server).get(door.gateId());
+        // when it is over they wake where they first went in: in front of this cave's gate
+        if (trial != null) trial.setTrialHome(GateService.home(player.server, cave, player.getYRot()));
+        GateData.get(player.server).setDirty();
+        d.setSealedGate(door.gateId(), level.dimension(), at);
+        PacketDistributor.sendToPlayer(player, new AwakeningPayload(AwakeningPayload.CALLED, 0, at.getX() + 0.5, at.getY() + GateBlockEntity.CENTER_Y, at.getZ() + 0.5));
     }
 
-    /** Calls a player now, whatever they have or haven't cleared (commands, tests). */
+    /**
+     * True while a called player stands in the cave where their door is open: its way out won't take them
+     * ({@code GateService.beginExit}). The door is the only way on.
+     */
+    public static boolean heldBack(ServerPlayer player) {
+        AwakeningData d = data(player);
+        if (d.stage() != Stage.CALLED || d.sealedPos() == null || !player.level().dimension().equals(d.sealedDim())) return false;
+        if (!GateService.isDungeon(player.level()) || GateData.slotAt(player.blockPosition()) != GateData.slotAt(d.sealedPos())) return false;
+        GateInstance trial = d.trial() == null ? null : GateData.get(player.server).get(d.trial());
+        return trial != null && trial.state() == GateInstance.State.OPEN
+                && player.level().getBlockEntity(d.sealedPos()) instanceof GateBlockEntity door && door.isSealed() && !door.isClosing();
+    }
+
+    /** A player stepped back out of a gate: a call whose door they never went through fades. */
+    public static void leftGate(ServerPlayer player, GateInstance g) {
+        AwakeningData d = data(player);
+        if (d.stage() == Stage.CALLED && !g.isTrial()) lapse(player, d);
+    }
+
+    /** The call fades: their door, if it still stands, closes; their next gate of rank D or higher hides it again. */
+    private static void lapse(ServerPlayer player, AwakeningData d) {
+        closeSealedGate(player.server, d);
+        d.setStage(Stage.DORMANT);
+        d.setSealedGate(null, null, null);
+    }
+
+    /**
+     * Calls a player now, whatever they have or haven't cleared (commands, tests): standing in a cave that hides the
+     * door, its wall breaks and the door opens as if the boss had just fallen; anywhere else a sealed gate opens in
+     * front of them.
+     */
     public static boolean call(ServerPlayer player) {
         AwakeningData d = data(player);
         if (SystemAPI.hasSystem(player) || d.stage() == Stage.TRIAL || d.stage() == Stage.AWAKENING) return false;
+        GateInstance cave = GateService.isDungeon(player.level()) ? GateData.get(player.server).bySlotPos(player.blockPosition()) : null;
+        if (cave != null && cave.built() && holdsTheDoor(cave)) {
+            d.setStage(Stage.CALLED);
+            revealDoors(player.serverLevel(), cave, List.of(player));
+            return d.sealedPos() != null;
+        }
         d.setStage(Stage.CALLED);
         return openSealedGate(player) != null;
     }
 
-    /** Tears the sealed gate open in front of the player. */
+    /** Tears the sealed gate open in front of the player (out in the world: the trial command). */
     @Nullable
     public static GateBlockEntity openSealedGate(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
@@ -166,7 +284,6 @@ public final class AwakeningService {
         if (facing.getAxis().isVertical()) facing = Direction.NORTH;
         GateBlockEntity gate = GateService.spawnSealedGate(level, best, facing, player);
         d.setSealedGate(gate.gateId(), level.dimension(), best);
-        d.setReadyAt(-1);
         PacketDistributor.sendToPlayer(player, new AwakeningPayload(AwakeningPayload.CALLED, 0, best.getX() + 0.5, best.getY() + GateBlockEntity.CENTER_Y, best.getZ() + 0.5));
         return gate;
     }
@@ -187,24 +304,23 @@ public final class AwakeningService {
         }
     }
 
-    /** Once a player is called, the gate holds them: a pull past the tether, and it follows those who slip away. */
+    /**
+     * Once a player is called, their door holds them. In a cave it is the way out that won't take them
+     * ({@link #heldBack}); a door out in the world (the trial command, or an old save's) pulls them back past
+     * {@code awakening.tetherRadius}. A door they can no longer reach (they fell and woke at their bed, logged out and
+     * the cave closed, got far away) lets them go: the call fades ({@link #lapse}), and the next gate hides it again.
+     */
     private static void tether(ServerPlayer player, AwakeningData d) {
         ServerLevel level = player.serverLevel();
         long now = level.getGameTime();
         if (GateService.inTransit(player) || !player.isAlive() || player.isSpectator()) return;
         if (GateService.isDungeon(level) && level.dimension().equals(GateService.DIMENSION)) return;
-        if (d.sealedPos() == null) {
-            if (d.readyAt() < 0) d.setReadyAt(now + 70);
-            if (now >= d.readyAt() && player.onGround()) openSealedGate(player);
-            return;
-        }
-        boolean here = level.dimension().equals(d.sealedDim());
+        boolean here = d.sealedPos() != null && level.dimension().equals(d.sealedDim());
         double dist = here ? Math.sqrt(d.sealedPos().distToCenterSqr(player.position())) : Double.MAX_VALUE;
         int radius = Config.TETHER_RADIUS.get();
         boolean gone = here && level.isLoaded(d.sealedPos()) && !(level.getBlockEntity(d.sealedPos()) instanceof GateBlockEntity);
         if (!here || gone || dist > radius + 40) {
-            // another dimension, a bed far away, an ender pearl: the gate comes to them
-            if (player.onGround() || !here) openSealedGate(player);
+            lapse(player, d);
             return;
         }
         if (dist <= radius) return;
@@ -226,13 +342,26 @@ public final class AwakeningService {
 
     // ------------------------------------------------------------------ the trial
 
-    /** The owner stepped through the sealed gate. */
+    /** The owner stepped through the sealed gate. A door found in a cave closes behind them: the way back is gone. */
     public static void arrived(ServerPlayer player, GateInstance g) {
         if (!player.getUUID().equals(g.owner())) return;
         AwakeningData d = data(player);
         if (d.stage() == Stage.DORMANT || d.stage() == Stage.CALLED) d.setStage(Stage.TRIAL);
         if (d.trial() == null) d.setSealedGate(g.id(), g.gateDimension(), g.gatePos());
+        if (g.trialHome() != null) shutDoor(player.server, d);
         PacketDistributor.sendToPlayer(player, AwakeningPayload.of(AwakeningPayload.TRIAL_ARRIVE));
+    }
+
+    /** The door a player came through closes (the trial behind it stays theirs). */
+    private static void shutDoor(MinecraftServer server, AwakeningData d) {
+        if (d.sealedPos() == null || d.sealedDim() == null) return;
+        ServerLevel level = server.getLevel(d.sealedDim());
+        if (level != null && level.isLoaded(d.sealedPos()) && level.getBlockEntity(d.sealedPos()) instanceof GateBlockEntity gate
+                && gate.isSealed() && !gate.isClosing()) {
+            gate.startClosing(level.getGameTime());
+            level.playSound(null, d.sealedPos(), SoundEvents.IRON_DOOR_CLOSE, SoundSource.BLOCKS, 1.6f, 0.4f);
+            level.playSound(null, d.sealedPos(), SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 1.6f, 0.5f);
+        }
     }
 
     public static void spawnArbiter(ServerLevel dungeon, GateInstance g) {
@@ -391,6 +520,12 @@ public final class AwakeningService {
             GateData.get(server).setDirty();
         }
         restore(player);
+        // a door found in a cave: they wake where they first went in, in front of that cave's gate (the cave is gone)
+        if (g != null && g.trialHome() != null) {
+            GateService.place(player, g.trialHome());
+            closeSealedGate(server, d);
+            return;
+        }
         if (!GateService.isDungeon(player.level()) || !player.level().dimension().equals(GateService.DIMENSION)) {
             if (player.server instanceof net.minecraft.gametest.framework.GameTestServer) closeSealedGate(server, d);
             return;
@@ -579,7 +714,6 @@ public final class AwakeningService {
         d.setStage(Stage.DORMANT);
         d.setSealedGate(null, null, null);
         d.setArbiterSlain(false);
-        d.setReadyAt(-1);
     }
 
     private AwakeningService() {}
