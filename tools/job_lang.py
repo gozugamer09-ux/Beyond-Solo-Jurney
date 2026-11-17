@@ -460,7 +460,7 @@ SKILLS.update({
     "rapture": ("Rapture", "Taken up. Put down hard.", "Up to 6 foes within 12 blocks are lifted in shafts of light and thrown back to the ground: %s damage, doubled for the undead, and a 2 s stun."),
     "sanctum": ("Sanctum", "Not in here.", "Raise a sanctum around you for 5 s. Allies inside take %s%% less damage and are mended; foes are driven out and take %s damage every second they stay."),
     "radiant_soul": ("Radiant Soul", "Brimming.", "+%s maximum mana, and you regain %s more mana every second."),
-    "avatar_of_dawn": ("Avatar of Dawn", "Behold.", "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes a foe within 14 blocks for %s damage, and every second allies within 12 blocks are mended for %s."),
+    "avatar_of_dawn": ("Avatar of Dawn", "Behold.", "Become the dawn for %s s: you cannot be killed, you deal 40%% more damage and heal half again as much. Every other second a shaft of light strikes the foes within 14 blocks in turn, nearest first, for %s damage, and every second allies within 12 blocks are mended for %s."),
 })
 
 
