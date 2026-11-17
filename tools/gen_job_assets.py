@@ -196,6 +196,20 @@ SKILLS.update({
     "deep_roots": "tree", "grasp_of_the_earth": "hand-grabbing", "stonewake": "arrows-out", "mountain_heart": "heart", "pillars_of_creation": "triangle",
 })
 
+# the Healer subclasses' own skill sets (keep in sync with HealerPath.java)
+SKILLS.update({
+    "sunbeam": "sun", "binding_light": "link", "inner_radiance": "lightbulb", "motes_of_mercy": "circles-three", "lantern_of_mercy": "lamp",
+    "afterglow": "sun-dim", "solar_flare": "asterisk", "lightstep": "person-simple-run", "last_light": "first-aid", "solstice": "sun-horizon",
+    "thorn_volley": "cactus", "healing_sprout": "plant", "barkskin": "tree-evergreen", "bramble_rush": "grains", "second_spring": "flower",
+    "briar_coat": "virus", "spore_cloud": "biohazard", "grasping_vines": "spiral", "toxic_bloom": "flower-lotus", "elderwood": "tree",
+    "spring_bolt": "drop", "bubble_ward": "circle", "clear_mind": "brain", "fated_blow": "hourglass", "premonition": "drop-half",
+    "second_sight": "eyeglasses", "morning_mist": "cloud-fog", "gaze_of_fate": "eye", "foretold": "scroll", "eternal_spring": "waves",
+    "crimson_lance": "syringe", "transfusion": "hand-heart", "sanguine_pact": "handshake", "open_wounds": "heart-break", "exsanguinate": "drop-half-bottom",
+    "red_thirst": "drop-simple", "crimson_thorns": "arrow-fat-lines-up", "blood_rite": "pentagram", "coagulate": "bandaids", "blood_tempest": "cloud-rain",
+    "first_light": "sparkle", "benison": "hands-praying", "sanctity": "seal-check", "seraph_wings": "feather", "chakram_of_dawn": "disc",
+    "gilded_soul": "crown", "rapture": "caret-double-up", "sanctum": "columns", "radiant_soul": "star-four", "avatar_of_dawn": "crown-simple",
+})
+
 
 def fetch(src_dir):
     for name in sorted(set(SUBCLASSES.values()) | set(SKILLS.values())):

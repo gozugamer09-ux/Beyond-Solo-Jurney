@@ -36,6 +36,9 @@ Gradle sets the game up.
   fits in that window.
 - **The test player is an operator called Dev**, so `ui.sh "cmd ..."` can run any command as the player.
   `look.py` prints the `tp` command that stands Dev at one point looking at another.
+- **Filming the player from outside.** `ui.sh "camera <x> <y> <z> <yaw> <pitch>"` films from a fixed point, like a
+  camera on a tripod, so what the player casts is seen from the side instead of hiding behind their back. The
+  numbers are the ones `look.py` prints. `camera off` goes back to the player's own eyes.
 - **Keep the chat clean for pictures.** Commands answer in the chat, which ends up in screenshots and videos.
   `rcon.py "gamerule sendCommandFeedback false" "gamerule logAdminCommands false"` turns that off.
 - **A stage for the evaluation.** `/system evaluate [rank] [class]` plays the whole show on the nearest crystal

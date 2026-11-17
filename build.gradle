@@ -129,6 +129,22 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
 
+// Minecraft never falls back from one Spanish to another, so every Spanish the game offers gets a copy of each
+// es_es.json: one neutral Spanish for Spain and Latin America. Translate in es_es.json only (docs/TRANSLATING.md).
+var spanishLocales = ['es_ar', 'es_cl', 'es_ec', 'es_mx', 'es_uy', 'es_ve', 'esan']
+var generateSpanishVariants = tasks.register("generateSpanishVariants", Copy) {
+    spanishLocales.each { locale ->
+        from("src/main/resources/assets") {
+            include "*/lang/es_es.json"
+            rename "es_es\\.json", "${locale}.json"
+            into "assets"
+        }
+    }
+    into "build/generated/sources/spanishLang"
+}
+sourceSets.main.resources.srcDir generateSpanishVariants
+neoForge.ideSyncTask generateSpanishVariants
+
 idea {
     module {
         downloadSources = true

@@ -15,7 +15,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * @param x     where (x, y, z)
  * @param color RGB
  * @param extra tries left (SOUL, FAILED), ritual ticks (RITUAL), 1 for a boss (EXTRACTED), the new rank (RANK_UP)
- * @param text  the creature's type id (SOUL) or the shadow's name (EXTRACTED, RANK_UP)
+ * @param text  the creature's type id (SOUL) or the shadow's {@code ShadowRecord.wireName()} (EXTRACTED, RANK_UP), so
+ *              each client reads the name in its own language
  */
 public record ShadowFxPayload(int kind, int id, float x, float y, float z, int color, int extra, String text) implements CustomPacketPayload {
     public enum Kind {
