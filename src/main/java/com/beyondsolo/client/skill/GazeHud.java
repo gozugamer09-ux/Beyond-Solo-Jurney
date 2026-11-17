@@ -79,7 +79,7 @@ public final class GazeHud {
                 int lc = lvl > mine + 5 ? SystemTheme.DANGER : lvl > mine ? SystemTheme.FATIGUE_B : SystemTheme.GOOD;
                 DamageElement weak = weakness(e);
                 String name = SysFont.fit(e.getDisplayName().getString(), 6.5f, true, 70);
-                String lv = "Lv." + lvl;
+                String lv = Component.translatable("hud.beyondsolo.level", lvl).getString();
                 String wk = Component.translatable("skills.beyondsolo.gaze.weak", weak.displayName()).getString();
                 float w = Math.max(SysFont.width(lv, 6.5f, true) + 4 + SysFont.width(name, 6.5f, true), SysFont.width(wk, 5.5f, false)) + 12;
                 float h = 23;

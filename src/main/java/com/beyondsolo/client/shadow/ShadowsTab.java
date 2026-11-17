@@ -204,10 +204,16 @@ public class ShadowsTab implements SystemTab {
         chipX += Ui.chip(g, chipX, cy, 10, r.role().displayName().getString(), 6f, SystemTheme.TEXT_SOFT, false) + 4;
         if (r.boss()) Ui.chip(g, chipX, cy, 10, Component.translatable("shadows.beyondsolo.elite").getString(), 6f, SystemTheme.GOLD, true);
         cy += 14;
-        List<SysFont.Line> nameLines = SysFont.wrap(r.displayName(), 10.5f, true, tw);
-        for (int i = 0; i < Math.min(2, nameLines.size()); i++) {
+        // a long name steps down a size rather than lose its end ("Gralric, la Novena Campana")
+        float nameSize = 10.5f;
+        List<SysFont.Line> nameLines = SysFont.wrap(r.displayName(), nameSize, true, tw);
+        if (nameLines.size() > 2) {
+            nameSize = 8.5f;
+            nameLines = SysFont.wrap(r.displayName(), nameSize, true, tw);
+        }
+        for (int i = 0; i < Math.min(3, nameLines.size()); i++) {
             SysFont.draw(g, nameLines.get(i), tx, cy, SystemTheme.TEXT, 0f);
-            cy += 10.5f * SysFont.LINE;
+            cy += nameSize * SysFont.LINE;
         }
         cy += 2;
         // level and xp
