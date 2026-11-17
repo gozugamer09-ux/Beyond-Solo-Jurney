@@ -43,7 +43,7 @@ public final class TowerClient {
             phaseStart = Anim.now() - p.tick() / 20.0;
             com.beyondsolo.client.notify.NotificationManager.setHeld(holds(p.phase()));
             // pulled in: the Citadel takes the whole screen, and what was popping up out there waits in the Log
-            if (p.phase() == TowerPayload.PULL) com.beyondsolo.client.notify.NotificationManager.dismissShown();
+            if (p.phase() == TowerPayload.PULL) com.beyondsolo.client.notify.NotificationManager.hideShowing();
         }
         int floorKey = p.mode() == TowerPayload.RUSH ? 10_000 + p.bout() : p.floor();
         if (floorKey != shownFloor) {

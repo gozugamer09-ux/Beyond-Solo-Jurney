@@ -86,8 +86,8 @@ public final class NotificationManager {
         held = value;
     }
 
-    /** Sends the pop-ups on screen away (they stay in the Log), for a moment that takes the whole screen. */
-    public static void dismissShown() {
+    /** Sends off the pop-ups showing now (a moment that needs the whole screen, like a red gate's warning). */
+    public static void hideShowing() {
         for (Popup p : ACTIVE) if (!p.hiding()) p.hide();
     }
 

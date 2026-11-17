@@ -550,6 +550,11 @@ public final class BreakHud {
         }
     }
 
+    /** How far down the break HUD reaches from where it starts (the collapse timer and the compass): things under it move down. */
+    public static float shownHeight() {
+        return 27 * Anim.outCubic(chipIn) + 32 * Anim.outCubic(compassIn);
+    }
+
     static void reset() {
         chipIn = 0;
         compassIn = 0;

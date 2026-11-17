@@ -50,6 +50,7 @@ public final class BeyondSolo {
         com.beyondsolo.armory.ArmoryModule.init(modBus);
         com.beyondsolo.depths.DepthsModule.init(modBus);
         com.beyondsolo.breaks.BreakModule.init(modBus);
+        com.beyondsolo.redgate.RedGateModule.init(modBus, container);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);
     }
 

@@ -1,0 +1,11 @@
+{
+  "type": "beyondsolo:red_gate",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "beyondsolo:red_winter",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "beyondsolo:red_winter"
+    }
+  }
+}

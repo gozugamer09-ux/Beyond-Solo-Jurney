@@ -49,6 +49,8 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
             BeyondSolo.id("textures/effect/key_crack_2.png"),
             BeyondSolo.id("textures/effect/key_crack_3.png")};
     private static final int BREAK_RED = 0xFF2A22;
+    /** A red gate's colour: blood, darker than a break's ({@code redgate.RedGates}). */
+    private static final int RED_GATE = 0xC8102E;
 
     public GateRenderer(BlockEntityRendererProvider.Context context) {
         super(new GateModels.Gate());
@@ -69,8 +71,11 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
         float look = broken ? 1f : gate.isUnstable() ? 0.3f + 0.7f * gate.instability(partialTick) : 0f;
         if (broken) rgb = GateFx.mix(rgb, BREAK_RED, 0.85f);
         else if (look > 0) rgb = GateFx.mix(rgb, BREAK_RED, 0.1f + 0.45f * look);
+        // a red gate, with hunters trapped behind it: deep blood red, its swirl slowed to a heavy beat
+        float red = gate.redness(partialTick);
+        if (red > 0.001f) rgb = GateFx.mix(rgb, RED_GATE, red);
         int pale = GateFx.mix(rgb, 0xFFFFFF, 0.45f);
-        float spin = 1 + 1.2f * look + (broken ? 0.6f : 0);
+        float spin = (1 + 1.2f * look + (broken ? 0.6f : 0)) * (1 - 0.55f * red);
         long seed = gate.getBlockPos().asLong();
         float flicker = 1;
         if (broken) flicker = 0.75f + 0.25f * noise((float) Math.floor(time * 0.5f) + seed % 97);
@@ -128,6 +133,12 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                     float throb = 0.7f + 0.3f * Mth.sin(time * (0.15f + 0.45f * look));
                     GateFx.quad(glow, pose.last().pose(), hx * 2.4f + 0.9f, hy * 2.0f + 0.9f, BREAK_RED, (0.16f + 0.3f * look) * throb * flicker);
                 }
+                if (red > 0.001f) {
+                    // a red gate's heartbeat: a dark red haze swelling round it and falling back
+                    float beat = heartbeat(time / 20f * 1.1f);
+                    float swell = 1 + 0.08f * beat;
+                    GateFx.quad(glow, pose.last().pose(), (hx * 2.5f + 1.0f) * swell, (hy * 2.1f + 1.0f) * swell, RED_GATE, (0.14f + 0.32f * beat) * red);
+                }
                 pose.popPose();
             }
             VertexConsumer ring = buffers.getBuffer(ModRenderTypes.lightTexture(RING));
@@ -135,6 +146,11 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                 pose.pushPose();
                 pose.translate(0, 0, side == 0 ? 0.03f : -0.03f);
                 GateFx.quad(ring, pose.last().pose(), hx * 1.12f, hy * 1.08f, pale, (0.65f + 0.25f * pulse) * flicker);
+                if (red > 0.001f) {
+                    // its seal: a second rim of red light just outside the first, beating with it
+                    float beat = heartbeat(time / 20f * 1.1f);
+                    GateFx.quad(ring, pose.last().pose(), hx * (1.3f + 0.04f * beat), hy * (1.25f + 0.04f * beat), GateFx.mix(RED_GATE, 0xFFFFFF, 0.2f), (0.35f + 0.4f * beat) * red);
+                }
                 pose.popPose();
             }
             if (look > 0) {
@@ -193,14 +209,22 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
 
         // a beam over the gate, so it can be found from far away (a broken gate's stands thick and red)
         if (open > 0.5f && !gate.isExit() && !gate.isKeyed()) {
-            float inner = broken ? 0.11f : 0.04f + 0.03f * look;
-            float outer = broken ? 0.24f : 0.09f + 0.06f * look;
+            float inner = broken ? 0.11f : 0.04f + 0.03f * look + 0.04f * red;
+            float outer = broken ? 0.24f : 0.09f + 0.06f * look + 0.07f * red;
             pose.pushPose();
             pose.translate(0f, GateBlockEntity.CENTER_Y + 2.4f, 0f);
             BeaconRenderer.renderBeaconBeam(pose, buffers, BeaconRenderer.BEAM_LOCATION, partialTick, 1f, gate.getLevel().getGameTime(), 0, broken ? 192 : 96,
                     0xFF000000 | GateFx.mix(rgb, 0xFFFFFF, broken ? 0.05f : 0.2f), inner * open, outer * open);
             pose.popPose();
         }
+    }
+
+    /** A heartbeat: two quick thumps a beat, then rest (0..1). */
+    private static float heartbeat(float t) {
+        float f = t - (float) Math.floor(t);
+        float a = Math.max(0, 1 - Math.abs(f - 0.08f) / 0.08f);
+        float b = Math.max(0, 1 - Math.abs(f - 0.28f) / 0.1f) * 0.7f;
+        return Math.max(a, b);
     }
 
     private static float noise(float seed) {

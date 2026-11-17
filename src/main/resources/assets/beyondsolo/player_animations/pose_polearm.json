@@ -1,0 +1,303 @@
+{
+  "name": "pose_polearm",
+  "author": "Beyond Solo",
+  "description": "Idle stance for spear, glaive, halberd (tools/weapon_stances.py)",
+  "emote": {
+    "isLoop": "true",
+    "returnTick": 1,
+    "beginTick": 0,
+    "endTick": 1,
+    "stopTick": 11,
+    "degrees": false,
+    "moves": [
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "x": -5.0076
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "y": 2.06084
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "z": 0.0076
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "pitch": 0.12436
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "yaw": 6e-05
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "roll": -0.00095
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "x": -1.10299
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "y": 2.78248
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "z": 2.41831
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "pitch": 0.76247
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "yaw": -0.02872
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "roll": 0.22422
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "x": 1.93021
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "y": 3.45827
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "z": -1.88667
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "pitch": -0.49325
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "yaw": 0.30644
+        }
+      },
+      {
+        "tick": 1,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "roll": 1.10046
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "x": -5.0076
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "y": 2.06084
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "z": 0.0076
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "pitch": 0.12436
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "yaw": 6e-05
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightArm": {
+          "roll": -0.00095
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "x": -1.10299
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "y": 2.78248
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "z": 2.41831
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "pitch": 0.76247
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "yaw": -0.02872
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "rightItem": {
+          "roll": 0.22422
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "x": 1.93021
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "y": 3.45827
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "z": -1.88667
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "pitch": -0.49325
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "yaw": 0.30644
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "EASEINOUTQUAD",
+        "turn": 0,
+        "leftArm": {
+          "roll": 1.10046
+        }
+      }
+    ]
+  }
+}
