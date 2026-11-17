@@ -4,6 +4,7 @@ Writes the enemy roster's English texts to src/main/resources/assets/beyondsolo_
 (Minecraft loads lang files from every namespace, so the roster keeps its texts apart from the shared file.)
 
 Run from the repo root:  python3 tools/enemy_lang.py
+Spanish lives by hand in es_es.json next to it: add a line there for every new key (TranslationGameTests checks).
 """
 import json
 import os
@@ -48,6 +49,8 @@ def main():
         out["enemy.beyondsolo.variant." + k] = v
     for k, v in AFFIXES.items():
         out["enemy.beyondsolo.affix." + k] = v
+    # affinity + creature on the nameplate; Spanish turns it round ("%2$s %1$s")
+    out["enemy.beyondsolo.named"] = "%s %s"
     for kind, names in BOSSES.items():
         for rank, name in zip(RANKS, names):
             # bosses outside their rank range never appear there; give them the nearest name anyway for commands

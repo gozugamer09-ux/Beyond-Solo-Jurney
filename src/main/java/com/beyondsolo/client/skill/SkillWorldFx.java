@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -100,6 +101,9 @@ public final class SkillWorldFx {
                 case THUNDER -> 0.55f;
                 case SHIELD, CHAIN -> Math.max(0.3f, lasting);
                 case HAMMER, DISCUS -> Math.max(0.1f, lasting) + 0.05f;
+                case HALO, WINGS, BUBBLE, ORBIT -> Math.max(0.4f, lasting);
+                case MIST -> Math.max(1f, lasting);
+                case STREAM -> Math.max(0.3f, lasting) + 0.1f;
             };
         }
     }
@@ -121,6 +125,15 @@ public final class SkillWorldFx {
         if (p.kind() == SkillFxPayload.Kind.ELEMENT || p.kind() == SkillFxPayload.Kind.REACTION) {
             // a creature carries one element at a time, and a reaction uses it up
             ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.ELEMENT && f.p.entityId() == p.entityId());
+        }
+        if (p.kind() == SkillFxPayload.Kind.ORBIT) {
+            // one set of lights of a colour per creature: a new count replaces the old one, and none takes them away
+            ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.ORBIT && f.p.entityId() == p.entityId() && f.p.color() == p.color());
+            if (p.size() < 0.5f) return;
+        }
+        if (p.kind() == SkillFxPayload.Kind.HALO || p.kind() == SkillFxPayload.Kind.WINGS || p.kind() == SkillFxPayload.Kind.BUBBLE) {
+            // cast again before it ran out: the new one takes the old one's place instead of doubling it
+            ACTIVE.removeIf(f -> f.p.kind() == p.kind() && f.p.entityId() == p.entityId() && f.p.size() == p.size());
         }
         if (p.kind() == SkillFxPayload.Kind.REACTION) {
             com.beyondsolo.skill.SkillReaction[] all = com.beyondsolo.skill.SkillReaction.values();
@@ -167,6 +180,8 @@ public final class SkillWorldFx {
                 for (int i = 0; i < 10; i++) level.addParticle(ParticleTypes.CLOUD, p.x() + rnd(0.3), p.y() + 0.1, p.z() + rnd(0.3), rnd(0.05), 0.02, rnd(0.05));
             }
             case PULSE -> {
+                // duration 1 is a quiet ripple, for waves that keep coming: the rings alone, no motes
+                if (p.duration() == 1) break;
                 for (int i = 0; i < 40; i++) {
                     double a = i / 40.0 * Math.PI * 2;
                     level.addParticle(ParticleTypes.END_ROD, o.x + Math.cos(a) * 1.2, o.y + 0.2, o.z + Math.sin(a) * 1.2, Math.cos(a) * 0.5, 0.01, Math.sin(a) * 0.5);
@@ -192,6 +207,12 @@ public final class SkillWorldFx {
             }
             case BLINK -> {
                 for (Vec3 at : new Vec3[]{fx.target(), o}) {
+                    if (p.duration() == 1) {
+                        // a step of light leaves motes behind, not smoke
+                        for (int i = 0; i < 10; i++) level.addParticle(ParticleTypes.END_ROD, at.x + rnd(0.3), at.y + RANDOM.nextDouble() * 1.8, at.z + rnd(0.3),
+                                rnd(0.05), 0.04 + RANDOM.nextDouble() * 0.06, rnd(0.05));
+                        continue;
+                    }
                     for (int i = 0; i < 24; i++) level.addParticle(ParticleTypes.PORTAL, at.x + rnd(0.4), at.y + RANDOM.nextDouble() * 1.8, at.z + rnd(0.4), rnd(0.6), rnd(0.3), rnd(0.6));
                     for (int i = 0; i < 8; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(0.3), at.y + RANDOM.nextDouble() * 1.6, at.z + rnd(0.3), 0, 0.02, 0);
                 }
@@ -206,13 +227,23 @@ public final class SkillWorldFx {
                 for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(0.6), at.y + 0.2, at.z + rnd(0.6), 0, 0.04, 0);
             }
             case NOVA -> {
-                for (int i = 0; i < 60; i++) {
-                    double a = i / 60.0 * Math.PI * 2;
+                // what the ring throws: flames (duration 0), sparks (1), spray (2), motes of light (3) or soul fire (4)
+                int n = p.duration() == 0 ? 60 : 36;
+                for (int i = 0; i < n; i++) {
+                    double a = i / (double) n * Math.PI * 2;
                     double sp = 0.25 + RANDOM.nextDouble() * 0.15;
-                    level.addParticle(i % 3 == 0 ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME, o.x + Math.cos(a) * 0.6, o.y + 0.3, o.z + Math.sin(a) * 0.6,
-                            Math.cos(a) * sp, 0.02, Math.sin(a) * sp);
+                    ParticleOptions thrown = switch (p.duration()) {
+                        case 1 -> ParticleTypes.ELECTRIC_SPARK;
+                        case 2 -> i % 3 == 0 ? ParticleTypes.BUBBLE_POP : ParticleTypes.SPLASH;
+                        case 3 -> i % 3 == 0 ? ParticleTypes.END_ROD : dust;
+                        case 4 -> i % 3 == 0 ? ParticleTypes.SOUL : ParticleTypes.SOUL_FIRE_FLAME;
+                        default -> i % 3 == 0 ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME;
+                    };
+                    // a splash only flies sideways when it is given no lift of its own
+                    level.addParticle(thrown, o.x + Math.cos(a) * 0.6, o.y + 0.3, o.z + Math.sin(a) * 0.6,
+                            Math.cos(a) * sp, p.duration() == 2 ? 0 : 0.02, Math.sin(a) * sp);
                 }
-                for (int i = 0; i < 8; i++) level.addParticle(ParticleTypes.LAVA, o.x, o.y + 0.5, o.z, 0, 0, 0);
+                if (p.duration() == 0) for (int i = 0; i < 8; i++) level.addParticle(ParticleTypes.LAVA, o.x, o.y + 0.5, o.z, 0, 0, 0);
             }
             case HEAL -> {
                 for (int i = 0; i < 18; i++) {
@@ -297,9 +328,19 @@ public final class SkillWorldFx {
                 }
             }
             case GEYSER -> {
-                // what flies up with the jets: embers (duration 0), the ground itself (1) or motes of light (2)
+                // what flies up with the jets: embers (duration 0), the ground itself (1), motes of light (2), water (3) or souls (4)
+                if (p.duration() == 3) {
+                    // drops fall back from the top of the jet and it splashes at the foot: no dust in a fountain
+                    for (int i = 0; i < 12; i++) level.addParticle(ParticleTypes.FALLING_WATER, p.x() + rnd(0.9), p.y() + p.size() * (0.5 + RANDOM.nextDouble() * 0.5), p.z() + rnd(0.9), 0, 0, 0);
+                    for (int i = 0; i < 8; i++) {
+                        double a = RANDOM.nextDouble() * Math.PI * 2;
+                        level.addParticle(ParticleTypes.SPLASH, p.x() + rnd(0.4), p.y() + 0.1, p.z() + rnd(0.4), Math.cos(a) * 0.25, 0, Math.sin(a) * 0.25);
+                    }
+                    break;
+                }
                 BlockState ground = level.getBlockState(BlockPos.containing(p.x(), p.y() - 0.5, p.z()));
                 ParticleOptions chunk = p.duration() == 2 ? ParticleTypes.END_ROD
+                        : p.duration() == 4 ? ParticleTypes.SOUL
                         : p.duration() == 1 ? (ground.isAir() ? ParticleTypes.POOF : new BlockParticleOption(ParticleTypes.BLOCK, ground))
                         : ParticleTypes.LAVA;
                 for (int i = 0; i < 46; i++) {
@@ -436,6 +477,17 @@ public final class SkillWorldFx {
                 case MARK -> {
                     if (e != null && RANDOM.nextFloat() < 0.25f) mc.level.addParticle(dust, e.getX() + rnd(0.3), e.getY() + e.getBbHeight() + 0.4, e.getZ() + rnd(0.3), 0, -0.02, 0);
                 }
+                case WINGS -> {
+                    // a mote of light drifts down from the feathers now and then
+                    if (e == null || (e == mc.player && firstPerson) || RANDOM.nextFloat() > 0.12f) break;
+                    double reach = 1.3 * fx.p.size();
+                    mc.level.addParticle(ParticleTypes.END_ROD, e.getX() + rnd(reach), e.getY() + e.getBbHeight() * (0.5 + RANDOM.nextDouble() * 0.6), e.getZ() + rnd(reach), 0, -0.02, 0);
+                }
+                case BUBBLE -> {
+                    if (e == null || RANDOM.nextFloat() > 0.1f) break;
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    mc.level.addParticle(ParticleTypes.BUBBLE_POP, e.getX() + Math.cos(a) * fx.p.size(), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + Math.sin(a) * fx.p.size(), 0, 0.02, 0);
+                }
                 default -> {}
             }
         }
@@ -445,6 +497,16 @@ public final class SkillWorldFx {
         // a small dome follows its caster (Bulwark), a big one stays where it was raised (Aegis Dome)
         if (fx.p.size() < 3 && e != null) return e.getPosition(partial);
         return fx.target();
+    }
+
+    /** The way a creature's body faces: a player's body turns after their head. */
+    private static float bodyYaw(Entity e, float partial) {
+        return e instanceof LivingEntity living ? Mth.rotLerp(partial, living.yBodyRotO, living.yBodyRot) : e.getViewYRot(partial);
+    }
+
+    /** A direction in the plane of a wing: out to the side at {@code angle} above the horizon, swept back a little. */
+    private static Vec3 wingDir(Vec3 outward, Vec3 fwd, float angle) {
+        return outward.scale(Mth.cos(angle)).add(0, Mth.sin(angle), 0).add(fwd.scale(-0.22)).normalize();
     }
 
     private static Vec3 meteorAt(Fx fx, float k) {
@@ -573,7 +635,7 @@ public final class SkillWorldFx {
                 }
                 case NOVA -> {
                     disc(pose, buffers, RING, 0.15f, p.size() * out, 0, c, fade * 1.3f);
-                    disc(pose, buffers, RING, 0.6f, p.size() * 0.85f * out, 0, mix(c, 0xFFE0A0, 0.4f), fade * 0.9f);
+                    disc(pose, buffers, RING, 0.6f, p.size() * 0.85f * out, 0, p.duration() == 0 ? mix(c, 0xFFE0A0, 0.4f) : light, fade * 0.9f);
                     disc(pose, buffers, GLOW, 0.1f, p.size() * 0.9f * out, 0, c, fade * 0.6f);
                     dot(pose, buffers, camera, 0, 0.9f, 0, 1.6f * (1 - t), mix(c, 0xFFFFFF, 0.3f), fade * 0.8f);
                 }
@@ -1132,6 +1194,137 @@ public final class SkillWorldFx {
                         streak(pose, buffers, camera, base, a1, b1, 0.1f, 0xFFFFFF, hold * 0.6f);
                     }
                     disc(pose, buffers, GLOW, 0.03f, p.size(), 0, c, hold * 0.35f);
+                }
+                case HALO -> {
+                    if (e == null || self) break;
+                    float r = 0.34f * p.size();
+                    float h = e.getBbHeight() + 0.3f + 0.03f * Mth.sin(time * 0.15f);
+                    float appear = 1 - (1 - Mth.clamp(age / 0.25f, 0, 1)) * (1 - Mth.clamp(age / 0.25f, 0, 1));
+                    pose.pushPose();
+                    pose.translate(0, h, 0);
+                    pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw(e, partial)));
+                    // tipped back a little, so that it is a ring from every side and never just a line
+                    pose.mulPose(Axis.XP.rotationDegrees(-14));
+                    disc(pose, buffers, RING, 0, r * appear, time * 2, light, hold * 1.1f);
+                    disc(pose, buffers, RING, 0.01f, r * 0.8f * appear, -time * 2, 0xFFFFFF, hold * 0.7f);
+                    disc(pose, buffers, GLOW, -0.01f, r * 1.5f, 0, c, hold * 0.4f);
+                    pose.popPose();
+                    dot(pose, buffers, camera, 0, h, 0, r * 1.7f, c, hold * 0.25f);
+                }
+                case WINGS -> {
+                    // behind their owner's back, so in first person there is nothing of them to see
+                    if (e == null || self) break;
+                    Vec3 fwd = Vec3.directionFromRotation(0, bodyYaw(e, partial));
+                    Vec3 side = new Vec3(-fwd.z, 0, fwd.x);
+                    float span = p.size();
+                    float open = 1 - (float) Math.pow(1 - Mth.clamp(age / 0.4f, 0, 1), 3);
+                    float flap = 0.16f * Mth.sin(time * 0.22f);
+                    float tall = e.getBbHeight();
+                    for (int w = -1; w <= 1; w += 2) {
+                        Vec3 outward = side.scale(w);
+                        Vec3 shoulder = fwd.scale(-0.28).add(outward.scale(0.12)).add(0, tall * 0.74, 0);
+                        // the arm of the wing goes up and out, then out; the feathers hang from it
+                        Vec3 elbow = shoulder.add(wingDir(outward, fwd, 0.95f + flap).scale(0.7 * span * open));
+                        Vec3 wrist = elbow.add(wingDir(outward, fwd, 0.2f + flap * 0.6f).scale(0.75 * span * open));
+                        streak(pose, buffers, camera, at, shoulder, elbow, 0.2f * span, light, hold);
+                        streak(pose, buffers, camera, at, elbow, wrist, 0.16f * span, light, hold);
+                        int feathers = 7;
+                        for (int i = 0; i < feathers; i++) {
+                            float u = (i + 1f) / feathers;
+                            Vec3 root = u < 0.45f ? shoulder.lerp(elbow, u / 0.45f) : elbow.lerp(wrist, (u - 0.45f) / 0.55f);
+                            // the inner feathers hang down, the outer ones reach out
+                            Vec3 tip = root.add(wingDir(outward, fwd, -1.35f + u + flap * 0.5f).scale(span * (0.5f + 0.6f * u) * open));
+                            streak(pose, buffers, camera, at, root, tip, 0.34f * span, c, hold * 0.8f);
+                            streak(pose, buffers, camera, at, root, tip, 0.11f * span, 0xFFFFFF, hold * 0.75f);
+                        }
+                    }
+                    dot(pose, buffers, camera, (float) (-fwd.x * 0.28), tall * 0.74f, (float) (-fwd.z * 0.28), 0.55f * span, c, hold * 0.35f);
+                }
+                case BUBBLE -> {
+                    if (e == null) break;
+                    float r = p.size() * (1 + 0.035f * Mth.sin(time * 0.2f)) * (0.6f + 0.4f * Mth.clamp(age / 0.2f, 0, 1));
+                    float mid = e.getBbHeight() * 0.5f;
+                    if (self) {
+                        // from the inside only its rim on the ground is seen
+                        disc(pose, buffers, RING, 0.05f, r, time, light, hold * 0.45f);
+                        break;
+                    }
+                    dotTex(pose, buffers, camera, RING, 0, mid, 0, r, light, hold * 0.95f, 0);
+                    dotTex(pose, buffers, camera, RING, 0, mid, 0, r * 0.93f, c, hold * 0.5f, 0);
+                    dot(pose, buffers, camera, 0, mid, 0, r * 1.05f, c, hold * 0.16f);
+                    // the glints that make it a bubble: one up on the left, a small one down on the right
+                    Vector3f cl = camera.getLeftVector(), cu = camera.getUpVector();
+                    float gx = (cl.x() * 0.42f + cu.x() * 0.48f) * r, gy = (cl.y() * 0.42f + cu.y() * 0.48f) * r, gz = (cl.z() * 0.42f + cu.z() * 0.48f) * r;
+                    dot(pose, buffers, camera, gx, mid + gy, gz, r * 0.16f, 0xFFFFFF, hold * 0.85f);
+                    dot(pose, buffers, camera, -gx * 0.9f, mid - gy * 0.9f, -gz * 0.9f, r * 0.07f, 0xFFFFFF, hold * 0.6f);
+                }
+                case STREAM -> {
+                    if (e == null) break;
+                    Vec3 src = fx.target().subtract(at);
+                    Vec3 dst = new Vec3(0, e.getBbHeight() * 0.6, 0);
+                    double dist = dst.subtract(src).length();
+                    if (dist < 0.3) break;
+                    float a = Mth.clamp(age / 0.08f, 0, 1) * Mth.clamp((life - age) / 0.15f, 0, 1);
+                    double arch = Math.min(0.9, dist * 0.14);
+                    // a faint thread along the whole arch, so the drops read as one stream
+                    Vec3 last = src;
+                    for (int i = 1; i <= 8; i++) {
+                        float u = i / 8f;
+                        Vec3 next = src.lerp(dst, u).add(0, Math.sin(u * Math.PI) * arch, 0);
+                        streak(pose, buffers, camera, at, last, next, 0.14f * p.size(), c, a * 0.3f);
+                        last = next;
+                    }
+                    int n = Mth.clamp((int) (dist * 1.2), 4, 9);
+                    for (int i = 0; i < n; i++) {
+                        float k = (i / (float) n + age * 1.6f) % 1f;
+                        float k0 = Math.max(0, k - 0.12f);
+                        Vec3 pos = src.lerp(dst, k).add(0, Math.sin(k * Math.PI) * arch, 0);
+                        Vec3 tail = src.lerp(dst, k0).add(0, Math.sin(k0 * Math.PI) * arch, 0);
+                        float swell = 0.6f + 0.4f * Mth.sin(k * Mth.PI);
+                        streak(pose, buffers, camera, at, tail, pos, 0.3f * p.size() * swell, c, a * 0.9f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.3f * p.size() * swell, light, a);
+                    }
+                    dot(pose, buffers, camera, (float) dst.x, (float) dst.y, (float) dst.z, 0.6f * p.size(), c, a * 0.5f);
+                }
+                case ORBIT -> {
+                    if (e == null) break;
+                    int n = Math.max(1, Math.round(p.size()));
+                    float rad = Math.max(0.7f, e.getBbWidth() / 2 + 0.45f);
+                    // their owner sees them faintly in first person: they pass right in front of the eyes
+                    float seen = self ? hold * 0.5f : hold;
+                    float phase = (c & 0xFF) * 0.07f;
+                    for (int i = 0; i < n; i++) {
+                        float ang = time * 0.16f + phase + i * Mth.TWO_PI / n;
+                        float y = e.getBbHeight() * 0.62f + 0.12f * Mth.sin(time * 0.13f + i * 1.9f);
+                        Vec3 pos = new Vec3(Mth.cos(ang) * rad, y, Mth.sin(ang) * rad);
+                        Vec3 tail = new Vec3(Mth.cos(ang - 0.55f) * rad, y, Mth.sin(ang - 0.55f) * rad);
+                        streak(pose, buffers, camera, at, tail, pos, 0.12f, c, seen * 0.55f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.28f, c, seen * 0.6f);
+                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.13f, light, seen);
+                    }
+                }
+                case MIST -> {
+                    // banks of fog that lie low, drift slowly round the middle and breathe; thickest at the centre
+                    float r = p.size();
+                    int pale = mix(c, 0xFFFFFF, 0.4f);
+                    float ox = (float) (at.x - cam.x), oy = (float) (at.y - cam.y), oz = (float) (at.z - cam.z);
+                    for (int i = 0; i < 56; i++) {
+                        long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
+                        float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
+                        float dist = (float) Math.sqrt(u) * r * 0.9f;
+                        float ang = v * Mth.TWO_PI + time * 0.004f * (i % 2 == 0 ? 1 : -1) * (0.5f + w);
+                        float half = (0.7f + 0.6f * w) * (0.88f + 0.12f * Mth.sin(time * 0.045f + i * 1.7f));
+                        // it lies low: what stands in it is seen from the chest up
+                        float x = Mth.cos(ang) * dist, y = 0.3f + 0.8f * w + 0.07f * Mth.sin(time * 0.05f + i), z = Mth.sin(ang) * dist;
+                        // thinner towards its edge and towards its top
+                        float thick = (0.13f + 0.09f * (1 - dist / r)) * (1 - 0.45f * w);
+                        // it thins around whoever stands in it, so nobody is blinded by fog, least of all their own
+                        float away = Mth.sqrt((ox + x) * (ox + x) + (oy + y) * (oy + y) + (oz + z) * (oz + z));
+                        float clear = Mth.clamp((away - half * 0.6f) / 4f, 0, 1);
+                        dot(pose, buffers, camera, x, y, z, half, i % 3 == 0 ? light : pale, hold * thick * clear);
+                    }
+                    // where it ends, on the ground
+                    disc(pose, buffers, RING, 0.04f, r * (0.97f + 0.03f * Mth.sin(time * 0.06f)), time * 0.2f, pale, hold * 0.22f);
                 }
                 case VEIL -> {
                     disc(pose, buffers, SIGIL, 0.04f, 1.1f, -time * 2, c, hold * 0.5f);

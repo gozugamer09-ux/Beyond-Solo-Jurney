@@ -93,7 +93,7 @@ public final class QuestTemplates {
                 .custom(id("gate_clear"), 1, net.minecraft.network.chat.Component.translatable("quest_objective.beyondsolo.gate_clear"))
                 .kill(Targets.HOSTILE, 15)
                 .xp(400).statPoints(3).item(new ItemStack(ModItems.QUENCHING_ELIXIR.get())).item(com.beyondsolo.skill.SkillTomeItem.unread())
-                .rewardTitle("Relentless")
+                .rewardTitle("title.beyondsolo.relentless")
                 .build());
 
         // ---- daily training: the same four drills every day, whatever the rank. Skipping it means the Penalty Zone

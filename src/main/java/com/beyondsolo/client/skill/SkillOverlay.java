@@ -277,8 +277,8 @@ public final class SkillOverlay {
         // the level ticks over
         float tick = Anim.outBackStrong(Anim.window(t, 0.45f, 0.85f));
         float lx = x + w - 12;
-        String from = "Lv." + (b.level - 1);
-        String to = "Lv." + b.level;
+        String from = Component.translatable("skills.beyondsolo.level", b.level - 1).getString();
+        String to = Component.translatable("skills.beyondsolo.level", b.level).getString();
         float oldA = Gfx.fade(1 - tick);
         SysFont.draw(g, from, lx, y + 10 - 6 * tick, 9f, SystemTheme.TEXT_SOFT, true, 1f);
         Gfx.setAlpha(oldA);

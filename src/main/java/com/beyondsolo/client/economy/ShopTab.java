@@ -227,7 +227,7 @@ public class ShopTab implements SystemTab {
             long price = EconomyClient.price(e);
             boolean deal = ShopCatalog.isFeatured(e, day) && e.special() == ShopCatalog.Special.NONE;
             boolean maxed = e.special() == ShopCatalog.Special.EXPANSION && EconomyClient.expansions() >= SystemStorage.MAX_EXPANSIONS;
-            String ps = maxed ? "MAX" : EconomyClient.format(price);
+            String ps = maxed ? Component.translatable("shop.beyondsolo.max_tag").getString() : EconomyClient.format(price);
             float pw = SysFont.width(ps, 6.8f, true);
             int pc = locked ? SystemTheme.TEXT_DIM : EconomyClient.gold() >= price ? 0xFFFFE7A6 : SystemTheme.DANGER;
             SysFont.title(g, ps, x + LIST_W - 6 - pw, ry + (deal ? 2.5f : 6), 6.8f, pc);

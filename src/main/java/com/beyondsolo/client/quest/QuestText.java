@@ -68,7 +68,7 @@ public final class QuestText {
             list.add(new Reward(Icons.DIAMOND, name, SystemTheme.ACCENT_BRIGHT, -1));
         }
         if (!r.title().isEmpty()) {
-            list.add(new Reward(Icons.CROWN, Component.translatable("quest.beyondsolo.reward.title", r.title()).getString(), SystemTheme.GOLD, -1));
+            list.add(new Reward(Icons.CROWN, Component.translatable("quest.beyondsolo.reward.title", Component.translatable(r.title())).getString(), SystemTheme.GOLD, -1));
         }
         return list;
     }

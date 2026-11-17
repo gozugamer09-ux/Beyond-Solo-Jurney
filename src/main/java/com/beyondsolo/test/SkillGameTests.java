@@ -26,6 +26,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
@@ -289,10 +290,23 @@ public final class SkillGameTests {
         ServerPlayer p = player(helper, PlayerRank.E, PlayerClass.ASSASSIN);
         Zombie z = zombieInFront(helper, p);
         z.getAttribute(Attributes.ARMOR).setBaseValue(0);
+        // A new creature faces a few random degrees off south. Here that put the spot behind it flush against the
+        // arena's edge, and when the angle came out as next to nothing the step was refused there and went to the
+        // near side instead, less than a block away. Facing the player, "behind" is open floor on the far side.
+        Vec3 toPlayer = p.position().subtract(z.position()).normalize();
+        float facing = (float) (Mth.atan2(toPlayer.z, toPlayer.x) * Mth.RAD_TO_DEG) - 90f;
+        z.setYRot(facing);
+        z.setYHeadRot(facing);
+        z.setYBodyRot(facing);
         Vec3 before = p.position();
+        Vec3 behind = z.position().subtract(toPlayer.scale(z.getBbWidth() / 2 + 0.9));
         helper.assertTrue(SkillAPI.cast(p, Skills.SHADOWSTEP), "cast");
-        helper.assertTrue(p.position().distanceTo(before) > 1, "the player moved");
-        helper.assertTrue(p.distanceTo(z) < 3, "and stands by the zombie");
+        StringBuilder seen = new StringBuilder("player at " + p.position() + " from " + before + ", zombie at " + z.position() + " facing " + z.getYRot() + ", creatures near:");
+        for (LivingEntity e : helper.getLevel().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(14))) {
+            seen.append(' ').append(e.getType().toShortString()).append('@').append(e.blockPosition().toShortString());
+        }
+        helper.assertTrue(p.position().distanceTo(behind) < 0.1, "the player stands behind the zombie: " + seen);
+        helper.assertTrue(p.position().distanceTo(before) > 3, "and has crossed to its far side: " + seen);
         z.hurt(p.damageSources().playerAttack(p), 4);
         float first = z.getMaxHealth() - z.getHealth();
         z.setHealth(z.getMaxHealth());
