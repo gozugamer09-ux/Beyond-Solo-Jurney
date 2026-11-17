@@ -911,8 +911,10 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   stamp, waves, cleared), the weather and trap chips under the run clock, the weakness tag under the crosshair;
   world moments (`DepthsWorldFx`): knocks cracking the wall, Pulse Scan's ring with walls and cores outlined through
   rock, the wall crumbling with light pouring out, bolts, falling rocks, a core cracking and shattering, the shrine's
-  column of light. Vanilla particles never go off right in front of a first-person camera (`NearFx` on the server,
-  `DepthsWorldFx.particle` on the client): those players get the moment from the light effects.
+  column of light. The depths' vanilla particles never come within about two blocks of a first-person camera, counting
+  how far a burst spreads and flies (`NearFx` on the server, `DepthsWorldFx.particle` on the client): those players
+  get the moment from the light effects. A player who comes into a cave (or logs back in) while a trap is going off
+  gets its chip back (`DepthsPayload.TRAP_ACTIVE`, sent with the cave's state).
 - **Commands** (`/system depths ...`, level 2): `gate <rank> [weather] [hidden] [trap]` opens a gate five steps ahead
   with its depths forced (`seed` keeps what the seed says), `weather <id|seed>`, `info`, `hidden` (go to the wall),
   `open`, `reveal`, `trap` (just outside the next trap room), `core` (beside the nearest trap core), `bolt`, `rock`,
