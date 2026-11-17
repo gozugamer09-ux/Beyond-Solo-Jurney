@@ -33,6 +33,9 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue DAMAGE_NUMBERS = B
             .comment("Show floating damage numbers for your hits and for element damage nearby.")
             .define("combat.damageNumbers", true);
+    public static final ModConfigSpec.BooleanValue ENEMY_NAMES = B
+            .comment("Show the System's creatures' names over their heads, coloured by how strong they are next to you: white weaker, orange about your level, red far stronger.")
+            .define("combat.enemyNames", true);
     public static final ModConfigSpec.BooleanValue ENEMY_METERS = B
             .comment("Show element buildup meters and statuses over the heads of creatures in a fight.")
             .define("combat.enemyMeters", true);

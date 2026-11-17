@@ -764,6 +764,41 @@ Test commands: `/system enemy spawn <kind> [rank] [variant] [affinity]`, `/syste
 `python3 tools/gen_creatures.py <name>` redoes one), bosses and the gloomfang from `tools/gen_enemy_assets.py`, texts
 from `tools/enemy_lang.py`.
 
+### Hidden levels and the colour of names
+
+Every System creature (anything with `EnemyTraits`, every `GateMonsterEntity`, every `DungeonBoss`) has a hidden level
+(`enemy/HiddenLevel`). Nobody sees the number: a hunter with the System sees the creature's name over its head in the
+colour of how it stands against them (`HiddenLevel.Threat`): **white** when it is weaker, **orange** when it is about
+their level or a little above, **red** when it is far stronger. A boss's name on its bar takes the same colour.
+
+- **The creature's level** is the level of the hunter it is an even match for. `HiddenLevel.power` measures a creature
+  as it really is once everything is on it (kind, gate rank, variant, size roll, affixes, a red gate's fury, a boss's
+  kind and ascension): `sqrt(health x (1 + 0.04 armour + 0.01 toughness) x damage)`, the product an even fight comes
+  down to. `powerAt(level)` is the same measure for a hunter of each level, a line through (1, 7), (10, 12), (20, 20),
+  (50, 50) and then 0.6 a level. That puts a gate rank's typical plain creature at the level its rank's armour can be
+  worn from (E 1, D 10, C 20, B 30, A 40, S 50; `CreatureNameGameTests` checks it). Elites, champions, giants and
+  bosses climb from there (an E-rank boss is about 31, an S-rank boss well over 200).
+- **The hunter's level** for the comparison (`hunterLevel`) counts every stat point they have, three to a level: their
+  level, plus the rank's bonus points (an S-rank starts at 16), rewards, the job change and unspent points. Gear does
+  not count yet.
+- **The colour**: the ratio of the two powers. Under 0.9 white, from 1.5 red, orange in between
+  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`). All of it is first guesses for the balancing pass.
+- **Kept, not recomputed**: the level is worked out the first time it is asked for (a player starts seeing the
+  creature) and kept in its persistent data under `beyondsolo_level`. Code that makes a creature stronger or weaker
+  after it appeared calls `HiddenLevel.refresh` (red gate fury, a splitting creature's halves), which also tells the
+  players who see it.
+- **To the client**: `EnemyTraitsPayload` carries the level, now for every System creature, not only notable ones
+  (`EnemyClient.level(id)`). `client/enemy/EnemyHud` draws the names (System font, a slim capsule; red ones glow);
+  elites and champions keep their bigger plate, its name in the threat colour. Buildup meters stack over the name
+  (`EnemyHud.above`), Minecraft's own name tag is turned off for these creatures, and a boss fighting under its bar
+  shows its name only there (`GateOverlay.barBossId`). Without the System only elites and champions show a plate, in
+  their affinity's colour, as before. Client option `combat.enemyNames` turns the names off.
+- The first time a hunter with the System sees a creature, a pop-up tells them what the colours mean (flag in the
+  player's persisted data).
+
+Test command: `/system enemy levels` lists the creatures within 24 blocks with their hidden level, power and colour,
+against your own hunter level.
+
 ## Cores, materials, potions and crafting
 
 Code in `crafting/` (server) and `client/crafting/` (client); `CraftingModule.init` registers the items, the three vein

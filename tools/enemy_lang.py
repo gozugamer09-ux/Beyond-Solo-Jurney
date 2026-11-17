@@ -44,6 +44,8 @@ AFFINITIES = {"none": "", "flame": "Emberborn", "frost": "Frostbound", "venom": 
 VARIANTS = {"normal": "", "veteran": "Veteran", "elite": "Elite", "champion": "Champion"}
 AFFIXES = {"swift": "Swift", "armored": "Armoured", "vampiric": "Vampiric", "frenzied": "Frenzied", "volatile": "Volatile",
            "splitting": "Splitting", "warded": "Warded", "thorned": "Thorned"}
+# the colour a creature's name is shown in, by how it stands against you (enemy.HiddenLevel.Threat)
+THREATS = {"weaker": "white", "even": "orange", "far_stronger": "red"}
 
 # one name per rank, E to S
 BOSSES = {
@@ -70,6 +72,12 @@ def main():
         out["enemy.beyondsolo.affix." + k] = v
     # affinity + creature on the nameplate; Spanish turns it round ("%2$s %1$s")
     out["enemy.beyondsolo.named"] = "%s %s"
+    for k, v in THREATS.items():
+        out["enemy.beyondsolo.threat." + k] = v
+    # the System's word the first time a hunter sees creatures' names; the three colours come in coloured
+    out["notify.beyondsolo.creature_names.title"] = "Creature Names"
+    out["notify.beyondsolo.creature_names.body"] = ("The System reads every creature you meet and colours its name by how it stands against you: "
+                                                   "%s if it is weaker, %s if it is about your level or a little above, %s if it is far stronger.")
     for kind, names in BOSSES.items():
         for rank, name in zip(RANKS, names):
             # bosses outside their rank range never appear there; give them the nearest name anyway for commands

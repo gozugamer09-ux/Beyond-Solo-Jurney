@@ -154,6 +154,9 @@ public final class CombatHud {
             Vec3 pos = e.getPosition(partial).add(0, e.getBbHeight() + 0.55, 0);
             float[] p = WorldProjector.project(pos);
             if (p == null) continue;
+            // over the creature's name, when it shows one
+            float[] name = com.beyondsolo.client.enemy.EnemyHud.above(living, partial);
+            if (name != null && name[1] < p[1]) p = name;
             float scale = (float) Math.max(0.75, Math.min(1.3, 9.0 / Math.max(1, dist)));
             float old = Gfx.fade(s.visible * (dist > 22 ? (float) (28 - dist) / 6f : 1f));
             drawMeters(g, s, p[0], p[1], scale);
