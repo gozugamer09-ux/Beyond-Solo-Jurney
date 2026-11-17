@@ -29,6 +29,7 @@ from gen_gate_assets import TEX, ease_in, ease_in_out, ease_out_back, window  # 
 import creature_anatomy as CA  # noqa: E402
 import creature_skins as CS  # noqa: E402
 import numpy as np  # noqa: E402
+import preview_model as PM  # noqa: E402
 from creature_skins import AFFS  # noqa: E402
 
 anim, rot, wave = G.anim, G.rot, G.wave
@@ -808,6 +809,261 @@ def grave_thrall():
     write_anims(name, A)
 
 
+# --------------------------------------------------------------------------------------------- posing by numbers
+
+def _frames(B):
+    """The bones of a model being built: {name: (parent, pivot, rest rotation)}."""
+    return {b["name"]: (b.get("parent"), b["pivot"], b.get("rotation", [0, 0, 0])) for b in B.m.bones}
+
+
+def _world(frames, pose, name):
+    """A bone's 4x4 model-space matrix in a pose {bone: [rx, ry, rz] added to its rest}, with the transforms the
+    preview draws with (tools/preview_model.py, checked against the game)."""
+    chain = []
+    while name:
+        chain.append(name)
+        name = frames[name][0]
+    m = np.eye(4)
+    for n in reversed(chain):
+        _, pivot, rest = frames[n]
+        add = pose.get(n, (0, 0, 0))
+        m = m @ PM.affine([rest[i] + add[i] for i in range(3)], pivot)
+    return m
+
+
+def _pt(m, p):
+    return (m @ np.array([p[0], p[1], p[2], 1.0]))[:3]
+
+
+def _euler(r):
+    """The JSON rotation [rx, ry, rz] whose model-space matrix (preview_model.rot_matrix) is r."""
+    a = math.atan2(r[2, 1], r[2, 2])
+    b = -math.asin(max(-1.0, min(1.0, r[2, 0])))
+    c = math.atan2(r[1, 0], r[0, 0])
+    return [-math.degrees(a), math.degrees(b), -math.degrees(c)]
+
+
+def _euler_near(r, near):
+    """The JSON rotation of matrix r closest to the rotation near, angle by angle: of the two Euler solutions, each
+    angle moved by whole turns towards near, the one nearest (so keyframes sampled in order never spin round)."""
+    a = _euler(r)
+    best = None
+    for c in (a, [a[0] + 180, 180 - a[1], a[2] + 180]):
+        c = [v + 360 * round((n - v) / 360) for v, n in zip(c, near)]
+        cost = sum((v - n) ** 2 for v, n in zip(c, near))
+        if best is None or cost < best[0]:
+            best = (cost, c)
+    return best[1]
+
+
+def _basis(a, b):
+    """An orthonormal frame (columns): along a, then towards b square to a, then their cross."""
+    e1 = a / np.linalg.norm(a)
+    e2 = b - (b @ e1) * e1
+    e2 = e2 / np.linalg.norm(e2)
+    return np.column_stack([e1, e2, np.cross(e1, e2)])
+
+
+def _unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+def _slerp(a, b, w):
+    """The vector w of the way from a to b: its direction swung along the great circle, its length eased between."""
+    la, lb = float(np.linalg.norm(a)), float(np.linalg.norm(b))
+    ua, ub = a / la, b / lb
+    ang = math.acos(max(-1.0, min(1.0, float(ua @ ub))))
+    u = ua if ang < 1e-6 else (math.sin((1 - w) * ang) * ua + math.sin(w * ang) * ub) / math.sin(ang)
+    return u * (la + (lb - la) * w)
+
+
+def _toward_identity(r, k):
+    """The rotation k of the way from r to no rotation at all (along the shortest arc)."""
+    rel = r.T
+    ang = math.acos(max(-1.0, min(1.0, (np.trace(rel) - 1) / 2)))
+    if ang < 1e-6:
+        return r
+    x, y, z = np.array([rel[2, 1] - rel[1, 2], rel[0, 2] - rel[2, 0], rel[1, 0] - rel[0, 1]]) / (2 * math.sin(ang))
+    kk = np.array([[0, -z, y], [z, 0, -x], [-y, x, 0]])
+    a = ang * k
+    return r @ (np.eye(3) + math.sin(a) * kk + (1 - math.cos(a)) * kk @ kk)
+
+
+def _two_bone(F, pose, arm, hand, tip, target, hint, near, bend=None):
+    """Two-bone IK for an arm whose elbow is its hand bone's rx (bending folds the forearm forward). The elbow bends
+    until shoulder-to-tip spans the distance to target (or by bend, the hand's whole rx, when given: then only the
+    target's direction counts), then the arm turns to lay the tip on it with the point of the elbow swung towards hint
+    (a direction). Returns the animation rotations [arm rx, ry, rz, hand rx], the arm's angles the nearest to near's."""
+    parent = _world(F, pose, F[arm][0])
+    shoulder = _pt(parent, F[arm][1])
+    arm_rest, hand_rest = F[arm][2], F[hand][2]
+    upper = np.array(F[hand][1], float) - np.array(F[arm][1], float)
+    fore = np.array(tip, float) - np.array(F[hand][1], float)
+
+    def span(bend):
+        return upper + PM.rot_matrix([bend, hand_rest[1], hand_rest[2]]) @ fore
+
+    d = np.asarray(target, float) - shoulder
+    dist = float(np.linalg.norm(d))
+    if bend is None:
+        lo, hi = -165.0, 0.0
+        if dist >= np.linalg.norm(span(hi)):
+            lo = hi
+        elif dist <= np.linalg.norm(span(lo)):
+            hi = lo
+        for _ in range(50):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if np.linalg.norm(span(mid)) < dist else (lo, mid)
+        bend = (lo + hi) / 2
+    r = parent[:3, :3].T @ _basis(d, np.asarray(hint, float)) @ _basis(span(bend), upper).T
+    tot = _euler_near(r, [near[i] + arm_rest[i] for i in range(3)])
+    return [tot[i] - arm_rest[i] for i in range(3)] + [bend - hand_rest[0]]
+
+
+def archer_shoot(B, grip, nock_y, arrow_x, str_top, str_bot):
+    """The bone archer's shot (1.0 s, loosed at 0.62 s as MonsterGoals.Shoot expects). It turns its shoulders towards
+    the target and raises the bow upright on a bent arm while the other hand comes up to the string; then the bow arm
+    pushes out as the hand draws the string back to the side of its jaw, elbow out and back (the string bends into a V,
+    the limbs flex); it looses, the hand flies back past its ear, and it lowers the bow. Both arms are posed by numbers
+    (two-bone IK) on one line: the arrow's, from the anchor at the jaw straight at the target."""
+    F = _frames(B)
+    L = 1.0
+    twist = 25.0
+    hand_pt = [-4.45, 9.8, -0.5]  # between the right hand's fingers, where they hook the string
+    grip = np.array(grip, float)
+    nock_off = np.array([arrow_x, nock_y, 0.5]) - grip  # the rest nock from the grip, the bow upright
+
+    def aim(t):
+        return hold(t, 0.0, 0.2, 0.8, 1.0)
+
+    def draw(t):
+        return ease_in_out(window(t, 0.2, 0.58)) * (1 - window(t, 0.62, 0.66))
+
+    def push(t):
+        return ease_in_out(window(t, 0.2, 0.46))
+
+    def body(k):
+        return {"chest": [-6 * k, twist * k, 0], "head": [4 * k, -twist * k, 0]}
+
+    full = body(1.0)
+    # the anchor: at the side of the jaw under the cheekbone, where the nock sits at full draw
+    anchor = _pt(_world(F, full, "head"), [-2.1, 25.0, -1.0])
+    # the bow arm at full draw is all but straight, the grip on the arrow's line; that fixes the draw length
+    chest = _world(F, full, "chest")
+    sl = _pt(chest, F["left_arm"][1])
+    upper_l = np.array(F["left_hand"][1], float) - np.array(F["left_arm"][1], float)
+    reach_l = 0.985 * float(np.linalg.norm(upper_l + grip - np.array(F["left_hand"][1], float)))
+    base = anchor - nock_off
+    dxy = float(np.linalg.norm((base - sl)[:2]))
+    dmax = float(base[2] - sl[2] + math.sqrt(max(0.0, reach_l ** 2 - dxy ** 2)))
+    g_full = base - np.array([0, 0, dmax])
+    # set up: the bow comes up a little lower and closer on a bent arm, the string within the draw hand's reach
+    g_set = g_full + np.array([0.0, -1.2, 4.5])
+
+    def grip_at(t):
+        return g_set + (g_full - g_set) * push(t)
+
+    def nock_at(t):
+        return grip_at(t) + nock_off + np.array([0, 0, dmax * draw(t)])
+
+    follow = anchor + np.array([-0.7, 0.4, 1.9])  # the release: the hand flies back past the ear
+    bow_rest = F["bow"][2]
+    bow_rest_world = _world(F, {}, "left_hand")[:3, :3] @ PM.rot_matrix(bow_rest)
+    hint_r, hint_l = np.array([-1.0, 0.25, 0.5]), np.array([1.0, -0.15, 0.0])
+    arms = {"r": ("right_arm", "right_hand", hand_pt), "l": ("left_arm", "left_hand", grip)}
+
+    def shoulder(pose, s):
+        return _pt(_world(F, pose, "chest"), F[arms[s][0]][1])
+
+    def elbow(pose, s, q, reach):
+        # which way the point of the elbow sticks out from the shoulder-to-hand line
+        arm, hand, _ = arms[s]
+        e = _pt(_world(F, dict(pose, **{arm: q[:3], hand: [q[3], 0, 0]}), arm), F[hand][1]) - shoulder(pose, s)
+        u = reach / np.linalg.norm(reach)
+        e = e - (e @ u) * u
+        return e / np.linalg.norm(e)
+
+    # coming up and going down, each hand swings round its shoulder between where it hangs and where it is going while
+    # the elbow bends between the two poses' bends and its point swings between theirs, so the arm never turns through a
+    # flip; going down, the draw hand drops out and forward past a waypoint and its elbow drops down and out first
+    hang = {s: _pt(_world(F, {}, arms[s][1]), arms[s][2]) - shoulder({}, s) for s in arms}
+    rest_elbow = {s: elbow({}, s, [0.0] * 4, hang[s]) for s in arms}
+    waypoints = {"r": (9.0 * _unit([-0.55, -0.45, -0.7]), _unit([-0.6, -0.8, 0.2])), "l": (None, None)}
+
+    def pose_of(s, to, q):
+        return {"to": to, "elbow": elbow(full, s, q, to), "bend": q[3] + F[arms[s][1]][2][0]}
+
+    up = {s: pose_of(s, tgt - shoulder(full, s), _two_bone(F, full, *arms[s], tgt, h, [0.0] * 4))
+          for s, tgt, h in (("r", nock_at(0.2), hint_r), ("l", g_set, hint_l))}
+    cache, last, down = {}, {"r": [0.0] * 4, "l": [0.0] * 4}, {}
+
+    def swing(s, pose, k, end, via=(None, None)):
+        arm, hand, tip = arms[s]
+
+        def path(a, m, b):
+            if m is None:
+                return _slerp(a, b, k)
+            return _slerp(a, m, 2 * k) if k < 0.5 else _slerp(m, b, 2 * k - 1)
+
+        bend = F[hand][2][0] + (end["bend"] - F[hand][2][0]) * k
+        return _two_bone(F, pose, arm, hand, tip, shoulder(pose, s) + path(hang[s], via[0], end["to"]),
+                         path(rest_elbow[s], via[1], end["elbow"]), last[s], bend=bend)
+
+    def at(t):
+        key = round(t, 4)
+        if key in cache:
+            return cache[key]
+        k, d = aim(t), draw(t)
+        pose = body(k)
+        q = {}
+        for s, (arm, hand, tip) in arms.items():
+            if t <= 0.2:
+                q[s] = swing(s, pose, k, up[s])
+            elif t <= 0.8:
+                if t < 0.62:
+                    target = nock_at(t) if s == "r" else grip_at(t)
+                else:
+                    w = window(t, 0.62, 0.72)
+                    target = anchor + (follow - anchor) * (1 - (1 - w) ** 2) if s == "r" else g_full
+                q[s] = _two_bone(F, pose, arm, hand, tip, target, hint_r if s == "r" else hint_l, last[s])
+                if t >= 0.72:  # the pose it holds after the follow-through is where it lowers from
+                    down[s] = pose_of(s, (follow if s == "r" else g_full) - shoulder(full, s), q[s])
+            else:
+                q[s] = swing(s, pose, k, down[s], waypoints[s])
+            last[s] = q[s]
+        qr, ql = q["r"], q["l"]
+        pose["right_arm"], pose["right_hand"] = qr[:3], [qr[3], 0, 0]
+        pose["left_arm"], pose["left_hand"] = ql[:3], [ql[3], 0, 0]
+        # the bow turns from its carry to upright as the arm comes up, whatever the fist does
+        hand = _world(F, pose, "left_hand")[:3, :3]
+        want = _toward_identity(bow_rest_world, k)
+        pose["bow"] = [a - b for a, b in zip(_euler_near(hand.T @ want, bow_rest), bow_rest)]
+        # the limbs flex as the string comes back; each half of the string runs from its tip to the nock
+        phi = 9.0 * d
+        pose["bow_top"], pose["bow_bottom"] = [-phi, 0, 0], [phi, 0, 0]
+        n = np.array([str_top[0], nock_y, 0.5 + dmax * d])
+        out = {}
+        for half, limb_pivot, tip, sign in (("string_top", F["bow_top"][1], str_top, -1), ("string_bottom", F["bow_bottom"][1], str_bot, 1)):
+            m = PM.affine([sign * phi, 0, 0], limb_pivot)
+            v = m[:3, :3].T @ (n - _pt(m, tip))
+            length = abs(tip[1] - nock_y)
+            theta = math.degrees(math.atan2(v[2], -v[1])) if sign < 0 else math.degrees(math.atan2(-v[2], v[1]))
+            out[half] = ([theta, 0, 0], [1.0, float(np.linalg.norm(v)) / length, 1.0])
+        cache[key] = (pose, out, d)
+        return cache[key]
+
+    def chan(bone):
+        return lambda t: [round(float(v), 3) for v in at(t)[0].get(bone, (0, 0, 0))]
+
+    bones = {b: rot(chan(b)) for b in ("chest", "head", "left_arm", "left_hand", "bow", "bow_top", "bow_bottom", "right_arm", "right_hand")}
+    for half in ("string_top", "string_bottom"):
+        bones[half] = {"rotation": lambda t, h=half: at(t)[1][h][0], "scale": lambda t, h=half: at(t)[1][h][1]}
+    bones["arrow"] = {"position": lambda t: [0, 0, dmax * at(t)[2]],
+                      "scale": lambda t: [1.0 if 0.12 < t < 0.63 else 0.01] * 3}
+    return anim(L, False, bones, 0.025)
+
+
 # --------------------------------------------------------------------------------------------- bone archer
 
 def bone_archer():
@@ -906,17 +1162,8 @@ def bone_archer():
             fore += limb(B, (fx_, 10.7, -0.2), [(fx_, 9.3, -0.55, 0.28), (fx_, 8.3, -0.35, 0.26)], "bone", seed=98 + i, cracks=False)
         fore += limb(B, (sx * 4.0, 10.9, -0.5), [(sx * 3.85, 9.9, -1.0, 0.3)], "bone", seed=102, cracks=False)
         if sx > 0:
-            # an archer's bracer laced over the bones of the bow arm, and the bow in that hand: a grip, two limbs bending
-            # back to the string, tips curled forward
-            fore += [
-                col(sx * 4.45, 0, 12.4, 15.2, 1.9, 1.6, "leather", stitch=True),
-                box(4.6, 10.6, -1.2, 0.9, 2.6, 0.9, "leather", stitch=False),
-                B.c([4.25, 11.8, -1.6], [0.7, 7.2, 0.8], "wood", pivot=[4.6, 11.8, -1.2], rot=[-14, 0, 0]),
-                B.c([4.3, 18.6, -0.4], [0.6, 2.6, 0.6], "horn", r="horn", tip="+y", pivot=[4.6, 18.8, -0.1], rot=[22, 0, 0]),
-                B.c([4.25, 2.2, -1.6], [0.7, 7.2, 0.8], "wood", pivot=[4.6, 9.4, -1.2], rot=[14, 0, 0]),
-                B.c([4.3, 0.2, -0.4], [0.6, 2.6, 0.6], "horn", r="horn", tip="-y", pivot=[4.6, 2.6, -0.1], rot=[-22, 0, 0]),
-                B.c([4.5, 2.4, 0.4], [0.2, 16.6, 0.2], "glow"),
-            ]
+            # an archer's bracer laced over the bones of the bow arm
+            fore.append(col(sx * 4.45, 0, 12.4, 15.2, 1.9, 1.6, "leather", stitch=True))
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.4, 17.2, 0], fore, rot=[-8 if sx > 0 else 0, 0, 0])
         B.bone(f"{side}_leg", "hips", [sx * 2.0, 12.0, 0], [
             box(sx * 1.9, 11.4, 0, 1.4, 1.2, 1.4, "bone", seed=103, cracks=False),
@@ -930,11 +1177,26 @@ def bone_archer():
             *[B.bar(sx * 2.0 + (i - 1) * 0.5, 0.25, -2.6, -1.5, 0.36, 0.4, "bone", seed=108 + i, cracks=False) for i in range(3)],
             col(sx * 2.0, 0.05, 2.6, 4.4, 1.3, 1.3, "cloth", r="wrap", seed=71),
         ])
-    # the arrow it nocks: only seen while it shoots
-    B.bone("arrow", "right_hand", [-4.5, 10.8, 0], [
-        B.bar(-4.5, 10.8, -11.0, 1.0, 0.4, 0.4, "wood", long="z"),
-        B.bar(-4.5, 10.8, -12.4, -11.0, 0.8, 0.8, "metal", r="steel"),
-        B.bar(-4.5, 11.1, 0.0, 1.6, 0.2, 0.9, "cloth", r="fletch"),
+    # the bow in the left fist: a leather grip, two limbs bending back to the string with horn tips curled forward, and
+    # the string in two halves that meet where the arrow is nocked, so a draw pulls it into a V while the limbs flex.
+    # It rides in the fist tilted forward like a carried bow, and turns upright whenever the arm comes up to shoot.
+    grip, nock_y, arrow_x = [4.6, 10.6, -1.2], 11.85, 4.0
+    str_top, str_bot = [4.6, 18.8, 0.5], [4.6, 2.4, 0.5]
+    bow_rest = [26, 0, -6]
+    B.bone("bow", "left_hand", grip, [box(*grip, 0.9, 2.6, 0.9, "leather", stitch=False)], rot=bow_rest)
+    B.bone("bow_top", "bow", [4.6, 11.8, -1.2], [
+        B.c([4.25, 11.8, -1.6], [0.7, 7.2, 0.8], "wood", pivot=[4.6, 11.8, -1.2], rot=[-14, 0, 0]),
+        B.c([4.3, 18.6, -0.4], [0.6, 2.6, 0.6], "horn", r="horn", tip="+y", pivot=[4.6, 18.8, -0.1], rot=[22, 0, 0])])
+    B.bone("string_top", "bow_top", str_top, [B.c([4.5, nock_y, 0.4], [0.2, str_top[1] - nock_y, 0.2], "glow")])
+    B.bone("bow_bottom", "bow", [4.6, 9.4, -1.2], [
+        B.c([4.25, 2.2, -1.6], [0.7, 7.2, 0.8], "wood", pivot=[4.6, 9.4, -1.2], rot=[14, 0, 0]),
+        B.c([4.3, 0.2, -0.4], [0.6, 2.6, 0.6], "horn", r="horn", tip="-y", pivot=[4.6, 2.6, -0.1], rot=[-22, 0, 0])])
+    B.bone("string_bottom", "bow_bottom", str_bot, [B.c([4.5, str_bot[1], 0.4], [0.2, nock_y - str_bot[1], 0.2], "glow")])
+    # the arrow it nocks, lying on the bow just above the fist: only seen while it shoots
+    B.bone("arrow", "bow", [arrow_x, nock_y, 0.5], [
+        B.bar(arrow_x, nock_y, -11.0, 0.5, 0.4, 0.4, "wood", long="z"),
+        B.bar(arrow_x, nock_y, -12.4, -11.0, 0.8, 0.8, "metal", r="steel"),
+        B.bar(arrow_x, nock_y + 0.3, -1.1, 0.5, 0.2, 0.9, "cloth", r="fletch"),
     ])
     register(name, lambda aff: pal(aff, (130, 190, 255), {
         "bone": (198, 186, 158), "cloak": (56, 68, 52), "wrap": (110, 98, 84), "fletch": (150, 40, 38), "horn": (70, 60, 50),
@@ -955,23 +1217,7 @@ def bone_archer():
     }, 0.1)
     L = 1.0
     A["walk"] = anim(L, True, {**biped_walk(L, shins=("right_shin", "left_shin"), arm_swing=16, swing=28, knee=26, body="hips"), **hidden})
-    # shoot (1.0 s): bow arm up, draw to the jaw, release at 0.62 s
-    L = 1.0
-
-    def aim(t):
-        return hold(t, 0.0, 0.2, 0.8, 1.0)
-
-    def draw(t):
-        return ease_in_out(window(t, 0.2, 0.58)) * (1 - window(t, 0.62, 0.66))
-    A["shoot"] = anim(L, False, {
-        "left_arm": rot(lambda t: [-82 * aim(t), -10 * aim(t), 0]),
-        "left_hand": rot(lambda t: [8 * aim(t), 0, 0]),
-        "right_arm": rot(lambda t: [-82 * aim(t) + 6 * draw(t), 30 * aim(t) + 18 * draw(t), 0]),
-        "right_hand": rot(lambda t: [-70 * draw(t) - 20 * aim(t), 0, 0]),
-        "chest": rot(lambda t: [0, -18 * aim(t), 0]),
-        "head": rot(lambda t: [0, 18 * aim(t), 0]),
-        "arrow": {"scale": lambda t: [1.0 if 0.12 < t < 0.63 else 0.01] * 3},
-    }, 0.025)
+    A["shoot"] = archer_shoot(B, grip, nock_y, arrow_x, str_top, str_bot)
     L = 1.2
     A["death"] = anim(L, "hold", {
         "root": {"position": lambda t: [0, -7 * ease_in(window(t, 0.2, 0.7)), 0], "rotation": lambda t: [12 * window(t, 0.2, 0.7), 0, 0]},
