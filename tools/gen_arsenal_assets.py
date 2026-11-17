@@ -5,7 +5,8 @@ Generates the arsenal's assets (no hand-drawn files needed):
 - 39 weapon sprites (32x32 pixel art, built from parts along the item's diagonal like tools/gen_combat_assets.py),
   bows with their three pull frames, gauntlet icons
 - a light sweep animation on legendary, mythic and divine sprites (.png strip + .mcmeta)
-- item models, Better Combat weapon attribute files, and the English names and lore
+- Better Combat weapon attribute files, and the English names and lore (the item models come from
+  tools/gen_weapon_models.py, which this calls at the end)
 - status icons (frostbite, frozen, infernal rend) and the loot beam light texture
 
 Run from the repo root:  python3 tools/gen_arsenal_assets.py
@@ -27,7 +28,6 @@ from gen_combat_assets import Part, blade, const, guard, grip, hexc, pommel, sha
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 ASSETS = os.path.join(ROOT, "src/main/resources/assets/beyondsolo")
 ITEM_OUT = os.path.join(ASSETS, "textures/item")
-MODEL_OUT = os.path.join(ASSETS, "models/item")
 LANG = os.path.join(ASSETS, "lang/en_us.json")
 ATTR_OUT = os.path.join(ROOT, "src/main/resources/data/beyondsolo/weapon_attributes")
 EFFECT_ICON_OUT = os.path.join(ASSETS, "textures/mob_effect")
@@ -199,6 +199,9 @@ def bow(wood, string, pull, tips=None, grip_c=LEATHER, glow=None, arrow_c=(STEEL
                 c = layer.color_at(u, v) or c
             if c is not None:
                 px[x, y] = c
+    # Drawn with the arrow towards the top-right; vanilla's bow (whose held and drawing poses every bow model uses)
+    # points it to the top-left, so flip it. Lit edges are added after this, so the light still comes from the left.
+    img = img.transpose(Image.FLIP_LEFT_RIGHT)
     img = outline(img)
     if glow:
         img = add_rim(img, glow)
@@ -545,10 +548,6 @@ def beam(w=32, h=128):
     return Image.fromarray(img, "RGBA").filter(ImageFilter.GaussianBlur(0.6))
 
 
-MODEL_HANDHELD = {"parent": "minecraft:item/handheld"}
-BOW_DISPLAY_PARENT = "minecraft:item/bow"
-
-
 def write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -557,7 +556,7 @@ def write_json(path, data):
 
 
 def main():
-    for p in (ITEM_OUT, MODEL_OUT, ATTR_OUT, EFFECT_ICON_OUT, FX_OUT):
+    for p in (ITEM_OUT, ATTR_OUT, EFFECT_ICON_OUT, FX_OUT):
         os.makedirs(p, exist_ok=True)
     d = designs()
     names = {}
@@ -575,24 +574,15 @@ def main():
                 os.remove(meta)
         if name is not None:
             names[item] = (name, lore)
-        # models
-        if kind == "bow":
-            if "_pulling_" in item:
-                write_json(os.path.join(MODEL_OUT, item + ".json"),
-                           {"parent": "beyondsolo:item/" + item.rsplit("_pulling_", 1)[0], "textures": {"layer0": "beyondsolo:item/" + item}})
-            else:
-                write_json(os.path.join(MODEL_OUT, item + ".json"), {
-                    "parent": BOW_DISPLAY_PARENT,
-                    "textures": {"layer0": "beyondsolo:item/" + item},
-                    "overrides": [
-                        {"predicate": {"pulling": 1}, "model": f"beyondsolo:item/{item}_pulling_0"},
-                        {"predicate": {"pulling": 1, "pull": 0.65}, "model": f"beyondsolo:item/{item}_pulling_1"},
-                        {"predicate": {"pulling": 1, "pull": 0.9}, "model": f"beyondsolo:item/{item}_pulling_2"},
-                    ]})
-        else:
-            write_json(os.path.join(MODEL_OUT, item + ".json"), dict(MODEL_HANDHELD, textures={"layer0": "beyondsolo:item/" + item}))
+        if kind != "bow":
             preset = {"staff": "battlestaff"}.get(kind, kind)
-            write_json(os.path.join(ATTR_OUT, item + ".json"), {"parent": "bettercombat:" + preset})
+            path = os.path.join(ATTR_OUT, item + ".json")
+            attrs = {}
+            if os.path.exists(path):
+                with open(path) as f:
+                    attrs = json.load(f)          # keeps the idle pose gen_weapon_models.py adds
+            attrs["parent"] = "bettercombat:" + preset
+            write_json(path, attrs)
 
     # status icons
     for name, (svg, dark, light) in {"frostbite": ("snowflake", "3f86c0", "e8f6ff"), "frozen": ("cube", "5a9ad0", "ffffff"),
@@ -610,6 +600,9 @@ def main():
     with open(LANG, "w") as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    # held and dropped 3D models (tools/gen_hd_gear.py rebuilds them again for its 64x64 textures)
+    import gen_weapon_models
+    gen_weapon_models.build(set(names) | set(gen_weapon_models.BOWS))
     print(f"arsenal assets written: {len(names)} weapons")
 
 
