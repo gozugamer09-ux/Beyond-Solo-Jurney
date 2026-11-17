@@ -7,6 +7,7 @@ import com.beyondsolo.enemy.Enemies;
 import com.beyondsolo.enemy.EnemyModule;
 import com.beyondsolo.enemy.EnemyRoster;
 import com.beyondsolo.enemy.EnemyTraits;
+import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.enemy.MonsterKind;
 import com.beyondsolo.enemy.Variant;
 import com.beyondsolo.gate.BossKind;
@@ -17,6 +18,7 @@ import com.beyondsolo.gate.GateInstance;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.registry.ModEntities;
 import com.beyondsolo.system.PlayerRank;
+import com.beyondsolo.system.SystemAPI;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -32,13 +34,17 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.List;
 
 /**
  * Testing commands for the enemy roster (permission level 2):
@@ -46,6 +52,8 @@ import java.util.EnumSet;
  *   <li>/system enemy spawn &lt;kind&gt; [rank] [variant] [affinity] — one of the gate's creatures in front of you</li>
  *   <li>/system enemy boss &lt;kind&gt; [rank] [ascended] — a boss in front of you, awake (it opens nothing when it dies)</li>
  *   <li>/system enemy mix [rank] — what a random gate of that rank would hold</li>
+ *   <li>/system enemy levels — the hidden levels of the creatures around you, against your own, and the colour each
+ *   name shows in</li>
  *   <li>/system gate spawnboss &lt;rank&gt; &lt;boss&gt; [ascended] — a gate whose boss is that kind</li>
  * </ul>
  */
@@ -76,7 +84,8 @@ public final class EnemyCommand {
                                                 .executes(ctx -> boss(ctx, rankArg(ctx), BoolArgumentType.getBool(ctx, "ascended")))))))
                         .then(Commands.literal("mix")
                                 .executes(ctx -> mix(ctx, PlayerRank.C))
-                                .then(rank().executes(ctx -> mix(ctx, rankArg(ctx))))))
+                                .then(rank().executes(ctx -> mix(ctx, rankArg(ctx)))))
+                        .then(Commands.literal("levels").executes(EnemyCommand::levels)))
                 .then(Commands.literal("gate").then(Commands.literal("spawnboss").then(rank().then(bossArg()
                         .executes(ctx -> gate(ctx, false))
                         .then(Commands.argument("ascended", BoolArgumentType.bool())
@@ -131,6 +140,23 @@ public final class EnemyCommand {
         level.addFreshEntity(boss);
         boss.wake();
         return 1;
+    }
+
+    /** The hidden levels of the System's creatures within 24 blocks, nearest first, against your own (for the balancing pass). */
+    private static int levels(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer p = ctx.getSource().getPlayerOrException();
+        float hunter = HiddenLevel.hunterLevel(SystemAPI.get(p));
+        List<LivingEntity> near = new ArrayList<>(p.serverLevel().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(24), HiddenLevel::has));
+        near.sort(Comparator.comparingDouble(p::distanceToSqr));
+        StringBuilder b = new StringBuilder(String.format(java.util.Locale.ROOT, "You: hunter level %.1f (level %d, rank %s)",
+                hunter, SystemAPI.get(p).level(), SystemAPI.get(p).rank()));
+        for (LivingEntity e : near.subList(0, Math.min(10, near.size()))) {
+            int level = HiddenLevel.of(e);
+            b.append(String.format(java.util.Locale.ROOT, "%n%s: level %d, power %.1f -> %s", e.getDisplayName().getString(), level,
+                    HiddenLevel.power(e), HiddenLevel.Threat.of(level, hunter).word().getString()));
+        }
+        ctx.getSource().sendSuccess(() -> Component.literal(b.toString()), false);
+        return near.size();
     }
 
     private static int mix(CommandContext<CommandSourceStack> ctx, PlayerRank rank) {

@@ -11,8 +11,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.RenderNameTagEvent;
+import net.neoforged.neoforge.common.util.TriState;
 
-/** Client wiring of the enemy roster: renderers, world effects, name plates. */
+/** Client wiring of the enemy roster: renderers, world effects, names over heads. */
 public final class EnemyClientEvents {
     @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
     public static final class ModBus {
@@ -22,9 +24,10 @@ public final class EnemyClientEvents {
             event.registerEntityRenderer(EnemyModule.ORB.get(), OrbRenderer::new);
         }
 
+        /** Names belong to the world, like Minecraft's own name tags: under the HUD and the System's pop-ups. */
         @SubscribeEvent
         static void layers(RegisterGuiLayersEvent event) {
-            event.registerAboveAll(BeyondSolo.id("enemy_plates"), EnemyHud::render);
+            event.registerBelowAll(BeyondSolo.id("enemy_plates"), EnemyHud::render);
         }
     }
 
@@ -44,6 +47,12 @@ public final class EnemyClientEvents {
         @SubscribeEvent
         static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
             EnemyClient.clear();
+        }
+
+        /** A creature whose name the System shows over its head doesn't get Minecraft's own name tag as well. */
+        @SubscribeEvent
+        static void nameTag(RenderNameTagEvent event) {
+            if (EnemyClient.level(event.getEntity().getId()) >= 0 && EnemyHud.showsNames()) event.setCanRender(TriState.FALSE);
         }
     }
 

@@ -768,6 +768,7 @@ public final class RedGates {
         if (mob == null) return null;
         mob.getPersistentData().putUUID(MOB_TAG, run.gate);
         fury(mob);
+        com.beyondsolo.enemy.HiddenLevel.refresh(mob);
         return mob;
     }
 
