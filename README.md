@@ -77,6 +77,13 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
   - **Blood:** a blood pop for a fixed 10% of max health that armor doesn't soften. A **Clotting Tonic** stops it.
 - **Combat HUD:** your buildups and statuses next to the status capsule, meters over the heads of creatures you
   fight, damage numbers in element colours, and a tinted screen edge while you burn, carry heavy venom or a brand.
+- **Gate dungeons: 20 realms in 8 shapes.** Every gate leads to a dungeon of one of 20 realms, several for each
+  rank (the Hollows, Mirewood, the Rootbound Den and the Mosswept Ruins at E, up to the Starless Expanse, the
+  Emberforge, the Infernal Citadel and the Crimson Abyss at S). Each has its own stone, decorations, lights, fog,
+  drifting particles, element, creatures and favourite bosses. It is laid out in one of 8 shapes: winding caverns, a
+  labyrinth with dead ends, a gauntlet of great halls through gatehouses, a spire climbed by winding stairs, a
+  descent down a deep shaft, islands joined by bridges over a chasm, one vast hollow with camps and a lake, or a hive
+  of round cells. The gate's seed picks both.
 
 ## Building and running
 
@@ -94,7 +101,8 @@ nearest crystal if there is one), `/system awaken [rank] [class]` (same result, 
 `/system xp <n>`, `/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`,
 `/system exhaustion <percent>`, `/system notify <text>`, `/system buildup <targets> <element> <amount>`,
 `/system status <targets> <deep_burn|venom|heavy_venom|crimson_brand> [stacks]`,
-`/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it).
+`/system trial status|reset|call|enter|arbiter|wake|fall|slay|grant` (the awakening trial; `grant` skips it),
+`/system gate spawn [rank] [realm|any] [shape]` (a gate in front of you), `/system gate enter|info|boss|wake|kill`.
 
 Config: `config/beyondsolo-common.toml` (`awakening.required` turns the trial off so players start with
 the System, spawn distance, Evaluation Zone weight, announcing evaluations in chat, XP,

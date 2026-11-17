@@ -191,17 +191,19 @@ def sockets(x, y, r, slant=0.3, **kw):
     return [dict(x=x, y=y, r=r, slant=slant, **kw), dict(x=-x, y=y, r=r, slant=-slant, **kw)]
 
 
-def curl(B, base, sx, segs, mat, z_step=0.0, **kw):
+def curl(B, base, sx, segs, mat, z_step=0.0, overlap=0.0, **kw):
     """A horn curling out from base on the side sx: segs [(angle from upright in degrees, length, thickness)], each
-    segment starting where the last one ended."""
+    segment starting where the last one ended (overlap: how far each runs on past the next one's start, to close the
+    gaps at the joints)."""
     x, y, z = base
     out = []
     total = sum(ln for _, ln, _ in segs)
     done = 0.0
-    for ang, ln, w in segs:
+    for i, (ang, ln, w) in enumerate(segs):
         th = math.radians(ang)
         extra = dict(kr=(done / total, (done + ln) / total)) if mat == "horn" and "kr" not in kw else {}
-        out.append(B.c([x - w / 2, y, z - w / 2], [w, ln, w], mat, pivot=[x, y, z], rot=[0, 0, sx * ang], **kw, **extra))
+        ext = overlap if i < len(segs) - 1 else 0.0
+        out.append(B.c([x - w / 2, y, z - w / 2], [w, ln + ext, w], mat, pivot=[x, y, z], rot=[0, 0, sx * ang], **kw, **extra))
         x, y, z = x + sx * math.sin(th) * ln, y + math.cos(th) * ln, z + z_step
         done += ln
     return out
@@ -445,15 +447,20 @@ def write_anims(name, A):
 # --------------------------------------------------------------------------------------------- gutterkin
 
 def gutterkin():
-    """A goblin-like raider no taller than a child: bow legs, a hunched back, a big head with long ears, a hooked
-    nose, a wide grin of crooked teeth, yellow eyes. A notched cleaver, a rag at the hips, bone trinkets."""
+    """A goblin-like raider no taller than a child: bow legs, a hunched back, a big domed head with long ragged ears,
+    a long hooked nose with a ring through it, a wide grin of crooked teeth, yellow eyes in a band of red war paint and
+    a scar down one of them, a top-knot tied with a ring of bone. A notched cleaver, a scrap of rusted iron strapped
+    over one shoulder, a mangy fur collar, a rag at the hips, pouches and bone trinkets."""
     name = "gutterkin"
     B = Body(name, 1500)
     c = B.c
     stripes = dict(faces=("south", "up", "east", "west"), period=2.1, width=0.3, lean=0.35, broken=0.85, wobble=1.0, tone=0.3, back_half=True)
     skin = dict(seed=3, mottle=0.12, fat=0.08, blotch=0.2, tiger=stripes)
+    plain = dict(seed=3, mottle=0.12, fat=0.08, blotch=0.2)
     limb = dict(seed=3, mottle=0.12, fat=0.08, blotch=0.2, tiger=dict(stripes, lean=0.0, period=1.3, back_half=False, faces=("south", "up", "west", "east")))
     dirt = dict(ramp="mud", height=3.4)
+    gold = dict(r="gold", fuller=False, scratches=0)
+    rusty = dict(r="scrap", fuller=False, rust=0.5, scratches=2, nicks=True)
     B.bone("root", None, [0, 0, 0])
     B.bone("hips", "root", [0, 8, 0.5], [
         c([-3, 7, -1.6], [6, 3, 4], "skin", zone="back", **skin),
@@ -461,64 +468,94 @@ def gutterkin():
         # the rag: a strip in front and one behind, torn at the hem
         c([-2.2, 3.4, -2.1], [4.4, 5.4, 0.4], "cloth", hem=1.4, seed=61, skip=("up", "down")),
         c([-2.6, 3.8, 2.3], [5.2, 5.0, 0.4], "cloth", hem=1.6, seed=62, skip=("up", "down")),
-        # trinkets on the belt: a little skull and two bones
-        c([2.6, 7.4, -2.4], [1.4, 1.4, 1.2], "bone", seed=83),
+        # trinkets on the belt: a little skull and two bones; a pouch on either hip
+        c([2.5, 7.3, -2.5], [1.5, 1.5, 1.3], "bone", seed=83, cracks=False,
+          holes=[dict(x=2.9, y=8.15, r=(0.24, 0.26)), dict(x=3.6, y=8.15, r=(0.24, 0.26))]),
         c([-3.2, 6.6, -2.2], [0.6, 2.2, 0.6], "bone", seed=84),
         c([-2.5, 6.9, -2.3], [0.6, 1.8, 0.6], "bone", seed=85),
+        c([-4.1, 6.4, -0.9], [1.2, 2.2, 2.0], "leather", seed=86, stitch=True),
+        c([3.0, 6.7, 0.5], [1.1, 1.8, 1.7], "leather", seed=87, stitch=True),
     ])
     B.bone("chest", "hips", [0, 9.5, 0.5], [
         c([-3.6, 9.5, -2.4], [7.2, 6.5, 5.2], "skin", zone="front", bib_w=0.26, anat=dict(part="chest", kind="ribs"), **skin),
-        # a ridge of knobs down the spine
-        c([-0.6, 14.4, 2.4], [1.2, 1.2, 1.0], "horn", tip="+z", r="horn"),
-        c([-0.5, 12.2, 2.6], [1.0, 1.1, 0.9], "horn", tip="+z", r="horn"),
+        # a lumpy sack of loot slung on the back, its neck tied off with rope
+        c([-2.5, 10.2, 2.5], [4.6, 3.8, 2.8], "cloth", r="sack", seed=63, folds=2.2, pivot=[0, 12.0, 3.9], rot=[0, 0, 12]),
+        c([-1.9, 9.6, 2.9], [3.4, 1.0, 2.2], "cloth", r="sack", seed=64, folds=2.2, pivot=[0, 12.0, 3.9], rot=[0, 0, 12]),
+        c([-0.8, 13.9, 3.3], [1.5, 1.2, 1.3], "cloth", r="sack", seed=65, folds=3.0, pivot=[0, 12.0, 3.9], rot=[0, 0, 12]),
+        c([-0.95, 13.8, 3.15], [1.8, 0.45, 1.6], "leather", r="rope", stitch=False, pivot=[0, 12.0, 3.9], rot=[0, 0, 12]),
         # a strap across the chest
-        c([-3.8, 12.0, -2.7], [7.6, 1.0, 0.4], "leather", pivot=[0, 12.5, -2.5], rot=[0, 0, 32], stitch=False),
-        # a necklace of teeth
-        c([-2.6, 14.8, -2.75], [5.2, 0.5, 0.35], "leather", stitch=False),
-        *[c([-2.2 + i * 1.1, 13.6 + (0.3 if i in (1, 3) else 0.0), -2.85], [0.5, 1.2 - (0.3 if i in (1, 3) else 0.0), 0.4], "bone", seed=86 + i)
+        c([-3.8, 11.6, -2.7], [7.6, 1.0, 0.4], "leather", pivot=[0, 12.1, -2.5], rot=[0, 0, 32], stitch=False),
+        # a mangy collar of fur around the neck, a necklace of teeth hanging from under it
+        c([-4.0, 14.2, -2.9], [8.0, 2.2, 6.0], "mane", r="fur", seed=88, len=1.4, width=0.8, ragged=0.7, lock_k=0.7),
+        c([-3.4, 15.9, -2.4], [6.8, 0.9, 5.2], "mane", r="fur", seed=89, len=1.2, width=0.7, ragged=0.4, lock_k=0.7),
+        *[c([-2.2 + i * 1.1, 13.0 + (0.3 if i in (1, 3) else 0.0), -2.95], [0.5, 1.3 - (0.3 if i in (1, 3) else 0.0), 0.4], "bone", seed=86 + i)
           for i in range(5)],
     ], rot=[24, 0, 0])
+    # the face: war paint across the eyes and running down from them, a scar down the left eye
+    paint = [dict(pts=[(-3.6, 18.85), (3.6, 18.85)], w=1.75, ramp="paint", tone=0.3),
+             dict(pts=[(-1.45, 18.0), (-1.6, 16.3)], w=0.42, ramp="paint", tone=0.26),
+             dict(pts=[(2.55, 20.3), (1.15, 16.6)], w=0.48, ramp="scar", tone=0.6)]
     head = [
-        c([-3.6, 15.6, -7.2], [7.2, 5.4, 6.0], "skin", zone="back", split=(0.74, -1.0),
-          eyes=eyes(1.7, 18.9, (1.05, 0.6), slant=0.42, pupil="slit"),
-          wrinkles=dict(eyes=[(1.7, 18.9), (-1.7, 18.9)], eye_r=(1.05, 0.6), nose=(0, 17.3), mouth=(-2.7, 2.7, 15.9), k=2.2,
+        c([-3.5, 15.6, -7.2], [7.0, 4.8, 5.6], "skin", zone="back", split=(0.74, -1.0), facepaint=paint,
+          eyes=eyes(1.7, 18.85, (1.05, 0.6), slant=0.42, pupil="slit"),
+          wrinkles=dict(eyes=[(1.7, 18.85), (-1.7, 18.85)], eye_r=(1.05, 0.6), nose=(0, 17.3), mouth=(-2.7, 2.7, 15.9), k=2.2,
                      frown=(0.45, 19.0, 20.2)),
+          cuts=[dict(pts=[(2.5, 20.1), (2.25, 19.55)], w=0.16, faces=("north",), ramp="skin_d", tone=0.12),
+                dict(pts=[(1.45, 17.5), (1.2, 16.9)], w=0.16, faces=("north",), ramp="skin_d", tone=0.12)],
           **skin),
-        # a hooked nose
+        # the skull: a low forehead sloping back from the brows into a dome that swells over the nape
+        c([-3.25, 18.2, -6.9], [6.5, 3.2, 7.0], "skin", zone="back", pivot=[0, 19.8, -3.4], rot=[12, 0, 0], **dict(skin, tiger=dict(stripes, faces=("up",)))),
+        c([-2.9, 16.4, -1.9], [5.8, 3.8, 2.0], "skin", zone="limb", **plain),
+        # a long hooked nose drooping at its tip, a ring of gold through it
         c([-0.75, 16.6, -8.6], [1.5, 2.6, 1.6], "skin", pivot=[0, 18, -7.4], rot=[-14, 0, 0], seed=5, mottle=0.1, blotch=0.2,
-          flush=dict(low=0.6, weight=0.45), nostrils=dict(x=0.38, z=-8.1)),
+          flush=dict(low=0.6, weight=0.45)),
+        c([-0.6, 15.9, -9.5], [1.2, 1.3, 1.4], "skin", pivot=[0, 16.6, -8.8], rot=[16, 0, 0], seed=5, mottle=0.1, blotch=0.2,
+          flush=dict(weight=0.55), nostrils=dict(x=0.32, z=-8.9)),
+        c([-0.4, 15.2, -9.15], [0.8, 0.7, 0.3], "metal", **gold),
         # upper teeth under the lip
         c([-2.8, 15.0, -7.35], [5.6, 0.9, 0.4], "teeth", n=6, fangs=1, up=True, skip=("up", "down", "south")),
-        # a greasy crest of black hair from the crown down the back of the skull
-        c([-0.9, 20.6, -6.0], [1.8, 1.1, 5.2], "hair", r="hair", seed=7, ragged=0.35),
-        c([-0.7, 18.6, -1.5], [1.4, 2.8, 1.1], "hair", r="hair", seed=8, ragged=0.6),
+        # a top-knot tied with a ring of bone, its ends bristling up
+        c([-0.95, 21.6, -3.2], [1.9, 2.6, 1.9], "hair", r="hair", seed=7, ragged=0.9, pivot=[0, 22.9, -2.25], rot=[-8, 0, 180], skip=("down",)),
+        c([-1.1, 21.7, -3.35], [2.2, 0.6, 2.2], "bone", seed=9, cracks=False),
     ]
     for sx in (-1, 1):
-        # brows that slant down to the nose
-        head.append(c(mirror_x([0.3, 19.7, -7.7], [3.4, 1.0, 1.4], sx), [3.4, 1.0, 1.4], "skin", r="skin_d", pivot=[sx * 0.4, 20.1, -7.0],
-                      rot=[0, 0, sx * 14], seed=4, skip=("south",)))
-        # long ears: out, back and up, narrowing to a drooping point
+        # brows that slant down to the nose, cheekbones jutting under the eyes
+        head.append(c(mirror_x([0.2, 19.45, -7.6], [3.3, 0.85, 1.2], sx), [3.3, 0.85, 1.2], "skin", r="skin_d", pivot=[sx * 0.3, 19.85, -7.0],
+                      rot=[0, 0, -sx * 14], seed=4, skip=("south",)))
+        head.append(c(mirror_x([2.7, 16.4, -7.4], [1.4, 1.15, 3.2], sx), [1.4, 1.15, 3.2], "skin", pivot=[sx * 3.0, 16.9, -6.0],
+                      rot=[0, -sx * 24, sx * -10], **plain))
+        # long ears: out, back and up, narrowing to a drooping point; the right one torn short, two rings of gold in the left
         piv, turn = [sx * 3.5, 18.4, -4.2], [8, sx * -38, sx * 16]
         head += [
             c(mirror_x([3.3, 17.3, -4.7], [3.0, 2.6, 0.9], sx), [3.0, 2.6, 0.9], "skin", pivot=piv, rot=turn, zone="limb",
               ear=dict(weight=0.55), **skin),
             c(mirror_x([6.2, 17.6, -4.6], [2.6, 2.0, 0.7], sx), [2.6, 2.0, 0.7], "skin", pivot=piv, rot=turn, zone="limb",
               ear=dict(weight=0.5), **skin),
-            c(mirror_x([8.7, 17.6, -4.5], [2.4, 1.2, 0.5], sx), [2.4, 1.2, 0.5], "skin", pivot=piv, rot=turn, zone="limb",
-              flush=dict(weight=0.25), **skin),
+            c(mirror_x([8.7, 17.6, -4.5], [2.4 if sx > 0 else 1.2, 1.2, 0.5], sx), [2.4 if sx > 0 else 1.2, 1.2, 0.5], "skin", pivot=piv,
+              rot=turn, zone="limb", flush=dict(weight=0.25), **skin),
         ]
+        if sx > 0:
+            head += [c([x, 16.9, -4.45], [0.45, 0.8, 0.35], "metal", pivot=piv, rot=turn, **gold) for x in (6.7, 7.8)]
     B.bone("head", "chest", [0, 15.4, -1.8], head, rot=[-22, 0, 0])
     B.bone("jaw", "head", [0, 16.0, -3.0], [
-        c([-3.0, 13.8, -7.0], [6.0, 1.8, 4.6], "skin", zone="back", split=(0.8, 0.5), **skin),
+        c([-2.9, 14.0, -7.0], [5.8, 1.7, 4.4], "skin", zone="back", split=(0.8, 0.5), **skin),
+        # a narrow, pointed chin
+        c([-1.3, 13.3, -7.15], [2.6, 1.2, 2.8], "skin", zone="back", **plain),
         c([-2.6, 15.55, -6.9], [5.2, 0.8, 0.4], "teeth", n=5, fangs=1, up=False, skip=("up", "down", "south")),
         c([-2.6, 15.0, -6.6], [5.2, 0.6, 3.6], "mouth"),
     ])
     for side, sx in (("right", -1), ("left", 1)):
-        # arms long enough to reach the knees
-        B.bone(f"{side}_arm", "chest", [sx * 4.2, 14.6, 0.4], [
-            c(mirror_x([3.4, 9.8, -0.6], [2.4, 5.6, 2.4], sx), [2.4, 5.6, 2.4], "skin", zone="limb", anat=dict(part="upper", k=1.3), **limb),
-            c(mirror_x([3.2, 13.2, -0.9], [2.9, 2.2, 3.0], sx), [2.9, 2.2, 3.0], "leather", stitch=False) if sx < 0 else None,
-        ], rot=[-30, 0, sx * -6])
+        # arms long enough to reach the knees; a scrap of rusted iron lashed over the right shoulder with rope
+        arm = [c(mirror_x([3.4, 9.8, -0.6], [2.4, 5.6, 2.4], sx), [2.4, 5.6, 2.4], "skin", zone="limb", anat=dict(part="upper", k=1.3), **limb)]
+        if sx < 0:
+            arm += [
+                c([-6.0, 12.6, -0.95], [2.9, 2.2, 3.1], "leather", stitch=False),
+                c([-6.5, 14.4, -1.5], [3.6, 0.7, 4.2], "metal", pivot=[-4.6, 14.7, 0.6], rot=[0, 0, -20], **rusty),
+                c([-6.9, 11.9, -1.3], [0.7, 2.8, 3.8], "metal", pivot=[-6.5, 13.4, 0.6], rot=[0, 0, -6], **rusty),
+                c([-6.05, 12.9, -0.8], [2.8, 0.45, 2.9], "leather", r="rope", stitch=False),
+                c([-5.5, 15.0, 0.1], [0.7, 1.4, 0.7], "metal", pivot=[-5.15, 15.0, 0.45], rot=[0, 0, 22], **rusty),
+            ]
+        B.bone(f"{side}_arm", "chest", [sx * 4.2, 14.6, 0.4], arm, rot=[-30, 0, sx * -6])
         hand = [
             c(mirror_x([3.5, 5.2, -0.4], [2.1, 5.0, 2.1], sx), [2.1, 5.0, 2.1], "skin", zone="limb", anat=dict(part="fore", k=1.3),
               wraps=dict(y=(5.3, 7.4), ramp="wrap", dirt=("mud", "bottom")), grime=dirt, **limb),
@@ -547,9 +584,10 @@ def gutterkin():
     register(name, lambda aff: pal(aff, (255, 196, 58), {
         "skin": (116, 128, 70), "skin_d": (40, 56, 36), "skin_l": (180, 172, 108),
         "flush": (150, 84, 64), "mud": (62, 48, 34), "wrap": (166, 150, 114),
-        "cloth": (104, 54, 40), "hair": (36, 30, 26), "horn": (86, 74, 56),
+        "cloth": (104, 54, 40), "hair": (36, 30, 26), "horn": (86, 74, 56), "fur": (66, 54, 44),
         "blade": [(16, 12, 10), (52, 40, 34), (98, 84, 74), (156, 146, 136), (214, 210, 204)],
-        "bone": (204, 190, 160), "paint": (176, 36, 30),
+        "bone": (204, 190, 160), "paint": (150, 26, 24), "scar": (186, 150, 120), "sack": (122, 100, 70), "rust": (100, 60, 40),
+        "scrap": [(14, 12, 12), (40, 36, 34), (72, 66, 60), (114, 106, 96), (168, 160, 148)],
     }), density=6.0)
     B.write(1.2, 1.6, 0.6)
 
@@ -602,14 +640,16 @@ def gutterkin():
 # --------------------------------------------------------------------------------------------- grave thrall
 
 def grave_thrall():
-    """A dead soldier that will not stay down: grey rotting flesh, its ribs open to the dark, a dented nasal helm over
-    empty sockets with a cold light in them, a slack jaw of bare teeth, a torn tabard over rusted mail, a broken sword
-    in one hand and only bones left of the other."""
+    """A dead soldier that will not stay down: grey rotting flesh torn open over its ribs, a dented helm with a nasal
+    guard low over sunken sockets with a cold light in them, the nose rotted away and one cheek torn through to the
+    teeth, a slack jaw, rusted mail under a torn tabard, broken arrows still in it, a broken sword in one hand and
+    only bones left of the other."""
     name = "grave_thrall"
     B = Body(name, 1600)
     box, col = B.box, B.col
     rot_ = dict(seed=21, mottle=0.22)
     dirt = dict(ramp="mud", height=3.6)
+    rust = dict(ramp="rust", cut=0.73, k=1.3, tone=0.34)
     B.bone("root", None, [0, 0, 0])
     B.bone("hips", "root", [0, 13, 0], [
         box(0, 12.6, 0, 7.2, 3.0, 4.0, "flesh", zone="back", **rot_),
@@ -620,34 +660,68 @@ def grave_thrall():
                        dict(pts=[(-0.2, 11.5), (0.2, 11.5)], w=0.6, ramp="gold", tone=0.42)]),
         B.c([-2.8, 4.2, 2.35], [5.6, 9.0, 0.4], "cloth", hem=2.6, seed=64, skip=("up", "down")),
         box(0, 13.3, 0, 8.0, 1.0, 4.8, "leather", stitch=False),
+        box(-1.6, 13.3, -2.45, 1.2, 1.3, 0.3, "trim", r="rust_trim"),
     ])
+    ribs = []
+    for i in range(4):
+        y = 15.9 + i * 1.45
+        for sx in (-1, 1):
+            if i == 1 and sx > 0:
+                continue   # one rib broken away
+            ln = (2.1 - abs(i - 1.5) * 0.2) * (0.62 if (i == 0 and sx < 0) else 1.0)
+            ribs.append(B.c(mirror_x([0.2, y - 0.22, -1.8], [ln, 0.45, 0.45], sx), [ln, 0.45, 0.45], "bone",
+                            pivot=[sx * 0.2, y, -1.6], rot=[0, 0, sx * (10 + 5 * (i % 2))], seed=90 + i, cracks=False))
     B.bone("chest", "hips", [0, 13.5, 0], [
-        box(0, 18.6, 0, 8.0, 10.0, 4.6, "flesh", zone="front", bib_w=0.3, **rot_, anat=dict(part="chest", kind="ribs", k=1.2),
+        # the torso, its front torn open from the breast down: the dark of the body cavity, ribs and a broken breastbone
+        box(0, 18.6, 0.6, 8.0, 10.0, 3.4, "flesh", zone="back", dark_faces=("north",), **rot_, anat=dict(part="chest", kind="lean", k=1.0),
             stitches=[dict(pts=[(-1.6, 21.0), (0.2, 19.2), (1.5, 17.2)], face="west"), dict(pts=[(1.4, 22.0), (-0.6, 20.4)], face="east")]),
-        box(0, 18.7, -2.36, 5.2, 6.6, 0.2, "void", skip=("south",)),
-        *[box(0, 16.3 + i * 1.5, -2.55, 6.0 - abs(i - 1.5) * 0.5, 0.7, 0.5, "bone", seed=90 + i) for i in range(4)],
-        box(0, 18.9, -2.62, 0.8, 7.0, 0.5, "bone", seed=95),
-        box(5.3, 22.9, 0, 3.4, 2.8, 5.4, "plate", pivot=[4, 23, 0], rot=[0, 0, -20], rivets=True),
-        box(0, 23.4, 0, 6.0, 1.2, 4.2, "flesh", **rot_),
+        *[box(sx * 3.0, 18.4, -1.45, 2.0, 9.4, 0.7, "flesh", seed=22 + (sx > 0), mottle=0.3) for sx in (-1, 1)],
+        box(0, 22.3, -1.45, 8.0, 2.4, 0.7, "flesh", seed=24, mottle=0.3, anat=dict(part="chest", kind="muscle", k=0.6)),
+        *ribs,
+        box(0, 19.6, -1.95, 0.8, 4.4, 0.45, "bone", seed=95, cracks=False),
+        box(0, 23.2, 0.2, 6.0, 0.8, 4.0, "flesh", **rot_),
+        col(0, 0.6, 23.2, 25.4, 2.4, 2.2, "flesh", **rot_),
+        # a pauldron of rusted plate over the left shoulder, two lames
+        B.c([3.2, 23.0, -2.4], [3.6, 1.0, 4.8], "plate", pivot=[3.2, 23.5, 0], rot=[0, 0, 20], rivets=False, seed=51, spots=rust),
+        B.c([6.0, 19.8, -2.3], [0.9, 3.2, 4.6], "plate", pivot=[6.0, 23.0, 0], rot=[0, 0, 10], rivets=False, seed=52, spots=rust),
+        # broken arrows still in it, one through the back, one in the shoulder
+        *limb(B, (-1.2, 18.4, 1.6), [(-2.4, 20.6, 6.0, 0.32)], "wood"),
+        *limb(B, (-2.4, 20.6, 6.0), [(-2.7, 21.2, 7.3, 0.55, dict(m="cloth", r="fletch"))], "wood"),
+        *limb(B, (2.2, 21.0, 1.4), [(3.0, 23.4, 4.6, 0.32)], "wood"),
+        *limb(B, (-2.6, 21.6, -1.6), [(-3.0, 22.4, -3.8, 0.3)], "wood"),
     ], rot=[12, 0, 0])
     B.bone("head", "chest", [0, 23.6, 0], [
-        box(0, 27.2, -0.2, 6.2, 6.0, 6.2, "flesh", zone="back", split=(0.75, 0.2),
-            sockets=sockets(1.4, 27.3, (1.0, 0.72), slant=0.32), shadow_top=(27.0, 29.2, 0.16),
-            holes=[dict(x=0, y=25.9, r=(0.45, 0.55))], **rot_,
-            stitches=[dict(pts=[(-3.0, 27.0), (-2.4, 25.9), (-1.6, 25.1)], face="north")],
-            wrinkles=dict(eyes=[(1.4, 27.3), (-1.4, 27.3)], eye_r=(1.0, 0.72), k=1.6, cheeks=False)),
-        box(0, 24.7, -3.35, 4.6, 0.9, 0.4, "teeth", n=7, fangs=0, up=True, skip=("up", "down", "south")),
-        box(0, 30.3, -0.2, 6.8, 2.2, 6.8, "plate", rivets=False),
-        box(0, 29.1, -0.2, 7.3, 0.8, 7.3, "trim", r="rust_trim"),
-        box(0, 27.8, -3.55, 0.8, 3.2, 0.5, "plate", rivets=False),
+        # the face: sunken sockets with a cold light in each under a heavy brow, the nose rotted to a hole, cheekbones
+        # pushing through, the upper teeth, and on its left the cheek torn away to the back teeth
+        box(0, 28.50, -0.30, 5.0, 3.8, 5.0, "flesh", zone="back", **rot_),
+        box(0, 26.00, 1.20, 4.4, 1.4, 2.0, "flesh", seed=30, mottle=0.3),
+        box(0, 28.10, -2.90, 4.2, 1.6, 0.16, "flesh", seed=25, mottle=0.3, sockets=sockets(1.05, 28.15, (0.8, 0.62), slant=0.3, core=0.36),
+            wrinkles=dict(eyes=[(1.05, 28.15), (-1.05, 28.15)], eye_r=(0.8, 0.62), k=1.4, cheeks=False)),
+        box(0, 29.15, -3.15, 4.6, 0.6, 0.6, "flesh", seed=26, mottle=0.3, shadow_top=(28.85, 29.1, 0.2)),
+        box(0, 27.00, -3.00, 1.2, 1.0, 0.4, "flesh", seed=27, holes=[dict(x=0.0, y=26.95, r=(0.34, 0.4))]),
+        *[box(sx * 1.6, 27.1, -2.95, 1.4, 0.8, 0.6, "flesh", seed=28, mottle=0.3) for sx in (-1, 1)],
+        box(-0.4, 26.05, -1.40, 3.4, 1.1, 3.0, "flesh", seed=29, mottle=0.3),
+        box(-0.2, 25.30, -3.15, 3.6, 0.6, 0.3, "teeth", n=7, fangs=0, up=True, skip=("up", "down", "south")),
+        box(2.25, 25.70, -1.70, 0.3, 0.8, 2.2, "teeth", n=4, fangs=0, up=True, skip=("up", "down")),
+        box(2.25, 25.00, -1.70, 0.3, 0.6, 2.2, "teeth", n=4, fangs=0, up=False, skip=("up", "down")),
+        # a dented helm, rounded, with a rusted rim, a nasal guard and one cheek guard left
+        box(0, 31.05, -0.30, 6.0, 1.6, 5.6, "plate", rivets=False, seed=53, spots=rust),
+        box(0, 31.25, -0.30, 5.4, 2.0, 6.2, "plate", rivets=False, seed=54, spots=rust),
+        box(0, 31.9, -0.30, 4.4, 1.2, 4.8, "plate", rivets=False, seed=55),
+        box(0, 32.3, -0.30, 0.6, 0.9, 5.0, "plate", rivets=False, seed=59),
+        box(0, 30.15, -0.30, 6.5, 0.6, 6.7, "trim", r="rust_trim"),
+        box(0, 28.90, -3.75, 0.8, 2.6, 0.4, "plate", rivets=False, seed=56),
+        box(-2.85, 28.20, -1.30, 0.5, 2.8, 3.0, "plate", rivets=False, seed=57, spots=rust),
     ], rot=[8, 0, 12])
-    B.bone("jaw", "head", [0, 25, 1.5], [
-        box(0, 24.0, -1.3, 4.8, 1.6, 4.0, "flesh", **rot_),
-        box(0, 25.05, -3.2, 4.2, 0.8, 0.4, "teeth", n=6, fangs=0, up=False, skip=("up", "down", "south")),
+    B.bone("jaw", "head", [0, 26.0, 1.1], [
+        box(0, 24.60, -1.30, 3.8, 1.2, 3.0, "flesh", **rot_),
+        box(0, 25.45, -2.65, 3.4, 0.5, 0.3, "teeth", n=6, fangs=0, up=False, skip=("up", "down", "south")),
     ], rot=[18, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "chest", [sx * 5.0, 22.5, 0], [
             col(sx * 5.2, 0, 16.6, 23.0, 2.6, 2.6, "flesh", zone="limb", **rot_, anat=dict(part="upper", k=0.9)),
+            # a sleeve of rusted mail to the elbow
+            col(sx * 5.2, 0, 19.0, 23.0, 2.9, 2.9, "mail", r="mail", rust=0.7, skip=("up",)),
         ], rot=[-6 if sx < 0 else 4, 0, sx * -4])
         if sx < 0:
             fore = [
@@ -671,15 +745,18 @@ def grave_thrall():
         B.bone(f"{side}_leg", "hips", [sx * 2.0, 12.0, 0], [
             col(sx * 2.0, 0, 6.4, 12.4, 3.0, 3.0, "flesh", zone="limb", **rot_, anat=dict(part="thigh", k=0.9))])
         shin = [col(sx * 2.0, 0, 1.0, 6.6, 2.6, 2.6, "flesh", zone="limb", **rot_, anat=dict(part="shin", k=0.9), grime=dirt),
-                box(sx * 2.0, 0.8, -0.5, 3.0, 1.6, 4.0, "leather", stitch=False, grime=dirt)]
+                box(sx * 2.0, 0.8, -0.5, 3.0, 1.6, 4.0, "leather", stitch=False, grime=dirt),
+                # a knee cop of dented plate
+                box(sx * 2.0, 6.4, -1.4, 2.4, 1.8, 0.6, "plate", rivets=False, seed=58 + (sx > 0), spots=rust)]
         if sx < 0:
             shin.append(col(-2.0, 0, 2.2, 5.6, 2.9, 2.9, "cloth", r="wrap", seed=65))
         B.bone(f"{side}_shin", f"{side}_leg", [sx * 2.0, 6.5, 0], shin)
     register(name, lambda aff: pal(aff, (150, 255, 225), {
-        "rot": (112, 124, 120), "rot_d": (58, 66, 70), "rot_l": (156, 160, 146),
+        "rot": (112, 124, 120), "rot_d": (52, 60, 62), "rot_l": (164, 168, 150),
         "cloth": (92, 34, 34), "wrap": (118, 106, 88), "bone": (184, 170, 140), "gold": (150, 118, 58), "mud": (52, 46, 38),
         "mail": [(8, 8, 10), (34, 34, 40), (78, 78, 86), (132, 132, 140), (190, 190, 198)],
-        "plate": (70, 66, 66), "trim": (112, 84, 60), "rust_trim": (104, 70, 48), "rust": (104, 70, 50), "rust_iron": (80, 66, 60),
+        "plate": (70, 66, 66), "trim": (112, 84, 60), "rust_trim": (96, 72, 54), "rust": (104, 70, 50), "rust_iron": (80, 66, 60),
+        "fletch": (60, 56, 50), "wood": (88, 66, 44),
         "blade": [(18, 12, 10), (58, 40, 32), (110, 84, 70), (160, 140, 124), (206, 196, 186)],
     }), density=5.0)
     B.write(1.4, 2.2, 1.0)
@@ -734,74 +811,105 @@ def grave_thrall():
 # --------------------------------------------------------------------------------------------- bone archer
 
 def bone_archer():
-    """A skeleton in a ragged hood, a quiver on its back and a bow strung with light: dark sockets with a point of
-    cold fire in each, a ribcage open to the dark."""
+    """A skeleton archer: a bare skull with deep sockets and a point of cold light in each, a ribcage open to the air
+    round its spine, a moss-dark cloak with its hood fallen back on the shoulders, a rusted pauldron, a quiver of
+    red-fletched arrows, and a horn-tipped bow strung with light."""
     name = "bone_archer"
     B = Body(name, 1700)
     box, col = B.box, B.col
-    hood = dict(r="cloth", seed=67)
+    cloak = dict(r="cloak", folds=1.5)
     B.bone("root", None, [0, 0, 0])
     B.bone("hips", "root", [0, 12.5, 0], [
-        box(0, 12.0, 0, 5.4, 2.0, 3.0, "bone", seed=81),
-        col(0, 0.6, 12.0, 14.0, 1.2, 1.2, "bone", seed=82),
-        B.c([-2.4, 5.2, -1.9], [4.8, 7.6, 0.4], "cloth", hem=2.2, seed=66, skip=("up", "down")),
-        B.c([-2.6, 6.0, 1.4], [5.2, 6.8, 0.4], "cloth", hem=2.0, seed=68, skip=("up", "down")),
+        # the pelvis: a sacrum at the back, two wings of hip bone flaring forward round the sides, the pubic arch
+        box(0, 12.3, 0.9, 1.8, 2.4, 1.2, "bone", seed=81),
+        *[B.c(mirror_x([0.6, 11.0, 0.5], [2.4, 2.6, 0.6], sx), [2.4, 2.6, 0.6], "bone", pivot=[sx * 0.6, 12.3, 0.8], rot=[0, sx * 32, 0], seed=82)
+          for sx in (-1, 1)],
+        box(0, 10.6, -1.0, 2.2, 0.8, 0.8, "bone", seed=83),
+        # a belt with a ragged loincloth hanging front and back, a buckle and a pouch
+        box(0, 12.2, 0.1, 5.4, 0.9, 3.6, "leather", seed=72, stitch=False),
+        box(-1.2, 12.2, -1.75, 1.0, 1.1, 0.3, "trim", r="clasp"),
+        B.c([-1.8, 5.8, -1.95], [3.6, 6.0, 0.35], "cloth", hem=2.4, seed=66, skip=("up", "down"), **cloak),
+        B.c([-2.2, 6.4, 1.9], [4.4, 5.4, 0.35], "cloth", hem=2.0, seed=68, skip=("up", "down"), **cloak),
+        box(2.75, 11.0, -0.6, 1.2, 1.7, 1.5, "leather", seed=73),
     ])
+    spine = []
+    for i in range(7):
+        y = 13.6 + i * 1.4
+        spine += [box(0, y + 0.55, 1.0, 1.2, 1.0, 1.2, "bone", seed=84 + i, cracks=False),
+                  B.c([-0.25, y + 0.15, 1.5], [0.5, 0.7, 1.0], "bone", pivot=[0, y + 0.5, 1.5], rot=[-25, 0, 0], seed=91, cracks=False)]
+    ribs = []
+    for i, (y, hw, true_) in enumerate(((21.4, 2.5, True), (20.2, 2.95, True), (19.0, 3.15, True), (17.8, 3.1, False), (16.7, 2.8, False))):
+        for sx in (-1, 1):
+            pts = [(sx * hw, y - 0.25, 0.55, 0.55), (sx * hw * 1.02, y - 0.65, -0.9, 0.55)]
+            pts += [(sx * hw * 0.62, y - 1.0, -1.95, 0.55), (sx * 0.45, y - 1.15, -2.15, 0.5)] if true_ else [(sx * hw * 0.8, y - 0.95, -1.7, 0.5)]
+            ribs += limb(B, (sx * 0.55, y, 1.0), pts, "bone", seed=100 + i, cracks=False, ends=0.3)
     B.bone("chest", "hips", [0, 13.0, 0], [
-        col(0, 0.8, 13.0, 23.8, 1.2, 1.2, "bone", seed=83),
-        box(0, 19.8, -0.2, 6.4, 6.4, 3.6, "void"),
-        # ribs: each side bends down and out from the breastbone, shorter towards the bottom
-        *[B.c([0.0 if sx > 0 else -(3.5 - (0.5 if i == 0 else 0.0) - abs(i - 3) * 0.12), 17.0 + i * 1.3 - 0.35, -2.2],
-              [3.5 - (0.5 if i == 0 else 0.0) - abs(i - 3) * 0.12, 0.7, 4.0], "bone", seed=84 + i,
-              pivot=[0, 17.0 + i * 1.3, -0.2], rot=[0, 0, sx * -9])
-          for i in range(5) for sx in (-1, 1)],
-        # the breastbone
-        box(0, 19.6, -2.15, 1.0, 5.6, 0.5, "bone", seed=80),
-        box(0, 23.4, 0.0, 8.4, 1.1, 2.2, "bone", seed=89),
-        box(0, 23.9, 0.7, 9.4, 1.8, 5.2, "cloth", zone="dark", **hood),
-        # a clasp of tarnished bronze holding the cloak at the throat
-        box(0, 23.6, -2.0, 1.6, 1.4, 0.6, "trim", r="clasp"),
-        # the cloak, down the back
-        B.c([-4.4, 8.6, 2.8], [8.8, 14.6, 0.5], "cloth", hem=3.0, seed=69, skip=("up",)),
-        # a quiver over the shoulder, with fletchings
-        B.c([0.4, 15.5, 3.3], [2.6, 7.6, 2.6], "leather", pivot=[1.7, 19, 4.6], rot=[0, 0, -24], studs=True, stud_step=1.0, stud_r=0.25),
-        *[B.c([0.6 + i * 0.7, 22.9, 3.6 + (i % 2) * 0.9], [0.5, 2.4, 0.5], "cloth", r="fletch", seed=70 + i, pivot=[1.7, 19, 4.6], rot=[0, 0, -24])
-          for i in range(3)],
+        # the spine, its ribs hooping forward to the breastbone (the lowest two float free), the collarbones
+        *spine, *ribs,
+        box(0, 19.5, -2.2, 0.9, 4.4, 0.5, "bone", seed=80, cracks=False),
+        box(0, 21.45, -2.1, 1.6, 0.9, 0.6, "bone", seed=79, cracks=False),
+        *[limb(B, (sx * 0.6, 21.9, -2.0), [(sx * 3.5, 22.6, -0.6, 0.5)], "bone", seed=78, cracks=False)[0] for sx in (-1, 1)],
+        col(0, 0.6, 22.6, 25.6, 0.9, 0.9, "bone", seed=77, cracks=False),
+        # the cloak, its hood fallen back and bunched behind the neck, fastened at the shoulders with bronze
+        B.c([-4.4, 21.3, -0.6], [8.8, 1.8, 3.6], "cloth", hem=0.8, seed=69, skip=("down",), **cloak),
+        box(0, 22.9, 2.3, 5.0, 2.4, 2.4, "cloth", seed=70, **cloak),
+        B.c([-1.9, 20.2, 3.0], [3.8, 3.2, 1.0], "cloth", pivot=[0, 23.0, 3.0], rot=[18, 0, 0], hem=0.8, seed=71, **cloak),
+        B.c([-4.4, 5.2, 2.7], [8.8, 16.4, 0.45], "cloth", hem=3.2, seed=74, skip=("up",), **cloak),
+        *[box(sx * 3.3, 22.0, -0.75, 1.0, 1.0, 0.4, "trim", r="clasp") for sx in (-1, 1)],
+        # a quiver over the cloak, red fletchings over the shoulder, its strap across the ribs with a buckle
+        B.c([0.6, 14.8, 3.2], [2.6, 7.8, 2.6], "leather", pivot=[1.9, 18.7, 4.5], rot=[0, 0, -24], studs=True, stud_step=1.0, stud_r=0.25),
+        *[B.c([0.8 + i * 0.6, 22.5, 3.5 + (i % 2) * 0.9], [0.5, 2.6, 0.5], "cloth", r="fletch", seed=70 + i, pivot=[1.9, 18.7, 4.5], rot=[0, 0, -24])
+          for i in range(4)],
+        B.c([-4.6, 18.55, -2.6], [9.2, 0.9, 0.35], "leather", pivot=[0, 19.0, -2.4], rot=[0, 0, 40], stitch=False),
+        B.c([-0.5, 18.5, -2.72], [1.0, 1.0, 0.25], "trim", r="clasp", pivot=[0, 19.0, -2.4], rot=[0, 0, 40]),
     ], rot=[6, 0, 0])
     B.bone("head", "chest", [0, 24.0, 0], [
-        # a brow ridge over the sockets and cheekbones under them, so the skull is not a box
-        box(0, 29.25, -3.25, 5.0, 0.7, 0.5, "bone", seed=87, cracks=False),
-        *[box(sx * 2.15, 26.75, -3.25, 1.3, 0.8, 0.5, "bone", seed=86, cracks=False) for sx in (-1, 1)],
-        box(0, 27.3, -0.4, 5.6, 5.2, 5.6, "bone", seed=88, ends=0.0,
-            sockets=sockets(1.3, 27.8, (1.05, 0.72), slant=0.36, core=0.3), shadow_top=(27.0, 29.9, 0.3),
-            holes=[dict(x=0.3, y=26.2, r=(0.26, 0.5)), dict(x=-0.3, y=26.2, r=(0.26, 0.5))],
-            cuts=[dict(pts=[(1.6, 29.9), (2.2, 28.9), (1.9, 28.3)], w=0.25, faces=("north",))]),
-        box(0, 25.0, -3.3, 4.0, 0.8, 0.4, "teeth", n=7, fangs=0, up=True, skip=("up", "down", "south")),
-        # the hood: four slabs, dark inside, and a peak over the face
-        box(0, 31.1, 0.1, 7.6, 0.8, 7.8, "cloth", dark_faces=("down",), **hood),
-        box(3.4, 27.6, 0.3, 0.8, 7.2, 7.4, "cloth", dark_faces=("east",), **hood),
-        box(-3.4, 27.6, 0.3, 0.8, 7.2, 7.4, "cloth", dark_faces=("west",), **hood),
-        box(0, 27.6, 3.6, 6.0, 7.2, 0.8, "cloth", dark_faces=("north",), **hood),
-        box(0, 30.6, -3.6, 7.6, 1.4, 0.8, "cloth", dark_faces=("down", "south"), **hood),
+        # the skull: a rounded vault, brows arching over deep sockets with a point of cold light in each, cheekbones and
+        # their arches, the nose's hole, the upper teeth
+        box(0, 28.4, 0.6, 5.0, 3.4, 4.9, "bone", seed=88),
+        box(0, 28.5, 0.6, 4.4, 4.0, 5.4, "bone", seed=87),
+        box(0, 28.75, 0.8, 3.6, 4.1, 4.6, "bone", seed=86),
+        box(0, 28.2, 3.2, 3.2, 2.6, 0.5, "bone", seed=79, cracks=False),
+        *[B.c(mirror_x([0.0, 28.2, -2.75], [2.35, 0.75, 0.7], sx), [2.35, 0.75, 0.7], "bone", pivot=[0, 28.6, -2.4], rot=[0, 0, sx * 7], seed=85,
+              cracks=False, shadow_top=(28.2, 28.5, 0.22)) for sx in (-1, 1)],
+        box(0, 27.4, -2.18, 3.8, 1.6, 0.16, "bone", seed=84, cracks=False, sockets=sockets(0.95, 27.45, (0.72, 0.6), slant=0.3, core=0.38)),
+        box(0, 26.65, -2.15, 0.9, 0.9, 0.4, "bone", seed=83, cracks=False, holes=[dict(x=0.0, y=26.55, r=(0.3, 0.36))]),
+        *[box(sx * 1.7, 26.75, -2.05, 1.1, 0.7, 0.7, "bone", seed=82, cracks=False) for sx in (-1, 1)],
+        *[box(sx * 2.45, 26.7, -0.6, 0.5, 0.6, 2.6, "bone", seed=81, cracks=False) for sx in (-1, 1)],
+        box(0, 25.8, -1.7, 3.2, 1.0, 1.4, "bone", seed=80, cracks=False),
+        box(0, 25.05, -2.15, 3.0, 0.6, 0.3, "teeth", n=8, fangs=0, up=True, skip=("up", "down", "south")),
     ])
     B.bone("jaw", "head", [0, 25.2, 1.0], [
-        box(0, 24.3, -1.0, 4.4, 1.4, 4.4, "bone", seed=91),
-        box(0, 25.2, -3.0, 3.8, 0.7, 0.4, "teeth", n=6, fangs=0, up=False, skip=("up", "down", "south")),
+        box(0, 23.9, -1.4, 2.8, 0.9, 1.4, "bone", seed=91, cracks=False),
+        box(0, 24.6, -1.85, 2.6, 0.5, 0.3, "teeth", n=7, fangs=0, up=False, skip=("up", "down", "south")),
+        *[box(sx * 1.5, 24.0, -0.2, 0.5, 0.9, 2.2, "bone", seed=90, cracks=False) for sx in (-1, 1)],
+        *[box(sx * 1.55, 25.0, 0.8, 0.5, 1.8, 0.8, "bone", seed=89, cracks=False) for sx in (-1, 1)],
     ], rot=[6, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
-        B.bone(f"{side}_arm", "chest", [sx * 4.2, 22.8, 0], [
-            col(sx * 4.4, 0, 17.0, 23.2, 1.2, 1.2, "bone", seed=92),
-            box(sx * 4.4, 23.0, 0, 2.2, 1.8, 2.4, "bone", seed=93),
-        ], rot=[0, 0, sx * -6])
-        fore = [col(sx * 4.2, 0, 11.4, 17.0, 0.7, 0.7, "bone"), col(sx * 4.8, 0, 11.4, 17.0, 0.7, 0.7, "bone"),
-                # an archer's bracer, laced on over the bones of the bow arm
-                col(sx * 4.5, 0, 12.2, 15.2, 2.0, 2.0, "leather", stitch=True) if sx > 0 else None,
-                box(sx * 4.5, 17.0, 0, 1.6, 1.2, 1.6, "bone"),
-                box(sx * 4.5, 10.8, -0.1, 1.6, 1.2, 1.8, "bone"),
-                *[col(sx * 4.0 + i * 0.5 * sx, -0.6, 8.8, 10.4, 0.4, 0.4, "bone", seed=97 + i) for i in range(3)]]
+        arm = [box(sx * 4.3, 22.5, 0, 1.5, 1.5, 1.5, "bone", seed=92, cracks=False),
+               col(sx * 4.3, 0, 17.6, 22.0, 0.85, 0.85, "bone", seed=93),
+               box(sx * 4.3, 17.4, 0, 1.4, 0.9, 1.2, "bone", seed=94, cracks=False)]
+        if sx < 0:
+            # a rusted iron pauldron capping the right shoulder, a lame hanging from it, strapped round the arm
+            arm += [B.c(mirror_x([3.1, 23.0, -1.6], [2.9, 0.8, 3.2], sx), [2.9, 0.8, 3.2], "plate", r="rustiron", pivot=[sx * 3.1, 23.4, 0],
+                        rot=[0, 0, sx * 16], seed=61, spots=dict(ramp="rust", cut=0.66, k=1.3, tone=0.42)),
+                    B.c(mirror_x([5.3, 20.6, -1.5], [0.7, 2.6, 3.0], sx), [0.7, 2.6, 3.0], "plate", r="rustiron", pivot=[sx * 5.3, 23.0, 0],
+                        rot=[0, 0, sx * 8], seed=62, spots=dict(ramp="rust", cut=0.66, k=1.3, tone=0.42)),
+                    B.c(mirror_x([5.45, 19.2, -1.4], [0.6, 1.6, 2.8], sx), [0.6, 1.6, 2.8], "plate", r="rustiron", pivot=[sx * 5.45, 20.8, 0],
+                        rot=[0, 0, sx * 12], seed=63, spots=dict(ramp="rust", cut=0.66, k=1.3, tone=0.42)),
+                    col(sx * 4.3, 0, 19.4, 20.0, 1.3, 1.3, "leather", stitch=False)]
+        B.bone(f"{side}_arm", "chest", [sx * 4.2, 22.8, 0], arm, rot=[0, 0, sx * -6])
+        fore = [col(sx * 4.1, 0.05, 11.6, 17.0, 0.5, 0.5, "bone", seed=95), col(sx * 4.75, -0.1, 11.6, 17.0, 0.55, 0.55, "bone", seed=96),
+                box(sx * 4.45, 11.1, -0.05, 1.4, 0.9, 1.2, "bone", seed=97, cracks=False)]
+        for i in range(4):
+            fx_ = sx * 4.45 + (i - 1.5) * 0.33
+            fore += limb(B, (fx_, 10.7, -0.2), [(fx_, 9.3, -0.55, 0.28), (fx_, 8.3, -0.35, 0.26)], "bone", seed=98 + i, cracks=False)
+        fore += limb(B, (sx * 4.0, 10.9, -0.5), [(sx * 3.85, 9.9, -1.0, 0.3)], "bone", seed=102, cracks=False)
         if sx > 0:
-            # the bow, upright in the left hand: a grip, two limbs bending back to the string, tips curled forward
+            # an archer's bracer laced over the bones of the bow arm, and the bow in that hand: a grip, two limbs bending
+            # back to the string, tips curled forward
             fore += [
+                col(sx * 4.45, 0, 12.4, 15.2, 1.9, 1.6, "leather", stitch=True),
                 box(4.6, 10.6, -1.2, 0.9, 2.6, 0.9, "leather", stitch=False),
                 B.c([4.25, 11.8, -1.6], [0.7, 7.2, 0.8], "wood", pivot=[4.6, 11.8, -1.2], rot=[-14, 0, 0]),
                 B.c([4.3, 18.6, -0.4], [0.6, 2.6, 0.6], "horn", r="horn", tip="+y", pivot=[4.6, 18.8, -0.1], rot=[22, 0, 0]),
@@ -811,11 +919,16 @@ def bone_archer():
             ]
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.4, 17.2, 0], fore, rot=[-8 if sx > 0 else 0, 0, 0])
         B.bone(f"{side}_leg", "hips", [sx * 2.0, 12.0, 0], [
-            col(sx * 2.0, 0, 6.4, 12.4, 1.2, 1.2, "bone", seed=98), box(sx * 2.0, 6.4, 0, 1.8, 1.4, 1.8, "bone", seed=99)])
+            box(sx * 1.9, 11.4, 0, 1.4, 1.2, 1.4, "bone", seed=103, cracks=False),
+            col(sx * 2.0, 0, 7.0, 11.0, 0.9, 0.9, "bone", seed=98),
+            box(sx * 2.0, 6.75, 0, 1.6, 0.9, 1.4, "bone", seed=99, cracks=False)])
         B.bone(f"{side}_shin", f"{side}_leg", [sx * 2.0, 6.4, 0], [
-            col(sx * 2.0, 0, 1.0, 6.0, 0.9, 0.9, "bone"), col(sx * 2.0 + 0.7 * sx, 0, 1.0, 6.0, 0.6, 0.6, "bone"),
-            box(sx * 2.0, 0.5, -0.8, 2.0, 1.0, 3.4, "bone", seed=100),
-            col(sx * 2.0, 0, 2.6, 5.4, 2.0, 2.0, "cloth", r="wrap", seed=71),
+            box(sx * 2.0, 6.0, -0.8, 0.8, 0.9, 0.5, "bone", seed=104, cracks=False),
+            col(sx * 2.0, -0.1, 1.4, 6.1, 0.8, 0.8, "bone", seed=105), col(sx * 2.6, 0.25, 1.4, 5.8, 0.45, 0.45, "bone", seed=106),
+            box(sx * 2.0, 1.2, 0.1, 1.3, 0.8, 1.3, "bone", seed=107, cracks=False),
+            box(sx * 2.0, 0.45, -0.6, 1.6, 0.9, 2.0, "bone", seed=100, cracks=False),
+            *[B.bar(sx * 2.0 + (i - 1) * 0.5, 0.25, -2.6, -1.5, 0.36, 0.4, "bone", seed=108 + i, cracks=False) for i in range(3)],
+            col(sx * 2.0, 0.05, 2.6, 4.4, 1.3, 1.3, "cloth", r="wrap", seed=71),
         ])
     # the arrow it nocks: only seen while it shoots
     B.bone("arrow", "right_hand", [-4.5, 10.8, 0], [
@@ -824,9 +937,10 @@ def bone_archer():
         B.bar(-4.5, 11.1, 0.0, 1.6, 0.2, 0.9, "cloth", r="fletch"),
     ])
     register(name, lambda aff: pal(aff, (130, 190, 255), {
-        "bone": (190, 178, 150), "cloth": (50, 44, 50), "wrap": (110, 98, 84), "fletch": (150, 40, 38), "horn": (70, 60, 50),
+        "bone": (198, 186, 158), "cloak": (56, 68, 52), "wrap": (110, 98, 84), "fletch": (150, 40, 38), "horn": (70, 60, 50),
+        "rustiron": [(8, 8, 10), (30, 29, 31), (62, 58, 58), (104, 94, 86), (156, 138, 118)],
         "clasp": [(30, 20, 10), (78, 56, 30), (132, 100, 56), (184, 150, 92), (226, 202, 150)],
-    }, tinted=("cloth", "cloth_d", "cloth_l", "bone", "bone_d", "bone_l")), density=5.5)
+    }, tinted=("cloak", "cloak_d", "cloak_l", "bone", "bone_d", "bone_l")), density=5.5)
     B.write(1.4, 2.2, 1.0)
 
     hidden = {"arrow": {"scale": lambda t: [0.01, 0.01, 0.01]}}
@@ -876,59 +990,91 @@ def bone_archer():
 # --------------------------------------------------------------------------------------------- rime stalker
 
 def rime_stalker():
-    """A tall, thin hunter of the deep cold: a body of living shadow under plates of ice, a smooth ice mask with two
-    slits of light, a crown of glowing shards, and arms that end in long blades of ice."""
+    """A tall, thin hunter of the deep cold: a body of living shadow under faceted plates of ice, a wedge of an ice
+    mask with a hard brow and two slits of light, long icicles sweeping back from its crown, a frozen heart glowing in
+    a gap of its breastplate, shards along its spine and shoulders, and arms that end in long blades of ice."""
     name = "rime_stalker"
     B = Body(name, 1800)
     box, col = B.box, B.col
-    ice = dict(seed=112)
+    ice = dict(seed=112, glint=False)
+    shadow = dict(veins=1.0)
     B.bone("root", None, [0, 0, 0])
     B.bone("hips", "root", [0, 15, 0], [
-        box(0, 15.2, 0, 5.6, 3.0, 3.6, "void", veins=1.0),
-        box(0, 16.4, 0, 6.2, 1.0, 4.2, "ice", **ice),
-        B.c([-2.4, 4.0, -2.2], [4.8, 11.6, 0.4], "cloth", hem=3.2, seed=72, skip=("up", "down"), grime=dict(ramp="ice", height=8.0, tone=0.62, weight=0.7)),
-        B.c([-2.8, 5.0, 1.8], [5.6, 10.6, 0.4], "cloth", hem=3.4, seed=73, skip=("up", "down"), grime=dict(ramp="ice", height=8.0, tone=0.62, weight=0.7)),
+        box(0, 15.2, 0, 5.0, 3.0, 3.2, "void", **shadow),
+        # a belt of ice plates, rags of frozen cloth hanging front and back
+        *[B.c(mirror_x([0.0, 15.8, -2.0], [3.0, 1.4, 0.8], sx), [3.0, 1.4, 0.8], "ice", pivot=[0, 16.5, -1.6], rot=[0, -sx * 18, 0], **ice) for sx in (-1, 1)],
+        box(0, 16.5, 0.9, 5.4, 1.2, 1.8, "ice", **ice),
+        B.c([-2.2, 4.0, -2.15], [4.4, 11.6, 0.4], "cloth", hem=3.2, seed=72, skip=("up", "down"), grime=dict(ramp="ice", height=8.0, tone=0.62, weight=0.7)),
+        B.c([-2.6, 5.0, 1.7], [5.2, 10.6, 0.4], "cloth", hem=3.4, seed=73, skip=("up", "down"), grime=dict(ramp="ice", height=8.0, tone=0.62, weight=0.7)),
     ])
     shards = []
     for sx in (-1, 1):
-        shards += [B.c(mirror_x([3.4, 27.0, -1.0], [1.6, 4.4, 1.6], sx), [1.6, 4.4, 1.6], "crystal", pivot=[sx * 4.2, 27.0, -0.2], rot=[-12, 0, sx * -28], skip=("down",)),
-                   B.c(mirror_x([2.6, 26.4, 0.6], [1.2, 3.2, 1.2], sx), [1.2, 3.2, 1.2], "crystal", pivot=[sx * 3.2, 26.4, 1.2], rot=[-30, 0, sx * -18], skip=("down",))]
+        # shoulders: a faceted block of ice with long shards sweeping up and back from it
+        shards += [B.c(mirror_x([2.8, 24.4, -1.6], [3.0, 2.0, 3.6], sx), [3.0, 2.0, 3.6], "ice", pivot=[sx * 2.8, 25.4, 0.2], rot=[0, 0, sx * -16], **ice),
+                   B.c(mirror_x([3.8, 26.2, -0.9], [1.4, 5.0, 1.4], sx), [1.4, 5.0, 1.4], "crystal", pivot=[sx * 4.5, 26.2, -0.2], rot=[-34, 0, sx * -24], skip=("down",)),
+                   B.c(mirror_x([2.9, 26.0, 0.5], [1.0, 3.6, 1.0], sx), [1.0, 3.6, 1.0], "crystal", pivot=[sx * 3.4, 26.0, 1.0], rot=[-48, 0, sx * -14], skip=("down",)),
+                   B.c(mirror_x([4.6, 25.6, 0.6], [0.8, 2.6, 0.8], sx), [0.8, 2.6, 0.8], "crystal", pivot=[sx * 5.0, 25.6, 1.0], rot=[-58, 0, sx * -40], skip=("down",))]
+    spine = [B.c([-0.45, 26.4 - i * 2.6, 2.0], [0.9, 3.0 - i * 0.35, 0.9], "crystal", pivot=[0, 26.4 - i * 2.6, 2.4], rot=[-55, 0, 0], skip=("down",))
+             for i in range(4)]
     B.bone("chest", "hips", [0, 16.5, 0], [
-        box(0, 21.8, 0.2, 6.4, 10.4, 3.8, "void", veins=1.0),
-        box(0, 23.4, -1.8, 6.6, 5.6, 1.2, "ice", pivot=[0, 26, -1.6], rot=[-6, 0, 0], **ice),
-        box(0, 19.0, -1.6, 4.4, 3.0, 0.8, "ice", **ice),
-        box(0, 22.0, 2.1, 5.6, 7.0, 0.8, "ice", **ice),
-        *[box(sx * 4.2, 26.2, 0.2, 3.6, 2.4, 4.6, "ice", pivot=[sx * 3.0, 26.0, 0], rot=[0, 0, sx * -14], **ice) for sx in (-1, 1)],
-        *shards,
+        box(0, 21.8, 0.2, 5.6, 10.4, 3.4, "void", **shadow),
+        # the breastplate: two faceted plates meeting at a ridge, a gap under them where the frozen heart glows
+        *[B.c(mirror_x([0.0, 21.4, -2.45], [3.3, 4.6, 0.9], sx), [3.3, 4.6, 0.9], "ice", pivot=[0, 23.7, -2.0], rot=[-6, -sx * 22, 0], **ice) for sx in (-1, 1)],
+        box(0, 20.3, -1.9, 1.3, 1.3, 1.3, "glow", pivot=[0, 20.3, -1.9], rot=[0, 0, 45]),
+        box(0, 20.3, -1.9, 2.0, 2.0, 0.5, "crystal", pivot=[0, 20.3, -1.9], rot=[0, 0, 45]),
+        *[B.c(mirror_x([0.0, 18.4 - j * 1.35, -2.1], [2.3 - j * 0.3, 1.0, 0.7], sx), [2.3 - j * 0.3, 1.0, 0.7], "ice", pivot=[0, 18.9 - j * 1.35, -1.8],
+              rot=[0, -sx * 16, 0], **ice) for sx in (-1, 1) for j in range(2)],
+        box(0, 22.2, 2.0, 5.0, 6.6, 0.8, "ice", **ice),
+        *shards, *spine,
     ], rot=[10, 0, 0])
-    crown = [B.c([-0.6 + 2.0 * k - 0.4, 33.4, -0.6], [1.2, 4.2 - abs(k) * 1.2, 1.2], "crystal", pivot=[2.0 * k, 33.4, 0], rot=[-10, 0, -k * 22], skip=("down",))
-             for k in (-2, -1, 0, 1, 2)]
+    crest = []
+    for dx, ln, rx, rz, z0 in ((0.0, 6.0, -62, 0, 2.4), (1.1, 5.6, -50, -30, 2.0), (-1.1, 5.6, -50, 30, 2.0), (1.9, 4.2, -40, -52, 1.2),
+                               (-1.9, 4.2, -40, 52, 1.2), (0.0, 4.4, -82, 0, 3.4)):
+        crest.append(B.c([dx - 0.5, 31.8, z0 - 0.5], [1.0, ln, 1.0], "crystal", pivot=[dx, 31.8, z0], rot=[rx, 0, rz], skip=("down",)))
     B.bone("head", "chest", [0, 27.0, 0], [
-        col(0, 0.2, 26.8, 28.6, 2.2, 2.2, "void", veins=1.0),
-        box(0, 31.0, -0.4, 4.8, 5.4, 4.8, "ice", eyes=eyes(1.1, 31.2, (1.05, 0.28), slant=0.46, pupil=None, lid=1.4), **ice),
-        box(0, 29.0, -2.5, 2.8, 1.4, 0.6, "ice", **ice),
-        *crown,
+        col(0, 0.2, 26.8, 28.6, 2.0, 2.0, "void", **shadow),
+        # a long skull of ice sweeping back and up into a crest of icicles
+        box(0, 30.5, 0.6, 4.2, 4.0, 4.6, "ice", **ice),
+        B.c([-1.8, 30.2, 1.4], [3.6, 3.0, 3.8], "ice", pivot=[0, 32.2, 1.4], rot=[-24, 0, 0], **ice),
+        # the mask: narrow, a slit of light slanting up across each side, cheekbones swept back, a hard V of a brow, a
+        # narrow chin
+        box(0, 30.0, -2.0, 3.4, 3.8, 1.0, "ice", **ice,
+            lines=[dict(pts=[(sx * 0.35, 30.4), (sx * 1.45, 30.95)], w=0.4, faces=("north",), halo=0.7, bright=1.0) for sx in (-1, 1)]),
+        *[B.c(mirror_x([1.4, 28.4, -2.45], [1.5, 3.2, 0.7], sx), [1.5, 3.2, 0.7], "ice", pivot=[sx * 1.4, 30.0, -2.45], rot=[0, -sx * 42, 0], **ice)
+          for sx in (-1, 1)],
+        *[B.c(mirror_x([0.0, 31.25, -2.85], [2.1, 0.7, 0.8], sx), [2.1, 0.7, 0.8], "ice", pivot=[0, 31.25, -2.45], rot=[0, 0, -sx * 16], **ice)
+          for sx in (-1, 1)],
+        box(0, 27.9, -1.7, 1.9, 1.4, 1.4, "ice", **ice),
+        *crest,
     ])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "chest", [sx * 4.2, 25.6, 0.2], [
-            col(sx * 4.6, 0.2, 18.0, 25.8, 1.6, 1.6, "void", veins=1.0),
+            col(sx * 4.6, 0.2, 18.0, 25.8, 1.6, 1.6, "void", **shadow),
+            col(sx * 4.6, 0.2, 20.4, 23.6, 2.1, 2.1, "ice", **ice),
         ], rot=[-4, 0, sx * -4])
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.6, 18.2, 0.2], [
-            col(sx * 4.6, 0.2, 11.0, 18.2, 1.5, 1.5, "void", veins=1.0),
-            col(sx * 4.6, 0.2, 12.0, 17.0, 2.2, 2.2, "ice", **ice),
-            box(sx * 4.6, 10.4, 0.0, 1.6, 1.6, 1.8, "void", veins=1.0),
+            col(sx * 4.6, 0.2, 11.0, 18.2, 1.5, 1.5, "void", **shadow),
+            # a vambrace of ice cut with facets, a spur at the elbow
+            B.c([sx * 4.6 - 1.25, 12.0, 0.2 - 1.25], [2.5, 5.0, 2.5], "ice", pivot=[sx * 4.6, 14.5, 0.2], rot=[0, 45, 0], **ice),
+            B.c([sx * 4.6 - 0.4, 17.4, 0.9], [0.8, 3.0, 0.8], "crystal", pivot=[sx * 4.6, 17.4, 1.3], rot=[-70, 0, 0], skip=("down",)),
+            box(sx * 4.6, 10.4, 0.0, 1.6, 1.6, 1.8, "void", **shadow),
             # the blade: from the wrist, past the hand, nearly to the knee
             B.c([sx * 4.6 - 0.35, -0.8, -1.2], [0.7, 12.0, 2.0], "crystal", pivot=[sx * 4.6, 11.0, 0.0], rot=[-8, 0, 0], skip=("up",)),
             B.c([sx * 4.6 - 0.25, -3.2, -0.9], [0.5, 2.6, 1.2], "crystal", pivot=[sx * 4.6, 11.0, 0.0], rot=[-8, 0, 0], skip=("up",)),
         ], rot=[-14, 0, 0])
         B.bone(f"{side}_leg", "hips", [sx * 1.8, 14.4, 0], [
-            col(sx * 1.9, 0, 7.4, 14.6, 1.8, 1.8, "void", veins=1.0),
-            col(sx * 1.9, -0.2, 8.6, 13.6, 2.4, 2.4, "ice", **ice),
+            col(sx * 1.9, 0, 7.4, 14.6, 1.8, 1.8, "void", **shadow),
+            B.c([sx * 1.9 - 1.2, 8.8, -1.4], [2.4, 4.6, 1.2], "ice", pivot=[sx * 1.9, 11.0, -0.8], rot=[0, -sx * 10, 0], **ice),
         ], rot=[-6, 0, 0])
         B.bone(f"{side}_shin", f"{side}_leg", [sx * 1.9, 7.6, 0], [
-            col(sx * 1.9, 0, 0.8, 7.8, 1.5, 1.5, "void", veins=1.0),
-            col(sx * 1.9, -0.3, 1.6, 6.6, 2.2, 2.2, "ice", **ice),
-            B.c([sx * 1.9 - 0.9, 0.0, -3.4], [1.8, 1.0, 4.2], "ice", **ice),
+            col(sx * 1.9, 0, 0.8, 7.8, 1.5, 1.5, "void", **shadow),
+            # a greave cut with facets, a spike at the knee, a foot of three ice claws and a heel spur
+            B.c([sx * 1.9 - 1.15, 1.8, -1.15], [2.3, 4.6, 2.3], "ice", pivot=[sx * 1.9, 4.1, 0.0], rot=[0, 45, 0], **ice),
+            B.c([sx * 1.9 - 0.4, 6.8, -1.8], [0.8, 2.4, 0.8], "crystal", pivot=[sx * 1.9, 6.8, -1.4], rot=[50, 0, 0], skip=("down",)),
+            box(sx * 1.9, 0.5, -0.5, 1.8, 1.0, 2.2, "ice", **ice),
+            *[B.c([sx * 1.9 + (i - 1) * 0.6 - 0.25, 0.0, -3.2], [0.5, 0.6, 1.7], "crystal", pivot=[sx * 1.9 + (i - 1) * 0.6, 0.3, -1.6],
+                  rot=[0, (i - 1) * -14, 0]) for i in range(3)],
+            B.c([sx * 1.9 - 0.25, 0.1, 0.6], [0.5, 0.6, 1.4], "crystal", pivot=[sx * 1.9, 0.4, 0.6], rot=[-20, 0, 0]),
         ], rot=[8, 0, 0])
     register(name, lambda aff: pal(aff, (140, 220, 255), {
         "ice": [(20, 34, 58), (64, 104, 144), (130, 176, 214), (196, 228, 248), (246, 252, 255)],
@@ -981,9 +1127,26 @@ def rime_stalker():
 
 # --------------------------------------------------------------------------------------------- tuskbrute
 
+def hatchet(B, a, b, side):
+    """A throwing hatchet: a haft from a to b (in a plane of constant z) and an iron head at b, its blade to the side
+    given (+1: towards +x before the haft is turned onto its line)."""
+    rz = math.degrees(math.atan2(b[0] - a[0], b[1] - a[1]))
+    ln = math.hypot(b[0] - a[0], b[1] - a[1])
+    x, y, z = a
+    out = [B.c([x - 0.3, y, z - 0.3], [0.6, ln + 0.4, 0.6], "wood", long="y", pivot=[x, y, z], rot=[0, 0, rz])]
+    hx, hy = x, y + ln - 1.5
+    o = [hx + 0.2, hy, z - 0.22] if side > 0 else [hx - 2.4, hy, z - 0.22]
+    out += [B.c(o, [2.2, 1.7, 0.44], "metal", r="blade", fuller=False, nicks=True, rust=0.4, scratches=1,
+                pivot=[x, y, z], rot=[0, 0, rz]),
+            B.c([hx - 0.45, hy + 0.1, z - 0.4], [0.9, 1.5, 0.8], "metal", r="iron", pivot=[x, y, z], rot=[0, 0, rz])]
+    return out
+
+
 def tuskbrute():
-    """A hulking brute: a back like a hill, a small head sunk between its shoulders under a heavy brow, a jutting jaw
-    with two great tusks, red war paint, an iron pauldron with spikes, a fur kilt, and a club the size of a man."""
+    """A hulking brute: a back like a hill, a small head sunk between its shoulders under a heavy scowling brow, a
+    riveted iron patch over one eye, a heavy underslung jaw with two great curved tusks, a black band of war paint and
+    a red stripe down the face, a crest of black hair and a braid, a pauldron of three spiked iron lames, a skull
+    hung from its bandolier, a fur kilt, and a notched axe the size of a man."""
     name = "tuskbrute"
     B = Body(name, 1900)
     box, col = B.box, B.col
@@ -1011,36 +1174,72 @@ def tuskbrute():
           for sx in (-1, 1)],
         # a bandolier from the right shoulder down to the left hip
         box(0, 23.0, -5.55, 16.4, 1.3, 0.3, "leather", pivot=[0, 23, -5.5], rot=[0, 0, -40], stitch=False, studs=True, stud_step=1.1, stud_r=0.22),
-        # an iron pauldron on the left shoulder, spiked
-        box(8.0, 28.2, 0.4, 6.2, 4.6, 9.0, "plate", pivot=[6.0, 28, 0], rot=[0, 0, -16], engrave="trim"),
-        B.c([8.6, 30.6, -1.2], [1.6, 3.4, 1.6], "horn", r="iron_spike", tip="+y", pivot=[6.0, 28, 0], rot=[0, 0, -16], skip=("down",)),
-        B.c([8.6, 30.6, 2.0], [1.6, 3.0, 1.6], "horn", r="iron_spike", tip="+y", pivot=[6.0, 28, 0], rot=[0, 0, -16], skip=("down",)),
+        # a pauldron on the left shoulder: three lames of iron, each lapping over the one below like tiles on a roof,
+        # a row of spikes along the top one
+        box(8.9, 26.4, 0.4, 5.0, 2.4, 9.2, "plate", r="plate", pivot=[6.4, 28.4, 0], rot=[0, 0, 30], engrave="trim", seed=51),
+        box(8.4, 28.0, 0.4, 5.6, 2.6, 9.6, "plate", r="plate", pivot=[6.4, 28.4, 0], rot=[0, 0, 22], engrave="trim", seed=52),
+        box(7.7, 29.8, 0.4, 6.2, 2.4, 10.0, "plate", r="plate", pivot=[6.4, 28.4, 0], rot=[0, 0, 14], engrave="trim", seed=53),
+        *[c_ for z_, h_ in ((-3.0, 3.0), (0.4, 3.8), (3.6, 2.8)) for c_ in limb(B, (7.6, 30.5, z_), [
+            (7.9, 30.5 + h_ * 0.42, z_ + 0.25, 1.3), (8.3, 30.5 + h_ * 0.76, z_ + 0.55, 0.8), (8.6, 30.5 + h_, z_ + 0.8, 0.4, dict(tip="+y"))],
+            "horn", r="iron_spike", skip=("down",))],
+        # the bandolier round the back, two throwing hatchets crossed under it
+        box(0, 23.0, 4.25, 16.4, 1.3, 0.3, "leather", pivot=[0, 23, 4.25], rot=[0, 0, -40], stitch=False, studs=True, stud_step=1.1, stud_r=0.22),
+        *[c_ for sx in (-1, 1) for c_ in hatchet(B, (-sx * 2.6, 19.4, 4.75), (sx * 1.9, 27.2, 4.75), sx)],
+        # a skull hung from the bandolier by a thong
+        B.c([-4.75, 17.2, -6.0], [0.3, 1.9, 0.3], "leather", stitch=False),
+        box(-4.6, 16.0, -6.15, 2.2, 2.2, 1.9, "bone", seed=102, cracks=True,
+            sockets=[dict(x=-5.1, y=16.2, r=(0.36, 0.3), slant=-0.25, core=0.35), dict(x=-4.1, y=16.2, r=(0.36, 0.3), slant=0.25, core=0.35)],
+            holes=[dict(x=-4.6, y=15.55, r=(0.14, 0.2))]),
+        box(-4.6, 14.6, -6.0, 1.6, 0.8, 1.5, "bone", seed=103, cracks=False,
+            cuts=[dict(pts=[(x, 14.6), (x, 15.0)], w=0.12, faces=("north",)) for x in (-5.0, -4.6, -4.2)]),
     ], rot=[14, 0, 0])
+    # the face: a black band of war paint across the eyes, a red stripe down the brow and nose
+    paint = [dict(pts=[(-3.6, 31.1), (-0.5, 30.85)], w=1.9), dict(pts=[(0.5, 30.85), (3.6, 31.1)], w=1.9),
+             dict(pts=[(-0.3, 33.0), (0.0, 29.6)], w=0.55, ramp="paint", tone=0.45)]
     head = [
-        box(0, 30.0, -5.0, 7.2, 6.4, 6.8, "skin", zone="back", split=(0.7, -1.0),
-            eyes=eyes(1.75, 31.0, (0.75, 0.46), slant=0.42, pupil="dot"), **sk,
-            facepaint=[dict(pts=[(-3.7, 31.3), (-0.5, 30.9)], w=1.9), dict(pts=[(0.5, 30.9), (3.7, 31.3)], w=1.9),
-                       dict(pts=[(-0.3, 33.1), (0.0, 29.8)], w=0.55, ramp="paint", tone=0.45)],
-            wrinkles=dict(eyes=[(1.75, 31.0), (-1.75, 31.0)], eye_r=(0.75, 0.46), nose=(0, 29.9), mouth=(-2.9, 2.9, 28.4), k=2.4,
-                       frown=(0.5, 31.6, 32.6), cheeks=True)),
-        box(0, 32.75, -8.5, 7.6, 1.3, 1.8, "skin", r="skin_d", seed=14, mottle=0.1, blotch=0.2, anat=dict(part="slab", k=1.0)),
-        box(0, 30.4, -8.7, 1.8, 2.2, 1.6, "skin", seed=15, mottle=0.1, blotch=0.2, flush=dict(low=0.7, weight=0.3),
-            holes=[dict(x=0.4, y=29.7, r=(0.25, 0.25)), dict(x=-0.4, y=29.7, r=(0.25, 0.25))]),
-        # a ring through the nose
-        box(0, 29.1, -9.6, 1.2, 1.0, 0.3, "trim", seed=16),
-        box(0, 34.4, -2.6, 2.4, 2.0, 2.4, "hair", r="hair", seed=132, ends=False),
-        B.c([-0.9, 26.0, -1.6], [1.8, 8.6, 1.0], "hair", r="hair", seed=133, pivot=[0, 34, -1.6], rot=[-20, 0, 0], skip=("up",)),
+        box(0, 30.5, -5.05, 7.0, 5.0, 6.5, "skin", zone="back", split=(0.7, -1.0), **sk, facepaint=paint,
+            eyes=eyes(1.6, 30.9, (0.72, 0.44), slant=0.42, pupil="dot"),
+            wrinkles=dict(eyes=[(1.6, 30.9), (-1.6, 30.9)], eye_r=(0.72, 0.44), nose=(0, 29.9), mouth=(-2.9, 2.9, 28.4), k=2.4,
+                          frown=(0.5, 31.6, 32.6), cheeks=True),
+            shadow_top=(30.4, 31.8, 0.16)),
+        # a dome to the skull, a heavy brow in a scowl over the eyes
+        box(0, 33.3, -5.0, 6.0, 1.4, 5.6, "skin", zone="back", **sk),
+        *[B.c(mirror_x([0.0, 31.6, -9.3], [3.9, 1.35, 2.0], sx), [3.9, 1.35, 2.0], "skin", r="skin_d", pivot=[sx * 0.2, 32.0, -8.3],
+              rot=[0, 0, -sx * 12], seed=14, mottle=0.1, blotch=0.2, anat=dict(part="slab", k=1.0), skip=("south",)) for sx in (-1, 1)],
+        # a broad flat snout with a ring through it
+        box(0, 30.1, -8.85, 2.5, 1.8, 1.6, "skin", seed=15, mottle=0.1, blotch=0.2, flush=dict(low=0.7, weight=0.3),
+            holes=[dict(x=0.55, y=29.65, r=(0.3, 0.26)), dict(x=-0.55, y=29.65, r=(0.3, 0.26))]),
+        box(0, 29.0, -9.75, 1.2, 1.0, 0.3, "trim", seed=16),
+        # a riveted patch of iron over the right eye, its strap round the head
+        box(-1.65, 30.95, -8.45, 2.3, 1.8, 0.35, "plate", r="plate", seed=54, rivets=False, dents=False,
+            cuts=[dict(pts=[(-2.55, 31.6), (-2.5, 31.6)], w=0.3, faces=("north",), ramp="trim", tone=0.75),
+                  dict(pts=[(-0.75, 30.3), (-0.8, 30.3)], w=0.3, faces=("north",), ramp="trim", tone=0.75)]),
+        box(0, 31.25, -4.55, 7.15, 0.55, 7.5, "leather", stitch=False, skip=("north",)),
+        # a crest of black hair from brow to nape, a braid down the back bound with rings of bone
+        B.c([-0.75, 33.4, -7.2], [1.5, 2.0, 6.0], "hair", r="hair", seed=132, ragged=1.0, pivot=[0, 34.4, -4.2], rot=[0, 0, 180], skip=("down",)),
+        B.c([-0.6, 25.4, -2.2], [1.2, 8.0, 1.0], "hair", r="hair", seed=133, ends=True, ragged=0.5, pivot=[0, 33.4, -1.7], rot=[-18, 0, 0], skip=("up",)),
+        *[B.c([-0.75, y_, -2.35], [1.5, 0.5, 1.3], "bone", seed=134, cracks=False, pivot=[0, 33.4, -1.7], rot=[-18, 0, 0]) for y_ in (30.2, 28.0)],
     ]
     for sx in (-1, 1):
-        head.append(B.c(mirror_x([3.4, 30.2, -4.4], [2.2, 1.8, 0.8], sx), [2.2, 1.8, 0.8], "skin", pivot=[sx * 3.6, 31, -4.0], rot=[0, sx * -30, sx * 18], zone="limb",
-                        ear=dict(weight=0.45), **sk))
+        ear = [sx * 3.6, 31, -4.0]
+        head += [B.c(mirror_x([3.4, 30.2, -4.4], [2.2, 1.8, 0.8], sx), [2.2, 1.8, 0.8], "skin", pivot=ear, rot=[0, sx * -30, sx * 18], zone="limb",
+                     ear=dict(weight=0.45), **sk),
+                 B.c(mirror_x([5.5, 30.6, -4.3], [1.4, 1.0, 0.6], sx), [1.4, 1.0, 0.6], "skin", pivot=ear, rot=[0, sx * -30, sx * 18], zone="limb", **sk)]
+        if sx > 0:
+            head += [B.c([x_, 29.6, -4.3], [0.35, 0.8, 0.35], "trim", pivot=ear, rot=[0, -30, 18]) for x_ in (4.3, 5.1)]
     B.bone("head", "chest", [0, 28.0, -3.0], head, rot=[-10, 0, 0])
+    # the jaw: wider than the skull and slung forward of it, the lower teeth standing over the lip, jowls at its sides,
+    # two great tusks curving up and out from its corners
+    tusks = []
+    for sx in (-1, 1):
+        tusks += limb(B, (sx * 2.85, 27.9, -8.75), [(sx * 3.2, 30.0, -9.3, 1.5), (sx * 4.05, 31.6, -9.15, 1.0, dict(tip="+y"))],
+                      "horn", r="tusk", skip=("down",))
     B.bone("jaw", "head", [0, 28.6, -3.0], [
-        box(0, 27.4, -5.8, 7.0, 2.6, 6.2, "skin", zone="back", split=(0.85, 0.25), **sk,
-            cuts=[dict(pts=[(-0.25, 28.5), (0.0, 26.2)], w=0.55, faces=("north",), ramp="paint", tone=0.45)]),
-        box(0, 28.9, -8.65, 5.4, 0.8, 0.4, "teeth", n=5, fangs=0, up=False, skip=("up", "down", "south")),
-        *[B.c([sx * 3.0 - 0.65, 27.8, -9.0], [1.3, 3.0, 1.3], "horn", r="tusk", tip="+y", pivot=[sx * 3.0, 28.2, -8.4], rot=[-8, 0, sx * -16], skip=("down",))
-          for sx in (-1, 1)],
+        box(0, 27.25, -5.9, 7.6, 2.7, 6.6, "skin", zone="back", split=(0.85, 0.25), **sk,
+            cuts=[dict(pts=[(-0.25, 28.5), (0.0, 26.0)], w=0.55, faces=("north",), ramp="paint", tone=0.45)]),
+        *[box(sx * 3.75, 27.3, -6.0, 1.4, 2.2, 3.6, "skin", zone="limb", **sk) for sx in (-1, 1)],
+        box(0, 28.75, -9.05, 4.8, 0.8, 0.4, "teeth", n=5, fangs=0, up=False, skip=("up", "down", "south")),
+        *tusks,
     ], rot=[4, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "chest", [sx * 8.6, 27.5, 0], [
@@ -1076,7 +1275,7 @@ def tuskbrute():
         "skin": (88, 102, 74), "skin_d": (34, 42, 36), "skin_l": (150, 146, 110),
         "flush": (138, 80, 66), "mud": (58, 46, 36), "warpaint": [(4, 4, 6), (12, 11, 14), (26, 23, 28), (46, 42, 48), (74, 70, 78)],
         "fur": (90, 70, 54), "hair": (30, 26, 24), "tusk": (210, 196, 160), "paint": (168, 28, 24),
-        "plate": (70, 70, 78), "trim": (128, 108, 78), "iron_spike": (96, 96, 104),
+        "plate": (70, 70, 78), "trim": (128, 108, 78), "iron_spike": (96, 96, 104), "bone": (204, 190, 160),
         "blade": [(14, 12, 12), (46, 42, 42), (96, 92, 92), (158, 154, 150), (220, 218, 212)],
     }), density=4.5)
     B.write(2.6, 3.0, 1.2)
@@ -1131,8 +1330,10 @@ def tuskbrute():
 # --------------------------------------------------------------------------------------------- tusk shaman
 
 def tusk_shaman():
-    """An old shaman of the tusked brutes: hunched under a fur mantle and a robe of hides, a beast's skull for a mask
-    with curling horns and eyes burning through it, beads and teeth, and a staff crowned with a skull and a crystal."""
+    """An old shaman of the tusked brutes: hunched under a fur mantle and a robe of hides, the skull of a horned beast
+    for a mask (a long muzzle with its teeth, cheekbones, a heavy brow, eyes burning in its sockets and running down it
+    like tears), a pelt falling from it to the shoulders, its own tusks showing under it, beads and teeth, and a staff
+    crowned with a smaller skull, two horns cradling a crystal over it and charms hanging from it."""
     name = "tusk_shaman"
     B = Body(name, 2000)
     box, col = B.box, B.col
@@ -1160,20 +1361,37 @@ def tusk_shaman():
     for sx in (-1, 1):
         horn += curl(B, [sx * 2.4, 29.6, -6.4], sx, [(60, 2.2, 1.9), (95, 2.0, 1.7), (140, 1.8, 1.5), (185, 1.6, 1.25), (230, 1.3, 1.0)],
                      "horn", r="horn", tip="+y", z_step=0.5)
+    tears = dict(faces=("north",), halo=0.5, bright=0.8)
+    mask = [
+        # the beast's skull: a broad brow plate with the sockets in it, a long muzzle, cheekbones, a heavy brow ridge
+        box(0, 29.0, -6.95, 5.8, 2.8, 1.0, "bone", seed=108,
+            sockets=sockets(1.4, 28.25, (0.95, 0.62), slant=0.4, core=0.34),
+            cuts=[dict(pts=[(-0.2, 30.4), (0.5, 29.5), (0.1, 28.9)], w=0.26, faces=("north",))],
+            facepaint=[dict(pts=[(-2.9, 29.95), (2.9, 29.95)], w=0.5, ramp="paint", tone=0.42)],
+            lines=[dict(pts=[(0.0, 29.45), (0.0, 29.6)], w=0.22, **tears)]),
+        # the muzzle, long and sloping down, the nasal hollow at its tip, a row of worn teeth under it
+        B.c([-1.25, 24.7, -10.4], [2.5, 2.5, 3.8], "bone", seed=110, pivot=[0, 27.2, -6.6], rot=[12, 0, 0],
+            holes=[dict(x=0.0, y=26.35, r=(0.55, 0.36))],
+            cuts=[dict(pts=[(0.0, 26.75), (0.0, 27.2)], w=0.16, faces=("north",)), dict(pts=[(0.0, -10.4), (0.0, -6.6)], w=0.14, faces=("up",))]),
+        B.c([-0.7, 27.0, -10.1], [1.4, 0.55, 3.4], "bone", seed=111, cracks=False, pivot=[0, 27.2, -6.6], rot=[12, 0, 0]),
+        B.c([-1.05, 24.15, -10.25], [2.1, 0.6, 0.35], "teeth", n=4, fangs=0, up=True, skip=("up", "down", "south"), pivot=[0, 27.2, -6.6], rot=[12, 0, 0]),
+        *[box(sx * 2.25, 27.1, -7.25, 1.5, 1.0, 1.3, "bone", seed=112, cracks=False,
+              lines=[dict(pts=[(sx * 1.85, 27.5), (sx * 1.95, 26.8)], w=0.24, **tears)]) for sx in (-1, 1)],
+        *[B.c(mirror_x([0.3, 29.0, -7.85], [2.8, 0.7, 1.0], sx), [2.8, 0.7, 1.0], "bone", seed=113, cracks=False, pivot=[sx * 0.3, 29.35, -7.35],
+              rot=[0, 0, -sx * 10]) for sx in (-1, 1)],
+    ]
     B.bone("head", "chest", [0, 24.2, -2.0], [
         box(0, 27.4, -3.8, 5.6, 5.4, 5.4, "skin", zone="back", **sk),
-        box(0, 27.6, -6.9, 6.0, 5.2, 0.9, "bone", seed=108,
-            sockets=sockets(1.4, 28.3, (1.0, 0.68), slant=0.4, core=0.34),
-            holes=[dict(x=0.4, y=26.4, r=(0.28, 0.5)), dict(x=-0.4, y=26.4, r=(0.28, 0.5))],
-            cuts=[dict(pts=[(-0.2, 30.0), (0.6, 28.8), (0.1, 27.6)], w=0.3, faces=("north",))],
-            facepaint=[dict(pts=[(-2.9, 30.1), (2.9, 30.1)], w=0.55, ramp="paint", tone=0.42)],
-            # streaks of light running down from the sockets like tears, and a rune on the brow
-            lines=[dict(pts=[(1.5, 27.6), (1.6, 26.6), (1.4, 25.3)], w=0.26, faces=("north",), halo=0.5, bright=0.8),
-                   dict(pts=[(-1.5, 27.6), (-1.6, 26.6), (-1.4, 25.3)], w=0.26, faces=("north",), halo=0.5, bright=0.8),
-                   dict(pts=[(0.0, 29.6), (0.0, 30.0)], w=0.26, faces=("north",), halo=0.4, bright=0.7)]),
+        *mask,
         box(0, 30.6, -4.6, 6.4, 1.2, 4.8, "fur", r="fur", seed=28),
+        # the beast's pelt falling from the skull over the sides of the head and down the back
+        *[box(sx * 3.15, 27.4, -3.6, 0.8, 6.2, 5.6, "mane", r="fur", seed=30 + (sx > 0), len=1.6, width=0.8, ragged=1.0, skip=("up",))
+          for sx in (-1, 1)],
+        box(0, 26.6, -0.6, 6.6, 7.6, 0.8, "mane", r="fur", seed=32, len=1.8, width=0.9, ragged=1.2, skip=("up",)),
         *horn,
-        *[B.c([sx * 2.4 - 0.5, 24.0, -6.4], [1.0, 2.8, 1.0], "horn", r="tusk", tip="+y", pivot=[sx * 2.4, 24.6, -6.0], rot=[-8, 0, sx * -12]) for sx in (-1, 1)],
+        # its own tusks, curving up out of the jaw under the mask
+        *[c_ for sx in (-1, 1) for c_ in limb(B, (sx * 2.2, 23.4, -6.6), [(sx * 2.45, 25.0, -7.1, 1.0), (sx * 2.95, 26.1, -7.25, 0.65, dict(tip="+y"))],
+                                                  "horn", r="tusk", skip=("down",))],
     ], rot=[-14, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "chest", [sx * 5.4, 23.0, 0.4], [
@@ -1183,13 +1401,22 @@ def tusk_shaman():
                 col(sx * 5.8, 0.2, 12.0, 13.2, 2.4, 2.4, "bone", seed=113, cracks=False),
                 box(sx * 5.8, 9.8, 0, 2.2, 1.8, 2.4, "skin", **sk, anat=dict(part="fist", k=1.2), flush=dict(faces=("north", "down"), weight=0.25))]
         if sx > 0:
-            # the staff: a long shaft, a beast skull, a crystal held in its jaws, feathers
+            # the staff: a long shaft wrapped under its head, a small beast skull on it looking ahead, two horns
+            # rising from the skull to cradle a crystal, charms of bone and feathers hanging from it
             hand += [
                 col(6.0, -1.6, -1.0, 30.0, 1.0, 1.0, "wood", seed=123),
-                box(6.0, 31.0, -1.8, 2.6, 2.4, 3.4, "bone", seed=109, sockets=[dict(x=6.6, y=31.4, r=(0.35, 0.3), face="west", core=0.5), dict(x=-1.0, y=31.4, r=(0.35, 0.3), face="east", core=0.5)]),
-                B.c([5.5, 32.0, -2.6], [1.0, 3.4, 1.0], "crystal", skip=("down",)),
+                col(6.0, -1.6, 27.2, 29.6, 1.3, 1.3, "leather", stitch=False, wraps=dict(y=(27.2, 29.6), ramp="wrap")),
+                box(6.0, 31.0, -1.2, 2.4, 2.2, 2.2, "bone", seed=109,
+                    sockets=[dict(x=6.6, y=31.3, r=(0.42, 0.32), slant=0.3, core=0.4), dict(x=5.4, y=31.3, r=(0.42, 0.32), slant=-0.3, core=0.4)]),
+                box(6.0, 30.45, -2.95, 1.4, 1.3, 1.6, "bone", seed=114, cracks=False, holes=[dict(x=6.25, y=30.75, r=(0.16, 0.26)), dict(x=5.75, y=30.75, r=(0.16, 0.26))]),
+                box(6.0, 29.6, -2.75, 1.2, 0.45, 1.3, "bone", seed=115, cracks=False),
+                *[c_ for sx in (-1, 1) for c_ in limb(B, (6.0 + sx * 0.9, 31.9, -1.0), [(6.0 + sx * 1.35, 33.3, -1.15, 0.6), (6.0 + sx * 1.0, 34.6, -1.25, 0.42),
+                                                                                       (6.0 + sx * 0.45, 35.4, -1.3, 0.3, dict(tip="+y"))], "horn", r="horn", skip=("down",))],
+                B.c([5.6, 32.6, -1.65], [0.8, 2.6, 0.8], "crystal", pivot=[6.0, 33.9, -1.25], rot=[0, 45, 0]),
                 B.c([5.1, 27.2, -1.4], [0.3, 3.4, 1.2], "cloth", r="feather", seed=78, hem=0.8, pivot=[6.0, 30.0, -1.6], rot=[0, 0, 18]),
                 B.c([6.6, 27.6, -1.8], [0.3, 3.0, 1.2], "cloth", r="feather", seed=79, hem=0.8, pivot=[6.0, 30.0, -1.6], rot=[0, 0, -14]),
+                col(4.75, -0.6, 27.6, 30.2, 0.18, 0.18, "leather", r="rope", stitch=False),
+                box(4.75, 27.3, -0.6, 0.55, 0.8, 0.55, "bone", seed=116, cracks=False),
             ]
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 5.8, 17.0, 0.4], hand, rot=[-26 if sx > 0 else -10, 0, 0])
         B.bone(f"{side}_leg", "hips", [sx * 2.2, 11.0, 0], [
@@ -1254,12 +1481,15 @@ def tusk_shaman():
 
 def deepkin():
     """A fish-man of the drowned gates: hunched and scaled, dark blue-green above and pale below, a broad fish head
-    with round glowing eyes on its sides and a wide mouth of needle teeth, fins on its head, back and arms, glowing
-    spots along its flanks, and a three-pronged spear of coral and bone."""
+    tapering to a blunt snout, round glowing eyes on its sides under bony ridges, gill slits, a lure of light on a
+    stalk from its brow, a heavy underslung jaw that hangs open on a mouth of needle fangs, barbels from its chin,
+    fins on its head, back and arms, glowing spots along its flanks, a shell on one shoulder, coral growing out of
+    the other, a necklace of shark's teeth, and a three-pronged spear of coral and bone."""
     name = "deepkin"
     B = Body(name, 2100)
     box, col = B.box, B.col
-    sc = dict(size=1.1, seed=33)
+    sc = dict(size=0.85, seed=33, scale_k=0.75)
+    hs = dict(size=0.7, seed=34, scale_k=0.6)
     B.bone("root", None, [0, 0, 0])
     B.bone("hips", "root", [0, 12.5, 0.5], [
         box(0, 12.8, 0.6, 6.6, 3.2, 4.4, "scales", zone="back", **sc),
@@ -1273,26 +1503,64 @@ def deepkin():
             lights=dict(rows=[(17.2, -2.0, 2.4, 4), (19.4, -1.6, 2.0, 3)])),
         B.c([-0.2, 15.0, 3.0], [0.4, 9.6, 3.4], "skin", r="fin", rays=dict(y=15.0, z=3.0, n=8), skip=("up", "down", "north", "south")),
         *[box(sx * 4.4, 23.2, 0.6, 2.2, 1.6, 4.8, "scales", **sc) for sx in (-1, 1)],
+        # a necklace of shark's teeth on a cord
+        box(0, 23.4, -2.5, 6.4, 0.4, 0.3, "leather", r="rope", stitch=False),
+        *[B.c([-2.55 + i * 0.85 - 0.25, 21.8 + abs(i - 3) * 0.25, -2.75], [0.5, 1.5 - abs(i - 3) * 0.25, 0.3], "teeth", r="ivory", n=1, fangs=1,
+              up=True, skip=("up", "down", "south")) for i in range(7)],
+        # coral grown out of the right shoulder
+        *[c_ for (x0, z0, pts) in ((-4.0, 1.6, [(-4.6, 26.0, 1.9, 0.7), (-5.4, 27.2, 2.4, 0.5), (-5.6, 28.2, 2.2, 0.35, dict(tip="+y"))]),
+                                   (-3.2, 2.4, [(-3.0, 25.8, 3.0, 0.6), (-2.4, 26.9, 3.6, 0.42, dict(tip="+y"))]),
+                                   (-4.6, 0.4, [(-5.4, 25.2, 0.3, 0.5), (-6.0, 26.0, 0.0, 0.35, dict(tip="+y"))]))
+          for c_ in limb(B, (x0, 23.8, z0), pts, "horn", r="coral", skip=("down",))],
     ], rot=[24, 0, 0])
-    gills = [dict(pts=[(-3.0 + k * 0.8, 24.6), (-2.7 + k * 0.8, 26.6)], w=0.28, faces=("west", "east"), tone=0.1) for k in range(3)]
+    gills = [dict(pts=[(-2.0 + k * 0.75, 26.8), (-1.75 + k * 0.75, 29.6)], w=0.28, faces=("west", "east"), tone=0.06) for k in range(3)]
     head = [
-        # a lure on a stalk from the brow, a light to draw prey in the dark water
-        B.c([-0.2, 30.0, -6.4], [0.4, 3.4, 0.4], "skin", r="fin", seed=22, pivot=[0, 30.0, -6.2], rot=[-38, 0, 0]),
-        B.c([-0.2, 33.1, -8.8], [0.4, 0.4, 2.2], "skin", r="fin", seed=23),
-        box(0, 32.7, -9.9, 1.0, 1.2, 1.0, "glow"),
-        box(0, 27.2, -4.0, 7.2, 6.0, 8.0, "scales", zone="back", split=(0.6, 0.3), **sc,
-            lights=dict(rows=[(26.6, -7.0, -1.6, 4)], r=0.26),
-            eyes=[dict(x=-6.0, y=28.4, r=(1.4, 1.4), face="west", pupil="dot", lid=0.5),
-                  dict(x=-6.0, y=28.4, r=(1.4, 1.4), face="east", pupil="dot", lid=0.5)],
-            grin=dict(x0=-3.4, x1=3.4, y=25.4, h=1.7, curve=-0.35, n=11, fangs=True),
+        # the skull: broad behind the eyes, tapering to a blunt snout
+        B.c([-3.3, 26.4, -7.4], [6.6, 4.0, 7.8], "scales", zone="back", split=(0.6, 0.3), **hs,
+            lights=dict(rows=[(27.1, -7.0, -2.8, 4)], r=0.24),
+            eyes=[dict(x=-5.3, y=28.75, r=(1.3, 1.3), face="west", pupil="dot", lid=0.5),
+                  dict(x=-5.3, y=28.75, r=(1.3, 1.3), face="east", pupil="dot", lid=0.5)],
             cuts=gills),
-        B.c([-0.2, 29.8, -7.0], [0.4, 3.0, 7.6], "skin", r="fin", rays=dict(y=29.8, z=-7.0, n=7, dir=-1), skip=("up", "down", "north", "south")),
-        *[B.c([sx * 3.6 - 0.25, 23.2, -7.8], [0.5, 2.4, 0.5], "skin", r="fin", seed=19) for sx in (-1, 1)],
+        B.c([-2.5, 26.6, -10.0], [5.0, 2.8, 2.8], "scales", zone="back", split=(0.6, 0.3), **hs,
+            holes=[dict(x=0.9, y=28.7, r=(0.24, 0.18)), dict(x=-0.9, y=28.7, r=(0.24, 0.18))]),
+        # bony ridges over the eyes
+        *[B.c(mirror_x([2.95, 29.9, -7.0], [0.7, 0.7, 3.4], sx), [0.7, 0.7, 3.4], "scales", r="scale_d", size=0.5, seed=35) for sx in (-1, 1)],
+        # needle teeth hanging from the snout, at its front and down its sides
+        B.c([-2.35, 25.7, -10.1], [4.7, 1.0, 0.4], "teeth", n=7, fangs=1, up=True, skip=("up", "down", "south")),
+        *[B.c(mirror_x([2.2, 25.8, -9.9], [0.4, 0.9, 5.8], sx), [0.4, 0.9, 5.8], "teeth", n=6, fangs=1, up=True,
+              skip=("up", "down", "north", "south", "east" if sx > 0 else "west")) for sx in (-1, 1)],
+        # a crest fin from the brow down the nape, small fins behind the gills
+        B.c([-0.2, 30.2, -6.8], [0.4, 2.8, 7.4], "skin", r="fin", rays=dict(y=30.2, z=-6.8, n=7, dir=-1), skip=("up", "down", "north", "south")),
+        *[B.c(mirror_x([3.2, 26.6, -1.4], [0.4, 3.0, 2.6], sx), [0.4, 3.0, 2.6], "skin", r="fin", rays=dict(y=26.6, z=-1.4, n=5),
+              pivot=[sx * 3.3, 28.0, -1.4], rot=[0, sx * -28, 0], skip=("up", "down", "north", "south")) for sx in (-1, 1)],
+        # the lure: a stalk curling forward from the brow, a bulb of light at its end
+        *limb(B, (0.0, 30.2, -6.4), [(0.0, 32.0, -7.4, 0.4), (0.0, 33.0, -9.0, 0.35), (0.0, 32.7, -10.4, 0.3)], "skin", r="fin", seed=22),
+        box(0, 32.1, -10.6, 1.0, 1.2, 1.0, "glow"),
     ]
     B.bone("head", "chest", [0, 24.4, -1.2], head, rot=[-22, 0, 0])
+    # the jaw: heavy and underslung, past the snout, hanging open on a mouth of needle fangs; barbels from the chin
+    B.bone("jaw", "head", [0, 26.4, -1.6], [
+        B.c([-3.4, 24.0, -10.9], [6.8, 2.2, 9.6], "scales", zone="back", split=(0.85, 0.2), **hs),
+        B.c([-2.8, 25.6, -10.4], [5.6, 0.8, 8.6], "mouth"),
+        B.c([-3.0, 26.15, -10.95], [6.0, 1.5, 0.4], "teeth", n=7, fangs=2, up=False, skip=("up", "down", "south")),
+        *[B.c(mirror_x([2.95, 26.15, -10.4], [0.4, 1.1, 6.4], sx), [0.4, 1.1, 6.4], "teeth", n=6, fangs=1, up=False,
+              skip=("up", "down", "north", "south", "east" if sx > 0 else "west")) for sx in (-1, 1)],
+        *[c_ for sx in (-1, 1) for c_ in limb(B, (sx * 1.3, 24.1, -10.2), [(sx * 1.5, 22.6, -10.1, 0.45), (sx * 1.25, 21.2, -9.7, 0.32)],
+                                                  "skin", r="fin", seed=24)],
+    ], rot=[12, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
-        B.bone(f"{side}_arm", "chest", [sx * 4.4, 22.6, 0.6], [
-            col(sx * 4.9, 0.6, 16.0, 23.2, 2.4, 2.6, "scales", zone="limb", **sc)], rot=[-26, 0, sx * -6])
+        arm = [col(sx * 4.9, 0.6, 16.0, 23.2, 2.4, 2.6, "scales", zone="limb", **sc)]
+        if sx > 0:
+            # a great ribbed shell lashed over the left shoulder, barnacles crusting it
+            arm += [B.c([3.6, 22.6, -1.9], [3.6, 1.3, 5.0], "horn", r="shell", pivot=[4.4, 23.2, 0.6], rot=[0, 0, 24],
+                        tiger=dict(faces=("up", "north", "south", "west"), ramp="shell_d", ky=0.0, lean=0.0, kz=1.0, cx=0.0, period=0.9,
+                                   width=0.28, tone=0.3, back_half=False),
+                        spotted=dict(ramp="shell_l", cell=0.9, radius=0.26, density=0.25, faces=("up", "west"))),
+                    B.c([5.6, 20.8, -1.6], [0.9, 2.4, 4.4], "horn", r="shell", pivot=[4.4, 23.2, 0.6], rot=[0, 0, 12],
+                        tiger=dict(faces=("west", "north", "south"), ramp="shell_d", ky=0.0, lean=0.0, kz=1.0, period=0.9, width=0.28,
+                                   tone=0.3, back_half=False)),
+                    B.c([4.4, 20.4, -0.9], [2.6, 0.4, 3.0], "leather", r="rope", stitch=False)]
+        B.bone(f"{side}_arm", "chest", [sx * 4.4, 22.6, 0.6], arm, rot=[-26, 0, sx * -6])
         hand = [
             col(sx * 5.0, 0.6, 9.6, 16.4, 2.2, 2.4, "scales", zone="limb", **sc),
             B.c([sx * 5.0 - 0.2, 10.4, 1.8], [0.4, 5.6, 2.6], "skin", r="fin", rays=dict(y=16.0, z=1.8, n=6), skip=("up", "down", "north", "south")),
@@ -1320,7 +1588,7 @@ def deepkin():
     register(name, lambda aff: pal(aff, (90, 255, 230), {
         "scale": (52, 90, 98), "scale_d": (22, 44, 58), "scale_l": (178, 196, 170),
         "fin": (66, 124, 128), "web": (60, 96, 100), "kelp": (44, 70, 40), "claw": (40, 40, 40),
-        "bone": (214, 204, 180), "coral": (190, 80, 74),
+        "bone": (214, 204, 180), "coral": (190, 80, 74), "shell": (60, 66, 84), "shell_d": (26, 28, 40), "shell_l": (176, 190, 200),
     }), density=5.0)
     B.write(1.6, 2.2, 1.0)
 
@@ -1329,6 +1597,7 @@ def deepkin():
     A["idle"] = anim(L, True, {
         "chest": rot(lambda t: [2 * wave(t, L), 0, 0]),
         "head": rot(lambda t: [3 * wave(t, L / 2), 12 * wave(t, L * 2), 6 * wave(t, L, 0.3)]),
+        "jaw": rot(lambda t: [4 * wave(t, L / 2, 0.2), 0, 0]),
         "left_arm": rot(lambda t: [4 * wave(t, L), 0, 0]), "right_arm": rot(lambda t: [-3 * wave(t, L), 0, 0]),
     }, 0.1)
     L = 1.0
@@ -1337,6 +1606,7 @@ def deepkin():
         "hips": {"rotation": lambda t: [0, 0, 6 * wave(t, L)], "position": lambda t: [0, -0.6 * abs(wave(t, L)), 0]},
         "chest": rot(lambda t: [6, 0, -4 * wave(t, L)]),
         "head": rot(lambda t: [-4, 4 * wave(t, L), 0]),
+        "jaw": rot(lambda t: [3 * wave(t, L / 2), 0, 0]),
     }, 0.05)
     # thrust (0.8 s): the spear drawn back, then driven forward at 0.4 s
     L = 0.8
@@ -1346,6 +1616,7 @@ def deepkin():
         "chest": rot(lambda t: [-10 * hold(t, 0, 0.3, 0.32, 0.4) + 16 * snap(t, 0.32, 0.44, 0.5, 0.8), 20 * hold(t, 0, 0.3, 0.32, 0.42), 0]),
         "hips": {"position": lambda t: [0, 0, -3 * snap(t, 0.32, 0.44, 0.5, 0.8)]},
         "head": rot(lambda t: [-10 * sin01(t, 0.2, 0.7), 0, 0]),
+        "jaw": rot(lambda t: [20 * sin01(t, 0.22, 0.7), 0, 0]),
     }, 0.025)
     L = 1.2
     A["death"] = anim(L, "hold", {
@@ -1353,6 +1624,7 @@ def deepkin():
         "head": rot(lambda t: [-20 * window(t, 0.1, 0.5) + 6 * math.sin(t * 40) * window(t, 0.7, 0.8) * (1 - window(t, 0.9, 1.2)), 0, 0]),
         "right_arm": rot(lambda t: [-60 * window(t, 0.2, 0.7), 0, 30 * window(t, 0.2, 0.7)]),
         "left_arm": rot(lambda t: [-60 * window(t, 0.2, 0.7), 0, -30 * window(t, 0.2, 0.7)]),
+        "jaw": rot(lambda t: [22 * window(t, 0.1, 0.5), 0, 0]),
     }, 0.025)
     write_anims(name, A)
 
@@ -1391,7 +1663,7 @@ def membrane_fx(f, p, s):
 
 
 def wing_pair(B, side, sx, parent, shoulder, inner, outer, mat="skin", spec=None, bones_r="bone", fingers=3, arm=(1.0, 0.8), finger_bones=False,
-              bone_mat="bone"):
+              bone_mat="bone", rest=None):
     """A bat wing on side sx: an inner part from the shoulder to the elbow and an outer part folding at the elbow.
     inner/outer: (span, depth) in units; the membranes lie flat (in x-z) behind a bony leading edge. arm: the
     thickness of the arm and of the hand along that edge; finger_bones paints the fingers fanning through the outer
@@ -1406,7 +1678,7 @@ def wing_pair(B, side, sx, parent, shoulder, inner, outer, mat="skin", spec=None
         B.c(mirror_x([abs(x0), y0 - th / 2, z0], [span1, th, depth1], sx), [span1, th, depth1], mat, r="membrane",
             wing=dict(root=abs(x0), lead=z0, depth=depth1, span=span1, n=2), fx=membrane_fx, skip=("north", "south", "east", "west"), marks=0.5, **spec),
         B.c(mirror_x([abs(x0), y0 - a1 / 2, z0 - a1 / 2], [span1, a1, a1], sx), [span1, a1, a1], bone_mat, r=bones_r),
-    ])
+    ], rot=rest)
     ex = abs(x0) + span1
     outer_cubes = [
         B.c(mirror_x([ex, y0 - th / 2, z0], [span2, th, depth2], sx), [span2, th, depth2], mat, r="membrane",
@@ -1713,8 +1985,10 @@ def hive_drone():
 # --------------------------------------------------------------------------------------------- brimling
 
 def brimling():
-    """A hovering imp of the burning gates: skinny limbs, a big horned head with a wide glowing grin and slit eyes,
-    small bat wings, a long tail with a spade at its end, skin black-red above and ember-orange below."""
+    """A hovering imp of the burning gates: skinny limbs, a big head with ram's horns sweeping back from it, a scowl
+    over slit eyes, a hooked nose, long ears, a wide grin of teeth with fire inside it and a jaw that drops open on it,
+    a pointed chin with a wisp of beard, small bat wings held up behind it, a long tail with a spade at its end, an
+    iron cuff with a broken chain on one ankle, skin black-red above and ember-orange below, cracked with fire."""
     name = "brimling"
     B = Body(name, 2400)
     box, col = B.box, B.col
@@ -1727,16 +2001,34 @@ def brimling():
     ], rot=[10, 0, 0])
     horns = []
     for sx in (-1, 1):
-        horns += curl(B, [sx * 1.7, 15.6, -1.0], sx, [(14, 1.8, 1.2), (34, 1.6, 1.0), (62, 1.4, 0.8), (92, 1.2, 0.6)], "horn", r="horn", tip="+y", z_step=0.4)
-    B.bone("head", "body", [0, 11.4, -0.4], [
-        box(0, 13.6, -1.0, 5.2, 4.6, 4.4, "skin", zone="back", split=(0.6, 0.15), **sk,
-            eyes=eyes(1.25, 14.3, (0.95, 0.42), slant=0.62, pupil="slit", lid=1.5),
-            wrinkles=dict(eyes=[(1.25, 14.3), (-1.25, 14.3)], eye_r=(0.95, 0.42), k=1.8, frown=(0.35, 14.6, 15.6), cheeks=True),
-            grin=dict(x0=-2.2, x1=2.2, y=12.4, h=1.2, curve=0.55, n=8, glow=True, fangs=True)),
+        horns += curl(B, [sx * 1.6, 15.9, -1.4], sx, [(10, 1.3, 1.4), (28, 1.2, 1.15), (52, 1.1, 0.9), (80, 1.0, 0.7), (110, 0.8, 0.5)],
+                      "horn", r="horn", tip="+y", z_step=0.6, overlap=0.3)
+    head = [
+        box(0, 14.3, -1.0, 5.2, 3.4, 4.4, "skin", zone="back", split=(0.6, 0.15), **sk,
+            eyes=eyes(1.2, 14.15, (0.85, 0.4), slant=0.62, pupil="slit", lid=1.0),
+            wrinkles=dict(eyes=[(1.2, 14.15), (-1.2, 14.15)], eye_r=(0.85, 0.4), k=1.8, frown=(0.35, 14.5, 15.4), cheeks=True)),
+        box(0, 16.2, -1.0, 4.4, 0.8, 3.6, "skin", zone="back", **sk),
+        # a scowl over the eyes, a hooked nose, sharp cheekbones
+        *[B.c(mirror_x([0.15, 14.75, -3.55], [2.5, 0.6, 0.8], sx), [2.5, 0.6, 0.8], "skin", r="skin_d", seed=52, pivot=[sx * 0.15, 15.05, -3.2],
+              rot=[0, 0, -sx * 16], skip=("south",)) for sx in (-1, 1)],
+        B.c([-0.45, 12.9, -3.95], [0.9, 1.4, 0.9], "skin", seed=53, mottle=0.1, blotch=0.2, pivot=[0, 14.0, -3.3], rot=[-14, 0, 0]),
+        *[B.c(mirror_x([2.15, 12.5, -3.05], [0.8, 0.9, 2.2], sx), [0.8, 0.9, 2.2], "skin", **sk) for sx in (-1, 1)],
+        # the grin: a row of teeth over a mouth full of fire
+        B.c([-2.0, 12.0, -3.35], [4.0, 0.7, 0.3], "teeth", n=8, fangs=1, up=True, skip=("up", "down", "south")),
+        box(0, 11.85, -1.8, 3.8, 1.1, 2.4, "mouth", skip=("north",)),
+        box(0, 11.8, -1.0, 2.4, 0.7, 0.6, "glow"),
         *horns,
-        *[B.c(mirror_x([2.4, 13.4, -1.6], [2.2, 1.4, 0.6], sx), [2.2, 1.4, 0.6], "skin", pivot=[sx * 2.5, 14.0, -1.3], rot=[0, sx * -24, sx * 14],
-              zone="limb", **sk) for sx in (-1, 1)],
-    ])
+    ]
+    for sx in (-1, 1):
+        # long ears swept back
+        head += limb(B, (sx * 2.4, 14.2, -1.2), [(sx * 3.7, 14.9, -0.4, 0.95), (sx * 4.8, 15.5, 0.5, 0.55, dict(tip="+y"))], "skin", r="skin", **sk)
+    B.bone("head", "body", [0, 11.4, -0.4], head)
+    B.bone("jaw", "head", [0, 12.0, 0.4], [
+        box(0, 11.2, -1.35, 4.6, 1.2, 3.9, "skin", zone="back", split=(0.85, 0.3), **sk),
+        B.c([-1.9, 11.65, -3.4], [3.8, 0.6, 0.3], "teeth", n=7, fangs=1, up=False, skip=("up", "down", "south")),
+        box(0, 10.4, -2.3, 2.2, 0.8, 1.8, "skin", zone="back", **sk),
+        B.c([-0.45, 9.0, -3.1], [0.9, 1.4, 0.6], "hair", r="horn", seed=54, ragged=0.8),
+    ], rot=[8, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "body", [sx * 2.6, 10.8, 0], [
             col(sx * 2.9, 0, 7.0, 11.0, 1.2, 1.2, "skin", zone="limb", **sk)], rot=[-20, 0, sx * -10])
@@ -1750,19 +2042,23 @@ def brimling():
         B.bone(f"{side}_shin", f"{side}_leg", [sx * 1.4, 2.6, 0.4], [
             col(sx * 1.4, 0.4, -0.6, 2.8, 1.0, 1.0, "skin", zone="limb", **sk),
             box(sx * 1.4, -0.8, -0.4, 1.2, 0.8, 1.8, "horn", r="horn", tip="-z"),
+            # an iron cuff on the right ankle, a few links of a broken chain hanging from it
+            *([col(-1.4, 0.4, -0.1, 0.9, 1.5, 1.5, "metal", r="iron", fuller=False, rust=0.4, scratches=1),
+               *[col(-1.4 + (0.1 if i % 2 else -0.1), 0.4 - i * 0.15, -0.65 - i * 0.6, -0.05 - i * 0.6, 0.35 if i % 2 else 0.5, 0.5 if i % 2 else 0.35,
+                     "chain", r="iron") for i in range(3)]] if sx < 0 else []),
         ], rot=[50, 0, 0])
-        wing_pair(B, side, sx, "body", [sx * 1.2, 11.2, 1.6], (3.6, 4.2), (5.4, 4.6), fingers=2)
+        wing_pair(B, side, sx, "body", [sx * 1.2, 11.2, 1.6], (3.6, 4.2), (5.4, 4.6), fingers=2, rest=[45, -sx * 12, -sx * 24])
     B.bone("tail", "body", [0, 5.6, 1.6], [
         B.bar(0, 5.6, 1.6, 6.0, 0.9, 0.9, "skin", r="skin_d", **sk)], rot=[30, 0, 0])
     B.bone("tail2", "tail", [0, 5.6, 6.0], [
         B.bar(0, 5.6, 6.0, 10.0, 0.7, 0.7, "skin", r="skin_d", **sk)], rot=[-40, 0, 0])
     B.bone("tail3", "tail2", [0, 5.6, 10.0], [
         B.bar(0, 5.6, 10.0, 12.0, 0.6, 0.6, "skin", r="skin_d", **sk),
-        B.c([-1.2, 5.3, 11.6], [2.4, 0.6, 2.6], "horn", r="horn", tip="+z", skip=()),
+        B.c([-1.2, 5.3, 11.6], [2.4, 0.6, 2.6], "horn", r="claw", tip="+z", skip=()),
     ], rot=[-30, 0, 0])
     register(name, lambda aff: pal(aff, (255, 150, 40), {
         "skin": (96, 26, 26), "skin_d": (30, 10, 12), "skin_l": (196, 88, 48),
-        "horn": (30, 24, 24), "membrane": (72, 20, 22), "bone": (50, 24, 24), "claw": (26, 18, 18),
+        "horn": (58, 42, 40), "membrane": (72, 20, 22), "bone": (50, 24, 24), "claw": (26, 18, 18),
     }), density=6.0)
     B.write(2.0, 1.5, 0.5)
 
@@ -1772,6 +2068,7 @@ def brimling():
         **flap(L, 34, 18),
         "body": {"position": lambda t: [0, 1.0 * wave(t, L, 0.25), 0]},
         "head": rot(lambda t: [3 * wave(t, L), 8 * wave(t, L * 3), 6 * wave(t, L * 2)]),
+        "jaw": rot(lambda t: [5 * max(0.0, wave(t, L, 0.1)), 0, 0]),
         "tail": rot(lambda t: [0, 14 * wave(t, L * 2), 0]), "tail2": rot(lambda t: [0, 20 * wave(t, L * 2, 0.2), 0]),
         "tail3": rot(lambda t: [0, 26 * wave(t, L * 2, 0.4), 0]),
         "right_leg": rot(lambda t: [6 * wave(t, L), 0, 0]), "left_leg": rot(lambda t: [-6 * wave(t, L), 0, 0]),
@@ -1781,6 +2078,7 @@ def brimling():
         **flap(L, 42, 24),
         "body": {"position": lambda t: [0, 0.8 * wave(t, L, 0.25), 0], "rotation": lambda t: [18, 0, 0]},
         "head": rot(lambda t: [-16, 0, 0]),
+        "jaw": rot(lambda t: [4 + 3 * wave(t, L / 2), 0, 0]),
         "tail": rot(lambda t: [10, 10 * wave(t, L), 0]), "tail2": rot(lambda t: [0, 14 * wave(t, L, 0.2), 0]),
         "right_leg": rot(lambda t: [20, 0, 0]), "left_leg": rot(lambda t: [20, 0, 0]),
     }, 0.025)
@@ -1792,6 +2090,8 @@ def brimling():
         "left_arm": rot(lambda t: [-150 * hold(t, 0, 0.42, 0.48, 0.6) - 70 * snap(t, 0.48, 0.58, 0.7, 1.0), 0, -20 * hold(t, 0, 0.42, 0.48, 0.6)]),
         "body": rot(lambda t: [-14 * hold(t, 0, 0.42, 0.48, 0.6) + 18 * snap(t, 0.48, 0.6, 0.7, 1.0), 0, 0]),
         "head": rot(lambda t: [-12 * hold(t, 0, 0.42, 0.5, 0.8), 0, 0]),
+        # a cackle: the jaw drops as the hands gather and snaps shut after the throw
+        "jaw": rot(lambda t: [24 * hold(t, 0.05, 0.4, 0.55, 0.75), 0, 0]),
     }, 0.025)
     # blink (0.5 s): it folds into itself and is gone, then unfolds where it lands
     L = 0.5
@@ -1803,68 +2103,141 @@ def brimling():
         "root": {"rotation": lambda t: [0, 360 * ease_in(window(t, 0.0, 0.6)), 80 * window(t, 0.3, 0.7)], "position": lambda t: [0, -2 * window(t, 0.3, 0.7), 0]},
         **{f"{s}_wing": rot(lambda t, sx=sx: [0, 0, sx * 60 * window(t, 0.0, 0.5)]) for s, sx in (("right", -1), ("left", 1))},
         "head": rot(lambda t: [25 * window(t, 0.2, 0.6), 0, 0]),
+        "jaw": rot(lambda t: [30 * window(t, 0.2, 0.6), 0, 0]),
     }, 0.025)
     write_anims(name, A)
 
 
 # --------------------------------------------------------------------------------------------- wailing wraith
 
+def throat_fx(f, p, s):
+    """The inside of a mouth stretched open: black, with a cold light far down the throat."""
+    if f.face != "north":
+        return
+    a = (f.X - f.cx) / max(f.s[0] / 2, 1e-6)
+    h = (f.Y - f.bottom) / max(f.top - f.bottom, 1e-6)
+    w = np.clip(1.0 - np.sqrt((a / 0.62) ** 2 + ((h - s.get("throat_h", 0.42)) / 0.42) ** 2), 0, 1)
+    p.glow("glow", 0.04 + 0.62 * w ** 2.2, w > 0.02)
+
+
 def wailing_wraith():
-    """A drifting ghost in a hood and robes that tear away into nothing below the waist: a void for a face with two
-    slits of light and a mouth stretched in a wail, long bony arms with longer claws, rusted chains around it."""
+    """A drifting ghost in a deep cowl, its robes tearing away into light below the waist: a gaunt grey face sunk in
+    the dark of the hood, a point of cold light in each socket and a jaw hanging long and open in a wail; long starved
+    arms with black claws, rusted chains wound round it, a padlock, and a lantern of trapped light at its hip."""
     name = "wailing_wraith"
     B = Body(name, 2500)
     box, col = B.box, B.col
-    robe = dict(r="cloth", seed=84)
+    robe = dict(r="cloth", folds=1.6)
+    hood = dict(r="hood", folds=1.2)
+    gaunt = dict(r="gaunt", mottle=0.2, blotch=0.35, fat=0.1)
     B.bone("root", None, [0, 0, 0])
-    tatters = []
-    for i, (x, z, w, top, bot) in enumerate(((-2.6, -2.9, 2.2, 16, 1.0), (0.2, -3.0, 2.6, 16, 3.0), (2.8, -2.8, 1.8, 16, 0.0),
-                                             (-3.4, 0.4, 0.4, 16, 2.0), (3.4, 0.6, 0.4, 16, 1.0), (-1.6, 3.2, 2.6, 16, 0.4), (1.8, 3.1, 2.4, 16, 2.4))):
-        size = [w, top - bot, 0.4] if abs(z) > 2 else [0.4, top - bot, 2.6]
-        tatters.append(B.c([x - size[0] / 2, bot, z - size[2] / 2], size, "cloth", hem=4.0 + (i % 3), seed=85 + i, skip=("up", "down"), glow_hem=2.6,
-                           **{k: v for k, v in robe.items() if k != "seed"}))
+    # long rags hanging from the waist all round, each torn away at its end into light
+    rags = []
+    for i, (x, z, w, bot, lean) in enumerate(((-2.2, -2.4, 2.0, 2.2, 8), (0.1, -2.5, 2.3, 0.4, 5), (2.3, -2.4, 1.7, 3.2, 10),
+                                               (-2.4, 2.7, 2.2, 1.2, -8), (0.1, 2.8, 2.0, 3.4, -5), (2.4, 2.7, 2.1, 0.8, -10))):
+        rags.append(B.c([x - w / 2, bot, z - 0.18], [w, 14.6 - bot, 0.36], "cloth", pivot=[x, 14.6, z], rot=[-lean, 0, 0],
+                        hem=3.2 + (i % 3) * 0.8, glow_hem=2.8, skip=("up", "down"), seed=85 + i, **robe))
+    for i, (sx, z, w, bot, lean) in enumerate(((-1, 0.4, 2.6, 2.6, 9), (1, 0.8, 2.4, 1.2, 10))):
+        x = sx * 2.95
+        rags.append(B.c([x - 0.18, bot, z - w / 2], [0.36, 14.6 - bot, w], "cloth", pivot=[x, 14.6, z], rot=[0, 0, -sx * lean],
+                        hem=3.6, glow_hem=2.8, skip=("up", "down"), seed=92 + i, **robe))
+    lx, lz = 3.9, -1.55   # the lantern at the left hip
     B.bone("body", "root", [0, 16, 0], [
-        B.c([-3.8, 9.0, -2.8], [7.6, 13.6, 5.8], "cloth", hem=5.0, seed=83, skip=("down",), glow_hem=3.0, folds=1.6,
-            **{k: v for k, v in robe.items() if k != "seed"}),
-        box(0, 23.0, 0.3, 7.0, 3.0, 5.2, "cloth", zone="dark", **robe),
-        # a ragged mantle over the shoulders, a second layer of rags over the robe
-        B.c([-4.4, 17.6, -3.2], [8.8, 5.6, 6.8], "cloth", hem=2.4, seed=93, zone="dark", skip=("down",), glow_hem=0.7, r="cloth"),
-        *tatters,
-        # rusted chains wound around it
-        B.c([-4.0, 17.0, -3.0], [8.0, 0.8, 0.6], "chain", r="rust", pivot=[0, 17, -3], rot=[0, 0, 16]),
-        B.c([-4.0, 13.6, 2.6], [8.0, 0.8, 0.6], "chain", r="rust", pivot=[0, 13.6, 2.6], rot=[0, 0, -12]),
+        # a narrow chest under a ragged mantle, a waist bound with rope, a skirt that falls apart into rags
+        box(0, 19.9, 0.4, 6.0, 5.8, 4.0, "cloth", seed=83, **robe),
+        box(0, 15.6, 0.4, 4.8, 2.8, 3.4, "cloth", seed=84, **robe),
+        box(0, 11.3, 0.4, 5.8, 6.0, 4.4, "cloth", seed=81, hem=3.4, glow_hem=1.8, skip=("down",), **robe),
+        *rags,
+        # the rope belt, knotted at the front, its ends hanging
+        box(0, 15.5, 0.4, 5.2, 0.8, 3.8, "cloth", r="rope", folds=3.0, seed=96),
+        box(-1.0, 15.3, -1.65, 1.0, 1.0, 0.7, "cloth", r="rope", seed=97),
+        B.c([-1.35, 11.4, -1.8], [0.45, 3.8, 0.45], "cloth", r="rope", seed=98, pivot=[-1.1, 15.2, -1.6], rot=[-6, 0, -8]),
+        B.c([-0.85, 12.1, -1.85], [0.45, 3.1, 0.45], "cloth", r="rope", seed=99, pivot=[-0.6, 15.2, -1.6], rot=[-8, 0, 6]),
+        # the mantle: a ragged capelet over the shoulders, a tarnished brooch with a cold gem at the throat
+        B.c([-3.9, 17.6, -2.3], [7.8, 5.3, 5.4], "cloth", hem=2.4, seed=93, skip=("down",), band=(19.9, 20.7), band_r="silver",
+            **hood),
+        box(0, 23.6, 1.2, 4.6, 1.8, 3.8, "cloth", zone="dark", seed=94, **hood),
+        box(0, 21.7, -2.55, 1.5, 1.5, 0.5, "trim", r="silver"),
+        box(0, 21.7, -2.86, 0.6, 0.6, 0.14, "glow"),
+        # rusted chains wound round it, a padlock hanging from the front one
+        B.c([-4.2, 17.4, -2.75], [8.4, 0.7, 0.5], "chain", r="rust", pivot=[0, 17.8, -2.5], rot=[0, 0, 22]),
+        B.c([-4.2, 14.2, 2.3], [8.4, 0.7, 0.5], "chain", r="rust", pivot=[0, 14.6, 2.55], rot=[0, 0, -14]),
+        col(-2.6, -2.55, 12.4, 16.6, 0.45, 0.45, "chain", r="rust"),
+        box(-2.6, 11.7, -2.55, 1.4, 1.5, 0.8, "plate", r="iron", rivets=False),
+        B.c([-3.0, 12.4, -2.65], [0.8, 0.9, 0.25], "metal", r="iron"),
+        # a lantern of trapped light at the left hip, on a short chain from the belt
+        col(lx, lz, 12.7, 15.4, 0.4, 0.4, "chain", r="rust"),
+        box(lx, 12.7, lz, 1.9, 0.5, 1.9, "plate", r="iron", rivets=False),
+        box(lx, 13.15, lz, 1.0, 0.4, 1.0, "plate", r="iron", rivets=False),
+        box(lx, 11.2, lz, 1.3, 2.5, 1.3, "glow"),
+        *[col(lx + dx, lz + dz, 9.95, 12.45, 0.32, 0.32, "metal", r="iron") for dx in (-0.78, 0.78) for dz in (-0.78, 0.78)],
+        box(lx, 9.75, lz, 1.9, 0.5, 1.9, "plate", r="iron", rivets=False),
     ], rot=[10, 0, 0])
-    hood = dict(r="cloth", seed=86)
     B.bone("head", "body", [0, 24.0, 0], [
-        box(0, 27.4, -0.4, 5.4, 5.4, 5.4, "void",
-            eyes=eyes(1.2, 28.4, (1.0, 0.3), slant=0.5, pupil=None, lid=0.0, glint=False),
-            grin=dict(x0=-1.4, x1=1.4, y=25.9, h=1.9, curve=-0.2, n=1, teeth=False, glow=True),
-            # light leaking from the eyes and trailing up into the hood
-            lines=[dict(pts=[(2.0, 28.75), (2.5, 29.5), (2.45, 30.3)], w=0.22, faces=("north",), halo=0.5, bright=0.7),
-                   dict(pts=[(-2.0, 28.75), (-2.5, 29.5), (-2.45, 30.3)], w=0.22, faces=("north",), halo=0.5, bright=0.7)]),
-        box(0, 31.0, 0.0, 7.4, 0.8, 7.6, "cloth", dark_faces=("down",), **hood),
-        box(3.3, 27.6, 0.2, 0.8, 7.0, 7.2, "cloth", dark_faces=("east",), hem=1.0, **{**hood, "seed": 87}),
-        box(-3.3, 27.6, 0.2, 0.8, 7.0, 7.2, "cloth", dark_faces=("west",), hem=1.0, **{**hood, "seed": 88}),
-        box(0, 27.6, 3.4, 5.8, 7.0, 0.8, "cloth", dark_faces=("north",), **hood),
-        box(0, 30.8, -3.6, 7.4, 1.6, 0.8, "cloth", dark_faces=("down", "south"), **hood),
-        B.c([-0.4, 31.4, -4.2], [0.8, 1.8, 0.8], "cloth", **hood, pivot=[0, 31.4, -3.6], rot=[30, 0, 0]),
+        # the face, sunk deep in the cowl: brows drawn up in anguish and gaunt cheekbones round two holes of dark with a
+        # point of light in each, and the upper teeth bared over the open mouth
+        box(0, 29.4, 0.7, 4.2, 4.2, 4.4, "skin", seed=95, **gaunt),
+        box(0, 29.15, -1.62, 3.6, 1.7, 0.24, "void", sockets=sockets(0.88, 29.15, (0.7, 0.55), slant=0.22, core=0.4)),
+        *[B.c(mirror_x([0.1, 29.95, -2.4], [1.9, 0.8, 0.9], sx), [1.9, 0.8, 0.9], "skin", pivot=[sx * 0.1, 30.35, -1.95], rot=[0, 0, sx * 12],
+              seed=96, shadow_top=(29.9, 30.3, 0.2), **gaunt) for sx in (-1, 1)],
+        box(0, 29.05, -1.85, 0.7, 1.5, 0.7, "skin", seed=97, **gaunt),
+        *[B.c(mirror_x([0.8, 27.75, -2.2], [1.1, 0.6, 0.8], sx), [1.1, 0.6, 0.8], "skin", pivot=[sx * 0.8, 28.05, -1.8], rot=[0, -sx * 22, 0],
+              seed=98, **gaunt) for sx in (-1, 1)],
+        box(0, 27.35, -1.75, 2.6, 0.9, 1.0, "skin", seed=99, **gaunt),
+        box(0, 26.65, -2.0, 2.4, 0.6, 0.3, "teeth", n=7, fangs=1, up=True, skip=("up", "down", "south")),
+        # the inside of the mouth, lit from far down the throat
+        box(0, 25.2, -0.9, 2.3, 3.4, 1.4, "void", fx=throat_fx, throat_h=0.35),
+        # the cowl: a crown and sides dark inside, a rounded back, a peak drooping back, a heavy rolled rim round the
+        # opening
+        box(0, 32.15, 0.7, 6.4, 1.0, 6.6, "cloth", dark_faces=("down",), seed=86, **hood),
+        # a ridge along the crown, so the cowl rises to a point, and a long tail hanging from it down the back
+        B.c([-1.8, 30.6, -1.6], [3.6, 3.6, 5.8], "cloth", pivot=[0, 32.4, 1.3], rot=[0, 0, 45], seed=87, **hood),
+        B.c([-0.75, 24.6, 3.9], [1.5, 8.6, 0.7], "cloth", pivot=[0, 33.2, 4.2], rot=[8, 0, 0], hem=1.4, seed=88, **hood),
+        # the top corners of the opening drawn in, so it closes to a point like a cowl's
+        *[B.c(mirror_x([1.5, 30.2, -3.55], [1.9, 1.3, 1.25], sx), [1.9, 1.3, 1.25], "cloth", r="hood_l", pivot=[sx * 2.45, 30.85, -2.95],
+              rot=[0, 0, sx * 40], dark_faces=("down",), seed=84, folds=2.0) for sx in (-1, 1)],
+        *[B.c(mirror_x([2.5, 23.4, -2.6], [0.9, 9.2, 6.6], sx), [0.9, 9.2, 6.6], "cloth", pivot=[sx * 2.95, 32.2, 0.7], rot=[0, 0, -sx * 5],
+              dark_faces=(("east",) if sx > 0 else ("west",)), hem=1.2, seed=89 + (sx > 0), **hood) for sx in (-1, 1)],
+        box(0, 28.0, 3.6, 5.2, 8.6, 0.9, "cloth", dark_faces=("north",), seed=91, **hood),
+        B.c([-3.05, 30.3, 2.3], [6.1, 2.2, 2.2], "cloth", pivot=[0, 31.4, 3.4], rot=[45, 0, 0], seed=85, **hood),
+        box(0, 31.55, -2.95, 6.6, 1.3, 1.3, "cloth", r="hood_l", dark_faces=("down",), seed=92, folds=2.0),
+        *[box(sx * 2.75, 27.8, -2.75, 1.2, 7.4, 1.3, "cloth", r="hood_l", dark_faces=(("east",) if sx > 0 else ("west",)), seed=93,
+              folds=2.0) for sx in (-1, 1)],
     ], rot=[-6, 0, 0])
+    B.bone("jaw", "head", [0, 26.8, 1.6], [
+        # the jaw hangs long and open: a chin with the lower teeth, and the bones running back up to the hinge
+        box(0, 23.25, -1.35, 2.4, 0.9, 1.3, "skin", seed=100, **gaunt),
+        box(0, 23.95, -1.75, 2.0, 0.55, 0.3, "teeth", n=6, fangs=1, up=False, skip=("up", "down", "south")),
+        *[limb(B, (sx * 1.35, 26.6, 0.9), [(sx * 1.2, 23.3, -1.0, 0.55, dict(seed=101))], "skin", **gaunt)[0] for sx in (-1, 1)],
+    ])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "body", [sx * 3.8, 22.4, 0.3], [
-            B.c(mirror_x([3.2, 15.8, -1.6], [2.8, 7.4, 3.4], sx), [2.8, 7.4, 3.4], "cloth", hem=2.6, seed=89, r="cloth"),
+            # a sleeve that hangs open into a torn bell at the elbow
+            B.c(mirror_x([3.3, 18.4, -1.2], [2.6, 4.8, 2.9], sx), [2.6, 4.8, 2.9], "cloth", seed=89, **robe),
+            B.c(mirror_x([3.0, 14.6, -1.6], [3.2, 4.4, 3.6], sx), [3.2, 4.4, 3.6], "cloth", hem=2.4, glow_hem=1.1, seed=90,
+                skip=("up", "down"), **robe),
         ], rot=[-30, 0, sx * -16])
-        B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.6, 16.6, 0], [
-            col(sx * 4.3, 0, 9.0, 17.0, 0.7, 0.7, "bone"), col(sx * 4.9, 0, 9.0, 17.0, 0.7, 0.7, "bone"),
-            box(sx * 4.6, 8.6, -0.2, 1.8, 1.0, 1.8, "bone"),
-            # a shackle still locked on the wrist, a few links of its chain hanging from it
-            col(sx * 4.6, 0, 10.2, 11.6, 1.9, 1.9, "plate", r="iron", rivets=False, dents=False) if sx < 0 else None,
-            col(sx * 4.6, 0.95, 6.4, 10.4, 0.5, 0.5, "chain", r="rust") if sx < 0 else None,
-            *[B.c([sx * 4.6 - 0.95 + i * 0.7, 3.6, -0.7 + (i % 2) * 0.3], [0.4, 4.6, 0.4], "horn", r="claw", tip="-y", pivot=[sx * 4.6, 8.2, 0], rot=[-12, 0, (i - 1) * -8])
-              for i in range(3)],
-        ], rot=[-20, 0, 0])
+        hand = [
+            # a starved forearm, knobbed at the wrist, a long hand and four long black claws
+            col(sx * 4.6, 0, 10.6, 17.0, 1.2, 1.2, "skin", seed=102, anat=dict(part="fore", k=0.7), **gaunt),
+            box(sx * 4.6, 10.4, 0, 1.6, 0.8, 1.5, "skin", seed=103, **gaunt),
+            box(sx * 4.6, 9.3, -0.15, 1.5, 1.6, 1.1, "skin", seed=104, anat=dict(part="fist", k=0.8), **gaunt),
+        ]
+        for i in range(4):
+            fx_ = sx * 4.6 + (i - 1.5) * 0.36
+            hand += limb(B, (fx_, 8.6, -0.25), [(fx_ + (i - 1.5) * 0.12, 6.6, -0.65, 0.34, dict(seed=105 + i)),
+                                               (fx_ + (i - 1.5) * 0.18, 4.6, -0.55, 0.3, dict(m="horn", r="claw", tip="+y", kr=(0.0, 1.0)))],
+                         "skin", **gaunt)
+        if sx < 0:
+            # a shackle still locked on the right wrist, a few links of its chain hanging from it
+            hand += [col(sx * 4.6, 0, 11.0, 12.4, 1.9, 1.9, "plate", r="iron", rivets=False),
+                     col(sx * 4.6 - 0.6, 0.95, 7.0, 11.2, 0.45, 0.45, "chain", r="rust")]
+        B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.6, 16.6, 0], hand, rot=[-20, 0, 0])
     register(name, lambda aff: pal(aff, (200, 255, 225), {
-        "cloth": (44, 48, 60), "cloth_d": (16, 17, 26), "cloth_l": (92, 98, 116),
-        "bone": (176, 170, 150), "claw": (26, 24, 28), "rust": (92, 66, 50),
+        "cloth": (40, 44, 58), "cloth_d": (14, 15, 24), "cloth_l": (92, 100, 122),
+        "hood": (32, 35, 48), "hood_d": (8, 9, 16), "hood_l": (70, 78, 98),
+        "gaunt": (176, 180, 178), "claw": (24, 22, 26), "rust": (92, 66, 50),
+        "silver": [(16, 18, 22), (54, 58, 66), (110, 116, 126), (170, 176, 188), (226, 230, 238)],
     }), density=5.0)
     B.write(1.6, 2.4, 1.0)
 
@@ -1874,6 +2247,7 @@ def wailing_wraith():
         "root": {"position": lambda t: [0, 1.2 * wave(t, L), 0]},
         "body": rot(lambda t: [10 + 2 * wave(t, L, 0.2), 0, 2 * wave(t, L * 2)]),
         "head": rot(lambda t: [3 * wave(t, L, 0.3), 12 * wave(t, L * 2, 0.1), 0]),
+        "jaw": rot(lambda t: [3 * wave(t, L / 2, 0.1), 0, 0]),
         "right_arm": rot(lambda t: [6 * wave(t, L, 0.1), 0, 4 * wave(t, L)]), "left_arm": rot(lambda t: [6 * wave(t, L, 0.6), 0, -4 * wave(t, L)]),
         "right_hand": rot(lambda t: [8 * wave(t, L, 0.3), 0, 0]), "left_hand": rot(lambda t: [8 * wave(t, L, 0.8), 0, 0]),
     }, 0.1)
@@ -1890,13 +2264,16 @@ def wailing_wraith():
         "right_arm": rot(lambda t: [-130 * hold(t, 0, 0.32, 0.34, 0.44) + 40 * snap(t, 0.34, 0.46, 0.55, 0.8), 0, 0]),
         "right_hand": rot(lambda t: [-40 * hold(t, 0, 0.32, 0.34, 0.44), 0, 0]),
         "body": rot(lambda t: [-12 * hold(t, 0, 0.32, 0.34, 0.44) + 16 * snap(t, 0.34, 0.48, 0.55, 0.8), 0, 0]),
+        "jaw": rot(lambda t: [8 * hold(t, 0.1, 0.36, 0.5, 0.8), 0, 0]),
     }, 0.025)
-    # wail (1.4 s): arms flung wide, head thrown back, the scream at 0.7 s
+    # wail (1.4 s): arms flung wide, head thrown back, the jaw dropping wide for the scream at 0.7 s
     L = 1.4
     A["wail"] = anim(L, False, {
         "right_arm": rot(lambda t: [-40 * hold(t, 0.1, 0.6, 1.0, 1.4), 0, -70 * hold(t, 0.1, 0.6, 1.0, 1.4)]),
         "left_arm": rot(lambda t: [-40 * hold(t, 0.1, 0.6, 1.0, 1.4), 0, 70 * hold(t, 0.1, 0.6, 1.0, 1.4)]),
         "head": rot(lambda t: [-35 * hold(t, 0.2, 0.65, 1.0, 1.4) + 3 * math.sin(t * 60) * window(t, 0.65, 0.7) * (1 - window(t, 0.95, 1.0)), 0, 0]),
+        "jaw": {"rotation": lambda t: [8 * hold(t, 0.3, 0.65, 1.0, 1.3) + 2 * math.sin(t * 70) * window(t, 0.65, 0.7) * (1 - window(t, 0.95, 1.0)), 0, 0],
+                "position": lambda t: [0, -1.1 * hold(t, 0.3, 0.65, 1.0, 1.3), 0]},
         "body": rot(lambda t: [-16 * hold(t, 0.2, 0.65, 1.0, 1.4), 0, 0]),
         "root": {"position": lambda t: [0, 2 * hold(t, 0.1, 0.65, 1.0, 1.4), 0]},
     }, 0.025)
@@ -1905,6 +2282,7 @@ def wailing_wraith():
     A["death"] = anim(L, "hold", {
         "root": {"position": lambda t: [0, 6 * ease_in(window(t, 0.2, 1.1)), 0], "scale": lambda t: [fade(t), fade(t) * (1 + 0.4 * window(t, 0.3, 1.0)), fade(t)]},
         "head": rot(lambda t: [-40 * window(t, 0.0, 0.4), 0, 0]),
+        "jaw": {"rotation": lambda t: [10 * window(t, 0.0, 0.4), 0, 0], "position": lambda t: [0, -1.0 * window(t, 0.0, 0.4), 0]},
         "right_arm": rot(lambda t: [-60 * window(t, 0.0, 0.4), 0, -50 * window(t, 0.0, 0.4)]),
         "left_arm": rot(lambda t: [-60 * window(t, 0.0, 0.4), 0, 50 * window(t, 0.0, 0.4)]),
     }, 0.025)
@@ -3320,13 +3698,14 @@ def elytra_seam(f, p, s):
 # --------------------------------------------------------------------------------------------- hollow acolyte
 
 def hollow_acolyte():
-    """A robed caster in a bone mask: tall and thin in a hooded robe that drags on the ground, a mask of bone with
-    slanted empty eyes and a crack of light down it, a stole sewn with runes, long fingers of bone, and an orb of its
-    element floating over its right hand."""
+    """A cult priest in a bone mask: tall and thin in layered violet robes, a crimson stole sewn with runes of light
+    over a tabard with the cult's sigil, a high collar and a tall stepped mitre of a hood trimmed in tarnished gold,
+    a long mask of bone with slanted empty eyes, a crack of light and a stitched mouth, a ring of runes turning
+    behind its head, a tome chained at its hip, long fingers of bone and an orb of its element over its right hand."""
     name = "hollow_acolyte"
     B = Body(name, 3600)
     box, col = B.box, B.col
-    robe = dict(r="cloth", seed=170)
+    robe = dict(r="cloth", folds=1.4)
     B.bone("root", None, [0, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_leg", "root", [sx * 1.6, 10, 0], [
@@ -3334,44 +3713,82 @@ def hollow_acolyte():
             box(sx * 1.6, 0.6, -0.6, 2.8, 1.2, 3.6, "leather", stitch=False, seed=172),
         ])
     B.bone("body", "root", [0, 11, 0], [
-        # the robe: a long skirt that hides the legs, a narrow chest, a stole with a band of runes down the front
-        B.c([-4.2, 0.6, -2.8], [8.4, 11.2, 5.8], "cloth", hem=3.0, seed=173, zone="front", bib_w=0.18, band=(2.2, 3.6), skip=("down",),
-            **{k: v for k, v in robe.items() if k != "seed"}),
-        box(0, 16.2, 0.0, 7.0, 9.4, 4.6, "cloth", zone="front", bib_w=0.2, **robe, tears=1,
-            # the cult's sigil stitched in gold between the stoles: an eye in a downturned triangle
-            facepaint=[dict(pts=[(-0.95, 19.6), (0.95, 19.6), (0.0, 17.6), (-0.95, 19.6)], w=0.22, ramp="trim", tone=0.55),
-                       dict(pts=[(-0.42, 19.05), (0.0, 19.25), (0.42, 19.05), (0.0, 18.85), (-0.42, 19.05)], w=0.16, ramp="trim", tone=0.6)]),
-        box(0, 21.4, 0.0, 8.0, 1.6, 5.2, "cloth", r="cloth_d", seed=174, band=(20.6, 21.0), band_r="trim", runes=False),
-        *[box(sx * 1.6, 13.0, -2.45, 1.4, 16.0, 0.4, "cloth", r="stole", seed=175 + sx, skip=("south",),
-              lines=[dict(pts=[(sx * 1.6, 6.0), (sx * 1.6, 20.4)], w=0.22, faces=("north",), halo=0.4, bright=0.7)])
+        # the robe: a long skirt with a gold band and a torn hem, a narrow chest; a crimson tabard down the front with
+        # the cult's sigil, a stole either side of it with a thread of light down it
+        B.c([-4.2, 0.6, -2.8], [8.4, 11.2, 5.8], "cloth", hem=3.0, seed=173, band=(3.6, 4.6), skip=("down",), **robe),
+        box(0, 16.2, 0.0, 7.0, 9.4, 4.6, "cloth", seed=170, tears=1, **robe),
+        box(0, 9.9, -2.7, 2.2, 17.8, 0.3, "cloth", r="inner", hem=1.6, seed=174, skip=("south",), folds=2.4,
+            # the sigil sewn in gold: an eye in a downturned triangle
+            facepaint=[dict(pts=[(-0.95, 17.4), (0.95, 17.4), (0.0, 15.4), (-0.95, 17.4)], w=0.22, ramp="trim", tone=0.6),
+                       dict(pts=[(-0.42, 16.85), (0.0, 17.05), (0.42, 16.85), (0.0, 16.65), (-0.42, 16.85)], w=0.16, ramp="trim", tone=0.65)],
+            lines=[dict(pts=[(0.0, 16.85), (0.0, 16.86)], w=0.18, faces=("north",), halo=0.3, bright=0.9)]),
+        *[box(sx * 1.75, 12.6, -2.95, 1.3, 18.0, 0.4, "cloth", r="stole", seed=175 + sx, skip=("south",), hem=1.2, folds=2.0,
+              lines=[dict(pts=[(sx * 1.75, 5.0), (sx * 1.75, 20.8)], w=0.2, faces=("north",), halo=0.4, bright=0.7)])
           for sx in (-1, 1)],
-        box(0, 12.0, -2.6, 8.6, 1.0, 0.4, "leather", stitch=False, seed=176),
-        box(0, 12.0, -2.9, 1.6, 1.6, 0.4, "bone", seed=177),
+        *[box(sx * e, 12.75, -3.05, 0.18, 17.7, 0.3, "trim", r="trim") for sx in (-1, 1) for e in (1.19, 2.31)],
+        # a sash of crimson with a buckle of bone, chains of bone charms hanging from it, a tome chained at the left hip
+        box(0, 12.0, 0.05, 8.6, 1.1, 6.0, "cloth", r="inner", seed=176, folds=3.0),
+        box(0, 12.0, -3.05, 1.6, 1.6, 0.4, "bone", seed=177),
+        *[col(sx * 2.85, -3.1, 8.6, 11.6, 0.35, 0.35, "chain", r="trim") for sx in (-1, 1)],
+        *[box(sx * 2.85, 8.2, -3.1, 0.8, 0.9, 0.4, "bone", seed=178 + sx) for sx in (-1, 1)],
+        col(4.6, -0.4, 9.9, 11.6, 0.35, 0.35, "chain", r="trim"),
+        box(4.8, 8.5, -0.4, 1.0, 2.8, 2.2, "leather", seed=179, stitch=True),
+        box(4.8, 8.5, -0.4, 0.7, 2.5, 2.35, "cloth", r="page", folds=6.0, seed=180),
+        *[box(4.8, 8.5 + dy, -0.4 + dz, 1.1, 0.5, 0.5, "trim", r="trim") for dy in (-1.2, 1.2) for dz in (-0.95, 0.95)],
+        # a capelet over the shoulders trimmed in gold
+        B.c([-4.4, 18.4, -2.9], [8.8, 4.0, 6.0], "cloth", r="cloth_d", hem=1.0, band=(19.5, 20.1), runes=False, seed=181, skip=("down",)),
     ])
-    hood = dict(r="cloth", seed=178)
+    hood = dict(r="cloth", folds=1.3)
     B.bone("head", "body", [0, 22.0, 0], [
         box(0, 25.4, -0.2, 5.0, 5.4, 5.0, "void"),
-        # the mask: a long face of bone, empty slanted eyes with points of light, a crack of light down it
-        box(0, 25.0, -2.9, 4.2, 5.4, 0.6, "bone", seed=179, ends=0.0,
+        # the mask: a long face of bone with a brow ridge and cheekbones, empty slanted eyes with points of light, a crack
+        # of light down it and the mouth stitched shut
+        box(0, 25.2, -2.9, 4.2, 5.0, 0.6, "bone", seed=184, ends=0.0,
             sockets=sockets(1.0, 26.0, (0.95, 0.42), slant=0.42, core=0.3),
-            lines=[dict(pts=[(0.2, 28.0), (-0.3, 26.8), (0.2, 25.6), (-0.1, 24.4)], w=0.2, faces=("north",), halo=0.5, bright=0.8)],
-            cuts=[dict(pts=[(-1.2, 23.4), (1.2, 23.4)], w=0.25, faces=("north",)),
-                  *[dict(pts=[(x, 23.0), (x, 23.8)], w=0.18, faces=("north",)) for x in (-0.8, -0.27, 0.27, 0.8)]]),
-        box(0, 28.6, -0.2, 6.6, 0.8, 6.8, "cloth", dark_faces=("down",), **hood),
-        box(3.0, 25.6, 0.0, 0.8, 6.4, 6.6, "cloth", dark_faces=("east",), hem=0.8, **{**hood, "seed": 180}),
-        box(-3.0, 25.6, 0.0, 0.8, 6.4, 6.6, "cloth", dark_faces=("west",), hem=0.8, **{**hood, "seed": 181}),
-        box(0, 25.6, 3.0, 5.2, 6.4, 0.8, "cloth", **hood),
-        box(0, 28.8, -3.2, 6.6, 1.4, 0.8, "cloth", dark_faces=("down", "south"), **hood),
+            lines=[dict(pts=[(0.2, 27.6), (-0.3, 26.6), (0.2, 25.5), (-0.1, 24.4)], w=0.2, faces=("north",), halo=0.5, bright=0.8)],
+            cuts=[dict(pts=[(-1.1, 23.5), (1.1, 23.5)], w=0.25, faces=("north",)),
+                  *[dict(pts=[(x, 23.1), (x, 23.9)], w=0.18, faces=("north",)) for x in (-0.75, -0.25, 0.25, 0.75)]]),
+        box(0, 27.15, -3.3, 4.2, 0.7, 0.5, "bone", seed=185, cracks=False, shadow_top=(26.8, 27.1, 0.2)),
+        *[box(sx * 1.5, 25.0, -3.25, 1.1, 0.6, 0.4, "bone", seed=186, cracks=False) for sx in (-1, 1)],
+        box(0, 22.2, -2.85, 2.6, 1.2, 0.5, "bone", seed=187, cracks=False),
+        # the hood, dark inside, its rim trimmed in gold, rising into a tall stepped mitre with the sigil's eye on it
+        box(0, 28.6, -0.2, 6.6, 0.8, 6.8, "cloth", dark_faces=("down",), seed=188, **hood),
+        box(3.0, 25.6, 0.0, 0.8, 6.4, 6.6, "cloth", dark_faces=("east",), hem=0.8, seed=189, **hood),
+        box(-3.0, 25.6, 0.0, 0.8, 6.4, 6.6, "cloth", dark_faces=("west",), hem=0.8, seed=190, **hood),
+        box(0, 25.6, 3.0, 5.2, 6.4, 0.8, "cloth", seed=191, **hood),
+        box(0, 28.75, -3.25, 6.6, 1.3, 0.8, "cloth", dark_faces=("down", "south"), seed=192, band=(28.2, 28.7), runes=False, **hood),
+        *[box(sx * 2.95, 25.4, -3.25, 0.7, 5.8, 0.8, "cloth", dark_faces=("south",), seed=193, **hood) for sx in (-1, 1)],
+        box(0, 30.1, 0.0, 5.0, 2.2, 5.6, "cloth", seed=194, band=(29.0, 29.5), runes=False, **hood),
+        box(0, 32.0, 0.3, 3.8, 1.8, 4.4, "cloth", seed=195, band=(31.1, 31.45), runes=False, **hood,
+            eyes=eyes(0.0, 31.95, (0.42, 0.24), pupil="dot", lid=0.0, glint=False)[:1]),
+        box(0, 33.5, 0.6, 2.4, 1.4, 3.0, "cloth", seed=196, band=(32.8, 33.1), runes=False, **hood),
+        box(0, 34.5, 0.8, 1.0, 0.8, 1.6, "trim", r="trim"),
     ], rot=[-4, 0, 0])
+    # a ring of runes turning behind the head
+    hx, hy, hz, hr = 0.0, 28.6, 4.1, 5.2
+    ring = []
+    for i in range(16):
+        a = i * math.pi / 8
+        cx_, cy_ = hx + hr * math.cos(a), hy + hr * math.sin(a)
+        ring.append(B.c([cx_ - 1.08, cy_ - 0.17, hz - 0.17], [2.16, 0.34, 0.34], "glow", pivot=[cx_, cy_, hz], rot=[0, 0, -math.degrees(a + math.pi / 2)]))
+    for i in range(4):
+        a = i * math.pi / 2 + math.pi / 4
+        ring.append(B.c([hx + (hr + 0.7) * math.cos(a) - 0.45, hy + (hr + 0.7) * math.sin(a) - 0.45, hz - 0.12], [0.9, 0.9, 0.24], "glow",
+                        pivot=[hx + (hr + 0.7) * math.cos(a), hy + (hr + 0.7) * math.sin(a), hz], rot=[0, 0, 45]))
+    B.bone("halo", "head", [hx, hy, hz], ring)
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_arm", "body", [sx * 3.6, 20.6, 0], [
-            B.c(mirror_x([3.0, 13.4, -1.6], [2.6, 7.6, 3.2], sx), [2.6, 7.6, 3.2], "cloth", hem=2.2, seed=182 + sx, r="cloth"),
+            B.c(mirror_x([3.0, 16.6, -1.5], [2.6, 4.6, 3.0], sx), [2.6, 4.6, 3.0], "cloth", seed=197 + sx, **robe),
+            B.c(mirror_x([2.7, 12.6, -1.9], [3.2, 4.4, 3.8], sx), [3.2, 4.4, 3.8], "cloth", hem=1.2, band=(14.3, 14.85), runes=False, seed=199 + sx,
+                skip=("up", "down"), **robe),
         ], rot=[-8, 0, sx * -8])
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 4.3, 14.2, 0], [
             col(sx * 4.0, 0, 8.4, 14.6, 0.6, 0.6, "bone"), col(sx * 4.6, 0, 8.4, 14.6, 0.6, 0.6, "bone"),
             box(sx * 4.3, 8.0, -0.2, 1.6, 1.0, 1.6, "bone"),
             *[B.c([sx * 4.3 - 0.8 + i * 0.55, 4.6, -0.6 + (i % 2) * 0.25], [0.32, 3.6, 0.32], "bone", seed=183 + i, pivot=[sx * 4.3, 7.6, 0], rot=[-16, 0, (i - 1.5) * -7])
               for i in range(4)],
+            # a gold ring on one long finger
+            box(sx * 4.3 - 0.25, 6.4, -0.55, 0.5, 0.35, 0.5, "trim", r="trim") if sx > 0 else None,
         ], rot=[-14, 0, 0])
     # the orb, floating above the right hand: a glowing core inside a cage of dark bands
     B.bone("orb", "right_hand", [-4.3, 2.6, -2.6], [
@@ -3380,8 +3797,10 @@ def hollow_acolyte():
         box(-4.3, 2.6, -2.6, 3.4, 1.0, 1.0, "glow", pivot=[-4.3, 2.6, -2.6], rot=[0, 0, 0]),
     ])
     register(name, lambda aff: pal(aff, (170, 120, 255), {
-        "cloth": (54, 44, 70), "cloth_d": (20, 16, 30), "cloth_l": (110, 96, 120),
-        "stole": (110, 34, 40), "trim": (176, 140, 72), "bone": (214, 204, 180), "leather": (60, 44, 34),
+        "cloth": (60, 42, 80), "cloth_d": (24, 16, 34), "cloth_l": (124, 98, 144),
+        "inner": (98, 24, 36), "stole": (46, 14, 22), "page": (196, 182, 150),
+        "trim": [(34, 22, 8), (96, 66, 24), (164, 124, 56), (210, 172, 92), (246, 224, 160)],
+        "bone": (214, 204, 180), "leather": (60, 44, 34),
     }), density=6.0)
     B.write(1.4, 2.6, 1.0)
 
@@ -3393,6 +3812,7 @@ def hollow_acolyte():
         "right_arm": rot(lambda t: [-22 + 3 * wave(t, L), 0, 0]), "right_hand": rot(lambda t: [-30, 0, 0]),
         "left_arm": rot(lambda t: [-3 * wave(t, L), 0, 0]),
         "orb": {"position": lambda t: [0, 0.6 * wave(t, L / 2), 0], "rotation": lambda t: [0, 120 * t, 0]},
+        "halo": rot(lambda t: [0, 0, -30 * t]),
     }, 0.05)
     L = 1.4
     A["walk"] = anim(L, True, {
@@ -3401,6 +3821,7 @@ def hollow_acolyte():
         "right_arm": rot(lambda t: [-22, 0, 0]), "right_hand": rot(lambda t: [-30, 0, 0]),
         "left_arm": rot(lambda t: [10 * wave(t, L), 0, 0]),
         "orb": {"position": lambda t: [0, 0.5 * wave(t, L / 2), 0], "rotation": lambda t: [0, 160 * t, 0]},
+        "halo": rot(lambda t: [0, 0, -90 / L * t]),
     }, 0.05)
     # cast (1.0 s): the orb drawn back and swelling, then the arm thrust forward to loose it at 0.55 s
     L = 1.0
@@ -3413,6 +3834,7 @@ def hollow_acolyte():
         "body": rot(lambda t: [-6 * draw(t) + 8 * loose(t), -10 * draw(t), 0]),
         "head": rot(lambda t: [-8 * draw(t) + 6 * loose(t), 0, 0]),
         "orb": {"scale": lambda t: [1 + 0.9 * draw(t) * (1 - window(t, 0.55, 0.62))] * 3, "rotation": lambda t: [0, 540 * t, 0]},
+        "halo": {"rotation": lambda t: [0, 0, -270 * ease_in_out(window(t, 0.0, 0.6))], "scale": lambda t: [1 + 0.25 * draw(t) * (1 - window(t, 0.55, 0.7))] * 3},
     }, 0.025)
     L = 1.2
     A["death"] = anim(L, "hold", {
@@ -3422,6 +3844,7 @@ def hollow_acolyte():
         "right_arm": rot(lambda t: [-22 + 40 * window(t, 0.1, 0.6), 0, 0]), "left_arm": rot(lambda t: [20 * window(t, 0.1, 0.6), 0, 0]),
         "right_leg": rot(lambda t: [-60 * window(t, 0.2, 0.8), 0, 0]), "left_leg": rot(lambda t: [-60 * window(t, 0.2, 0.8), 0, 0]),
         "orb": {"scale": lambda t: [max(0.01, 1 - window(t, 0.0, 0.4))] * 3},
+        "halo": {"scale": lambda t: [max(0.01, 1 - window(t, 0.0, 0.5))] * 3},
     }, 0.05)
     write_anims(name, A)
 
@@ -3429,18 +3852,23 @@ def hollow_acolyte():
 # --------------------------------------------------------------------------------------------- ashen sentinel
 
 def ashen_sentinel():
-    """A soldier of ash in full plate: a great helm with a slit of fire for eyes and a ragged crest, a tabard gone to
-    rags, embers glowing in the joints of its armour, a long sword with a burning fuller, and a tower shield bearing
-    a sigil that holds off anything from the front."""
+    """A soldier of ash in full plate: a great helm with a visor standing out from it, fire showing through the slit
+    between its brow and its face plate, breathing holes and a ridge down the face, a long ragged plume falling down
+    its back; a gorget, pauldrons of three lames with a guard standing up at the neck, a ridged breastplate, a skirt of
+    lames over a tabard gone to rags, couters and poleyns, embers glowing in every joint of its armour, a long sword
+    with a burning fuller, and a tower shield bearing a sigil that holds off anything from the front."""
     name = "ashen_sentinel"
     B = Body(name, 3700)
     box, col = B.box, B.col
     pl = dict(r="plate", engrave="trim", embers=1.0)
+    # the plates laid over the armour's main pieces: their seams stay dark, so the fire shows only in its joints
+    lp = dict(r="plate", engrave="trim")
     B.bone("root", None, [0, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
         B.bone(f"{side}_leg", "root", [sx * 2.2, 12.6, 0], [
             col(sx * 2.2, 0, 6.6, 12.8, 3.6, 3.8, "plate", **pl, seed=190),
             box(sx * 2.2, 6.6, -1.8, 3.0, 2.2, 0.8, "plate", **pl, seed=191, rivets=False),
+            box(sx * 2.2, 6.6, -2.35, 1.3, 1.3, 0.5, "trim", pivot=[sx * 2.2, 6.6, -2.35], rot=[0, 0, 45]),
         ])
         B.bone(f"{side}_shin", f"{side}_leg", [sx * 2.2, 6.6, 0], [
             col(sx * 2.2, 0, 1.2, 6.8, 3.4, 3.6, "plate", **pl, seed=192),
@@ -3451,6 +3879,11 @@ def ashen_sentinel():
         box(0, 19.6, -0.2, 8.6, 9.8, 5.4, "plate", **pl, seed=195,
             lines=[dict(pts=[(-3.0, 17.4), (3.0, 17.4)], w=0.3, faces=("north",), halo=0.6, bright=0.75)]),
         box(0, 22.4, -2.9, 6.0, 3.6, 0.4, "plate", r="plate", seed=196, rivets=False),
+        # a ridge down the breastplate, a gorget round the neck, a skirt of two lames over the hips
+        box(0, 19.4, -3.2, 1.0, 8.8, 0.5, "plate", r="plate", seed=214, rivets=False),
+        box(0, 24.7, -0.2, 6.2, 1.4, 6.2, "plate", **lp, seed=215, rivets=False),
+        box(0, 12.7, -0.1, 9.2, 1.3, 5.9, "plate", **lp, seed=216, rivets=False),
+        box(0, 11.5, -0.1, 9.6, 1.3, 6.2, "plate", **lp, seed=217, rivets=False),
         # the tabard: a rag hanging front and back from the belt
         B.c([-2.4, 4.0, -2.75], [4.8, 10.6, 0.4], "cloth", r="tabard", hem=3.2, seed=197, skip=("up", "down"),
             band=(10.4, 11.6), runes=False),
@@ -3459,22 +3892,39 @@ def ashen_sentinel():
         box(0, 14.4, -2.85, 1.8, 1.6, 0.3, "trim"),
     ])
     B.bone("head", "body", [0, 24.6, 0], [
-        # the great helm: a slit of fire for eyes, breathing holes, a ragged crest
-        box(0, 28.0, -0.2, 6.6, 6.8, 6.6, "plate", **pl, seed=200, rivets=False,
-            lines=[dict(pts=[(-2.4, 28.8), (2.4, 28.8)], w=0.5, faces=("north",), halo=0.9, bright=1.0)],
-            holes=[dict(x=x, y=y, r=(0.22, 0.22)) for x in (-1.6, -0.8, 0.8, 1.6) for y in (26.4, 25.6)]),
-        box(0, 28.0, -3.6, 1.0, 6.2, 0.6, "plate", **pl, seed=201, rivets=False),
-        box(0, 31.8, 0.2, 1.0, 1.6, 6.0, "plate", **pl, seed=202, rivets=False),
-        B.c([-0.4, 30.8, 0.0], [0.8, 5.0, 6.0], "hair", r="crest", seed=203, pivot=[0, 32.4, 0.6], rot=[-28, 0, 0], skip=("up",)),
+        # the great helm: its shell, a low dome on it
+        box(0, 27.9, 0.0, 6.4, 6.6, 6.4, "plate", **pl, seed=200, rivets=False),
+        box(0, 31.5, 0.1, 5.4, 0.8, 5.6, "plate", **lp, seed=218, rivets=False),
+        # the visor standing out from it: a brow plate, a face plate with breathing holes and a ridge down it, and
+        # between them the slit, with the fire inside showing through
+        box(0, 29.85, -3.45, 6.0, 1.7, 0.7, "plate", **lp, seed=219, rivets=False),
+        box(0, 26.6, -3.5, 6.0, 3.8, 0.8, "plate", **lp, seed=220, rivets=False,
+            holes=[dict(x=x, y=y, r=(0.2, 0.2)) for x in (-2.2, -1.4, 1.4, 2.2) for y in (27.2, 26.3, 25.4)]),
+        box(0, 26.8, -4.0, 0.8, 4.2, 0.5, "plate", r="plate", seed=221, rivets=False),
+        box(0, 28.75, -3.3, 5.6, 0.55, 0.3, "glow"),
+        box(0, 28.75, -3.0, 5.8, 0.9, 0.3, "void"),
+        # the plume: a ridge of horsehair along the top of the helm, falling long and ragged down the back
+        B.c([-0.7, 31.8, -2.4], [1.4, 1.1, 5.4], "hair", r="crest", seed=203, ragged=0.3),
+        B.c([-0.75, 23.0, 2.6], [1.5, 8.8, 1.0], "hair", r="crest", seed=222, ragged=1.0, pivot=[0, 31.8, 3.0], rot=[16, 0, 0], skip=("up",)),
     ])
     for side, sx in (("right", -1), ("left", 1)):
+        piv = [sx * 4.6, 23.6, 0]
         B.bone(f"{side}_arm", "body", [sx * 5.0, 23.2, 0], [
-            B.c(mirror_x([3.6, 21.6, -3.2], [4.4, 3.4, 6.4], sx), [4.4, 3.4, 6.4], "plate", **pl, seed=204 + sx, pivot=[sx * 5.0, 23.2, 0], rot=[0, 0, sx * -12]),
+            # a pauldron of three lames, each lapping over the one under it, a guard standing up at the neck
+            B.c(mirror_x([4.5, 20.4, -3.0], [3.4, 1.5, 6.0], sx), [3.4, 1.5, 6.0], "plate", **lp, seed=223 + sx, rivets=False, pivot=piv, rot=[0, 0, sx * 34]),
+            B.c(mirror_x([4.0, 21.7, -3.2], [3.9, 1.5, 6.4], sx), [3.9, 1.5, 6.4], "plate", **lp, seed=225 + sx, rivets=False, pivot=piv, rot=[0, 0, sx * 24]),
+            B.c(mirror_x([3.4, 23.0, -3.4], [4.3, 1.5, 6.8], sx), [4.3, 1.5, 6.8], "plate", **lp, seed=204 + sx, pivot=piv, rot=[0, 0, sx * 14]),
+            B.c(mirror_x([3.3, 24.2, -3.0], [0.6, 1.8, 6.0], sx), [0.6, 1.8, 6.0], "plate", **lp, seed=227 + sx, rivets=False, pivot=piv, rot=[0, 0, sx * 14]),
             col(sx * 5.8, 0, 16.4, 22.6, 3.2, 3.4, "plate", **pl, seed=206 + sx),
         ], rot=[0, 0, sx * -4])
         B.bone(f"{side}_hand", f"{side}_arm", [sx * 5.8, 16.6, 0], [
             col(sx * 5.8, 0, 10.6, 16.8, 3.0, 3.2, "plate", **pl, seed=208 + sx),
             box(sx * 5.8, 10.0, -0.2, 3.4, 2.4, 3.6, "plate", **pl, seed=210 + sx, rivets=False),
+            # a couter over the elbow with a fan plate on its outside, a flared cuff to the gauntlet
+            box(sx * 5.8, 16.5, 0.2, 3.6, 1.8, 3.8, "plate", **lp, seed=229 + sx, rivets=False),
+            B.c(mirror_x([7.45, 15.2, -0.9], [0.5, 2.6, 2.6], sx), [0.5, 2.6, 2.6], "plate", r="plate", seed=231 + sx, rivets=False,
+                pivot=[sx * 7.7, 16.5, 0.4], rot=[0, 0, sx * 10]),
+            box(sx * 5.8, 11.8, -0.2, 3.7, 1.2, 3.9, "plate", **lp, seed=233 + sx, rivets=False),
         ], rot=[-10, 0, 0])
     # the long sword, held point-forward low in the right hand, its fuller burning
     B.bone("blade", "right_hand", [-5.8, 10.0, -0.4], [

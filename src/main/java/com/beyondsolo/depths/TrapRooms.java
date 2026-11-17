@@ -191,7 +191,7 @@ public final class TrapRooms {
 
     /** A vent: it hisses, then blasts the gate's element up in a column. */
     static void vent(ServerLevel level, GateInstance g, Vec3 at) {
-        DamageElement element = g.theme().element;
+        DamageElement element = g.element();
         int color = DamageElement.FIRE == element ? 0xFF8A3A : DamageElement.POISON == element ? 0x8CE850 : 0xE0303C;
         float damage = 2f + 1.5f * g.rank().tier();
         float buildup = 14f + 3f * g.rank().tier();
@@ -254,7 +254,7 @@ public final class TrapRooms {
             BlockPos at = DepthsBuild.floorAt(level, c.getX() + Math.round(Mth.cos(a) * room.rx() * k), c.getZ() + Math.round(Mth.sin(a) * room.rz() * k), c.getY());
             EntityType<?> type = mix.pick(level.random);
             Mob m = Enemies.spawn(level, g.rank(), type, at, Enemies.roll(g.rank(), mix, type, level.random, i == 0 && wave == 2, true), g.theme().ordinal());
-            if (m != null) m.getPersistentData().putUUID(GateWiper.GATE_ID_TAG, g.id());
+            GateService.claim(m, g);
         }
         level.playSound(null, c, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 0.9f, 1.3f);
         for (ServerPlayer p : GateService.playersIn(level, g)) {

@@ -62,4 +62,20 @@ public enum TrapKind {
         }
         return SPIKES;
     }
+
+    /**
+     * What a room a lockdown can't shut gets instead ({@code DungeonLayout.enclosed}: a camp in a hollow, an island, a
+     * ledge over a shaft): one of the traps with a core, by weight, from the same roll.
+     */
+    static TrapKind pickOpen(int roll) {
+        int total = 0;
+        for (TrapKind k : values()) if (k.hasCore()) total += k.weight;
+        int pick = Math.floorMod(roll * 7 / 3, total);
+        for (TrapKind k : values()) {
+            if (!k.hasCore()) continue;
+            pick -= k.weight;
+            if (pick < 0) return k;
+        }
+        return SPIKES;
+    }
 }

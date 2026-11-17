@@ -5,7 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
@@ -29,9 +28,9 @@ import java.util.UUID;
  * ({@link GateData#freeSlot}). Without it every gate ever run would leave a cave behind, and dungeon keys, which open
  * as many gates as a hunter has keys, would make the save grow with every run.
  *
- * <p>A cave is wiped once it has been closed for {@link #GRACE_TICKS} and nobody is in its slot: every room's box and
- * every tunnel's tube (with a margin for the lights and veins set into the walls) goes back to the dimension's own
- * rock, a slice at a time ({@link #BUDGET} blocks a tick, one cave at a time), then whatever was left lying in it
+ * <p>A cave is wiped once it has been closed for {@link #GRACE_TICKS} and nobody is in its slot: the box of every
+ * room, passage and open space (with a margin for the lights and veins set into the walls) goes back to the
+ * dimension's own rock, a slice at a time ({@link #BUDGET} blocks a tick, one cave at a time), then whatever was left lying in it
  * (items, monsters that were never killed) is removed. Monsters saved in chunks that were not loaded are turned away
  * when they load ({@link #onJoin}). The gate's record is then forgotten (an awakening trial's is kept, the awakening
  * still reads it).</p>
@@ -149,9 +148,8 @@ public final class GateWiper {
 
         Job(GateInstance gate, ServerLevel level) {
             this.gate = gate;
-            DungeonLayout layout = gate.layout();
-            for (DungeonLayout.Room room : layout.rooms()) steps.add(new RoomWipe(gate.world(room.center()), room));
-            for (DungeonLayout.Tunnel t : layout.tunnels()) steps.add(new TunnelWipe(gate, t));
+            BlockPos o = gate.origin();
+            for (int[] b : gate.layout().boxes(3)) steps.add(new BoxWipe(o, b));
             steps.add(lvl -> {
                 sweep(lvl, gate);
                 return -1;
@@ -173,78 +171,39 @@ public final class GateWiper {
         }
     }
 
-    /** A room's whole box, a slice of x at a time, with a margin for what was set into its walls. */
-    private static final class RoomWipe implements Step {
-        private final BlockPos c;
-        private final DungeonLayout.Room room;
+    /**
+     * One box of the dungeon (a room, a passage, a space: {@link DungeonLayout#boxes}, grown by a margin for the
+     * lights and veins set into the walls), a slice of x at a time.
+     */
+    private static final class BoxWipe implements Step {
+        private final int minY, maxY, minZ, maxZ, maxX;
         private int x;
-        private final int maxX;
 
-        RoomWipe(BlockPos c, DungeonLayout.Room room) {
-            this.c = c;
-            this.room = room;
-            this.x = c.getX() - room.rx() - 4;
-            this.maxX = c.getX() + room.rx() + 4;
+        BoxWipe(BlockPos o, int[] b) {
+            this.x = o.getX() + b[0];
+            this.maxX = o.getX() + b[3];
+            this.minY = o.getY() + b[1];
+            this.maxY = o.getY() + b[4];
+            this.minZ = o.getZ() + b[2];
+            this.maxZ = o.getZ() + b[5];
         }
 
         @Override
         public int run(ServerLevel level) {
             if (x > maxX) return -1;
             BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-            int y0 = Math.max(level.getMinBuildHeight() + 1, c.getY() - room.ry() - 4);
-            int y1 = Math.min(level.getMaxBuildHeight() - 1, c.getY() + room.ry() + 6);
+            int y0 = Math.max(level.getMinBuildHeight() + 1, minY), y1 = Math.min(level.getMaxBuildHeight() - 1, maxY);
             int n = 0;
             for (int y = y0; y <= y1; y++) {
                 BlockState rock = rock(level, y);
-                for (int z = c.getZ() - room.rz() - 4; z <= c.getZ() + room.rz() + 4; z++) {
+                for (int z = minZ; z <= maxZ; z++) {
                     n++;
                     p.set(x, y, z);
                     put(level, p, rock);
                 }
             }
             x++;
-            return n;
-        }
-    }
-
-    /** A tunnel's tube along its curve, wider than it was dug. */
-    private static final class TunnelWipe implements Step {
-        private final GateInstance gate;
-        private final DungeonLayout.Tunnel t;
-        private final int samples;
-        private int i;
-
-        TunnelWipe(GateInstance gate, DungeonLayout.Tunnel t) {
-            this.gate = gate;
-            this.t = t;
-            this.samples = Math.max(8, (int) (Math.sqrt(t.start().distSqr(t.end())) * 1.6));
-        }
-
-        @Override
-        public int run(ServerLevel level) {
-            if (i > samples) return -1;
-            double[] at = DungeonLayout.along(t, i / (double) samples);
-            BlockPos o = gate.origin();
-            double cx = at[0] + o.getX(), cy = at[1] + o.getY(), cz = at[2] + o.getZ();
-            float r = t.radius() + 2.8f;
-            int reach = Mth.ceil(r);
-            int n = 0;
-            BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-            for (int x = Mth.floor(cx) - reach; x <= Mth.floor(cx) + reach; x++) {
-                for (int y = Mth.floor(cy) - reach; y <= Mth.floor(cy) + reach; y++) {
-                    if (y <= level.getMinBuildHeight() || y >= level.getMaxBuildHeight()) continue;
-                    BlockState rock = rock(level, y);
-                    for (int z = Mth.floor(cz) - reach; z <= Mth.floor(cz) + reach; z++) {
-                        n++;
-                        double dx = x + 0.5 - cx, dy = (y + 0.5 - cy) * 1.15, dz = z + 0.5 - cz;
-                        if (dx * dx + dy * dy + dz * dz >= r * r) continue;
-                        p.set(x, y, z);
-                        put(level, p, rock);
-                    }
-                }
-            }
-            i++;
-            return n;
+            return Math.max(1, n);
         }
     }
 

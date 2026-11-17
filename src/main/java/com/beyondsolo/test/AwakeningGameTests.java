@@ -139,7 +139,7 @@ public final class AwakeningGameTests {
         helper.assertTrue(AwakeningService.holdsTheDoor(d), "a D-rank gate hides it for a player without the System");
         DungeonLayout.Tunnel way = d.layout().hiddenTunnel();
         helper.assertTrue(way != null && d.layout().rooms().get(way.from()).kind() == DungeonLayout.Kind.BOSS, "past the boss's hall");
-        DungeonLayout plain = DungeonLayout.plan(d.seed(), d.theme(), false);
+        DungeonLayout plain = DungeonLayout.plan(d.seed(), d.theme(), d.realm(), d.shape(), false);
         helper.assertTrue(d.layout().rooms().subList(0, plain.rooms().size()).equals(plain.rooms()), "the rest of the cave is as its seed made it");
 
         ServerLevel level = helper.getLevel();
@@ -293,6 +293,7 @@ public final class AwakeningGameTests {
         ServerLevel d = GateService.dungeon(helper.getLevel().getServer());
         GateService.buildNow(helper.getLevel().getServer(), g);
         helper.assertTrue(g.built() && g.boss() != null, "built, with its master");
+        TestChunks.settle(d, () -> d.getEntity(g.boss()) instanceof ArbiterEntity);
         helper.assertTrue(d.getEntity(g.boss()) instanceof ArbiterEntity a && !a.isAwake() && a.isInvulnerableTo(d.damageSources().generic()), "the Arbiter kneels, untouchable");
         helper.assertTrue(g.layout().boss().center().getY() < g.layout().entrance().center().getY(), "the way leads down");
         helper.succeed();

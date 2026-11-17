@@ -68,6 +68,7 @@ public final class GateOverlay {
     public static void handle(GatePayload p) {
         switch (p.kind()) {
             case GatePayload.SHAKE -> addTrauma(p.value());
+            case GatePayload.REALM -> GateAtmosphere.set(p.rank());
             case GatePayload.ENRAGED -> {
                 enragedAt = Anim.now();
                 addTrauma(0.8f);

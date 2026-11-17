@@ -247,15 +247,25 @@ public final class DepthsCommand {
         if (!"seed".equals(trap)) {
             d.clearTraps();
             TrapKind kind = TrapKind.byId(trap);
-            if (kind != null) {
-                for (DungeonLayout.Room room : g.layout().rooms()) {
-                    if (room.kind() == DungeonLayout.Kind.CAVERN && room.index() >= 2) {
-                        d.setTrap(room.index(), kind);
-                        break;
-                    }
-                }
-            }
+            DungeonLayout.Room room = kind == null ? null : trapRoom(g.layout(), kind);
+            if (room != null) d.setTrap(room.index(), kind);
         }
+    }
+
+    /**
+     * The room a forced trap goes in: the first cavern past the first that it works in (a lockdown needs a room it can
+     * shut), or any other room past the entrance if no cavern will do (a hive of passages); null if none will.
+     */
+    @org.jetbrains.annotations.Nullable
+    static DungeonLayout.Room trapRoom(DungeonLayout layout, TrapKind kind) {
+        for (DungeonLayout.Room room : layout.rooms()) {
+            if (room.kind() == DungeonLayout.Kind.CAVERN && room.index() >= 2 && (kind != TrapKind.LOCKDOWN || layout.enclosed(room))) return room;
+        }
+        for (DungeonLayout.Room room : layout.rooms()) {
+            boolean plain = room.kind() == DungeonLayout.Kind.CAVERN || room.kind() == DungeonLayout.Kind.PASSAGE || room.kind() == DungeonLayout.Kind.SIDE;
+            if (plain && room.index() >= 1 && (kind != TrapKind.LOCKDOWN || layout.enclosed(room))) return room;
+        }
+        return null;
     }
 
     /** One line about a cave's depths. */
