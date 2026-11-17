@@ -11,6 +11,7 @@ import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.network.ShadowFxPayload;
 import com.beyondsolo.shadow.ShadowEntity;
 import com.beyondsolo.shadow.ShadowRank;
+import com.beyondsolo.shadow.ShadowRecord;
 import com.beyondsolo.shadow.ShadowService;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -52,7 +53,7 @@ public final class ShadowHud {
                 if (!near) return;
                 boolean boss = p.extra() == 1;
                 push(new Moment(p.kindEnum(), tr(boss ? "shadow.beyondsolo.hud.extracted_boss" : "shadow.beyondsolo.hud.extracted"),
-                        p.text(), p.color(), boss));
+                        ShadowRecord.displayName(p.text()).getString(), p.color(), boss));
             }
             case FAILED -> {
                 if (!near) return;
@@ -68,7 +69,7 @@ public final class ShadowHud {
                 if (e instanceof ShadowEntity s && !mc.player.getUUID().equals(s.getOwnerUUID())) return;
                 ShadowRank r = ShadowRank.byOrdinal(p.extra());
                 push(new Moment(p.kindEnum(), tr("shadow.beyondsolo.hud.rank_up"),
-                        p.text() + "  →  " + r.displayName().getString().toUpperCase(), r.color(), false));
+                        ShadowRecord.displayName(p.text()).getString() + "  →  " + r.displayName().getString().toUpperCase(), r.color(), false));
             }
             default -> {
             }

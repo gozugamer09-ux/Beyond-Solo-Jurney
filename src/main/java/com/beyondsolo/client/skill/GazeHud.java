@@ -82,7 +82,7 @@ public final class GazeHud {
                 List<SkillElement> weak = prof.weaknesses();
                 List<SkillElement> tough = prof.resistances();
                 String name = SysFont.fit(e.getDisplayName().getString(), 6.5f, true, 70);
-                String lv = "Lv." + lvl;
+                String lv = Component.translatable("hud.beyondsolo.level", lvl).getString();
                 String wk = Component.translatable("depths.beyondsolo.gaze.weak").getString();
                 String rs = Component.translatable("depths.beyondsolo.gaze.resists").getString();
                 float iconRow = 8;

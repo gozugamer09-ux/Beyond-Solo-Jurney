@@ -53,6 +53,9 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 
 5. **Every feature owns its animations**, and they should look smooth. For a screen, use `client.gfx`. For light in
    the world, draw it in a renderer with `ModRenderTypes` instead of spawning dust particles (see "The evaluation").
+6. **Every word a player reads comes from a lang file, in English and Spanish.** Put the key in your namespace's
+   `en_us.json` and the Spanish in the `es_es.json` next to it; never build a sentence by gluing words in code (word
+   order changes between languages, so give the whole phrase a key with `%s` slots). See "Languages" below.
 
 ## Drawing the System UI
 
@@ -477,7 +480,7 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
 - **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
   belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
   element reactions apply. The job change itself teaches the starters (`Skills.startersFor`: the `advanced` ones).
-- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath`, `MagePath` and `GuardianPath` so far): every subclass
+- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath`, `MagePath`, `GuardianPath` and `HealerPath` so far): every subclass
   grows to about 12 skills (8 actives, 4 passives; the ultimate last). These are not `advanced`: they carry an
   unlock level (22 to 50) and `SkillAPI.grantUnlocked` teaches them as the player levels, only to players of that
   subclass; a late job change catches up at once. A path file holds its skills, their numbers and actions, and
@@ -487,7 +490,8 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
   `aimGround`). To add a class's sets: copy the shape of `WarriorPath`, call its `init()` from
   `SubclassSkills.init()` and its hooks from `SubclassPassives`, add names to `tools/job_lang.py` and icons to
   `tools/gen_job_assets.py`. World effects added for these sets (`SkillFxPayload.Kind`): `CLEAVE` (falling
-  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky), `SHIELD` (a shield held in front of someone), `CHAIN` (links from a caster to a point), `HAMMER` (a thrown, tumbling hammer), `DISCUS` (a thrown shield).
+  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky), `SHIELD` (a shield held in front of someone), `CHAIN` (links from a caster to a point), `HAMMER` (a thrown, tumbling hammer), `DISCUS` (a thrown shield), `HALO`, `WINGS`, `BUBBLE` (all three worn by a creature for a while), `STREAM` (drops flowing from a point into a creature: heals, drained blood), `ORBIT` (small lights circling a creature, one per charge left).
+  Three rules keep the sets looking different. Bursts take their particles from the element: `NOVA`, `GEYSER`, `SPLASH`, `WAVE` and `BLINK` read their `duration` as a look (flames, sparks, water, motes of light, soul fire, the ground's own debris), so a water or light skill never throws embers. Things that stand in the world for a while (walls, pillars, flowers, a tree) are block marker particles from `SubclassKit.marker`, so nothing is built and nothing is left behind. And every heal a healer's skill gives goes through `HealerPath.healing` (also the base class's and the starters'), which is where the healing passives and the Afterglow hook in.
 - **Cutscene camera** (`client/job/CutsceneCamera`, `CutscenePayload`): glide and orbit shots with letterbox bars.
   The camera follows a client-only marker entity, so the player's body shows. A shot holds on a black curtain until
   the world under it is drawn. Any system can send shots; `/system job camera` tries one anywhere.
@@ -860,8 +864,8 @@ icons, the `key_turn` pose and all the text come from `tools/gen_key_assets.py` 
 Code in `depths/` (server), `client/depths/` (client) and `enemy/ElementalProfile`. `DepthsModule.init` registers the
 three blocks (`hidden_seal`, `trap_core`, `trap_ward`), the `weaknesses` attachment (`WeaknessLog`, kept through
 death) and the payloads (`DepthsPayload`, `DepthsFxPayload`, `WeaknessPayload`). Lang lives in
-`assets/beyondsolo_depths/lang`. Icons, light textures, block art, block models and all the text come from
-`tools/gen_depths_assets.py`. Everything about one cave lives in `GateDepths` on its `GateInstance` and is saved
+`assets/beyondsolo_depths/lang`. Icons, light textures, block art, block models and the English text come from
+`tools/gen_depths_assets.py`; the Spanish (`es_es.json`) is kept by hand next to it. Everything about one cave lives in `GateDepths` on its `GateInstance` and is saved
 with it: what the seed says unless a command or a test forces it, and how far the party got. Caves saved before this
 load as `GateDepths.legacy()` (weather only, their rock has no chamber or traps in it). An awakening trial has none of
 it. `DepthsHooks` runs it all every half second for each cave with a party in it.
@@ -922,6 +926,27 @@ village can get more than one (a savanna village in testing had three). They all
 The structure file is generated by `tools/gen_evaluation_zone.py`; you can also rebuild it in game and save it with
 a structure block. Lithostitched is available if we want datapack-driven injection for modded villages later.
 
+## Languages
+
+The System ships in English (`en_us.json`) and Spanish (`es_es.json`) in every asset namespace (`beyondsolo`,
+`beyondsolo_jobs`, `beyondsolo_armory`, ...). Minecraft never falls back from one Spanish to another, so the build
+(`generateSpanishVariants` in `build.gradle`) copies each `es_es.json` to `es_mx`, `es_ar`, `es_cl`, `es_ec`, `es_uy`,
+`es_ve` and `esan`: one neutral Spanish for Spain and Latin America. Edit `es_es.json` only.
+
+- **Adding text:** add the English line, then the Spanish line with the same key and the same `%s` slots. The word list
+  and tone (tú, Title Case names, "Nv.", "Rango %s", "%s de daño") are in `docs/TRANSLATING.md`.
+  `test/TranslationGameTests` fails the build's game tests when an English line has no Spanish, the arguments differ,
+  or a copy is missing, and names the file and keys.
+- **Word order:** Spanish puts most adjectives after the noun, so anything built from parts has a key that orders them:
+  `tooltip.beyondsolo.grade_kind` ("Rare Dagger" / "Daga de grado Raro"), `enemy.beyondsolo.named` (affinity +
+  creature), `item.beyondsolo.core.with_affinity`. Use `%2$s %1$s` in a translation to swap two arguments.
+- **Text made on the server** (pop-ups, chat, item names, entity names) travels as a `Component.translatable(...)` so
+  each player reads it in their own language. Don't call `getString()` on the server and send the result: on a
+  dedicated server that is always English. Shadow names are stored as data, not text (`ShadowNames`: an invented name
+  plus an epithet id, `"Vhalgrim|unbroken"`), and the client turns them into words.
+- Left in English on purpose: operator `/system ...` command feedback, config comments, the dev UI gallery, and
+  invented proper names (shadow names, roman numerals).
+
 ## Checking the UI without a screen
 
 `./gradlew runClient -PuiTest` starts the client with a small remote control (`client/UiTestDriver`). Write
@@ -958,4 +983,6 @@ checks use zombies.
 `test/RuneGameTests` covers: the rune arts being a family of their own (one per creature and boss, two deep runes), a class change keeping them, absorbing teaching then raising, every refusal (no System, rank, class, mastered), sealed stones settling on something that fits, every rune art acting, the guarding ones against blunt blows, engravings (refusals, haste, thrift replacing it, the cast paying the thrifty price), might hitting 1.2 times as hard, drop rules, and selling, crafting and the shop.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
 `test/DepthsGameTests` covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
+`test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
+the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.

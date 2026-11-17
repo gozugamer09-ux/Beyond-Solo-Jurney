@@ -25,19 +25,19 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         SLASH,
         /** Afterimages from (x,y,z) to the caster. */
         DASH,
-        /** A wave rolling out along the ground. */
+        /** A wave rolling out along the ground. Duration 1 is a quiet ripple without motes, for waves that keep coming. */
         PULSE,
         /** Shock rings at chest height and a flash (war cry, provoke). */
         ROAR,
         /** A ground slam: cracked ring, debris, dust. */
         SLAM,
-        /** Vanished at (x,y,z), appeared at the caster. */
+        /** Vanished at (x,y,z), appeared at the caster. Duration picks the look: 0 smoke and shadow, 1 motes of light. */
         BLINK,
         /** A coloured aura around the caster for a while (buffs). */
         AURA,
         /** A bolt of light from the caster's hand to (x,y,z). */
         BOLT,
-        /** A ring of fire rushing out from the caster. */
+        /** A ring rushing out from the caster. Duration picks what it throws: 0 flames, 1 sparks, 2 spray, 3 motes of light, 4 soul fire. */
         NOVA,
         /** A burning star falling onto (x,y,z). */
         METEOR,
@@ -83,7 +83,7 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         BLADES,
         /** Glowing fissures tearing outwards over the ground from (x,y,z) to radius {@code size}. */
         CRACK,
-        /** A fountain bursting up from (x,y,z) to height {@code size}. */
+        /** A fountain bursting up from (x,y,z) to height {@code size}. Duration picks what flies up: 0 embers, 1 the ground itself, 2 motes of light, 3 water, 4 souls. */
         GEYSER,
         /** Shaking ground: rings rolling outwards from (x,y,z) to radius {@code size} for {@code duration} ticks. */
         QUAKE,
@@ -100,7 +100,22 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** A hammer of light thrown end over end from the entity to (x,y,z) in {@code duration} ticks; size 1 is hand-sized, big ones are lobbed high. */
         HAMMER,
         /** A thrown shield: a spinning disc from the entity to (x,y,z) in {@code duration} ticks; size = its scale. */
-        DISCUS
+        DISCUS,
+        /** A ring of light over the entity's head for {@code duration} ticks; size = its scale. */
+        HALO,
+        /** Wings of light on the entity's back for {@code duration} ticks; size = their scale. */
+        WINGS,
+        /** A bubble around the entity for {@code duration} ticks; size = its radius. */
+        BUBBLE,
+        /** Drops flowing from (x,y,z) into the entity for {@code duration} ticks; size = the size of a drop. */
+        STREAM,
+        /**
+         * Small lights circling the entity for {@code duration} ticks; size = how many. A new one of the same colour
+         * replaces the old one, and size 0 only takes it away.
+         */
+        ORBIT,
+        /** A low bank of fog lying around (x,y,z) for {@code duration} ticks; size = its radius. */
+        MIST
     }
 
     public static final Type<SkillFxPayload> TYPE = new Type<>(BeyondSolo.id("skill_fx"));

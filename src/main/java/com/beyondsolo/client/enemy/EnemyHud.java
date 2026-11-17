@@ -47,9 +47,9 @@ public final class EnemyHud {
     private static void plate(GuiGraphics g, LivingEntity e, EnemyTraits t, float cx, float bottom, float scale) {
         int vc = 0xFF000000 | t.variant().color();
         int ac = 0xFF000000 | (t.affinity() == Affinity.NONE ? 0xE8ECF5 : t.affinity().color);
-        MutableComponent name = Component.empty();
-        if (t.affinity() != Affinity.NONE) name.append(t.affinity().adjective()).append(" ");
-        name.append(e.getType().getDescription());
+        // "Frostbound Gloomfang": the language file decides the order ("Sabueso Umbrío de Escarcha")
+        MutableComponent name = t.affinity() == Affinity.NONE ? e.getType().getDescription().copy()
+                : Component.translatable("enemy.beyondsolo.named", t.affinity().adjective(), e.getType().getDescription());
         float nameSize = 7.5f * scale;
         float tagSize = 5f * scale;
         float nameW = SysFont.width(name, nameSize, true);

@@ -7,6 +7,7 @@ import com.beyondsolo.client.screen.SystemTabs;
 import com.beyondsolo.evaluation.EvaluationCrystalBlockEntity;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
+import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -16,6 +17,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ViewportEvent;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,6 +58,8 @@ import java.util.Deque;
  * press &lt;key&gt; [ticks]                  press a key binding (attack, use, roll, jump, sprint, forward...) and hold it
  * slot &lt;0-8&gt;                           select a hotbar slot
  * view first|third|front              camera mode
+ * camera &lt;x&gt; &lt;y&gt; &lt;z&gt; &lt;yaw&gt; &lt;pitch&gt;   film from a fixed point, like a camera on a tripod (the player is seen from outside)
+ * camera off                           back to the player's own eyes
  * respawn                              respawn after dying
  * npc accept|turnin                    press the first Accept / Hand in button of the open villager window
  * npc scroll &lt;amount&gt;                  scroll the villager window's list
@@ -126,6 +130,40 @@ public final class UiTestDriver {
         if (busy && QUEUE.isEmpty() && waitTicks == 0 && HELD.isEmpty()) {
             busy = false;
             BeyondSolo.LOGGER.info("UITEST idle");
+        }
+    }
+
+    /** Where the "camera" command films from: x, y, z, yaw, pitch. Null films through the player's own eyes. */
+    private static double[] tripod;
+    private static java.lang.reflect.Method cameraPosition;
+
+    /**
+     * Anything a player aims at is hidden behind their own back in the third-person view, so skills are filmed from
+     * a fixed point to the side instead. The player stays the camera's owner, so they still move and aim as usual.
+     * The game turns the camera first and places it afterwards, so the turn is given here...
+     */
+    @SubscribeEvent
+    static void turnCamera(ViewportEvent.ComputeCameraAngles event) {
+        double[] at = tripod;
+        if (!ENABLED || at == null) return;
+        event.setYaw((float) at[3]);
+        event.setPitch((float) at[4]);
+    }
+
+    /** ...and the place here: this is the first thing the game asks once it has placed the camera itself. */
+    @SubscribeEvent
+    static void placeCamera(ViewportEvent.ComputeFov event) {
+        double[] at = tripod;
+        if (!ENABLED || at == null) return;
+        try {
+            if (cameraPosition == null) {
+                cameraPosition = Camera.class.getDeclaredMethod("setPosition", double.class, double.class, double.class);
+                cameraPosition.setAccessible(true);
+            }
+            cameraPosition.invoke(event.getCamera(), at[0], at[1], at[2]);
+        } catch (ReflectiveOperationException e) {
+            BeyondSolo.LOGGER.warn("UITEST can't place the camera", e);
+            tripod = null;
         }
     }
 
@@ -279,6 +317,20 @@ public final class UiTestDriver {
                 case "front" -> CameraType.THIRD_PERSON_FRONT;
                 default -> CameraType.FIRST_PERSON;
             });
+            case "camera" -> {
+                if (arg.equals("off")) {
+                    tripod = null;
+                } else {
+                    String[] a = arg.split(" ");
+                    double[] at = new double[5];
+                    for (int i = 0; i < 5; i++) at[i] = Double.parseDouble(a[i]);
+                    tripod = at;
+                    // a tripod does not flinch when the player is hurt, or bob when they walk
+                    mc.options.damageTiltStrength().set(0.0);
+                    mc.options.bobView().set(false);
+                    mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                }
+            }
             case "respawn" -> mc.player.respawn();
             case "inventory" -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
             case "mouse" -> {

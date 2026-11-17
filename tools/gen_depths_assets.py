@@ -14,7 +14,8 @@ Needs: pillow, numpy, scipy, cairosvg (the same as tools/gen_ui_assets.py).
   and, deep in a crack, a violet speck that glows as if light seeps through. The trap core: a red crystal on a plinth
   of polished blackstone ringed with burning runes. The lockdown's wall of red light, animated.
 - Block models and blockstates for the three.
-- The English text: assets/beyondsolo_depths/lang/en_us.json.
+- The English text: assets/beyondsolo_depths/lang/en_us.json. Spanish lives by hand in es_es.json next to it: add a
+  line there for every new key (TranslationGameTests checks), see docs/TRANSLATING.md.
 """
 import json
 import math
@@ -460,8 +461,8 @@ def lang() -> dict:
         "depths.beyondsolo.trap.defused.title": "%s disarmed",
         "depths.beyondsolo.trap.reward": "+%s XP",
         "depths.beyondsolo.weakness.found.title": "Weakness Found",
-        "depths.beyondsolo.weakness.found.body": "%s is weak to %s%s",
-        "depths.beyondsolo.weakness.severe": " (severe)",
+        "depths.beyondsolo.weakness.found.body": "%s is weak to %s",
+        "depths.beyondsolo.weakness.found.body_severe": "%s is very weak to %s",
         "depths.beyondsolo.hud.condition": "GATE CONDITION",
         "depths.beyondsolo.hud.chamber": "HIDDEN CHAMBER",
         "depths.beyondsolo.hud.trap": "TRAP",

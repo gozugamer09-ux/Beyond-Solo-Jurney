@@ -30,8 +30,9 @@ public final class ArsenalTooltip {
 
     public static void append(ItemStack stack, ArsenalWeapon w, String weightClass, List<Component> lines) {
         ItemGrade grade = gradeOf(stack, w.baseGrade());
-        MutableComponent head = Component.literal("◆ ").append(grade.displayName());
-        if (w.kind() != null) head.append(Component.literal(" ")).append(w.kind().displayName());
+        // "Rare Dagger" / "Daga de grado Raro": the language file orders grade and kind
+        MutableComponent head = Component.literal("◆ ").append(w.kind() == null ? grade.displayName()
+                : Component.translatable("tooltip.beyondsolo.grade_kind", grade.displayName(), w.kind().displayName()));
         lines.add(head.withStyle(s -> s.withColor(TextColor.fromRgb(grade.color()))));
 
         com.beyondsolo.gear.GearTooltip.extras(stack, lines);

@@ -74,11 +74,11 @@ public final class WeaknessLog implements INBTSerializable<CompoundTag> {
         PacketDistributor.sendToPlayer(player, new WeaknessPayload(false, List.of(entry)));
         if (!SystemAPI.hasSystem(player)) return;
         Component name = target.getType().getDescription();
-        Component severe = profile.rating(element) == ElementalProfile.Rating.WEAK_SEVERE
-                ? Component.translatable("depths.beyondsolo.weakness.severe") : Component.empty();
+        String body = profile.rating(element) == ElementalProfile.Rating.WEAK_SEVERE
+                ? "depths.beyondsolo.weakness.found.body_severe" : "depths.beyondsolo.weakness.found.body";
         Notifications.send(player, SystemNotification.of(SystemNotification.Kind.INFO,
                 Component.translatable("depths.beyondsolo.weakness.found.title"),
-                Component.translatable("depths.beyondsolo.weakness.found.body", name, element.displayName(), severe)));
+                Component.translatable(body, name, element.displayName())));
         player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1f, 1.6f);
     }
 
