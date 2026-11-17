@@ -93,7 +93,7 @@ public final class GuardianPath {
      * nothing is left behind.
      */
     private static void slab(ServerLevel level, BlockState stone, Vec3 at) {
-        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK_MARKER, stone), at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
+        marker(level, stone, at);
     }
 
     /** A column of slabs rising out of the ground, one a tick. */

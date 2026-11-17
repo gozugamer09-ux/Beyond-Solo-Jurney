@@ -476,7 +476,7 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
 - **Subclass skills** (`skill/SubclassSkills`, `SubclassActions`, `SubclassPassives`): a skill with a `subclass` set
   belongs to that subclass only (`Skills.forSubclass`); damage goes through `SkillActions.hit`, so combos and
   element reactions apply. The job change itself teaches the starters (`Skills.startersFor`: the `advanced` ones).
-- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath`, `MagePath` and `GuardianPath` so far): every subclass
+- **Subclass skill sets** (`skill/SubclassKit` and one file per base class, `WarriorPath`, `AssassinPath`, `MagePath`, `GuardianPath` and `HealerPath` so far): every subclass
   grows to about 12 skills (8 actives, 4 passives; the ultimate last). These are not `advanced`: they carry an
   unlock level (22 to 50) and `SkillAPI.grantUnlocked` teaches them as the player levels, only to players of that
   subclass; a late job change catches up at once. A path file holds its skills, their numbers and actions, and
@@ -486,7 +486,8 @@ by `tools/job_lang.py`). Icons and the key sprite come from `tools/gen_job_asset
   `aimGround`). To add a class's sets: copy the shape of `WarriorPath`, call its `init()` from
   `SubclassSkills.init()` and its hooks from `SubclassPassives`, add names to `tools/job_lang.py` and icons to
   `tools/gen_job_assets.py`. World effects added for these sets (`SkillFxPayload.Kind`): `CLEAVE` (falling
-  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky), `SHIELD` (a shield held in front of someone), `CHAIN` (links from a caster to a point), `HAMMER` (a thrown, tumbling hammer), `DISCUS` (a thrown shield).
+  blade), `BANNER`, `BLADES` (circling swords), `CRACK` (fissures), `GEYSER`, `QUAKE`, `BEAM` (a steady beam), `ORB` (a hanging sphere), `THUNDER` (a bolt from the sky), `SHIELD` (a shield held in front of someone), `CHAIN` (links from a caster to a point), `HAMMER` (a thrown, tumbling hammer), `DISCUS` (a thrown shield), `HALO`, `WINGS`, `BUBBLE` (all three worn by a creature for a while), `STREAM` (drops flowing from a point into a creature: heals, drained blood), `ORBIT` (small lights circling a creature, one per charge left).
+  Three rules keep the sets looking different. Bursts take their particles from the element: `NOVA`, `GEYSER`, `SPLASH`, `WAVE` and `BLINK` read their `duration` as a look (flames, sparks, water, motes of light, soul fire, the ground's own debris), so a water or light skill never throws embers. Things that stand in the world for a while (walls, pillars, flowers, a tree) are block marker particles from `SubclassKit.marker`, so nothing is built and nothing is left behind. And every heal a healer's skill gives goes through `HealerPath.healing` (also the base class's and the starters'), which is where the healing passives and the Afterglow hook in.
 - **Cutscene camera** (`client/job/CutsceneCamera`, `CutscenePayload`): glide and orbit shots with letterbox bars.
   The camera follows a client-only marker entity, so the player's body shows. A shot holds on a black curtain until
   the world under it is drawn. Any system can send shots; `/system job camera` tries one anywhere.
