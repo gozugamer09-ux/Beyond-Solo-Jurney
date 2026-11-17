@@ -508,9 +508,12 @@ public final class RangerPathGameTests {
         face(dry, z);
         z.setHealth(2000);
         double start = dry.getX();
+        Vec3 drift = z.getDeltaMovement();
         helper.assertTrue(SkillAPI.cast(dry, RangerPath.FLASH_STEP), "Flash Step casts");
         helper.assertTrue(dry.getX() > start + 3, "and carries the archer forward: " + (dry.getX() - start));
         helper.assertTrue(z.getHealth() < 2000 && behind.getHealth() < 2000, "through everything on the way");
+        // lightning jolts, it does not shove: a storm that struck its victims away would strike each of them once
+        helper.assertTrue(z.getDeltaMovement().distanceToSqr(drift) < 1e-6, "and leaves them where they stood: " + z.getDeltaMovement() + " from " + drift);
         SkillAPI.learn(p, RangerPath.FLASH_STEP, 1, OTHER);
         SkillAPI.learn(p, RangerPath.STORM_BATTERY, 10, OTHER);
         refill(p);
