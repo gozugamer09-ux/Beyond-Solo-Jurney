@@ -140,6 +140,8 @@ public final class SkillActions {
         sound(p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1f, 1.4f);
         p.displayClientMessage(Component.translatable("skill.beyondsolo.pulse_scan.found", found), true);
         SkillFx.play(p, SkillFxPayload.Kind.PULSE, s.color(), p.position(), r, 0);
+        // in a gate, hidden walls and trap cores within reach show through the rock
+        com.beyondsolo.depths.HiddenRooms.scan(p, r);
         return true;
     }
 

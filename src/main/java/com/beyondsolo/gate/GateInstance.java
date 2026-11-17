@@ -49,6 +49,8 @@ public final class GateInstance {
     @Nullable private Keyed keyed;
     /** The cave was wiped back to rock and its slot handed to another gate ({@link GateWiper}). */
     private boolean slotFreed;
+    /** Weather, the hidden chamber, trap rooms and how far the party got with them ({@code depths} package). */
+    private com.beyondsolo.depths.GateDepths depths = com.beyondsolo.depths.GateDepths.fresh();
 
     private transient DungeonLayout layout;
 
@@ -112,6 +114,7 @@ public final class GateInstance {
     public void setKeyed(@Nullable Keyed keyed) { this.keyed = keyed; }
     public boolean slotFreed() { return slotFreed; }
     public void setSlotFreed(boolean freed) { this.slotFreed = freed; }
+    public com.beyondsolo.depths.GateDepths depths() { return depths; }
 
     /** The boss's name as the System says it. */
     public net.minecraft.network.chat.Component bossName() {
@@ -135,8 +138,13 @@ public final class GateInstance {
     }
 
     public DungeonLayout layout() {
-        if (layout == null) layout = DungeonLayout.plan(seed, theme());
+        if (layout == null) layout = DungeonLayout.plan(seed, theme(), depths.hidden(this) != null);
         return layout;
+    }
+
+    /** Plans the cave again (after its hidden chamber was forced). Only before it is built. */
+    public void replan() {
+        this.layout = null;
     }
 
     /** Where the cave's origin is in the gate dimension. */
@@ -183,6 +191,7 @@ public final class GateInstance {
         tag.putInt("ascended", ascendedOverride);
         if (keyed != null) tag.put("keyed", keyed.save());
         tag.putBoolean("slotFreed", slotFreed);
+        tag.put("depths", depths.save());
         return tag;
     }
 
@@ -210,6 +219,7 @@ public final class GateInstance {
         g.ascendedOverride = tag.contains("ascended") ? tag.getInt("ascended") : -1;
         if (tag.contains("keyed")) g.keyed = Keyed.load(tag.getCompound("keyed"));
         g.slotFreed = tag.getBoolean("slotFreed");
+        g.depths = tag.contains("depths") ? com.beyondsolo.depths.GateDepths.load(tag.getCompound("depths")) : com.beyondsolo.depths.GateDepths.legacy();
         return g;
     }
 

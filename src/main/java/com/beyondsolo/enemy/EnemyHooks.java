@@ -24,6 +24,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -50,15 +51,19 @@ public final class EnemyHooks {
     private static final String SPLIT = "beyondsolo_split";
 
     /**
-     * How much a skill hit of {@code element} does to {@code target}: its affinity's strength or weakness, less for a
-     * warded creature. Called by the skills' hit code ({@code SkillCombat.strike}).
+     * How much a skill hit of {@code element} does to {@code target}: what the creature is weak to or shrugs off
+     * ({@link ElementalProfile}: its kind, its affinity, a boss's kind), less for a warded creature. Players take
+     * every element alike. Called by the skills' hit code ({@code SkillCombat.strike}) and weapon infusions.
      */
     public static float skillMultiplier(LivingEntity target, @Nullable SkillElement element) {
-        if (!EnemyTraits.has(target)) return 1f;
-        EnemyTraits t = EnemyTraits.of(target);
-        float k = t.affinity().multiplier(element);
-        if (t.has(Affix.WARDED)) k *= 0.67f;
+        float k = target instanceof Player ? 1f : ElementalProfile.of(target).multiplier(element);
+        if (EnemyTraits.has(target) && EnemyTraits.of(target).has(Affix.WARDED)) k *= 0.67f;
         return k;
+    }
+
+    /** The rating a skill hit of {@code element} lands with on {@code target} (neutral on players). */
+    public static ElementalProfile.Rating rating(LivingEntity target, @Nullable SkillElement element) {
+        return target instanceof Player ? ElementalProfile.Rating.NEUTRAL : ElementalProfile.of(target).rating(element);
     }
 
     /** A roster creature's affinity mark on whoever it hits (power scales with its rank). */
@@ -82,13 +87,20 @@ public final class EnemyHooks {
         LivingEntity victim = event.getEntity();
         if (victim.level().isClientSide) return;
         DamageSource source = event.getSource();
+        com.beyondsolo.combat.DamageElement element = elementOf(source);
+        if (element != null && !(victim instanceof Player)) {
+            // element damage (burns and venom ticking, crimson and blood bursts, weapon procs): burns and venom hurt as
+            // the creature takes fire and nature; bursts take a share of health, so only an affinity bends them
+            SkillElement as = Affinity.skillElementOf(element);
+            float k = element == com.beyondsolo.combat.DamageElement.FIRE || element == com.beyondsolo.combat.DamageElement.POISON
+                    ? ElementalProfile.of(victim).multiplier(as)
+                    : EnemyTraits.of(victim).affinity().multiplier(as);
+            if (EnemyTraits.has(victim) && EnemyTraits.of(victim).has(Affix.WARDED)) k *= 0.67f;
+            if (k != 1f) event.setAmount(event.getAmount() * k);
+        }
         if (EnemyTraits.has(victim)) {
             EnemyTraits t = EnemyTraits.of(victim);
-            // element damage (weapon procs, burns): strength and weakness by affinity
-            com.beyondsolo.combat.DamageElement element = elementOf(source);
-            if (element != null) {
-                event.setAmount(event.getAmount() * t.affinity().multiplier(Affinity.skillElementOf(element)) * (t.has(Affix.WARDED) ? 0.67f : 1f));
-            } else if (t.has(Affix.WARDED) && source.is(DamageTypeTags.WITCH_RESISTANT_TO)) {
+            if (element == null && t.has(Affix.WARDED) && source.is(DamageTypeTags.WITCH_RESISTANT_TO)) {
                 event.setAmount(event.getAmount() * 0.67f);
             }
             // thorns: a melee strike cuts the striker
