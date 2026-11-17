@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:heavy_axe"
+  "parent": "bettercombat:heavy_axe",
+  "attributes": {
+    "pose": "beyondsolo:pose_heavy"
+  }
 }

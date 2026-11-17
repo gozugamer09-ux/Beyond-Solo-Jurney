@@ -249,12 +249,25 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
   rank (`GateLoot.GRADE_WEIGHTS`: E gates drop common and rare, S gates drop epic and up with about 2% divine).
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
+- **Held and dropped weapon models** come from `tools/gen_weapon_models.py` (the other generators call it at the end;
+  run it alone after touching a weapon texture). Instead of `item/generated` it builds each weapon as a front and a
+  back face plus side walls coloured from the material just inside the outline (`textures/item/held/<name>_side.png`),
+  walls drawn first and faces after them so the grade glow blends over the edges. `PROFILES` sets each Better Combat
+  kind's size in the hand, in first person and on the ground; the inventory icon stays the flat sprite.
+  - Two-handed kinds (claymores, katana, spears, glaive, halberd, hammers, heavy axe, scythes) hold the weapon forward
+    at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
+    poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
+    on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
+  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling. Gauntlets are
+    worn: the fist sits on the outside of the hand, knuckles along the arm, so they lead the punch.
+  - Better Combat reads `weapon_attributes` only when the server starts: after changing one, restart the server
+    (`tools/uitest/stop.sh` and `start.sh`); `/reload` and a client restart are not enough.
 - **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers are
   128 pixels wide, see "Worn armor art"). `tools/gen_hd_gear.py` renders the weapon designs above at that size with
   smooth multi-tone shading and grade dressing (runes and aura from epic, sparkles from legendary, white-gold radiance
   on divine) and the forge stones with the shared painter `tools/hd_paint.py`, and has the nine first sets' armor drawn
-  by the armory's art pipeline. Run it after the other generators, which still own models, names and the 32x32
-  originals.
+  by the armory's art pipeline. Run it after the other generators, which still own names and the 32x32 originals;
+  it rebuilds the weapon models itself.
 
 ## Quests
 
