@@ -59,6 +59,14 @@ public final class GateInstance {
     @Nullable private Keyed keyed;
     /** The cave was wiped back to rock and its slot handed to another gate ({@link GateWiper}). */
     private boolean slotFreed;
+    /** The realm and shape of its dungeon: from the seed unless forced, and kept once saved (null until first asked). */
+    @Nullable private GateRealm realm;
+    @Nullable private DungeonShape shape;
+    /**
+     * A cave carved before realms existed: it keeps the look, layout, boss and creatures it was made with (its rank's
+     * classic realm, the original winding caverns).
+     */
+    private boolean legacy;
     /** Weather, the hidden chamber, trap rooms and how far the party got with them ({@code depths} package). */
     private com.beyondsolo.depths.GateDepths depths = com.beyondsolo.depths.GateDepths.fresh();
     /** Its clock towards a dungeon break, and the break once it has come ({@code breaks} package). */
@@ -108,10 +116,50 @@ public final class GateInstance {
     public void setExitPos(@Nullable BlockPos pos) { this.exitPos = pos; }
     public long clearedAt() { return clearedAt; }
 
-    /** Which boss waits at the end of this gate (from its seed unless forced). */
+    /** Which boss waits at the end of this gate (from its seed and realm unless forced). */
     public BossKind bossKind() {
         if (bossOverride != null) return bossOverride;
-        return BossKind.forSeed(rank, seed);
+        if (legacy || isTrial()) return BossKind.forSeed(rank, seed);
+        return BossKind.forSeed(rank, seed, realm());
+    }
+
+    /** Where the gate leads: its realm (the trial always leads to its own). */
+    public GateRealm realm() {
+        if (isTrial()) return GateRealm.THRESHOLD;
+        if (realm == null) realm = legacy ? GateRealm.classic(rank) : GateRealm.forSeed(rank, seed);
+        return realm;
+    }
+
+    /** How its dungeon is laid out. */
+    public DungeonShape shape() {
+        if (isTrial()) return DungeonShape.CAVERNS;
+        if (shape == null) shape = legacy ? DungeonShape.CAVERNS : realm().shapeFor(seed);
+        return shape;
+    }
+
+    /**
+     * Forces the realm and shape of a gate whose cave is not built yet (commands, tests); null leaves either to the
+     * seed. A shape the realm never takes is fine: any realm can be laid out any way.
+     */
+    public void setDungeon(@Nullable GateRealm realm, @Nullable DungeonShape shape) {
+        this.realm = realm;
+        this.shape = shape;
+        this.legacy = false;
+        replan();
+    }
+
+    /** The element its creatures' hits carry: its realm's, or its rank's where the realm has none. */
+    public com.beyondsolo.combat.DamageElement element() {
+        GateRealm r = realm();
+        return r.element != null && !isTrial() ? r.element : theme().element;
+    }
+
+    /** True for a cave carved before realms existed (see {@link #realm}). */
+    public boolean legacy() { return legacy; }
+
+    /** The dungeon's name as the System says it: its realm's (the trial's own). */
+    public net.minecraft.network.chat.Component dungeonName() {
+        return isTrial() ? theme().dungeonName() : realm().displayName();
     }
 
     public void setBossKind(@Nullable BossKind kind) { this.bossOverride = kind; }
@@ -140,9 +188,11 @@ public final class GateInstance {
         return bossAscended() ? net.minecraft.network.chat.Component.translatable("gate.beyondsolo.boss_ascended", name) : name;
     }
 
-    /** The creatures behind this gate. */
+    /** The creatures behind this gate: those its realm's habitats hold, most of them carrying its ruling affinity. */
     public com.beyondsolo.enemy.EnemyRoster.Mix mix() {
-        return com.beyondsolo.enemy.EnemyRoster.forSeed(rank, seed);
+        if (legacy || isTrial()) return com.beyondsolo.enemy.EnemyRoster.forSeed(rank, seed);
+        GateRealm r = realm();
+        return com.beyondsolo.enemy.EnemyRoster.forSeed(rank, seed, r.habitats, r.affinity);
     }
     public void setClearedAt(long time) { this.clearedAt = time; }
 
@@ -158,8 +208,8 @@ public final class GateInstance {
         if (layout == null) {
             com.beyondsolo.depths.HiddenKind hidden = depths.hidden(this);
             if (isTrial() && temple) layout = DungeonLayout.temple(seed);
-            else if (hidden == com.beyondsolo.depths.HiddenKind.SEALED) layout = DungeonLayout.planSealed(seed, theme());
-            else layout = DungeonLayout.plan(seed, theme(), hidden != null);
+            else if (hidden == com.beyondsolo.depths.HiddenKind.SEALED) layout = DungeonLayout.planSealed(seed, theme(), realm(), shape());
+            else layout = DungeonLayout.plan(seed, theme(), realm(), shape(), hidden != null);
         }
         return layout;
     }
@@ -167,6 +217,7 @@ public final class GateInstance {
     /** Plans the cave again (after its hidden chamber was forced). Only before it is built. */
     public void replan() {
         this.layout = null;
+        depths.replanned();
     }
 
     /** Where the cave's origin is in the gate dimension. */
@@ -223,6 +274,9 @@ public final class GateInstance {
         tag.putInt("ascended", ascendedOverride);
         if (keyed != null) tag.put("keyed", keyed.save());
         tag.putBoolean("slotFreed", slotFreed);
+        tag.putString("realm", realm().id());
+        tag.putString("shape", shape().id());
+        if (legacy) tag.putBoolean("legacy", true);
         tag.put("depths", depths.save());
         tag.put("break", breakState.save());
         return tag;
@@ -258,6 +312,12 @@ public final class GateInstance {
         g.ascendedOverride = tag.contains("ascended") ? tag.getInt("ascended") : -1;
         if (tag.contains("keyed")) g.keyed = Keyed.load(tag.getCompound("keyed"));
         g.slotFreed = tag.getBoolean("slotFreed");
+        // caves carved before realms keep their look; one not carved yet takes a realm from its seed like any other
+        g.legacy = tag.getBoolean("legacy") || (!tag.contains("realm") && g.built);
+        if (!g.legacy) {
+            g.realm = tag.contains("realm") ? GateRealm.byId(tag.getString("realm")) : null;
+            g.shape = tag.contains("shape") ? DungeonShape.byId(tag.getString("shape")) : null;
+        }
         g.depths = tag.contains("depths") ? com.beyondsolo.depths.GateDepths.load(tag.getCompound("depths")) : com.beyondsolo.depths.GateDepths.legacy();
         // a gate saved before breaks existed starts its clock the next time it is looked at
         g.breakState = tag.contains("break") ? com.beyondsolo.breaks.BreakState.load(tag.getCompound("break")) : com.beyondsolo.breaks.BreakState.fresh();

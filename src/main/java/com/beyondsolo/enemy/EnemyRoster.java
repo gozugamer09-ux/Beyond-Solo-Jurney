@@ -5,7 +5,10 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -106,6 +109,14 @@ public final class EnemyRoster {
         return random(rank, RandomSource.create(seed ^ 0x5EED_BEA5_7L));
     }
 
+    /**
+     * A gate's mix for a realm ({@code gate.GateRealm}): the same every time for the same seed, with the creatures
+     * that live where the realm is ({@link Habitat}) four times as likely, and the realm's ruling affinity if it has one.
+     */
+    public static Mix forSeed(PlayerRank rank, long seed, Collection<Habitat> habitats, @Nullable Affinity ruling) {
+        return random(rank, RandomSource.create(seed ^ 0x5EED_BEA5_7L), habitats, ruling);
+    }
+
     /** The awakening trial's creatures. */
     public static Mix trial() {
         return TRIAL;
@@ -113,16 +124,38 @@ public final class EnemyRoster {
 
     /** A fresh mix for a rank (dungeon breaks, events). */
     public static Mix random(PlayerRank rank, RandomSource r) {
-        List<Entry> pool = new ArrayList<>(pool(rank));
+        return random(rank, r, List.of(), null);
+    }
+
+    /**
+     * A fresh mix for a rank in a place: three to five kinds, always one that fights up close, with creatures carrying
+     * one of {@code habitats} four times as likely and at least two of the chosen kinds carrying one (when the pool
+     * has two). {@code ruling} replaces the rank's affinity roll; null keeps it.
+     */
+    public static Mix random(PlayerRank rank, RandomSource r, Collection<Habitat> habitats, @Nullable Affinity ruling) {
+        List<Entry> pool = new ArrayList<>();
+        for (Entry e : pool(rank)) {
+            pool.add(Habitat.fits(e.type.get(), habitats) ? new Entry(e.type, e.weight * 4, e.own) : e);
+        }
         int kinds = Math.min(pool.size(), 3 + (rank.tier() >= 2 ? 1 : 0) + (r.nextInt(4) == 0 ? 1 : 0));
         List<Entry> chosen = new ArrayList<>();
-        // always one that fights up close: a cave of archers and spitters alone would be a turret gallery
+        // always one that fights up close (one that lives here, if any does): a cave of archers and spitters alone
+        // would be a turret gallery
         List<Entry> front = pool.stream().filter(e -> isFront(e.type.get())).toList();
-        if (!front.isEmpty()) chosen.add(weighted(front, r));
+        List<Entry> frontHere = front.stream().filter(e -> Habitat.fits(e.type.get(), habitats)).toList();
+        if (!frontHere.isEmpty()) chosen.add(weighted(frontHere, r));
+        else if (!front.isEmpty()) chosen.add(weighted(front, r));
+        // at least two that belong here
+        List<Entry> fitting = pool.stream().filter(e -> Habitat.fits(e.type.get(), habitats)).toList();
+        while (countFitting(chosen, habitats) < 2 && countFitting(chosen, habitats) < fitting.size()) {
+            Entry e = weighted(fitting, r);
+            if (!contains(chosen, e)) chosen.add(e);
+        }
         while (chosen.size() < kinds) {
             Entry e = weighted(pool, r);
-            if (!chosen.contains(e)) chosen.add(e);
+            if (!contains(chosen, e)) chosen.add(e);
         }
+        if (ruling != null) return new Mix(List.copyOf(chosen), ruling);
         int[] w = AFFINITY_WEIGHTS[rank.ordinal()];
         int total = 0;
         for (int x : w) total += x;
@@ -138,6 +171,16 @@ public final class EnemyRoster {
         return new Mix(List.copyOf(chosen), affinity);
     }
 
+    private static long countFitting(List<Entry> chosen, Collection<Habitat> habitats) {
+        return chosen.stream().filter(e -> Habitat.fits(e.type.get(), habitats)).count();
+    }
+
+    /** Entries are compared by creature: a weighted copy is the same kind as the pool's own entry. */
+    private static boolean contains(List<Entry> chosen, Entry e) {
+        for (Entry c : chosen) if (c.type.get() == e.type.get()) return true;
+        return false;
+    }
+
     /** Whether a creature of this type closes in and fights hand to hand. */
     public static boolean isFront(EntityType<?> type) {
         MonsterKind kind = kindOf(type);
@@ -149,7 +192,7 @@ public final class EnemyRoster {
     }
 
     /** The gate creature kind of an entity type, or null for anything else. */
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     public static MonsterKind kindOf(EntityType<?> type) {
         for (MonsterKind k : MonsterKind.values()) if (EnemyModule.type(k) == type) return k;
         return null;

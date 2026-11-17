@@ -128,7 +128,10 @@ public final class AwakeningService {
         if (SystemAPI.hasSystem(player) || player.isSpectator() || stage(player) != Stage.DORMANT) return;
         GateDepths depths = g.depths();
         if (!depths.enabled() || depths.hidden(g) == HiddenKind.SEALED) return;
-        if (DungeonLayout.planSealed(g.seed(), g.theme()).hidden() == null) return;
+        // the door hides behind the boss: a dungeon with no room for it there is laid out as caverns instead
+        com.beyondsolo.gate.DungeonShape shape = DungeonLayout.shapeForDoor(g.seed(), g.theme(), g.realm(), g.shape());
+        if (shape == null) return;
+        if (shape != g.shape()) g.setDungeon(g.realm(), shape);
         depths.setHidden(HiddenKind.SEALED);
         g.replan();
         GateData.get(player.server).setDirty();

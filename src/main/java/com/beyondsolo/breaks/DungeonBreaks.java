@@ -288,7 +288,7 @@ public final class DungeonBreaks {
         world.playSound(null, pos, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 4f, 0.6f);
         world.playSound(null, pos, SoundEvents.END_PORTAL_SPAWN, SoundSource.HOSTILE, 2f, 0.5f);
         Component title = Component.translatable("break.beyondsolo.banner.break");
-        Component sub = Component.translatable("break.beyondsolo.banner.break_sub", g.rank().displayName(), g.theme().dungeonName());
+        Component sub = Component.translatable("break.beyondsolo.banner.break_sub", g.rank().displayName(), g.dungeonName());
         int reach = WATCH + 40;
         for (ServerPlayer p : near(world, pos, reach)) {
             double d = flat(p.position(), pos);
