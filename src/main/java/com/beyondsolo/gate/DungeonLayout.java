@@ -96,13 +96,39 @@ public final class DungeonLayout {
      * nothing else passes (its own random, so the rest of the cave is the same with or without it).
      */
     public static DungeonLayout plan(long seed, GateTheme theme, boolean hidden) {
+        return plan(seed, theme, theme.rooms, sides(theme), hidden, false);
+    }
+
+    /**
+     * The plan of a gate that hides the awakening's sealed door ({@code depths.HiddenKind.SEALED}): its chamber lies
+     * off the boss's hall, deeper than anything else in the cave. The rest of the cave is the same as without it.
+     */
+    public static DungeonLayout planSealed(long seed, GateTheme theme) {
+        return plan(seed, theme, theme.rooms, sides(theme), true, true);
+    }
+
+    /** Caverns between an awakening temple's way in and the Arbiter's hall. */
+    public static final int TEMPLE_ROOMS = 1;
+
+    /**
+     * The plan of an awakening temple (a trial opened since 0.1.1, see {@code GateInstance#temple}): a short way down
+     * from the door to an antechamber and on to the Arbiter's hall. No side caves: nothing in there but the Arbiter.
+     */
+    public static DungeonLayout temple(long seed) {
+        return plan(seed, GateTheme.TRIAL, TEMPLE_ROOMS + 1, 0, false, false);
+    }
+
+    private static int sides(GateTheme theme) {
+        return 1 + (theme.rank.tier() >= 3 ? 1 : 0);
+    }
+
+    private static DungeonLayout plan(long seed, GateTheme theme, int main, int sides, boolean hidden, boolean offBoss) {
         RandomSource r = new LegacyRandomSource(seed);
         List<Room> rooms = new ArrayList<>();
         List<Tunnel> tunnels = new ArrayList<>();
 
         rooms.add(new Room(0, new BlockPos(0, BASE_Y, 0), 8, 6, 8, Kind.ENTRANCE));
         float heading = r.nextFloat() * Mth.TWO_PI;
-        int main = theme.rooms;
         for (int i = 1; i <= main; i++) {
             Room prev = rooms.get(rooms.size() - 1);
             boolean boss = i == main;
@@ -136,7 +162,6 @@ public final class DungeonLayout {
         }
 
         // side caves off the middle rooms, each with a cache of loot
-        int sides = 1 + (theme.rank.tier() >= 3 ? 1 : 0);
         int mainCount = rooms.size();
         for (int s = 0; s < sides; s++) {
             Room from = rooms.get(1 + r.nextInt(Math.max(1, mainCount - 2)));
@@ -153,13 +178,20 @@ public final class DungeonLayout {
                 }
             }
         }
-        if (hidden) placeHidden(seed, rooms, tunnels);
+        if (hidden) placeHidden(seed, rooms, tunnels, offBoss);
         return new DungeonLayout(List.copyOf(rooms), List.copyOf(tunnels));
     }
 
-    /** The hidden chamber: off a cavern in the back two thirds of the cave, clear of every other room and tunnel. */
-    private static void placeHidden(long seed, List<Room> rooms, List<Tunnel> tunnels) {
+    /**
+     * The hidden chamber: off a cavern in the back two thirds of the cave (or, {@code offBoss}, off the boss's hall),
+     * clear of every other room and tunnel.
+     */
+    private static void placeHidden(long seed, List<Room> rooms, List<Tunnel> tunnels, boolean offBoss) {
         RandomSource h = new LegacyRandomSource(seed * 0x9E3779B97F4A7C15L + 0x48494444L);
+        if (offBoss) {
+            placeOffBoss(h, rooms, tunnels);
+            return;
+        }
         List<Room> caverns = new ArrayList<>();
         for (Room room : rooms) if (room.kind == Kind.CAVERN) caverns.add(room);
         if (caverns.isEmpty()) return;
@@ -175,6 +207,38 @@ public final class DungeonLayout {
             if (!clear(rooms, room, 7)) continue;
             Tunnel t = tunnel(h, from, room);
             if (!secluded(rooms, tunnels, from, room, t)) continue;
+            rooms.add(room);
+            tunnels.add(t);
+            return;
+        }
+    }
+
+    /** Size of the sealed door's chamber: wider and taller than the others, a sealed gate stands in it. */
+    public static final int SEALED_RX = 8, SEALED_RY = 6;
+
+    /**
+     * The sealed door's chamber: past the boss's hall, on the far side from the way in (wider round it if that fails),
+     * at the end of a short passage nothing else comes near, its floor about level with the hall's.
+     */
+    private static void placeOffBoss(RandomSource h, List<Room> rooms, List<Tunnel> tunnels) {
+        Room boss = null;
+        for (Room room : rooms) if (room.kind == Kind.BOSS) boss = room;
+        if (boss == null) return;
+        Tunnel in = null;
+        for (Tunnel t : tunnels) if (t.to() == boss.index()) in = t;
+        float back = in == null ? h.nextFloat() * Mth.TWO_PI
+                : (float) Math.atan2(boss.center().getZ() - in.start().getZ(), boss.center().getX() - in.start().getX());
+        int r = SEALED_RX, ry = SEALED_RY;
+        for (int attempt = 0; attempt < 80; attempt++) {
+            float spread = Math.min(Mth.PI, 0.45f + attempt * 0.05f);
+            float a = back + (h.nextFloat() - 0.5f) * 2 * spread;
+            int dist = boss.reach() + r + 8 + h.nextInt(5);
+            int y = Mth.clamp(boss.floorY() + Math.round(ry * 0.55f) + h.nextInt(3) - 1, MIN_Y + ry + 2, MAX_Y - ry - 2);
+            Room room = new Room(rooms.size(), new BlockPos(boss.center().getX() + Math.round(Mth.cos(a) * dist), y,
+                    boss.center().getZ() + Math.round(Mth.sin(a) * dist)), r, ry, r, Kind.HIDDEN);
+            if (!clear(rooms, room, 7)) continue;
+            Tunnel t = tunnel(h, boss, room);
+            if (!secluded(rooms, tunnels, boss, room, t)) continue;
             rooms.add(room);
             tunnels.add(t);
             return;
