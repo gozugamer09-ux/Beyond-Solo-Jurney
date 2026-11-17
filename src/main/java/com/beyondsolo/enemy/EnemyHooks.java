@@ -96,6 +96,8 @@ public final class EnemyHooks {
                     ? ElementalProfile.of(victim).multiplier(as)
                     : EnemyTraits.of(victim).affinity().multiplier(as);
             if (EnemyTraits.has(victim) && EnemyTraits.of(victim).has(Affix.WARDED)) k *= 0.67f;
+            // and the cave's weather feeds or dulls it (depths.WeatherService; still air outside the caves)
+            k *= com.beyondsolo.depths.WeatherService.factor(victim, as);
             if (k != 1f) event.setAmount(event.getAmount() * k);
         }
         if (EnemyTraits.has(victim)) {

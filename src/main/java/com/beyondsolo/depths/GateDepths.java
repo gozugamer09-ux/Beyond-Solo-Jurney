@@ -9,11 +9,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * What lies off the beaten path of one gate's cave, and how far the party has got with it: its weather, the hidden
@@ -42,9 +39,7 @@ public final class GateDepths {
     private final Map<Integer, Integer> waves = new HashMap<>();
 
     private transient Map<Integer, TrapKind> traps;
-    /** Live creatures that must fall: a lockdown's wave (by room) or a lair's guardians ({@link #LAIR_KEY}). */
-    final transient Map<Integer, Set<UUID>> tracked = new HashMap<>();
-    static final int LAIR_KEY = -1;
+    /** Knocks on the hidden wall so far (anyone's): the third brings it down. */
     transient int knocks;
 
     private GateDepths(boolean enabled) {
@@ -155,10 +150,6 @@ public final class GateDepths {
 
     int wave(int room) { return waves.getOrDefault(room, 0); }
     void setWave(int room, int wave) { waves.put(room, wave); }
-
-    Set<UUID> tracked(int key) {
-        return tracked.computeIfAbsent(key, k -> new HashSet<>());
-    }
 
     // ------------------------------------------------------------------ saving
 

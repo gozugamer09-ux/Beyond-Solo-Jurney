@@ -12,9 +12,9 @@ import java.util.Locale;
 
 /**
  * The air inside a gate: most caves are still, others are full of mist, heat, snow, a mana storm, spores, a crimson
- * haze, a darkness that eats light, or tremors. Each condition favours one element and dulls another (skill hits,
- * infusions), most bring a hazard ({@link WeatherService}), and every one but clear pays more for the clear.
- * The client draws it: fog, particles, flashes, and a chip under the run clock.
+ * haze, a darkness that eats light, or tremors. Each condition favours one element and dulls another (skill hits and
+ * element damage: infusion procs, burns, venom), most bring a hazard ({@link WeatherService}), and every one but
+ * clear pays more for the clear. The client draws it: fog, the air itself, flashes, and a chip under the run clock.
  */
 public enum GateWeather {
     CLEAR(0xCFE3FF, 0x000000, 0f, null, 0f, null, 0f, 1f),
