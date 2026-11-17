@@ -479,7 +479,7 @@
   "quest_objective.beyondsolo.gate_clear": "Despeja un Portal",
   "command.beyondsolo.gate.none": "No hay portales cerca.",
   "command.beyondsolo.gate.not_inside": "No estás dentro de un portal.",
-  "command.beyondsolo.gate.no_exit": "La salida todavía no está abierta.",
+  "command.beyondsolo.gate.no_exit": "Todavía no se ha abierto ninguna salida en este portal.",
   "command.beyondsolo.gate.done": "Hecho.",
   "command.beyondsolo.gate.unknown": "No hay ningún reino ni trazado llamado %s.",
   "command.beyondsolo.gate.info": "%s (%s) · %s · Rango %s · %s salas, %s pasajes, %s espacios abiertos · jefe: %s · elemento: %s · semilla %s",
