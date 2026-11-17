@@ -20,6 +20,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  *       title/subtitle = the System's words and the chamber's name.</li>
  *   <li>{@link #HIDDEN_ENTER}: stepping into it (the shrine's blessing, the lair waking). a = its kind, b = the gate's
  *       rank, x y z = the chamber's floor.</li>
+ *   <li>{@link #TRAP_ACTIVE}: a trap already going off when the player came in (or back): its chip and marker, no
+ *       banner. a = trap kind + 16 * a lockdown's wave, b and x y z as for {@link #TRAP}.</li>
  * </ul>
  */
 public record DepthsPayload(int kind, int a, int b, float x, float y, float z, Component title, Component subtitle) implements CustomPacketPayload {
@@ -29,6 +31,7 @@ public record DepthsPayload(int kind, int a, int b, float x, float y, float z, C
     public static final int WAVE = 3;
     public static final int HIDDEN = 4;
     public static final int HIDDEN_ENTER = 5;
+    public static final int TRAP_ACTIVE = 6;
 
     public static final Type<DepthsPayload> TYPE = new Type<>(BeyondSolo.id("depths"));
     public static final StreamCodec<RegistryFriendlyByteBuf, DepthsPayload> STREAM_CODEC = StreamCodec.of(

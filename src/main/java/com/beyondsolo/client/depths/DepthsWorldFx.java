@@ -48,9 +48,13 @@ import java.util.Set;
  *   <li>a trap core struck (a ring and a spark), and shattered (a burst of red shards);</li>
  *   <li>the shrine's blessing: a column of pale light comes down on the one it blesses, and motes rise around them.</li>
  * </ul>
- * Vanilla particles stay out of the first-person camera's way (nothing spawns within two blocks of it).
+ * Vanilla particles stay out of the first-person camera's way (nothing starts or flies within two blocks of it).
  */
 public final class DepthsWorldFx {
+    /** How near (blocks, from a first-person camera) a vanilla particle may come, at the nearest it can get. */
+    private static final double CLOSE = 2.0;
+    /** How far block bits get from where they start: the particle throws them about itself, whatever speed they are given. */
+    private static final double BLOCK_BITS = 0.8;
     static final ResourceLocation GLOW = CombatWorldFx.GLOW;
     static final ResourceLocation RING = CombatWorldFx.RING;
     static final ResourceLocation BURST = CombatWorldFx.BURST;
@@ -203,10 +207,22 @@ public final class DepthsWorldFx {
         return new DustParticleOptions(c, size);
     }
 
-    /** A vanilla particle, unless it would be right in front of a first-person camera. */
+    /** A vanilla particle, unless it would start or fly right in front of a first-person camera. */
     private static void particle(ClientLevel level, ParticleOptions type, Vec3 at, double vx, double vy, double vz) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.options.getCameraType().isFirstPerson() && mc.gameRenderer.getMainCamera().getPosition().distanceToSqr(at) < 4) return;
+        if (mc.options.getCameraType().isFirstPerson()) {
+            Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+            // the nearest it comes on its way (it drifts about 25 ticks' worth of its speed); block bits get room all round
+            Vec3 v = new Vec3(vx, vy, vz);
+            double way = v.length() * 25;
+            Vec3 nearest = at;
+            if (way > 1.0e-4) {
+                Vec3 dir = v.normalize();
+                nearest = at.add(dir.scale(Mth.clamp(cam.subtract(at).dot(dir), 0, way)));
+            }
+            double room = CLOSE + (type instanceof BlockParticleOption ? BLOCK_BITS : 0);
+            if (nearest.distanceToSqr(cam) < room * room) return;
+        }
         level.addParticle(type, at.x, at.y, at.z, vx, vy, vz);
     }
 

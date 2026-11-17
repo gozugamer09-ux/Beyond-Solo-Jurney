@@ -97,6 +97,7 @@ public final class DepthsHooks {
         if (was != null && was.gate().equals(g.id()) && was.weather() == weather) return;
         SHOWN.put(p.getUUID(), new Shown(g.id(), weather));
         PacketDistributor.sendToPlayer(p, DepthsPayload.state(weather, g.rank().ordinal()));
+        TrapRooms.resync(p, g);
     }
 
     /** Forgets what a player's screen was told (it is sent again on the next beat). */

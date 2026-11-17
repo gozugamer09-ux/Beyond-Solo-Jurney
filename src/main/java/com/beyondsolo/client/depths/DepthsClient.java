@@ -90,6 +90,15 @@ public final class DepthsClient {
                 // a trap cuts in front of whatever else is waiting
                 push(new Banner(BannerKind.TRAP, p.title(), p.subtitle(), trap.color, trap.ordinal(), 3.4f), true);
             }
+            case DepthsPayload.TRAP_ACTIVE -> {
+                // already going off when this player came in: its chip and marker, without the banner
+                trap = TrapKind.byIndex(p.a() & 15);
+                trapAt = new Vec3(p.x(), p.y(), p.z());
+                trapReach = p.b();
+                trapSince = Anim.now();
+                wave = p.a() >> 4;
+                waves = wave > 0 ? 2 : 0;
+            }
             case DepthsPayload.WAVE -> {
                 wave = p.a();
                 waves = p.b();

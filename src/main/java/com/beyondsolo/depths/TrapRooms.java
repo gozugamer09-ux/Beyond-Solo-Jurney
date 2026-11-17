@@ -125,6 +125,29 @@ public final class TrapRooms {
         return p.isCreative() || p.isSpectator();
     }
 
+    /** Tells a player's screen about the nearest trap already going off in their cave (they came in, or back, after it sprang). */
+    static void resync(ServerPlayer p, GateInstance g) {
+        GateDepths d = g.depths();
+        DungeonLayout.Room nearest = null;
+        TrapKind kind = null;
+        double best = Double.MAX_VALUE;
+        for (Map.Entry<Integer, TrapKind> e : d.traps(g).entrySet()) {
+            if (!d.trapActive(e.getKey())) continue;
+            DungeonLayout.Room room = g.layout().rooms().get(e.getKey());
+            double dist = p.position().distanceToSqr(Vec3.atCenterOf(g.world(room.center())));
+            if (dist < best) {
+                best = dist;
+                nearest = room;
+                kind = e.getValue();
+            }
+        }
+        if (nearest == null) return;
+        BlockPos c = g.world(nearest.center());
+        int wave = kind == TrapKind.LOCKDOWN ? d.wave(nearest.index()) : 0;
+        PacketDistributor.sendToPlayer(p, new DepthsPayload(DepthsPayload.TRAP_ACTIVE, kind.ordinal() + 16 * wave, nearest.reach(),
+                c.getX() + 0.5f, c.getY(), c.getZ() + 0.5f, Component.empty(), Component.empty()));
+    }
+
     /** Someone stepped in: the trap springs. */
     static void spring(ServerLevel level, GateInstance g, DungeonLayout.Room room, TrapKind kind, List<ServerPlayer> in) {
         GateDepths d = g.depths();
