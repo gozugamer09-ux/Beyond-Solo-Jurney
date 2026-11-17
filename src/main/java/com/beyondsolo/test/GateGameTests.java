@@ -100,13 +100,22 @@ public final class GateGameTests {
         helper.succeed();
     }
 
+    /** A new gate's rank is a roll of the configured weights alone: not the player's rank, level or where it opens. */
     @GameTest(template = ARENA)
-    public static void worldgenRankGrowsWithDistance(GameTestHelper helper) {
+    public static void gateRanksAreFullyRandom(GameTestHelper helper) {
         RandomSource r = RandomSource.create(5);
-        for (int i = 0; i < 200; i++) {
-            helper.assertTrue(GateService.worldgenRank(new BlockPos(100, 70, 100), r).tier() <= 3, "near the centre gates are low");
-            helper.assertTrue(GateService.worldgenRank(new BlockPos(7000, 70, 0), r).tier() >= 3, "far out gates are high");
-        }
+        int[] seen = new int[PlayerRank.values().length];
+        for (int i = 0; i < 6000; i++) seen[GateService.randomRank(r, List.of(30, 25, 20, 13, 8, 4)).ordinal()]++;
+        for (PlayerRank rank : PlayerRank.values()) helper.assertTrue(seen[rank.ordinal()] > 0, rank + " gates open too");
+        helper.assertTrue(seen[PlayerRank.E.ordinal()] > seen[PlayerRank.S.ordinal()] * 3, "S gates are the rarest");
+        for (int i = 0; i < 50; i++) helper.assertTrue(GateService.randomRank(r, List.of(0, 0, 0, 0, 0, 1)) == PlayerRank.S, "the weights decide");
+        int[] even = new int[PlayerRank.values().length];
+        for (int i = 0; i < 6000; i++) even[GateService.randomRank(r, List.of(0, 0, 0, 0, 0, 0)).ordinal()]++;
+        for (int n : even) helper.assertTrue(n > 800 && n < 1200, "no weights: every rank alike (" + n + ")");
+        // gates open around everyone alike: the same roll for an E-rank as for an S-rank hunter, near spawn or far out
+        int[] config = new int[PlayerRank.values().length];
+        for (int i = 0; i < 3000; i++) config[GateService.randomRank(r).ordinal()]++;
+        for (PlayerRank rank : PlayerRank.values()) helper.assertTrue(config[rank.ordinal()] > 0, "the configured roll reaches " + rank);
         helper.succeed();
     }
 
@@ -241,6 +250,17 @@ public final class GateGameTests {
         helper.assertTrue(high > low * 2, "S caches hold much more than E caches");
         List<ItemStack> s = GateLoot.roll(PlayerRank.S, r);
         helper.assertTrue(s.stream().anyMatch(st -> st.is(net.minecraft.world.item.Items.NETHERITE_SCRAP)), "S caches have netherite");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void gateTimesSurviveTheDayStartingOver(GameTestHelper helper) {
+        // opened late one day (tick 20000), looked at the next morning (tick 32248): 12248 ticks ago, not "just now",
+        // which is what the time of day said, and the gate's tear flash stayed lit all morning
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 20000, 0) == 12248f, "counted on the whole clock");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32238, 0.5f) == 10.5f, "a moment ago, with the partial tick");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 32250, 0) == -2f, "a client a tick or two behind the server");
+        helper.assertTrue(GateBlockEntity.ticksSince(32248, 90000, 0) > 1000, "a moment from the future counts as long ago");
         helper.succeed();
     }
 

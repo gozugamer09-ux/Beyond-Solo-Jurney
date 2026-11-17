@@ -1,6 +1,7 @@
 package com.beyondsolo.client.combat;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.render.CameraParticles;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.network.CombatFxPayload;
@@ -32,7 +33,8 @@ import java.util.List;
  * Combat effects in the world. Light (rings, sigils, glows) is drawn with the mod's light render type;
  * vanilla particles are only used for bursts and embers, where their look fits. Runs on game time, so it pauses
  * with the game and follows /tick rate. The player's own effects are skipped in first person (the screen
- * flash in {@link CombatHud} carries them).
+ * flash in {@link CombatHud} carries them), and particles that would fly into a first-person camera, a creature burning
+ * or catching fire at arm's length, are left out ({@link CameraParticles}).
  */
 public final class CombatWorldFx {
     public static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
@@ -74,7 +76,7 @@ public final class CombatWorldFx {
             case BLOOD_POP -> {
                 burst(level, new DustParticleOptions(new Vector3f(0.62f, 0.02f, 0.05f), 1.6f), x, y, z, 34, 0.35);
                 burst(level, new DustParticleOptions(new Vector3f(0.95f, 0.15f, 0.12f), 0.9f), x, y, z, 18, 0.5);
-                for (int i = 0; i < 6; i++) level.addParticle(ParticleTypes.DAMAGE_INDICATOR, x, y, z, rnd(0.3), 0.2, rnd(0.3));
+                for (int i = 0; i < 6; i++) CameraParticles.add(level, ParticleTypes.DAMAGE_INDICATOR, x, y, z, rnd(0.3), 0.2, rnd(0.3));
             }
             case IGNITE -> {
                 burst(level, ParticleTypes.FLAME, x, y, z, 26, 0.18);
@@ -95,7 +97,7 @@ public final class CombatWorldFx {
                 Vector3f rgb = new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f).lerp(new Vector3f(1, 1, 1), 0.4f);
                 for (int i = 0; i < 24; i++) {
                     double a = i / 24.0 * Math.PI * 2;
-                    level.addParticle(new DustParticleOptions(rgb, 1.0f), x + Math.cos(a) * 0.6, e.getY() + 0.1, z + Math.sin(a) * 0.6, 0, 0.12, 0);
+                    CameraParticles.add(level, new DustParticleOptions(rgb, 1.0f), x + Math.cos(a) * 0.6, e.getY() + 0.1, z + Math.sin(a) * 0.6, 0, 0.12, 0);
                 }
                 burst(level, ParticleTypes.END_ROD, x, y, z, 6, 0.06);
             }
@@ -116,7 +118,7 @@ public final class CombatWorldFx {
                     for (int i = 0; i <= steps; i++) {
                         double t = i / (double) steps;
                         double jitter = (i == 0 || i == steps) ? 0 : 0.25;
-                        level.addParticle(ParticleTypes.ELECTRIC_SPARK, Mth.lerp(t, fx, x) + rnd(jitter), Mth.lerp(t, fy, y) + rnd(jitter),
+                        CameraParticles.add(level, ParticleTypes.ELECTRIC_SPARK, Mth.lerp(t, fx, x) + rnd(jitter), Mth.lerp(t, fy, y) + rnd(jitter),
                                 Mth.lerp(t, fz, z) + rnd(jitter), 0, 0, 0);
                     }
                 }
@@ -129,7 +131,7 @@ public final class CombatWorldFx {
                 for (int i = 0; i < 28; i++) {
                     double a = i / 28.0 * Math.PI * 4;
                     double yy = e.getY() + i / 28.0 * e.getBbHeight();
-                    level.addParticle(new DustParticleOptions(rgb, 0.9f), x + Math.cos(a) * 0.55, yy, z + Math.sin(a) * 0.55, 0, 0.04, 0);
+                    CameraParticles.add(level, new DustParticleOptions(rgb, 0.9f), x + Math.cos(a) * 0.55, yy, z + Math.sin(a) * 0.55, 0, 0.04, 0);
                 }
                 burst(level, ParticleTypes.END_ROD, x, y + 0.3, z, 5, 0.04);
             }
@@ -140,7 +142,7 @@ public final class CombatWorldFx {
                     double up = (RANDOM.nextDouble() - 0.3) * 1.4;
                     double r = 1.6 + RANDOM.nextDouble() * 0.6;
                     double dx = Math.cos(a) * r, dz = Math.sin(a) * r;
-                    level.addParticle(ParticleTypes.END_ROD, x + dx, y + up, z + dz, -dx * 0.09, -up * 0.09, -dz * 0.09);
+                    CameraParticles.add(level, ParticleTypes.END_ROD, x + dx, y + up, z + dz, -dx * 0.09, -up * 0.09, -dz * 0.09);
                 }
                 burst(level, ParticleTypes.GLOW, x, y, z, 8, 0.05);
             }
@@ -158,7 +160,7 @@ public final class CombatWorldFx {
 
     private static void burst(ClientLevel level, ParticleOptions type, double x, double y, double z, int count, double speed) {
         for (int i = 0; i < count; i++) {
-            level.addParticle(type, x + rnd(0.2), y + rnd(0.3), z + rnd(0.2), rnd(speed), rnd(speed) + speed * 0.5, rnd(speed));
+            CameraParticles.add(level, type, x + rnd(0.2), y + rnd(0.3), z + rnd(0.2), rnd(speed), rnd(speed) + speed * 0.5, rnd(speed));
         }
     }
 
@@ -173,19 +175,19 @@ public final class CombatWorldFx {
             if (e == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
             double w = e.getBbWidth() * 0.6;
             if (d.has(CombatStatePayload.DEEP_BURN) && RANDOM.nextFloat() < 0.45f) {
-                mc.level.addParticle(RANDOM.nextFloat() < 0.7f ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME,
+                CameraParticles.add(mc.level, RANDOM.nextFloat() < 0.7f ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME,
                         e.getX() + rnd(w), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(w), 0, 0.03, 0);
-                if (RANDOM.nextFloat() < 0.15f) mc.level.addParticle(ParticleTypes.SMOKE, e.getX() + rnd(w), e.getY() + e.getBbHeight(), e.getZ() + rnd(w), 0, 0.04, 0);
+                if (RANDOM.nextFloat() < 0.15f) CameraParticles.add(mc.level, ParticleTypes.SMOKE, e.getX() + rnd(w), e.getY() + e.getBbHeight(), e.getZ() + rnd(w), 0, 0.04, 0);
             }
             if (d.has(CombatStatePayload.HEAVY_VENOM) && RANDOM.nextFloat() < 0.4f) {
-                mc.level.addParticle(new DustParticleOptions(new Vector3f(0.3f, 0.55f, 0.1f), 1.2f),
+                CameraParticles.add(mc.level, new DustParticleOptions(new Vector3f(0.3f, 0.55f, 0.1f), 1.2f),
                         e.getX() + rnd(w), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(w), 0, 0.02, 0);
             } else if (d.venomStacks() > 0 && RANDOM.nextFloat() < 0.08f * d.venomStacks()) {
-                mc.level.addParticle(new DustParticleOptions(new Vector3f(0.49f, 0.81f, 0.23f), 0.7f),
+                CameraParticles.add(mc.level, new DustParticleOptions(new Vector3f(0.49f, 0.81f, 0.23f), 0.7f),
                         e.getX() + rnd(w), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(w), 0, 0.02, 0);
             }
             if (d.has(CombatStatePayload.CRIMSON_BRAND) && RANDOM.nextFloat() < 0.2f) {
-                mc.level.addParticle(ParticleTypes.CRIMSON_SPORE, e.getX() + rnd(w), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(w), 0, 0, 0);
+                CameraParticles.add(mc.level, ParticleTypes.CRIMSON_SPORE, e.getX() + rnd(w), e.getY() + RANDOM.nextDouble() * e.getBbHeight(), e.getZ() + rnd(w), 0, 0, 0);
             }
         }
     }

@@ -88,7 +88,7 @@ public final class QuestOverlay {
             NotificationManager.setHeld(false);
         }
         if (current == null && !QUEUE.isEmpty() && !EvaluationOverlay.active() && !com.beyondsolo.client.skill.SkillOverlay.active() && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.npc.NpcBoardScreen.isOpen()
-                && !com.beyondsolo.client.depths.DepthsClient.bannerShowing()) {
+                && !com.beyondsolo.client.depths.DepthsClient.bannerShowing() && !com.beyondsolo.client.breaks.BreakClient.bannerPending()) {
             current = QUEUE.pollFirst();
             NotificationManager.setHeld(true);
             startedAt = Anim.now();

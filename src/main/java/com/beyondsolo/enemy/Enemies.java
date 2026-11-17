@@ -2,6 +2,7 @@ package com.beyondsolo.enemy;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.system.PlayerRank;
+import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -51,8 +52,9 @@ public final class Enemies {
         if (gateTheme >= 0) mob.getPersistentData().putInt(com.beyondsolo.gate.GateService.MOB_TAG, gateTheme);
         apply(mob, rank, traits);
         level.addFreshEntity(mob);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, mob.getX(), mob.getY() + 0.3, mob.getZ(), 12, 0.3, 0.1, 0.3, 0.02);
-        level.sendParticles(ParticleTypes.SCULK_SOUL, mob.getX(), mob.getY() + 0.5, mob.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
+        // the puff it rises from, for everyone not standing right on top of it
+        ParticleGuard.send(level, ParticleTypes.LARGE_SMOKE, mob.getX(), mob.getY() + 0.3, mob.getZ(), 12, 0.3, 0.1, 0.3, 0.02);
+        ParticleGuard.send(level, ParticleTypes.SCULK_SOUL, mob.getX(), mob.getY() + 0.5, mob.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
         if (traits.variant() == Variant.CHAMPION) EnemyFx.burst(level, mob.position().add(0, 1, 0), traits.affinity().color, 2.2f);
         return mob;
     }
