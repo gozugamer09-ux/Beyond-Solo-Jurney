@@ -483,13 +483,6 @@ public final class SkillWorldFx {
                     double reach = 1.3 * fx.p.size();
                     mc.level.addParticle(ParticleTypes.END_ROD, e.getX() + rnd(reach), e.getY() + e.getBbHeight() * (0.5 + RANDOM.nextDouble() * 0.6), e.getZ() + rnd(reach), 0, -0.02, 0);
                 }
-                case MIST -> {
-                    // dew: now and then a drop of it catches the light
-                    if (RANDOM.nextFloat() > 0.3f) break;
-                    double a = RANDOM.nextDouble() * Math.PI * 2;
-                    double d = Math.sqrt(RANDOM.nextDouble()) * fx.p.size();
-                    mc.level.addParticle(ParticleTypes.END_ROD, fx.p.x() + Math.cos(a) * d, fx.p.y() + 0.2 + RANDOM.nextDouble() * 0.9, fx.p.z() + Math.sin(a) * d, 0, 0.004, 0);
-                }
                 case BUBBLE -> {
                     if (e == null || RANDOM.nextFloat() > 0.1f) break;
                     double a = RANDOM.nextDouble() * Math.PI * 2;
@@ -1313,16 +1306,22 @@ public final class SkillWorldFx {
                 case MIST -> {
                     // banks of fog that lie low, drift slowly round the middle and breathe; thickest at the centre
                     float r = p.size();
-                    int pale = mix(c, 0xFFFFFF, 0.75f);
-                    for (int i = 0; i < 34; i++) {
+                    int pale = mix(c, 0xFFFFFF, 0.4f);
+                    float ox = (float) (at.x - cam.x), oy = (float) (at.y - cam.y), oz = (float) (at.z - cam.z);
+                    for (int i = 0; i < 56; i++) {
                         long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
                         float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
-                        float dist = (float) Math.sqrt(u) * r * 0.92f;
+                        float dist = (float) Math.sqrt(u) * r * 0.9f;
                         float ang = v * Mth.TWO_PI + time * 0.004f * (i % 2 == 0 ? 1 : -1) * (0.5f + w);
-                        float half = (0.9f + 1.0f * w) * (0.88f + 0.12f * Mth.sin(time * 0.045f + i * 1.7f));
-                        float y = 0.3f + 0.5f * w + 0.07f * Mth.sin(time * 0.05f + i);
-                        float thick = 0.07f + 0.07f * (1 - dist / r);
-                        dot(pose, buffers, camera, Mth.cos(ang) * dist, y, Mth.sin(ang) * dist, half, i % 3 == 0 ? light : pale, hold * thick);
+                        float half = (0.7f + 0.6f * w) * (0.88f + 0.12f * Mth.sin(time * 0.045f + i * 1.7f));
+                        // it lies low: what stands in it is seen from the chest up
+                        float x = Mth.cos(ang) * dist, y = 0.3f + 0.8f * w + 0.07f * Mth.sin(time * 0.05f + i), z = Mth.sin(ang) * dist;
+                        // thinner towards its edge and towards its top
+                        float thick = (0.13f + 0.09f * (1 - dist / r)) * (1 - 0.45f * w);
+                        // it thins around whoever stands in it, so nobody is blinded by fog, least of all their own
+                        float away = Mth.sqrt((ox + x) * (ox + x) + (oy + y) * (oy + y) + (oz + z) * (oz + z));
+                        float clear = Mth.clamp((away - half * 0.6f) / 4f, 0, 1);
+                        dot(pose, buffers, camera, x, y, z, half, i % 3 == 0 ? light : pale, hold * thick * clear);
                     }
                     // where it ends, on the ground
                     disc(pose, buffers, RING, 0.04f, r * (0.97f + 0.03f * Mth.sin(time * 0.06f)), time * 0.2f, pale, hold * 0.22f);

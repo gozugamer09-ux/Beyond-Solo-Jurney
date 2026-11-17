@@ -92,7 +92,7 @@ public final class HealerPath {
     private static final BlockState[] MUSHROOMS = {Blocks.RED_MUSHROOM.defaultBlockState(), Blocks.BROWN_MUSHROOM.defaultBlockState()};
     private static final BlockParticleOption LEAF = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.AZALEA_LEAVES.defaultBlockState());
     private static final BlockParticleOption GORE = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.REDSTONE_BLOCK.defaultBlockState());
-    private static final DustParticleOptions SPORE = new DustParticleOptions(new Vector3f(0.72f, 0.80f, 0.36f), 2.2f);
+    private static final DustParticleOptions SPORE = new DustParticleOptions(new Vector3f(0.72f, 0.80f, 0.36f), 1.4f);
     private static final DustParticleOptions BLOOD = new DustParticleOptions(new Vector3f(0.75f, 0.08f, 0.14f), 1.1f);
 
     // ================================================================ shared
@@ -472,8 +472,10 @@ public final class HealerPath {
             BlockState cap = MUSHROOMS[i % 2];
             repeat(p, 80, 40, () -> marker(level, cap, spot));
         }
+        // the cloud itself, in the yellow green of the spores
+        fxAt(level, Kind.MIST, 0x9DB83A, at, 4, 120);
         repeat(p, 120, 10, () -> {
-            level.sendParticles(SPORE, at.x, at.y + 0.8, at.z, 12, 1.9, 0.5, 1.9, 0);
+            level.sendParticles(SPORE, at.x, at.y + 0.8, at.z, 8, 1.9, 0.5, 1.9, 0);
             level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 1, at.z, 8, 2, 0.6, 2, 0);
             for (LivingEntity e : foes(p, at, 4)) {
                 magic(p, s, e, 1.5f * m(l, tier(p)) + wit(p, 0.04f));
@@ -661,6 +663,8 @@ public final class HealerPath {
         sound(p, SoundEvents.FIRE_EXTINGUISH, 0.4f, 0.6f);
         sound(p, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.8f, 1.2f);
         fxAt(level, Kind.MIST, s.color(), center, 5, 120);
+        // dew: now and then a drop of it catches the light
+        repeat(p, 120, 8, () -> level.sendParticles(ParticleTypes.GLOW, center.x, center.y + 0.7, center.z, 2, 2.4, 0.4, 2.4, 0));
         repeat(p, 120, 10, () -> {
             long until = level.getGameTime() + 15;
             for (Player ally : near(level, center, 5)) gift(ally, GIFT_MIST, until, mistDodge(l));
