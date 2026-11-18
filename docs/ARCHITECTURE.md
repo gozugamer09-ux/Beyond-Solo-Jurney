@@ -350,7 +350,9 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
     pull frames whose limbs bend and shorten as the string comes back (`PULLS`: the seconds of drawing each frame
     shows from). In the hand the string and the arrow are not the painted texels but real shapes
     (`bow_extras`: a thin cord, a round shaft, a ridged broadhead, three feathers), so the bow looks right from
-    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). A bow has two
+    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). The limbs and
+    the handle are flat strips, the same depth right across (relief kinds `limb` and `riser`): on a rounded limb
+    the painted outline sat on the slope and showed from the front as two jagged black lines. A bow has two
     holds: at the side at rest, and raised with the arrow under the crosshair while drawn (the game's own bow-use
     hand movement is undone in the pull frames' transforms). `GradeVisuals` narrows the view while a System bow is
     drawn, which the game only does for its own bow.
