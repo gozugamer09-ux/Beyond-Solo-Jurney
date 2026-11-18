@@ -29,4 +29,14 @@ public interface SystemTab {
     default boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
         return false;
     }
+
+    /** A key while the page is open, before the window's own keys; return true if it was handled (typing in a field). */
+    default boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return false;
+    }
+
+    /** A character typed while the page is open; return true if it was handled. */
+    default boolean charTyped(char c, int modifiers) {
+        return false;
+    }
 }

@@ -57,7 +57,8 @@ public final class PartyHud {
         if (shown > 0.02f && !others.isEmpty()) {
             float old = Gfx.fade(shown);
             markers(g, mc, others, w, h, partial);
-            frames(g, mc, others, w, h, partial);
+            // in a raid the raid frames list everyone (the party among them), so the party's own would double them
+            if (!com.beyondsolo.client.raid.RaidHud.framesShown()) frames(g, mc, others, w, h, partial);
             Gfx.setAlpha(old);
         }
         regroup(g, w, h);

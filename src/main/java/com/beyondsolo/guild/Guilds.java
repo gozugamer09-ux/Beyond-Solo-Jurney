@@ -509,6 +509,12 @@ public final class Guilds {
         return gained;
     }
 
+    /** Ends a guild outright (commands): its members go their own way, its treasury with it. */
+    public static void dissolveNow(MinecraftServer server, Guild g) {
+        for (ServerPlayer m : online(server, g)) inform(m, Component.translatable(KEY + "disbanded.admin", g.name()), true);
+        dissolve(server, g);
+    }
+
     /** Heals every hunter of a guild (commands). */
     public static void healHunters(MinecraftServer server, Guild g) {
         for (GuildHunter h : g.hunters()) h.heal();
