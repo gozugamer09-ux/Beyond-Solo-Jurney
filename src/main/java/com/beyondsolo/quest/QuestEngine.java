@@ -201,23 +201,30 @@ public final class QuestEngine {
     }
 
     public static void complete(ServerPlayer player, Quest quest) {
+        complete(player, quest, null);
+    }
+
+    /**
+     * Completes the quest, saying how it ended ({@code outcome}, e.g. "You got away." for a survival won by running):
+     * the completed moment shows that line under the title.
+     */
+    public static void complete(ServerPlayer player, Quest quest, @Nullable Component outcome) {
+        complete(player, quest, outcome, null);
+    }
+
+    /**
+     * Completes the quest, saying how it ended, and paying {@code paid} instead of what it promised when that is not
+     * null (a survival won by running away pays less than one won by holding out).
+     */
+    public static void complete(ServerPlayer player, Quest quest, @Nullable Component outcome, @Nullable QuestRewards paid) {
         QuestData data = data(player);
         if (!data.all().remove(quest)) return;
+        if (outcome != null) quest.setOutcome(outcome);
+        if (paid != null) quest.replaceRewards(paid);
         data.markFinished(quest.template());
         data.countCompleted();
 
-        QuestRewards r = quest.rewards();
-        if (r.xp() > 0) {
-            ResourceLocation source = ResourceLocation.tryParse(quest.template());
-            SystemAPI.grantXp(player, r.xp(), source == null ? BeyondSolo.id("quest") : source);
-        }
-        if (r.statPoints() > 0) SystemAPI.addStatPoints(player, r.statPoints());
-        if (r.mana() > 0) SystemAPI.restoreMana(player, r.mana());
-        if (!r.title().isEmpty()) SystemAPI.setTitle(player, r.title());
-        for (ItemStack stack : r.items()) {
-            ItemStack give = stack.copy();
-            if (!player.getInventory().add(give) && !give.isEmpty()) player.drop(give, false);
-        }
+        pay(player, quest);
 
         // a little light for everyone else around; the player gets the big moment on screen
         if (player.level() instanceof ServerLevel level) {
@@ -241,9 +248,31 @@ public final class QuestEngine {
         }
     }
 
+    /** Hands out what a quest pays: XP, stat points, mana, items and its title. */
+    static void pay(ServerPlayer player, Quest quest) {
+        QuestRewards r = quest.rewards();
+        if (r.xp() > 0) {
+            ResourceLocation source = ResourceLocation.tryParse(quest.template());
+            SystemAPI.grantXp(player, r.xp(), source == null ? BeyondSolo.id("quest") : source);
+        }
+        if (r.statPoints() > 0) SystemAPI.addStatPoints(player, r.statPoints());
+        if (r.mana() > 0) SystemAPI.restoreMana(player, r.mana());
+        if (!r.title().isEmpty()) SystemAPI.setTitle(player, r.title());
+        for (ItemStack stack : r.items()) {
+            ItemStack give = stack.copy();
+            if (!player.getInventory().add(give) && !give.isEmpty()) player.drop(give, false);
+        }
+    }
+
     public static void fail(ServerPlayer player, Quest quest, QuestEvent.FailReason reason) {
+        fail(player, quest, reason, null);
+    }
+
+    /** Fails the quest, saying what happened ({@code outcome}, e.g. "It got away."), shown in place of the plain reason. */
+    public static void fail(ServerPlayer player, Quest quest, QuestEvent.FailReason reason, @Nullable Component outcome) {
         QuestData data = data(player);
         if (!data.all().remove(quest)) return;
+        if (outcome != null) quest.setOutcome(outcome);
         data.countFailed();
         QuestPenalty penalty = reason == QuestEvent.FailReason.ABANDONED ? quest.penalty().scaled(0.5f) : quest.penalty();
         // the Penalty Zone takes the place of the exhaustion and debuffs (unless it is switched off)
@@ -260,6 +289,56 @@ public final class QuestEngine {
         sync(player);
         event(player, QuestEventPayload.FAILED, quest, reason.ordinal());
         NeoForge.EVENT_BUS.post(new QuestEvent.Failed(player, quest, reason));
+    }
+
+    /**
+     * The situation changed and the quest with it: {@code to} takes {@code from}'s place (same spot in the list, so it
+     * stays where the player is looking), starts its own clock, and the player sees the System rewrite the quest. The old
+     * quest neither completes nor fails. With {@code payFrom}, what {@code from} pays is handed out first (a streak that
+     * moves up a tier banks the tier it finished).
+     */
+    public static void branch(ServerPlayer player, Quest from, Quest to, boolean payFrom) {
+        QuestData data = data(player);
+        int index = data.all().indexOf(from);
+        if (index < 0 || !from.isTaken()) return;
+        data.all().set(index, to);
+        if (payFrom) pay(player, from);
+        to.activate(gameTime(player));
+        refresh(player, to);
+        sync(player);
+        PacketDistributor.sendToPlayer(player, new QuestEventPayload(QuestEventPayload.BRANCHED, to.save(player.registryAccess()),
+                payFrom ? 1 : 0, from.save(player.registryAccess())));
+        player.level().playSound(null, player.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.45f, 1.5f);
+        NeoForge.EVENT_BUS.post(new QuestEvent.Branched(player, from, to));
+        if (to.status() == Quest.Status.ACTIVE && to.isComplete()) finish(player, to);
+    }
+
+    /**
+     * A secret quest the player has just done without knowing it was one: it is added and completed at once, so the
+     * first they hear of it is the System saying it is complete. Each one is only ever revealed once.
+     * Returns false if it was revealed before.
+     */
+    public static boolean reveal(ServerPlayer player, Quest quest, @Nullable Component outcome) {
+        QuestData data = data(player);
+        if (data.hasFinished(quest.template()) || data.has(quest.template())) return false;
+        for (QuestObjective o : quest.objectives()) o.setProgress(o.required());
+        data.add(quest);
+        quest.activate(gameTime(player));
+        complete(player, quest, outcome);
+        return true;
+    }
+
+    /** Sets one objective's progress outright (a situation reporting a creature's health, seconds held...). */
+    public static void setProgress(ServerPlayer player, Quest quest, int index, int value) {
+        if (index < 0 || index >= quest.objectives().size() || !quest.isTaken()) return;
+        QuestObjective o = quest.objectives().get(index);
+        boolean wasDone = o.done();
+        if (!o.setProgress(value)) return;
+        if (!wasDone && o.done() && o.counts() && quest.status() == Quest.Status.ACTIVE && !quest.isComplete()) {
+            event(player, QuestEventPayload.OBJECTIVE, quest, index);
+        }
+        sync(player);
+        if (quest.status() == Quest.Status.ACTIVE && quest.isComplete()) finish(player, quest);
     }
 
     /** Wipes every quest and the quest line (used by /system reset). */
@@ -365,11 +444,16 @@ public final class QuestEngine {
                 continue;
             }
             if (q.category() != QuestCategory.DAILY && q.deadline() >= 0 && now >= q.deadline()) {
-                fail(player, q, QuestEvent.FailReason.TIME);
+                // a situation may take the end of the clock over (holding out was the point, or the quest changes)
+                if (!NeoForge.EVENT_BUS.post(new QuestEvent.Expiring(player, q, QuestEvent.FailReason.TIME)).isCanceled()) {
+                    fail(player, q, QuestEvent.FailReason.TIME);
+                }
                 continue;
             }
             if (q.area() != null && q.area().left(player.level(), player.position())) {
-                fail(player, q, QuestEvent.FailReason.FLED);
+                if (!NeoForge.EVENT_BUS.post(new QuestEvent.Expiring(player, q, QuestEvent.FailReason.FLED)).isCanceled()) {
+                    fail(player, q, QuestEvent.FailReason.FLED);
+                }
                 continue;
             }
             if (refresh(player, q)) changed = true;
@@ -384,6 +468,7 @@ public final class QuestEngine {
         for (Quest q : completed) finish(player, q);
 
         QuestTriggers.check(player, data);
+        com.beyondsolo.quest.situation.Situations.tick(player, data);
     }
 
     /** The player died: emergencies they were in fail. */

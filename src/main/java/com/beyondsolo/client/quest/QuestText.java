@@ -7,6 +7,7 @@ import com.beyondsolo.quest.ObjectiveType;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestCategory;
 import com.beyondsolo.quest.QuestEvent;
+import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.QuestPenalty;
 import com.beyondsolo.quest.QuestRewards;
 import net.minecraft.network.chat.Component;
@@ -29,6 +30,7 @@ public final class QuestText {
             case EMERGENCY -> Icons.of(SystemNotification.Kind.ALERT);
             case NPC -> Icons.MEDAL;
             case GATE -> Icons.DIAMOND;
+            case SECRET -> Icons.KEY;
         };
     }
 
@@ -50,6 +52,7 @@ public final class QuestText {
             case FLED -> Icons.RUN;
             case ABANDONED -> Icons.EYE_OFF;
             case LOST -> Icons.HEART_BREAK;
+            case BROKEN -> Icons.CHAIN;
         };
     }
 
@@ -94,6 +97,36 @@ public final class QuestText {
         if (p.isNone()) return Component.translatable("quest.beyondsolo.penalty.none");
         if (p.zone()) return Component.translatable("quest.beyondsolo.penalty.zone");
         return Component.translatable("quest.beyondsolo.penalty", Math.round(p.exhaustion()), p.debuffSeconds());
+    }
+
+    /**
+     * An objective's counter as its display asks: "3/10", "35%", the seconds left of a hold ("0:42"), a health share,
+     * or nothing at all (a plain line, a rule).
+     */
+    public static String count(QuestObjective o) {
+        return switch (o.display()) {
+            case COUNT -> o.progress() + "/" + o.required();
+            case PERCENT, HEALTH -> Math.round(100f * o.progress() / Math.max(1, o.required())) + "%";
+            case CLOCK -> clock(20L * Math.max(0, o.required() - o.progress()));
+            case NONE, RULE -> "";
+        };
+    }
+
+    /** The icon of an objective's line: a rule is a shield, a watched health a heart, a hold an hourglass. */
+    public static ResourceLocation icon(QuestObjective o) {
+        return switch (o.display()) {
+            case RULE -> Icons.SHIELD;
+            case HEALTH -> Icons.HEART;
+            case CLOCK -> Icons.HOURGLASS;
+            default -> icon(o.type());
+        };
+    }
+
+    /** The colour a watched health bar is drawn in: green, then amber, then red as it falls. */
+    public static int healthColor(float fraction) {
+        if (fraction > 0.6f) return 0xFF6FE38A;
+        if (fraction > 0.3f) return 0xFFFFC14D;
+        return 0xFFFF5D6C;
     }
 
     /** m:ss, or h:mm:ss for long clocks. */

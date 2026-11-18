@@ -27,7 +27,7 @@ public final class Quest {
     private final Component title;
     private final Component description;
     private final List<QuestObjective> objectives;
-    private final QuestRewards rewards;
+    private QuestRewards rewards;
     private final QuestPenalty penalty;
     private final int timeLimit;
     @Nullable private final QuestArea area;
@@ -35,6 +35,11 @@ public final class Quest {
     @Nullable private QuestGiver giver;
     /** Data the module that made the quest keeps on it (an escort's traveller, whether a nest was spawned...). */
     private final CompoundTag extra = new CompoundTag();
+    /**
+     * How it ended, in the System's words ("It fell.", "You got away."), shown on the quest's completed or failed moment
+     * in place of the plain reason. Null until a situation sets it.
+     */
+    @Nullable private Component outcome;
     private Status status;
     /** Game time the quest runs out, or -1. Set when it becomes active. */
     private long deadline = -1;
@@ -82,15 +87,42 @@ public final class Quest {
     public long offerExpires() { return offerExpires; }
     public boolean isForced() { return category == QuestCategory.EMERGENCY; }
 
+    /** How it ended, if a situation said so (see {@link #outcome}). */
+    @Nullable public Component outcome() { return outcome; }
+
+    /** What it pays turns out different from what was promised (a survival won by running pays less). */
+    void replaceRewards(QuestRewards rewards) {
+        this.rewards = rewards;
+    }
+
+    /** Says in advance how the quest will have ended if it completes or fails next (a situation sets this). */
+    public void setOutcome(@Nullable Component outcome) {
+        this.outcome = outcome;
+    }
+
+    /**
+     * Every objective that counts is done. Lines that only watch or rule (a creature's health, "Stay alive") don't count,
+     * and a quest made only of those never completes by itself: the situation that made it decides when it is over.
+     */
     public boolean isComplete() {
-        for (QuestObjective o : objectives) if (!o.done()) return false;
-        return true;
+        boolean any = false;
+        for (QuestObjective o : objectives) {
+            if (!o.counts()) continue;
+            if (!o.done()) return false;
+            any = true;
+        }
+        return any;
     }
 
     public float fraction() {
         float sum = 0;
-        for (QuestObjective o : objectives) sum += o.fraction();
-        return objectives.isEmpty() ? 1 : sum / objectives.size();
+        int n = 0;
+        for (QuestObjective o : objectives) {
+            if (!o.counts()) continue;
+            sum += o.fraction();
+            n++;
+        }
+        return n == 0 ? 1 : sum / n;
     }
 
     void activate(long gameTime) {
@@ -140,6 +172,7 @@ public final class Quest {
         tag.putLong("offerExpires", offerExpires);
         if (giver != null) tag.put("giver", giver.save(provider));
         if (!extra.isEmpty()) tag.put("extra", extra.copy());
+        if (outcome != null) tag.putString("outcome", Component.Serializer.toJson(outcome, provider));
         return tag;
     }
 
@@ -161,6 +194,7 @@ public final class Quest {
         q.offerExpires = tag.getLong("offerExpires");
         if (tag.contains("giver")) q.giver = QuestGiver.load(tag.getCompound("giver"), provider);
         q.extra.merge(tag.getCompound("extra"));
+        if (tag.contains("outcome")) q.outcome = readComponent(tag.getString("outcome"), provider);
         return q;
     }
 

@@ -36,13 +36,18 @@ import java.util.List;
  *   the objectives tick off and the rewards pop in with their numbers counting up.</li>
  *   <li><b>Failed</b>: the screen flashes red, the window snaps open and shakes, the header glitches, the title is
  *   struck through and the penalty types out; then it drops away.</li>
+ *   <li><b>Changed</b>: the situation turned and the System rewrites the quest: the old title is struck out, the new
+ *   one types in under it with its objectives, what the old one paid on the way (if anything) shows as banked, and
+ *   the window flies into the tracker like a new quest.</li>
  * </ul>
+ * Completed and failed windows carry the outcome line a situation gave them ("You got away. It will remember you.").
  * The hide key skips to the end of the current one.
  */
 public final class QuestOverlay {
-    public enum Moment { ACCEPTED, COMPLETED, FAILED }
+    public enum Moment { ACCEPTED, COMPLETED, FAILED, BRANCHED }
 
-    private record Entry(Moment moment, Quest quest, int detail) {}
+    /** {@code previous}: for a changed quest, what it was before. */
+    private record Entry(Moment moment, Quest quest, int detail, @org.jetbrains.annotations.Nullable Quest previous) {}
 
     private static final Deque<Entry> QUEUE = new ArrayDeque<>();
     private static final float WIDTH = 236;
@@ -53,7 +58,11 @@ public final class QuestOverlay {
     private static boolean stampPlayed;
 
     public static void push(Moment moment, Quest quest, int detail) {
-        QUEUE.addLast(new Entry(moment, quest, detail));
+        push(moment, quest, detail, null);
+    }
+
+    public static void push(Moment moment, Quest quest, int detail, @org.jetbrains.annotations.Nullable Quest previous) {
+        QUEUE.addLast(new Entry(moment, quest, detail, previous));
     }
 
     public static boolean active() {
@@ -67,10 +76,15 @@ public final class QuestOverlay {
 
     /** True while a quest's "accepted" moment is waiting or playing, so the tracker can let it land first. */
     public static boolean isIncoming(java.util.UUID id) {
-        if (current != null && current.moment == Moment.ACCEPTED && current.quest.id().equals(id)
+        if (current != null && flies(current.moment) && current.quest.id().equals(id)
                 && Anim.since(startedAt) < duration(current) - EXIT * 0.4f) return true;
-        for (Entry e : QUEUE) if (e.moment == Moment.ACCEPTED && e.quest.id().equals(id)) return true;
+        for (Entry e : QUEUE) if (flies(e.moment) && e.quest.id().equals(id)) return true;
         return false;
+    }
+
+    /** Moments that end by flying into the tracker (the quest is the player's from then on). */
+    private static boolean flies(Moment m) {
+        return m == Moment.ACCEPTED || m == Moment.BRANCHED;
     }
 
     private static float duration(Entry e) {
@@ -78,6 +92,7 @@ public final class QuestOverlay {
             case ACCEPTED -> 3.6f;
             case COMPLETED -> 4.2f;
             case FAILED -> 3.6f;
+            case BRANCHED -> 3.3f;
         };
     }
 
@@ -99,6 +114,8 @@ public final class QuestOverlay {
                         current.quest.isForced() ? 0.7f : 1.3f, 0.6f);
                 case COMPLETED -> sound(SoundEvents.AMETHYST_BLOCK_RESONATE, 1.0f, 0.6f);
                 case FAILED -> sound(SoundEvents.NOTE_BLOCK_BASS.value(), 0.5f, 0.8f);
+                case BRANCHED -> sound(current.quest.isForced() ? SoundEvents.NOTE_BLOCK_BIT.value() : SoundEvents.NOTE_BLOCK_PLING.value(),
+                        current.quest.isForced() ? 0.9f : 1.4f, 0.55f);
             }
         }
     }
@@ -134,7 +151,7 @@ public final class QuestOverlay {
         int guiH = g.guiHeight();
         Quest q = e.quest;
         int accent = switch (e.moment) {
-            case ACCEPTED -> q.category() == QuestCategory.SET ? SystemTheme.ACCENT : q.category().color();
+            case ACCEPTED, BRANCHED -> q.category() == QuestCategory.SET ? SystemTheme.ACCENT : q.category().color();
             case COMPLETED -> SystemTheme.GOLD;
             case FAILED -> SystemTheme.DANGER;
         };
@@ -152,7 +169,7 @@ public final class QuestOverlay {
                 Shapes.box(0, 0, guiW, guiH).fill(Gfx.alpha(0xFF3A0008, 0.35f * flash * live)).draw(g);
                 Shapes.vignette(0, 0, guiW, guiH, 0.15f, 1.3f).fill(Gfx.alpha(0xFF9A0F20, (0.25f + 0.5f * flash + 0.08f * Anim.pulse(0.9f)) * live)).draw(g);
             }
-            case ACCEPTED -> {
+            case ACCEPTED, BRANCHED -> {
                 if (q.isForced()) {
                     float pulse = Anim.pulse(0.55f);
                     Shapes.vignette(0, 0, guiW, guiH, 0.2f, 1.35f).fill(Gfx.alpha(0xFFB01226, (0.18f + 0.22f * pulse) * live)).draw(g);
@@ -166,13 +183,16 @@ public final class QuestOverlay {
         // ---- layout
         List<QuestObjective> objectives = q.objectives();
         List<QuestText.Reward> rewards = QuestText.rewards(q);
-        List<SysFont.Line> desc = e.moment == Moment.ACCEPTED ? SysFont.wrap(q.description(), 7.5f, false, WIDTH - 36) : List.of();
-        if (desc.size() > 3) desc = desc.subList(0, 3);
+        List<SysFont.Line> desc = flies(e.moment) ? SysFont.wrap(q.description(), 7.5f, false, WIDTH - 36) : List.of();
+        int maxDesc = e.moment == Moment.BRANCHED ? 2 : 3;
+        if (desc.size() > maxDesc) desc = desc.subList(0, maxDesc);
         float rowH = 13;
         float h = 52 + desc.size() * 7.5f * SysFont.LINE + (desc.isEmpty() ? 0 : 5) + objectives.size() * rowH + 8;
         if (e.moment == Moment.COMPLETED && !rewards.isEmpty()) h += 30;
+        if (e.moment == Moment.COMPLETED && q.outcome() != null) h += 13;
         if (e.moment == Moment.FAILED) h += 36;
-        if (e.moment == Moment.ACCEPTED) h += 16;
+        if (flies(e.moment)) h += 16;
+        if (e.moment == Moment.BRANCHED) h += 12 + (e.detail == 1 && e.previous != null ? 12 : 0);
         float x = (guiW - WIDTH) / 2f;
         float y = Math.max(24, guiH * 0.22f);
         float cx = guiW / 2f;
@@ -182,7 +202,7 @@ public final class QuestOverlay {
         float oldAlpha = Gfx.alpha();
         if (exitK > 0) {
             switch (e.moment) {
-                case ACCEPTED -> {
+                case ACCEPTED, BRANCHED -> {
                     // fold up and fly into the tracker
                     float k = Anim.inOutCubic(exitK);
                     float tx = QuestTracker.anchorX();
@@ -209,7 +229,7 @@ public final class QuestOverlay {
         // ---- shake
         float shake = 0;
         if (e.moment == Moment.FAILED) shake = (float) Math.sin(t * 58) * 6f * (float) Math.exp(-t * 4.5f) * Anim.window(t, 0.18f, 0.2f);
-        if (e.moment == Moment.ACCEPTED && q.isForced()) shake = (float) Math.sin(t * 50) * 3f * (float) Math.exp(-t * 5f);
+        if (flies(e.moment) && q.isForced()) shake = (float) Math.sin(t * 50) * 3f * (float) Math.exp(-t * 5f);
         x += shake;
         cx += shake;
 
@@ -274,8 +294,9 @@ public final class QuestOverlay {
         // ---- header label: letters close in
         String header = Component.translatable(switch (e.moment) {
             case ACCEPTED -> q.isForced() ? "quest.beyondsolo.moment.emergency" : "quest.beyondsolo.moment.accepted";
-            case COMPLETED -> "quest.beyondsolo.moment.completed";
+            case COMPLETED -> q.category() == QuestCategory.SECRET ? "quest.beyondsolo.moment.secret" : "quest.beyondsolo.moment.completed";
             case FAILED -> "quest.beyondsolo.moment.failed";
+            case BRANCHED -> "quest.beyondsolo.moment.changed";
         }).getString();
         float hk = Anim.outCubic(Anim.window(t, 0.32f, 0.85f));
         float tracking = Anim.lerp(5f, 2.2f, hk);
@@ -307,11 +328,31 @@ public final class QuestOverlay {
             Gfx.setAlpha(oldC);
         }
 
+        // ---- a changed quest: what it was, struck out
+        float ty = y + 46;
+        float typeFrom = 0.5f;
+        if (e.moment == Moment.BRANCHED) {
+            Quest was = e.previous;
+            float wk = Anim.outCubic(Anim.window(t, 0.4f, 0.6f));
+            if (was != null && wk > 0) {
+                float oldW = Gfx.fade(wk);
+                SysFont.Line old = SysFont.line(was.title(), 8.5f, true);
+                SysFont.draw(g, old, cx - old.width() / 2f, ty - 1, Gfx.alpha(SystemTheme.TEXT_DIM, 0.9f), 0f);
+                float sk = Anim.inOutCubic(Anim.window(t, 0.55f, 0.8f));
+                if (sk > 0) {
+                    float sw = old.width() + 8;
+                    Shapes.pill(cx - sw / 2f, ty + 2.4f, sw * sk, 1.2f).fill(Gfx.alpha(accent, 0.9f)).glow(3, Gfx.alpha(accent, 0.6f)).draw(g);
+                }
+                Gfx.setAlpha(oldW);
+            }
+            ty += 12;
+            typeFrom = 0.8f;
+        }
+
         // ---- title: types itself out
         SysFont.Line title = SysFont.line(q.title(), 12.5f, true);
         int total = SysFont.length(title);
-        int visible = Math.round(total * Anim.window(t, 0.5f, 0.5f + Math.min(0.6f, total * 0.03f)));
-        float ty = y + 46;
+        int visible = Math.round(total * Anim.window(t, typeFrom, typeFrom + Math.min(0.6f, total * 0.03f)));
         if (visible > 0) {
             // anchored on the left of where the full title will sit, so it doesn't slide while it types
             float left = cx - title.width() / 2f;
@@ -355,17 +396,19 @@ public final class QuestOverlay {
             float oldO = Gfx.fade(k);
             float ox = x + 18 - (1 - k) * 18;
             float oy = rowY + i * rowH;
-            boolean done = e.moment == Moment.COMPLETED || o.done();
-            int rowColor = done ? SystemTheme.GOOD : e.moment == Moment.FAILED ? SystemTheme.DANGER : SystemTheme.ACCENT;
+            boolean health = o.display() == QuestObjective.Display.HEALTH;
+            boolean done = !health && (e.moment == Moment.COMPLETED || o.done() && o.counts());
+            int rowColor = health ? QuestText.healthColor(o.fraction()) : done ? SystemTheme.GOOD : e.moment == Moment.FAILED ? SystemTheme.DANGER
+                    : o.display() == QuestObjective.Display.RULE ? SystemTheme.GOLD : SystemTheme.ACCENT;
             if (done && e.moment == Moment.COMPLETED) {
                 float pop = Anim.outBackStrong(Anim.window(t, start + 0.1f, start + 0.4f));
                 Shapes.circle(ox + 4, oy + 4.5f, 4.6f * pop).fillV(Gfx.alpha(SystemTheme.GOOD, 0.4f), Gfx.alpha(SystemTheme.GOOD, 0.15f)).border(0.75f, SystemTheme.GOOD).draw(g);
                 Shapes.icon(Icons.CHECK, ox + 4, oy + 4.5f, 7 * pop).fill(0xFFE8FFE8).glow(2, Gfx.alpha(SystemTheme.GOOD, 0.7f)).draw(g);
             } else {
-                Shapes.icon(QuestText.icon(o.type()), ox + 4, oy + 4.5f, 8).fill(Gfx.mix(rowColor, 0xFFFFFFFF, 0.3f)).glow(2, Gfx.alpha(rowColor, 0.4f)).draw(g);
+                Shapes.icon(QuestText.icon(o), ox + 4, oy + 4.5f, 8).fill(Gfx.mix(rowColor, 0xFFFFFFFF, 0.3f)).glow(2, Gfx.alpha(rowColor, 0.4f)).draw(g);
             }
-            String count = (e.moment == Moment.COMPLETED ? o.required() : o.progress()) + "/" + o.required();
-            float countW = SysFont.width(count, 7.5f, true);
+            String count = e.moment == Moment.COMPLETED && o.counts() ? finished(o) : QuestText.count(o);
+            float countW = count.isEmpty() ? 0 : SysFont.width(count, 7.5f, true);
             String label = SysFont.fit(o.label().getString(), 8f, false, WIDTH - 36 - countW - 22);
             SysFont.text(g, label, ox + 12, oy + 1, 8f, done ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT);
             SysFont.draw(g, count, x + WIDTH - 18, oy + 1.5f, 7.5f, Gfx.mix(rowColor, 0xFFFFFFFF, 0.25f), true, 1f);
@@ -374,7 +417,7 @@ public final class QuestOverlay {
         rowY += objectives.size() * rowH + 4;
 
         switch (e.moment) {
-            case ACCEPTED -> {
+            case ACCEPTED, BRANCHED -> {
                 // time limit and what it pays
                 float k = Anim.outCubic(Anim.window(t, 1.1f, 1.5f));
                 float oldA = Gfx.fade(k);
@@ -385,13 +428,33 @@ public final class QuestOverlay {
                 SysFont.draw(g, SysFont.fit(text, 7f, true, WIDTH - 30), x + WIDTH / 2f, rowY, 7f,
                         q.timeLimit() > 0 && q.isForced() ? Gfx.mix(SystemTheme.DANGER, 0xFFFFFFFF, 0.3f) : SystemTheme.GOLD, true, 0.5f);
                 Gfx.setAlpha(oldA);
+                if (e.moment == Moment.BRANCHED && e.detail == 1 && e.previous != null) {
+                    // what the old quest paid on the way
+                    float bk = Anim.outCubic(Anim.window(t, 1.3f, 1.6f));
+                    float oldB = Gfx.fade(bk);
+                    String banked = Component.translatable("quest.beyondsolo.banked", QuestText.rewardsLine(e.previous)).getString();
+                    SysFont.draw(g, SysFont.fit(banked, 6.8f, true, WIDTH - 30), x + WIDTH / 2f, rowY + 12, 6.8f, Gfx.mix(SystemTheme.GOOD, 0xFFFFFFFF, 0.25f), true, 0.5f);
+                    Gfx.setAlpha(oldB);
+                }
             }
-            case COMPLETED -> drawRewards(g, t, x, rowY, rewards);
+            case COMPLETED -> {
+                if (q.outcome() != null) {
+                    // how it ended, in the System's words
+                    float ok = Anim.outCubic(Anim.window(t, 1.0f, 1.3f));
+                    float oldO = Gfx.fade(ok);
+                    SysFont.draw(g, SysFont.fit(q.outcome().getString(), 7.5f, false, WIDTH - 30), x + WIDTH / 2f, rowY, 7.5f,
+                            Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.45f), false, 0.5f);
+                    Gfx.setAlpha(oldO);
+                    rowY += 13;
+                }
+                drawRewards(g, t, x, rowY, rewards);
+            }
             case FAILED -> {
                 QuestEvent.FailReason reason = QuestEvent.FailReason.values()[Math.floorMod(e.detail, QuestEvent.FailReason.values().length)];
                 float k = Anim.outCubic(Anim.window(t, 1.2f, 1.5f));
                 float oldF = Gfx.fade(k);
-                SysFont.draw(g, reason.describe(), x + WIDTH / 2f, rowY, 8f, SystemTheme.TEXT, true, 0.5f);
+                Component why = q.outcome() != null ? q.outcome() : reason.describe();
+                SysFont.draw(g, SysFont.fit(why.getString(), 8f, true, WIDTH - 24), x + WIDTH / 2f, rowY, 8f, SystemTheme.TEXT, true, 0.5f);
                 Gfx.setAlpha(oldF);
                 // the penalty types out
                 SysFont.Line pen = SysFont.line(QuestText.penaltyLine(reason == QuestEvent.FailReason.ABANDONED ? q.penalty().scaled(0.5f) : q.penalty()), 7.5f, false);
@@ -400,6 +463,16 @@ public final class QuestOverlay {
                 if (pv > 0) SysFont.draw(g, pv >= pt ? pen : SysFont.truncate(pen, pv), x + WIDTH / 2f, rowY + 12, Gfx.mix(SystemTheme.DANGER, 0xFFFFFFFF, 0.35f), 0.5f);
             }
         }
+    }
+
+    /** An objective's counter as it reads once the quest is done: full. */
+    private static String finished(QuestObjective o) {
+        return switch (o.display()) {
+            case COUNT -> o.required() + "/" + o.required();
+            case PERCENT -> "100%";
+            case CLOCK -> QuestText.clock(0);
+            default -> "";
+        };
     }
 
     /** Reward chips popping in one by one, numbers counting up. */
@@ -473,6 +546,14 @@ public final class QuestOverlay {
                 if (k > 0.9f && !stampPlayed) {
                     stampPlayed = true;
                     sound(SoundEvents.ANVIL_LAND, 0.6f, 0.25f);
+                }
+            }
+            case BRANCHED -> {
+                k = Anim.outBackStrong(Anim.window(t, 0.25f, 0.55f));
+                icon = Icons.SPIRAL;
+                if (k > 0.5f && !stampPlayed) {
+                    stampPlayed = true;
+                    sound(SoundEvents.NOTE_BLOCK_CHIME.value(), q.isForced() ? 0.7f : 1.25f, 0.45f);
                 }
             }
             default -> {

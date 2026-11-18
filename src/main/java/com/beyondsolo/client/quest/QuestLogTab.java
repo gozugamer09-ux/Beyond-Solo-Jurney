@@ -191,14 +191,27 @@ public class QuestLogTab implements SystemTab {
         SysFont.spaced(g, Component.translatable("quests.beyondsolo.objectives").getString(), px, cy, 6f, SystemTheme.ACCENT, true, 1.4f, 0f);
         cy += 9;
         for (QuestObjective o : q.objectives()) {
-            boolean done = o.done();
+            QuestObjective.Display shown = o.display();
+            boolean done = o.done() && o.counts();
+            int hc = QuestText.healthColor(o.fraction());
+            int rule = Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.2f);
             if (done) Shapes.icon(Icons.CHECK, px + 4, cy + 3.5f, 7.5f).fill(SystemTheme.GOOD).glow(2, Gfx.alpha(SystemTheme.GOOD, 0.5f)).draw(g);
-            else Shapes.icon(QuestText.icon(o.type()), px + 4, cy + 3.5f, 7.5f).fill(Gfx.alpha(SystemTheme.TEXT_SOFT, 0.9f)).draw(g);
-            String count = o.progress() + " / " + o.required();
-            float cw = SysFont.width(count, 7f, true);
-            SysFont.text(g, SysFont.fit(o.label().getString(), 7.5f, false, pw - 16 - cw - 6), px + 12, cy, 7.5f, done ? SystemTheme.GOOD : SystemTheme.TEXT);
-            SysFont.draw(g, count, px + pw, cy + 0.5f, 7f, done ? SystemTheme.GOOD : SystemTheme.TEXT_SOFT, true, 1f);
-            Ui.bar(g, px + 12, cy + 9, pw - 12, 2f, o.fraction(), done ? 0xFF3FAF6A : SystemTheme.MP_A, done ? SystemTheme.GOOD : SystemTheme.MP_B);
+            else if (shown == QuestObjective.Display.HEALTH) Shapes.icon(Icons.HEART, px + 4, cy + 3.5f, 7.5f).fill(hc).draw(g);
+            else if (shown == QuestObjective.Display.RULE) Shapes.icon(Icons.SHIELD, px + 4, cy + 3.5f, 7.5f).fill(rule).draw(g);
+            else Shapes.icon(QuestText.icon(o), px + 4, cy + 3.5f, 7.5f).fill(Gfx.alpha(SystemTheme.TEXT_SOFT, 0.9f)).draw(g);
+            String count = QuestText.count(o);
+            float cw = count.isEmpty() ? 0 : SysFont.width(count, 7f, true);
+            int labelColor = done ? SystemTheme.GOOD : shown == QuestObjective.Display.RULE ? rule : SystemTheme.TEXT;
+            SysFont.text(g, SysFont.fit(o.label().getString(), 7.5f, false, pw - 16 - cw - 6), px + 12, cy, 7.5f, labelColor);
+            if (!count.isEmpty()) {
+                int countColor = done ? SystemTheme.GOOD : shown == QuestObjective.Display.HEALTH ? hc : SystemTheme.TEXT_SOFT;
+                SysFont.draw(g, count, px + pw, cy + 0.5f, 7f, countColor, true, 1f);
+            }
+            if (shown == QuestObjective.Display.HEALTH) {
+                Ui.bar(g, px + 12, cy + 9, pw - 12, 2f, o.fraction(), Gfx.mix(hc, 0xFF000000, 0.35f), hc);
+            } else if (shown != QuestObjective.Display.RULE && shown != QuestObjective.Display.NONE) {
+                Ui.bar(g, px + 12, cy + 9, pw - 12, 2f, o.fraction(), done ? 0xFF3FAF6A : SystemTheme.MP_A, done ? SystemTheme.GOOD : SystemTheme.MP_B);
+            }
             cy += 14;
         }
         cy += 2;

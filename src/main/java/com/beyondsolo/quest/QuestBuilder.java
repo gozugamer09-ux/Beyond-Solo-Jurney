@@ -133,6 +133,41 @@ public final class QuestBuilder {
         return objective(ObjectiveType.CUSTOM, key, count, false, label);
     }
 
+    /** A custom objective shown its own way (see {@link QuestObjective.Display}). Counts are taken as given. */
+    public QuestBuilder custom(String key, int count, Component label, QuestObjective.Display display) {
+        objective(ObjectiveType.CUSTOM, key, count, false, label);
+        objectives.get(objectives.size() - 1).shown(display);
+        return this;
+    }
+
+    /** A line with no counter: done when its key is advanced once. */
+    public QuestBuilder line(String key, Component label) {
+        return custom(key, 1, label, QuestObjective.Display.NONE);
+    }
+
+    /** A rule the quest is played under ("Stay alive", "Take no hits"): shown, never counted. */
+    public QuestBuilder rule(Component label) {
+        return custom(RULE_KEY, 1, label, QuestObjective.Display.RULE);
+    }
+
+    /** The key of {@link #rule} lines (nothing advances it). */
+    public static final String RULE_KEY = "beyondsolo:rule";
+
+    /** Hold out for {@code seconds}: the line shows the time left. Advance its key by one each second. */
+    public QuestBuilder hold(String key, int seconds, Component label) {
+        return custom(key, seconds, label, QuestObjective.Display.CLOCK);
+    }
+
+    /**
+     * Someone's health to keep an eye on (a creature the quest is about, a villager to protect), as a bar out of 100.
+     * Only there to be watched: it never holds the quest back. Set it with {@link QuestEngine#setProgress}.
+     */
+    public QuestBuilder watch(String key, Component label, int percent) {
+        custom(key, 100, label, QuestObjective.Display.HEALTH);
+        objectives.get(objectives.size() - 1).setProgress(percent);
+        return this;
+    }
+
     public QuestBuilder objective(ObjectiveType type, String target, int count, boolean areaOnly, Component label) {
         if (label == null) {
             label = type == ObjectiveType.TRAVEL

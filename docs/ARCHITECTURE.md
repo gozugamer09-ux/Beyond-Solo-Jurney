@@ -20,7 +20,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.render` | World rendering: the crystal's renderer, render types, client-only effects |
 | `client.combat` | Combat HUD (rail, enemy meters, damage numbers, screen tints) and world effects |
 | `quest` | Quest engine: quests, templates, rank scaling, progress hooks, triggers (`quest.trigger`) |
-| `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
+| `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab, the mark over a situation's target |
+| `quest.situation` | Situation quests: quests the System makes up from what is happening, that change mid-fight and leave consequences (see "Situation quests") |
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
 | `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
@@ -301,6 +302,47 @@ wait while one plays, and the hide key skips it. `QuestTracker` is the HUD list 
 `QuestLogTab` replaces the core Quests tab. The moments also land in the Log tab.
 
 `/system quest list|start <id>|offer <id>|trigger <id>|accept|progress <n>|complete|fail|reset` for testing.
+
+## Situation quests
+
+Unscripted quests made up on the spot from what the player runs into (`quest/situation`). A **situation**
+(`Situation`) notices something (`detect`, once a second, or an event), hands out the first quest of a run, keeps
+watching while it lasts (`update`, `killed`, `runEntityDied`, `playerHurt`, `expiring`, `playerDied`) and can
+**branch**: `QuestEngine.branch` rewrites the running quest into the next one in the same slot, optionally paying what
+the old one promised first, and the client plays a "QUEST CHANGED" moment (old title struck out, new one typed in).
+Each quest carries its run in `Quest.extra()` (`Run`: situation, stage, target and its network id, counters, a
+waypoint), so a run survives logging out. Every quest can end with an **outcome** line in the System's words
+(`situation.beyondsolo.outcome.*`), shown on the complete/failed moment and in the log.
+
+| Situation | Starts when | Turns into |
+| --- | --- | --- |
+| `OverwhelmingFoe` ("foe") | a creature hunting you is red-named (ratio 1.5; plain vanilla ones 2.0) | Survive (hold 60 s) → Annihilate when it drops below 40% → It Fights Back (it heals 30% and enrages) if left standing; running away makes it come back later as a **Nemesis**, 20% stronger each time (3 times at most) |
+| `LastStand` | at 25% health with hunters around | Last Stand (hold 20 s) → Second Wind (heal, strength, speed: strike back) |
+| `PackLeader` ("pack") | a champion, elite or patrol leader hunting with followers | Head of the Pack → Rout the Pack once the leader falls (the rest falter) |
+| `ProtectVillager` ("protect") | a monster hurts a villager near you | Protect the Villager → Avenge Them if they die; saving them is remembered (gossip, emeralds), walking away too |
+| `DefendVillage` ("raid") | a raid near you | Defend the Village (waves) → The Final Wave |
+| `BeyondRank` | entering a gate above your rank | Beyond Your Rank → Retreat when you fall under 30% |
+| `Streaks.Untouchable` / `Streaks.Frenzy` | clean kills in a row / kills in quick succession | three tiers each, paid as they go; a hit (or the clock) ends it, banked tiers stay paid |
+| `CatchBreath` | badly hurt after a fight, nothing hunting you | rest 15 s for regeneration, absorption and mana |
+| `Cure` | a zombie villager in sight (offered) | Cure it → Keep It Safe while it converts |
+| `Places.SilentCity` / `Outpost` / `Ruins` | inside an ancient city, a pillager outpost, ruins or a temple (offered) | loot quietly → It Has Awoken (the warden); clear it → Counterattack (hold the outpost); search → its guardian rises |
+| `Revenge` | a creature at least your match killed you (offered after respawning) | Unfinished Business: it waits where you fell, marked until it is dead |
+
+Rules (`Situations`): one emergency at a time; one calmer situation at a time and a gap after one ends
+(`situations.minGapSeconds`); a cooldown per situation; nothing in the Penalty Zone, a job trial or a red gate
+(`QuestTriggers.quiet`). **Follow-ups** (`FollowUps`, saved in `SituationData`, attachment `SITUATIONS`) are what
+comes back later: a nemesis, a revenge offer. A handler that can't happen yet is asked again a minute later.
+**Secret quests** (`Secrets`, category `SECRET`) are never announced: brave or unusual deeds (a far stronger kill, a
+whole raid, an untouched gate, a lone clear above your rank, a nemesis, a finished streak, a silent city plundered)
+reveal them already complete, paid once, with a title for a hunter who has none. Settings live in
+`beyondsolo-situations.toml` (`SituationConfig`).
+
+On the client, `SituationMarkers` locks brackets onto a situation's target (a green ward for someone to keep alive)
+with its health as an arc, `NpcMarkers` shows a situation's marked spot as a waypoint, and the tracker draws health
+rows (heart, coloured bar) and rules (gold shield) of the new objective shapes (`QuestObjective.Display`).
+
+`/system situation list|start <situation>|follow [kind]|secret <id>|watch|clear` starts one from what is around you,
+brings a waiting follow-up forward, reveals a secret, shows what the System has noticed, or resets it all.
 
 ## Villager requests
 
@@ -1239,6 +1281,13 @@ checks use zombies.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
 `test/DepthsGameTests` (in the original cave of each gate's rank, so every run tests the same) covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
 `test/RedGateGameTests` covers: about one gate in sixteen waiting to turn red (always the same answer; never a trial or a keyed gate; a defused one never, a forced one always), what waits inside being one or two ranks up with a master of that rank and only our own frost-touched creatures, the payload's round trip, someone without the System defusing it for good, entering (the gate turning red, arriving by the red way out with the emergency quest, the break clock held, sealing, the way out and the gate turning hunters back, ending), the master's fall (the seal broken, a red cache, the clear paid and on the record, the way out letting them go, the gate closing), the clock running faster, nights bringing raids of angrier creatures after the hunter that go at dawn, the cold biting in the open at night and a fire warming, and the last hunter falling (quest failed, the red fading, an ordinary gate at its last minute before it breaks).
+`test/SituationGameTests` covers: surviving a far stronger creature turning into Annihilate in the same slot when it
+breaks and paying more, fleeing making it withdraw and come back later as a stronger Nemesis (and its death revealing a
+secret), the last stand paying on the spot and turning into a second wind, resting being broken by a blow and healing
+when quiet (and the gap and one-calm-at-a-time rules), the Untouchable streak moving up a tier and keeping what it paid
+when a hit breaks it, a Frenzy fading after a tier counting as done, saving a villager (emeralds, gossip) and hunting
+down its killer, secret quests revealed once (and no secret for an ordinary kill), and follow-ups waiting their turn
+and being retried.
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.

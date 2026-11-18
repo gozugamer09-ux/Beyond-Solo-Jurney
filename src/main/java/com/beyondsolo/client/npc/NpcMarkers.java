@@ -18,6 +18,7 @@ import com.beyondsolo.npc.NpcService;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestArea;
 import com.beyondsolo.quest.QuestCategory;
+import com.beyondsolo.quest.situation.Run;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -26,6 +27,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -134,7 +136,7 @@ public final class NpcMarkers {
             float bob = (float) Math.sin(Anim.now() * 2.2) * 1.2f;
             Shapes.pill(p[0] - tw / 2f, p[1] - 6 + bob, tw, 12).fillV(Gfx.alpha(0xFF0A1428, 0.82f), Gfx.alpha(0xFF050A16, 0.82f))
                     .border(0.8f, Gfx.alpha(color, 0.8f)).glow(4, Gfx.alpha(color, 0.3f)).draw(g);
-            Shapes.icon(NpcBoardScreen.kindIcon(NpcQuestKind.byTemplate(q.template())), p[0] - tw / 2f + 7, p[1] + bob, 7).fill(Gfx.mix(color, 0xFFFFFFFF, 0.4f)).draw(g);
+            Shapes.icon(waypointIcon(q), p[0] - tw / 2f + 7, p[1] + bob, 7).fill(Gfx.mix(color, 0xFFFFFFFF, 0.4f)).draw(g);
             SysFont.draw(g, text, p[0] - tw / 2f + 13, SysFont.centerY(p[1] - 6 + bob, 12, 6.5f), 6.5f, SystemTheme.TEXT, true, 0f);
             Gfx.setAlpha(old);
         }
@@ -202,10 +204,23 @@ public final class NpcMarkers {
         Gfx.setAlpha(old);
     }
 
-    /** The place an active request points at (bottom centre), or null. */
+    /**
+     * The place an active quest points at (bottom centre), or null: a villager request's place, or the spot a situation
+     * marked (where a raid is, where a killer waits). A situation's target close by gets its own mark instead.
+     */
     public static Vec3 waypoint(Quest q) {
         Minecraft mc = Minecraft.getInstance();
-        if (q.category() != QuestCategory.NPC || q.status() != Quest.Status.ACTIVE || mc.level == null) return null;
+        if (q.status() != Quest.Status.ACTIVE || mc.level == null) return null;
+        if (q.extra().contains(Run.WAYPOINT)) {
+            if (!mc.level.dimension().location().toString().equals(q.extra().getString(Run.WAYPOINT_DIM))) return null;
+            Vec3 at = Vec3.atBottomCenterOf(BlockPos.of(q.extra().getLong(Run.WAYPOINT)));
+            if (q.extra().contains(Run.TARGET_ID) && mc.player != null) {
+                Entity target = mc.level.getEntity(q.extra().getInt(Run.TARGET_ID));
+                if (target != null && target.isAlive() && target.distanceToSqr(mc.player) < 32 * 32) return null;
+            }
+            return at;
+        }
+        if (q.category() != QuestCategory.NPC) return null;
         QuestArea area = q.area();
         if (area == null || !area.dimension().equals(mc.level.dimension())) return null;
         NpcQuestKind kind = NpcQuestKind.byTemplate(q.template());
@@ -214,15 +229,27 @@ public final class NpcMarkers {
     }
 
     private static String kindKey(Quest q) {
+        if (q.extra().contains(Run.SITUATION)) return "situation";
         NpcQuestKind k = NpcQuestKind.byTemplate(q.template());
         return k == null ? "place" : k.name().toLowerCase();
     }
 
     private static int waypointColor(Quest q) {
+        if (q.extra().contains(Run.SITUATION)) return q.category().color();
         NpcQuestKind k = NpcQuestKind.byTemplate(q.template());
         if (k == NpcQuestKind.CLEAR) return 0xFFFF5D6C;
         if (k == NpcQuestKind.DELIVER) return SystemTheme.GOLD;
         return SystemTheme.ACCENT;
+    }
+
+    private static ResourceLocation waypointIcon(Quest q) {
+        if (q.extra().contains(Run.SITUATION)) return q.extra().contains(Run.TARGET) ? Icons.SKULL : Icons.FLAG;
+        return NpcBoardScreen.kindIcon(NpcQuestKind.byTemplate(q.template()));
+    }
+
+    /** How wide a waypoint's ground circle is: a request's area, or a few blocks for a situation's spot. */
+    private static float radius(Quest q) {
+        return q.area() != null && !q.extra().contains(Run.WAYPOINT) ? q.area().radius() : 4;
     }
 
     // ------------------------------------------------------------------ world: columns of light and ground circles
@@ -241,7 +268,7 @@ public final class NpcMarkers {
             if (at == null) continue;
             any = true;
             int rgb = waypointColor(q) & 0xFFFFFF;
-            float radius = q.area().radius();
+            float radius = radius(q);
             double dist = Math.sqrt(at.distanceToSqr(cam));
             float near = Mth.clamp((float) (dist - 4) / 10f, 0.25f, 1f);
             pose.pushPose();
