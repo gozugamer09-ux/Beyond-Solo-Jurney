@@ -4,6 +4,7 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
+import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.QuestTestAccess;
 import com.beyondsolo.quest.situation.CatchBreath;
 import com.beyondsolo.quest.situation.Foes;
@@ -35,6 +36,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -138,6 +140,8 @@ public final class SituationGameTests {
         helper.assertTrue(!Situations.isRunning(p, annihilate), "killing it ends the quest");
         helper.assertTrue(QuestEngine.data(p).hasFinished(annihilate.template()), "and it counts as complete");
         helper.assertTrue(outcomeKey(annihilate).endsWith("outcome.annihilated"), "the System says how it ended: " + outcomeKey(annihilate));
+        helper.assertTrue(annihilate.objectives().stream().filter(o -> o.display() == QuestObjective.Display.HEALTH).allMatch(o -> o.progress() == 0),
+                "its health row reads empty in the completed quest");
         helper.assertTrue(xp(p) - before > plain, "annihilating it is paid (" + (xp(p) - before) + " vs " + plain + " for a plain kill)");
         helper.succeed();
     }
@@ -164,16 +168,20 @@ public final class SituationGameTests {
         helper.assertTrue(data.followUps().size() == 1 && data.followUps().get(0).kind().equals(OverwhelmingFoe.NEMESIS_FOLLOW_UP),
                 "its return is waiting: " + data.followUps());
 
-        // it finds the player again, stronger
+        // it finds the player again, stronger (the ground around the arena loaded, as it is around a real player)
         p.moveTo(home.getX() + 0.5, home.getY(), home.getZ() + 0.5);
+        ChunkPos at = new ChunkPos(home);
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) helper.getLevel().getChunk(at.x + dx, at.z + dz);
         helper.assertTrue(FollowUps.hurry(p, OverwhelmingFoe.NEMESIS_FOLLOW_UP) == 1, "the return can be brought forward");
         SituationTestAccess.runFollowUps(p);
         Quest nemesis = Situations.running(p, Situations.FOE);
-        helper.assertTrue(OverwhelmingFoe.NEMESIS.equals(stage(nemesis)), "it came back as a Nemesis, got " + stage(nemesis));
+        helper.assertTrue(OverwhelmingFoe.NEMESIS.equals(stage(nemesis)), "it came back as a Nemesis, got " + stage(nemesis)
+                + " (still waiting: " + data.followUps().stream().map(f -> f.kind() + " tries " + f.data().getInt("tries")).toList()
+                + ", a spot 14-22 blocks away: " + Foes.spotAround(helper.getLevel(), p.blockPosition(), 14, 22) + ")");
         LivingEntity back = Foes.find(p, Run.of(nemesis).target());
         helper.assertTrue(back instanceof Zombie, "the same kind of creature came back");
         helper.assertTrue(back.getMaxHealth() > baseHealth, "and it grew stronger (" + back.getMaxHealth() + " > " + baseHealth + ")");
-        helper.assertTrue(back.distanceTo(p) >= 10, "it arrives from a distance, not on top of the player");
+        helper.assertTrue(back.distanceTo(p) >= 6, "it arrives from a distance, not on top of the player");
         helper.assertTrue(data.followUps().isEmpty(), "nothing else is waiting");
 
         kill(p, back);

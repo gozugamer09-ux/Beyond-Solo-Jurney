@@ -6,6 +6,7 @@ import com.beyondsolo.quest.QuestCategory;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestEvent;
+import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.trigger.QuestTriggers;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.server.level.ServerLevel;
@@ -189,6 +190,13 @@ public final class Situations {
         if (i >= 0) QuestEngine.setProgress(player, q, i, q.objectives().get(i).progress() + amount);
     }
 
+    private static void emptyHealth(ServerPlayer player, Quest q) {
+        for (int i = 0; i < q.objectives().size(); i++) {
+            QuestObjective o = q.objectives().get(i);
+            if (o.display() == QuestObjective.Display.HEALTH && o.progress() > 0) QuestEngine.setProgress(player, q, i, 0);
+        }
+    }
+
     /** The quest is still the player's and still running (it hasn't ended or been rewritten). */
     public static boolean isRunning(ServerPlayer player, Quest q) {
         return q.status() == Quest.Status.ACTIVE && QuestEngine.data(player).all().contains(q);
@@ -269,7 +277,10 @@ public final class Situations {
                     Run run = Run.of(q);
                     if (run == null || q.status() != Quest.Status.ACTIVE) continue;
                     Situation s = byId(run.situation());
-                    if (s != null) s.runEntityDied(p, q, run, dead, event.getSource());
+                    if (s == null) continue;
+                    // what the quest watched has fallen: its health rows read empty in what the player sees next
+                    if (dead.getUUID().equals(run.target())) emptyHealth(p, q);
+                    s.runEntityDied(p, q, run, dead, event.getSource());
                 }
             }
         }
