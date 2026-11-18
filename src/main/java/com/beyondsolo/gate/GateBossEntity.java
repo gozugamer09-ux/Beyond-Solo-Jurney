@@ -131,6 +131,14 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     /** Makes this the boss of a gate: its kind, its rank's stats, its name and colour. */
     public void configure(GateInstance gate) {
         configure(gate.rank(), gate.bossKind(), gate.bossAscended());
+        if (com.beyondsolo.awakening.AwakeningService.holdsTheDoor(gate)) {
+            // fought before the System: an old D-rank boss, whatever the gate's rank
+            getAttribute(Attributes.MAX_HEALTH).setBaseValue(com.beyondsolo.system.Balance.DOOR_BOSS_HEALTH * gate.bossKind().healthScale);
+            getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(com.beyondsolo.system.Balance.DOOR_BOSS_DAMAGE * gate.bossKind().damageScale);
+            getAttribute(Attributes.ARMOR).setBaseValue(6);
+            getAttribute(Attributes.ARMOR_TOUGHNESS).setBaseValue(2);
+            setHealth(getMaxHealth());
+        }
         this.gateId = gate.id();
         getPersistentData().putString(GateService.ELEMENT_TAG, gate.element().id().toString());
         setCustomName(gate.bossName());

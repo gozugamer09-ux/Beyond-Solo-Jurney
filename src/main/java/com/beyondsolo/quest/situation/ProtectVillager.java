@@ -181,7 +181,7 @@ public final class ProtectVillager extends Situation {
             return;
         }
         Component villager = villagerName(player, run);
-        if (Foes.playerBehind(source.getEntity()) == player) {
+        if (Foes.killedBy(player, source, dead)) {
             q.setOutcome(outcome("avenged", villager));
             Situations.set(player, q, KILL, 1);
         } else {

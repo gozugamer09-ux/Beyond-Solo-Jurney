@@ -136,7 +136,7 @@ public final class SkillHooks {
         // Thorned Guard: whoever strikes the guardian in melee is cut in return
         if (target instanceof ServerPlayer guard && attacker instanceof LivingEntity striker && direct == attacker && striker != guard) {
             int thorns = SkillAPI.level(guard, Skills.THORNED_GUARD);
-            if (thorns > 0 && SystemAPI.isAwakened(guard) && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.THORNS)) striker.hurt(guard.damageSources().thorns(guard), 0.5f * thorns);
+            if (thorns > 0 && SystemAPI.isAwakened(guard) && !event.getSource().is(net.minecraft.world.damagesource.DamageTypes.THORNS)) striker.hurt(guard.damageSources().thorns(guard), com.beyondsolo.system.Balance.flatDamage(guard, 0.5f * thorns));
         }
         if (amount != event.getAmount()) event.setAmount(amount);
     }

@@ -83,9 +83,15 @@ public final class EconomyHooks {
     static void onKill(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
         if (dead.level().isClientSide || dead instanceof Player || !(dead instanceof Enemy)) return;
-        if (!(event.getSource().getEntity() instanceof ServerPlayer p) || !SystemAPI.hasSystem(p)) return;
+        if (!(event.getSource().getEntity() instanceof ServerPlayer p)) return;
         long gold = killGold(dead);
-        if (gold > 0) Economy.add(p, gold, Economy.Reason.KILL);
+        if (gold > 0 && SystemAPI.hasSystem(p)) Economy.add(p, gold, Economy.Reason.KILL);
+        // the party members fighting alongside get a part of it
+        long shared = com.beyondsolo.party.Parties.share(gold);
+        if (shared <= 0) return;
+        for (ServerPlayer mate : com.beyondsolo.party.Parties.sharers(p, dead)) {
+            if (SystemAPI.hasSystem(mate)) Economy.add(mate, shared, Economy.Reason.PARTY);
+        }
     }
 
     public static long killGold(LivingEntity dead) {

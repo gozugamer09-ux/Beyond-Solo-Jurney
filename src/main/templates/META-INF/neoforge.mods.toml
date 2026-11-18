@@ -47,6 +47,14 @@ file="META-INF/accesstransformer.cfg"
     ordering="NONE"
     side="BOTH"
 
+# Lifts vanilla's attribute caps (max health 1024, damage 2048): the System's health pools and blows go well past them.
+[[dependencies.${mod_id}]]
+    modId="attributefix"
+    type="required"
+    versionRange="[21.1,)"
+    ordering="NONE"
+    side="BOTH"
+
 # Combat: attack animations and combos (weapons use its data files), and the dodge roll.
 [[dependencies.${mod_id}]]
     modId="bettercombat"

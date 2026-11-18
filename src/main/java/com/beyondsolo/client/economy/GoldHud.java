@@ -73,8 +73,16 @@ public final class GoldHud {
         return Component.translatable("gold.beyondsolo.reason." + r.name().toLowerCase(java.util.Locale.ROOT)).getString();
     }
 
+    /** Where the capsule and its changes end, in GUI pixels from the top (0 while hidden): the party frames go below. */
+    public static float bottom() {
+        return bottom;
+    }
+
+    private static float bottom;
+
     public static void render(GuiGraphics g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
+        bottom = 0;
         if (mc.player == null || mc.options.hideGui || !ClientSystemData.get().hasSystem()) return;
         double now = Anim.now();
         boolean active = now - changedAt < HOLD;
@@ -146,6 +154,7 @@ public final class GoldHud {
             Gfx.setAlpha(o2);
             cyLine += 10 * Math.min(1, a * 1.5f);
         }
+        bottom = visible > 0.3f ? cyLine : 0;
         Gfx.setAlpha(old);
     }
 

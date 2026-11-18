@@ -3,6 +3,7 @@ package com.beyondsolo.combat;
 import com.beyondsolo.item.arsenal.ArsenalWeapon;
 import com.beyondsolo.item.arsenal.Signature;
 import com.beyondsolo.network.SignatureFxPayload;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.util.ServerScheduler;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -105,7 +106,7 @@ public final class ArsenalAbilities {
         List<Vec3> frozen = new ArrayList<>();
         for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 7)) {
             ArsenalHits.freeze(e, p, 4 * 20);
-            ArsenalHits.magicHit(p, e, 6f);
+            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f));
             if (frozen.size() < 16) frozen.add(e.position());
         }
         sound(level, p, SoundEvents.GLASS_BREAK, 1.4f, 0.5f);
@@ -120,7 +121,7 @@ public final class ArsenalAbilities {
                 .sorted(Comparator.comparingDouble(e -> e.distanceToSqr(p))).limit(5).toList();
         List<Vec3> struck = new ArrayList<>();
         for (LivingEntity e : foes) {
-            ArsenalHits.magicHit(p, e, 8f + power * 0.6f);
+            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 8f) + power * 0.6f);
             struck.add(e.position());
         }
         if (struck.isEmpty()) struck.add(p.position().add(p.getLookAngle().multiply(1, 0, 1).normalize().scale(4)));
@@ -138,7 +139,7 @@ public final class ArsenalAbilities {
         for (LivingEntity e : ArsenalHits.foesAround(p, origin, 7.5)) {
             Vec3 to = e.position().subtract(origin).multiply(1, 0, 1);
             if (to.lengthSqr() > 0.01 && to.normalize().dot(look) < Math.cos(Math.toRadians(40))) continue;
-            ArsenalHits.magicHit(p, e, 10f + power);
+            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 10f) + power);
             Statuses.apply(e, DamageElement.FIRE, 60, p);
             e.push(look.x * 0.6, 0.55, look.z * 0.6);
             e.hurtMarked = true;
@@ -160,7 +161,7 @@ public final class ArsenalAbilities {
         List<Vec3> points = new ArrayList<>(List.of(from, to));
         AABB path = new AABB(from, to).inflate(1.4, 1.2, 1.4);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, path, e -> ArsenalHits.isFoe(p, e))) {
-            ArsenalHits.magicHit(p, e, 8f + power * 0.8f);
+            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 8f) + power * 0.8f);
             Statuses.apply(e, DamageElement.CRIMSON, 50, p);
             if (points.size() < 16) points.add(e.position());
         }
@@ -183,7 +184,7 @@ public final class ArsenalAbilities {
                 e -> e instanceof LivingEntity l && ArsenalHits.isFoe(p, l), 0.3f);
         Vec3 at = entity != null ? entity.getLocation() : stop;
         float spell = 1f + (float) p.getAttributeValue(ModAttributes.SPELL_POWER);
-        for (LivingEntity e : ArsenalHits.foesAround(p, at, 4)) ArsenalHits.magicHit(p, e, 12f * spell);
+        for (LivingEntity e : ArsenalHits.foesAround(p, at, 4)) ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 12f) * spell);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.2f, 1.3f);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.2f, 0.6f);
         sound(level, p, SoundEvents.EVOKER_CAST_SPELL, 1.2f, 0.7f);
@@ -201,7 +202,7 @@ public final class ArsenalAbilities {
                 Vec3 away = e.position().subtract(p.position()).multiply(1, 0, 1).normalize();
                 e.push(away.x * 1.1, 0.35, away.z * 1.1);
                 e.hurtMarked = true;
-                ArsenalHits.magicHit(p, e, 6f);
+                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f));
                 if (knocked.size() < 16) knocked.add(e.position());
             }
         }
@@ -215,7 +216,7 @@ public final class ArsenalAbilities {
     static List<Vec3> verdantBlessing(ServerLevel level, Player p) {
         List<Vec3> allies = new ArrayList<>();
         for (Player ally : level.getEntitiesOfClass(Player.class, p.getBoundingBox().inflate(10), Player::isAlive)) {
-            ally.heal(ally.getMaxHealth() * 0.4f);
+            com.beyondsolo.system.Balance.healRaw(ally, ally.getMaxHealth() * 0.4f);
             ally.removeEffect(ModEffects.VENOM);
             ally.removeEffect(ModEffects.CRIMSON_BRAND);
             ally.removeEffect(ModEffects.FROSTBITE);

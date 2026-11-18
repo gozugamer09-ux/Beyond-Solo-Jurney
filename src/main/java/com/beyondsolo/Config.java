@@ -16,6 +16,11 @@ public final class Config {
     public static final ModConfigSpec.IntValue RANDOM_SPAWN_MAX = B
             .comment("Maximum distance from world spawn for the random first spawn.")
             .defineInRange("spawn.maxDistance", 3000, 16, 1_000_000);
+    public static final ModConfigSpec.BooleanValue SPAWN_TOGETHER = B
+            .comment("Everyone who joins after the world's first player lands a few blocks from where that player first landed,",
+                    "so friends start together instead of each at their own random spot. Party members can also travel to each",
+                    "other later (/party regroup, the PARTY page).")
+            .define("spawn.together", true);
 
     // --- Evaluation zone ---
     public static final ModConfigSpec.IntValue EVALUATION_ZONE_WEIGHT = B
@@ -30,7 +35,7 @@ public final class Config {
             .comment("Free stat points granted on each level up.")
             .defineInRange("progression.statPointsPerLevel", 3, 0, 100);
     public static final ModConfigSpec.DoubleValue KILL_XP_MULTIPLIER = B
-            .comment("System XP from a kill = victim max health * this.")
+            .comment("System XP from a kill = victim max health * this (a gate creature counts the health its rank gave it before the rank's pool was evened out).")
             .defineInRange("progression.killXpMultiplier", 0.5, 0.0, 100.0);
 
     // --- Exhaustion ---
@@ -103,8 +108,8 @@ public final class Config {
 
     // --- Re-evaluation ---
     public static final ModConfigSpec.ConfigValue<java.util.List<? extends Integer>> RANK_THRESHOLDS = B
-            .comment("Hidden rank thresholds: the total of a player's five stats needed to count as rank D, C, B, A and S. Crossing one is never shown; the player only learns it by being re-evaluated at a crystal.")
-            .defineList("reevaluation.rankThresholds", java.util.List.of(90, 140, 210, 300, 420), () -> 100, o -> o instanceof Integer i && i > 0);
+            .comment("Hidden rank thresholds: the total of a player's five stats needed to count as rank D, C, B, A and S. Crossing one is never shown; the player only learns it by being re-evaluated at a crystal. The defaults match the levels each rank's gates are made for (about 12, 25, 40, 55 and 72).")
+            .defineList("reevaluation.rankStatTotals", java.util.List.of(90, 135, 185, 240, 300), () -> 100, o -> o instanceof Integer i && i > 0);
     public static final ModConfigSpec.IntValue REEVALUATION_MILESTONE = B
             .comment("Levels per milestone. A player can be re-evaluated once per milestone: at level 10, 20, 30 ... with the default.")
             .defineInRange("reevaluation.milestoneLevels", 10, 1, 999);

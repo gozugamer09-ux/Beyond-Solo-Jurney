@@ -131,7 +131,7 @@ public final class Revenge extends Situation {
     public void runEntityDied(ServerPlayer player, Quest q, Run run, LivingEntity dead, DamageSource source) {
         if (!dead.getUUID().equals(run.target())) return;
         Component name = run.name(player.registryAccess());
-        if (Foes.playerBehind(source.getEntity()) == player) {
+        if (Foes.killedBy(player, source, dead)) {
             q.setOutcome(outcome("revenge_taken", name));
             Situations.set(player, q, KILL, 1);
         } else {

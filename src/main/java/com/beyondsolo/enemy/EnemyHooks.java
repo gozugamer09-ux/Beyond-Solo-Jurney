@@ -188,6 +188,8 @@ public final class EnemyHooks {
                 Mob m = Enemies.spawn(level, rank == null ? PlayerRank.E : rank, type, p, child, theme);
                 com.beyondsolo.breaks.DungeonBreaks.adopt(victim, m);
                 if (m != null) {
+                    // halves of a creature made weaker or stronger than its rank (a sealed door's cave, a trial) stay so
+                    Enemies.copyStrength(mob, m);
                     m.getPersistentData().putBoolean(SPLIT, true);
                     if (victim.getPersistentData().contains(com.beyondsolo.gate.GateService.ELEMENT_TAG)) {
                         m.getPersistentData().putString(com.beyondsolo.gate.GateService.ELEMENT_TAG, victim.getPersistentData().getString(com.beyondsolo.gate.GateService.ELEMENT_TAG));

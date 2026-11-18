@@ -5,6 +5,7 @@ import com.beyondsolo.combat.Buildups;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.combat.Statuses;
 import com.beyondsolo.network.SkillFxPayload;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
@@ -87,24 +88,26 @@ public final class SubclassPassives {
 
     private static final AttributeModifier.Operation ADD = AttributeModifier.Operation.ADD_VALUE;
     private static final AttributeModifier.Operation MUL = AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+    /** Max health passives multiply the whole pool, so they keep their share of it at every level. */
+    private static final AttributeModifier.Operation TOTAL = AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
 
     private static Bonus[] bonuses;
 
     private static Bonus[] bonuses() {
         if (bonuses == null) {
             bonuses = new Bonus[]{
-                    new Bonus(SubclassSkills.COMMANDING_PRESENCE, Attributes.MAX_HEALTH, 1f, ADD, "health"),
+                    new Bonus(SubclassSkills.COMMANDING_PRESENCE, Attributes.MAX_HEALTH, 0.025f, TOTAL, "health"),
                     new Bonus(SubclassSkills.COMMANDING_PRESENCE, Attributes.ARMOR_TOUGHNESS, 0.3f, ADD, "toughness"),
                     new Bonus(SubclassSkills.FLOWING_BLADE, Attributes.ATTACK_SPEED, 0.03f, MUL, "attack_speed"),
-                    new Bonus(SubclassSkills.IRON_HIDE, Attributes.MAX_HEALTH, 0.8f, ADD, "health"),
+                    new Bonus(SubclassSkills.IRON_HIDE, Attributes.MAX_HEALTH, 0.02f, TOTAL, "health"),
                     new Bonus(SubclassSkills.IRON_HIDE, Attributes.KNOCKBACK_RESISTANCE, 0.04f, ADD, "knockback"),
-                    new Bonus(SubclassSkills.TITAN_BLOOD, Attributes.MAX_HEALTH, 1.5f, ADD, "health"),
+                    new Bonus(SubclassSkills.TITAN_BLOOD, Attributes.MAX_HEALTH, 0.0375f, TOTAL, "health"),
                     new Bonus(SubclassSkills.SOVEREIGN_OF_DUSK, Attributes.MOVEMENT_SPEED, 0.02f, MUL, "speed"),
                     new Bonus(SubclassSkills.DEVOTION, Attributes.ARMOR, 0.4f, ADD, "armor"),
                     new Bonus(SubclassSkills.UNYIELDING, Attributes.ARMOR_TOUGHNESS, 0.5f, ADD, "toughness"),
                     new Bonus(SubclassSkills.UNYIELDING, Attributes.ARMOR, 0.3f, ADD, "armor"),
-                    new Bonus(SubclassSkills.UNDYING, Attributes.MAX_HEALTH, 2f, ADD, "health"),
-                    new Bonus(SubclassSkills.CRIMSON_VIGOR, Attributes.MAX_HEALTH, 1f, ADD, "health"),
+                    new Bonus(SubclassSkills.UNDYING, Attributes.MAX_HEALTH, 0.05f, TOTAL, "health"),
+                    new Bonus(SubclassSkills.CRIMSON_VIGOR, Attributes.MAX_HEALTH, 0.025f, TOTAL, "health"),
                     new Bonus(SubclassSkills.BEAST_BOND, Attributes.MOVEMENT_SPEED, 0.015f, MUL, "speed"),
                     new Bonus(SubclassSkills.EAGLE_SOVEREIGN, Attributes.MOVEMENT_SPEED, 0.02f, MUL, "speed"),
             };
@@ -242,7 +245,7 @@ public final class SubclassPassives {
             if (vigor > 0) Buildups.add(target, Buildups.BLOOD, vigorBlood(vigor), p);
             // Blood Frenzy lifesteal
             if (melee && data.hasBuff(SubclassActions.BUFF_FRENZY, now)) {
-                p.heal(amount * SubclassActions.frenzyLifesteal(Math.max(1, data.level(SubclassSkills.BLOOD_FRENZY.path()))) / 100f);
+                Balance.healRaw(p, amount * SubclassActions.frenzyLifesteal(Math.max(1, data.level(SubclassSkills.BLOOD_FRENZY.path()))) / 100f);
             }
             if (projectile && direct.getTags().contains(SubclassActions.STORM_ARROW_TAG) && direct instanceof AbstractArrow arrow && arrow.getOwner() == target) {
                 event.setCanceled(true);

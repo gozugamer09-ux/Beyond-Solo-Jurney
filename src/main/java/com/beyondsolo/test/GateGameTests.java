@@ -241,6 +241,9 @@ public final class GateGameTests {
         helper.assertTrue(mob.getMaxHealth() > 20 * (1 + GateTheme.A.mobHealthBonus()) * (1 + (size - 1) * 0.8f) - 0.5,
                 "tougher by rank: " + mob.getMaxHealth() + " at size " + size);
         Zombie target = helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1));
+        // big enough to live through an A-rank blow (a dead target takes no buildup)
+        target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(1000);
+        target.setHealth(1000);
         mob.doHurtTarget(target);
         helper.assertTrue(Buildups.get(target, com.beyondsolo.combat.Statuses.BURN) > 0, "the forge's monsters burn");
         mob.discard();

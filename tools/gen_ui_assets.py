@@ -158,6 +158,11 @@ ICONS = {
     "bubbles": "circles-three",
     "horse": "horse",
     "fatigue": "lightning-slash",
+    # parties
+    "x": "x",
+    "party_invite": "paper-plane-tilt",
+    "party_leave": "link-break",
+    "arrow": "arrow-fat-up",
 }
 
 RANKS = "EDCBAS"

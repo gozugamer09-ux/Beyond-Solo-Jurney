@@ -113,6 +113,8 @@ public final class SubclassActions {
     public static float barrierHearts(int l) { return 4 + 2 * (l / 3); }
     public static float retributionBonus(int l, int t) { return 5 * m(l, t); }
     public static float colossusSeconds(int l) { return 15 + l; }
+    /** Colossus Form's max health, in percent of the whole pool. */
+    public static float colossusHealth(int l) { return 50 + 5 * l; }
     public static float domainDamage(int l, int t) { return 18 * m(l, t); }
 
     public static float radiantAmount(int l, int t) { return 6 * m(l, t); }
@@ -650,7 +652,8 @@ public final class SubclassActions {
         ServerScheduler.schedule(ticks, () -> {
             if (!p.isAlive() || p.level() != level) return;
             float[] stored = STORED.remove(p);
-            float dmg = (stored == null ? 0 : stored[0] * 2) + retributionBonus(l, tier(p));
+            // what was taken is already in today's sizes: the skill hit's power leaves it as it is
+            float dmg = (stored == null ? 0 : com.beyondsolo.system.Balance.keepSize(p, stored[0] * 2)) + retributionBonus(l, tier(p));
             for (LivingEntity e : around(p, p.position(), 5, x -> canHit(p, x))) {
                 hit(p, s, e, dmg, true);
                 Statuses.apply(e, DamageElement.FIRE, 30 + 3 * l, p);
@@ -670,7 +673,9 @@ public final class SubclassActions {
     public static boolean colossusForm(ServerPlayer p, Skill s, int l) {
         int ticks = Math.round(colossusSeconds(l) * 20);
         setModifier(p, Attributes.SCALE, COLOSSUS_SCALE, 0.8);
-        setModifier(p, Attributes.MAX_HEALTH, COLOSSUS_HEALTH, 20 + 2 * l);
+        AttributeInstance health = p.getAttribute(Attributes.MAX_HEALTH);
+        if (health != null) health.addOrUpdateTransientModifier(new AttributeModifier(COLOSSUS_HEALTH, colossusHealth(l) / 100.0,
+                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         setModifier(p, Attributes.ATTACK_DAMAGE, COLOSSUS_ATTACK, 6 + l * 0.6);
         setModifier(p, Attributes.KNOCKBACK_RESISTANCE, COLOSSUS_KNOCKBACK, 1);
         p.heal(20 + 2 * l);
@@ -780,7 +785,7 @@ public final class SubclassActions {
         float before = target.getHealth();
         hit(p, s, target, dmg, true);
         Buildups.add(target, Buildups.BLOOD, 30 + 3 * l, p);
-        p.heal(HealerPath.healing(p, Math.max(1, (before - target.getHealth()) * 0.5f)));
+        com.beyondsolo.system.Balance.healRaw(p, HealerPath.healing(p, Math.max(1, (before - target.getHealth()) * 0.5f)));
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1f, 1.3f);
         sound(p, SoundEvents.HONEY_DRINK, 1f, 0.6f);
         SkillFx.play(target, SkillFxPayload.Kind.BOLT, s.color(), p.position().add(0, 1, 0), 0.35f, 0);
@@ -847,14 +852,17 @@ public final class SubclassActions {
         ServerLevel level = p.serverLevel();
         int n = packSize(l);
         long expires = level.getGameTime() + 600;
+        // the pack keeps pace with the creatures of its master's level
+        double health = com.beyondsolo.system.Balance.summonHealth(SystemAPI.get(p));
+        double bite = com.beyondsolo.system.Balance.summonDamage(SystemAPI.get(p));
         for (int i = 0; i < n; i++) {
             Wolf wolf = EntityType.WOLF.create(level);
             if (wolf == null) continue;
             double ang = Math.PI * 2 * i / n;
             wolf.moveTo(p.getX() + Math.cos(ang) * 1.6, p.getY(), p.getZ() + Math.sin(ang) * 1.6, p.getYRot(), 0);
             wolf.tame(p);
-            wolf.getAttribute(Attributes.MAX_HEALTH).setBaseValue(30 + 3 * l);
-            wolf.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(4 + 0.6 * l * (1 + 0.12 * tier(p)));
+            wolf.getAttribute(Attributes.MAX_HEALTH).setBaseValue((30 + 3 * l) * health);
+            wolf.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue((4 + 0.6 * l * (1 + 0.12 * tier(p))) * bite);
             wolf.setHealth(wolf.getMaxHealth());
             wolf.addTag(SUMMON_TAG);
             wolf.getPersistentData().putLong(SUMMON_EXPIRES, expires);

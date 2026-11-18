@@ -10,7 +10,7 @@ import com.beyondsolo.tower.RushTier;
  * days of the world, so a hunter has someone to climb past.
  *
  * @param level      where they stand on the hunter scale ({@code HiddenLevel.hunterLevel}) on the first day
- * @param growth     levels a day they keep climbing, up to half again their first level
+ * @param growth     levels a day they keep climbing, up to {@link #GROWTH_CAP} more than their first level
  * @param floor      the highest Citadel floor they have reached
  * @param spire      the best Endless Spire floor
  * @param rushSeconds best boss rush time per tier in seconds (0 for none), E to the Sovereign rush
@@ -19,9 +19,12 @@ import com.beyondsolo.tower.RushTier;
 public record Rival(String id, String name, PlayerRank rank, PlayerClass playerClass, String guild, float level, float growth,
                     int floor, int spire, int[] rushSeconds, int gates) {
 
+    /** How far past their first level a rival climbs at most: 30% (the best of them ends just under the level cap). */
+    public static final float GROWTH_CAP = 0.3f;
+
     /** Their level on a day of the world. */
     public float levelOn(long day) {
-        return level + Math.min(level * 0.5f, growth * Math.max(0, day));
+        return level + Math.min(level * GROWTH_CAP, growth * Math.max(0, day));
     }
 
     public int gatesOn(long day) {

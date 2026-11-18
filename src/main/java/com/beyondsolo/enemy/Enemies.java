@@ -1,6 +1,7 @@
 package com.beyondsolo.enemy;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.BlockPos;
@@ -10,6 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -59,12 +61,14 @@ public final class Enemies {
         return mob;
     }
 
-    /** Gives a creature its rank's strength and its traits (attributes, affinity, effects) and remembers them. */
+    /**
+     * Gives a creature its rank's strength and its traits (attributes, affinity, effects) and remembers them. Its health
+     * and damage grow by the rank's {@link #rankHealth} and {@link #rankDamage}: a rank's typical creature is an even
+     * match for a hunter at the rank's home level.
+     */
     public static void apply(Mob mob, PlayerRank rank, EnemyTraits traits) {
-        int t = rank.tier();
         Variant v = traits.variant();
-        mod(mob, Attributes.MAX_HEALTH, "gate_health", 0.4 * t, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
-        mod(mob, Attributes.ATTACK_DAMAGE, "gate_damage", 0.25 * t, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        strength(mob, rankHealth(rank), rankDamage(rank));
         mod(mob, Attributes.MAX_HEALTH, "variant_health", v.health - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.ATTACK_DAMAGE, "variant_damage", v.damage - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.SCALE, "variant_scale", v.scale - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
@@ -86,6 +90,85 @@ public final class Enemies {
         if (traits.affinity() == Affinity.FLAME) mob.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false));
         mob.getPersistentData().putInt(RANK_KEY, rank.ordinal());
         traits.save(mob);
+    }
+
+    /**
+     * Sets how much stronger than its kind a creature is: its health and damage multipliers (what its rank or level
+     * gives, before its variant and size). Keeps its share of health.
+     */
+    public static void strength(Mob mob, double health, double damage) {
+        float share = mob.getMaxHealth() <= 0 ? 1f : mob.getHealth() / mob.getMaxHealth();
+        mod(mob, Attributes.MAX_HEALTH, "gate_health", health - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        mod(mob, Attributes.ATTACK_DAMAGE, "gate_damage", damage - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        mob.setHealth(Math.max(1f, mob.getMaxHealth() * Math.min(1f, share)));
+        HiddenLevel.forget(mob);
+    }
+
+    /**
+     * How much a rank's numbers are evened out by how heavy its pool is: the higher ranks' pools hold heavier kinds, so
+     * their typical creature would stand above the power curve. E 1, down to about 0.37 for S. Every creature of the
+     * rank gets it, so its kinds keep their spread around the typical one.
+     */
+    public static double poolScale(@Nullable PlayerRank rank) {
+        if (rank == null) return 1;
+        return EnemyRoster.basePower(PlayerRank.E) / EnemyRoster.basePower(rank);
+    }
+
+    /** The health multiplier a gate rank gives its creatures: {@link Balance#health} evened out by {@link #poolScale}. */
+    public static double rankHealth(PlayerRank rank) {
+        return Balance.health(rank) * poolScale(rank);
+    }
+
+    /** The damage multiplier a gate rank gives its creatures: {@link Balance#damage} evened out by {@link #poolScale}. */
+    public static double rankDamage(PlayerRank rank) {
+        return Balance.damage(rank) * poolScale(rank);
+    }
+
+    /**
+     * The health a kill is worth in System XP: its max health, counted as if its rank's pool had not been evened out
+     * ({@link #poolScale}), so the heavier ranks pay what their creatures' size says they should.
+     */
+    public static float killWorth(LivingEntity victim) {
+        float health = victim.getMaxHealth();
+        return victim instanceof Mob mob ? (float) (health / poolScale(rankOf(mob))) : health;
+    }
+
+    /** Gives {@code to} the same strength multipliers {@code from} has (when it has any). */
+    public static void copyStrength(Mob from, Mob to) {
+        double health = multiplier(from, Attributes.MAX_HEALTH, "gate_health");
+        double damage = multiplier(from, Attributes.ATTACK_DAMAGE, "gate_damage");
+        if (health > 0 || damage > 0) strength(to, health > 0 ? health : 1, damage > 0 ? damage : 1);
+    }
+
+    /** How many times its kind's health the System's strength gave a creature (its rank or level; 1 for none). */
+    public static double healthGrowth(Mob mob) {
+        double m = multiplier(mob, Attributes.MAX_HEALTH, "gate_health");
+        return m > 0 ? m : 1;
+    }
+
+    /** A strength multiplier a creature carries, or 0 when it carries none. */
+    private static double multiplier(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr, String id) {
+        AttributeInstance inst = mob.getAttribute(attr);
+        var m = inst == null ? null : inst.getModifier(BeyondSolo.id(id));
+        return m == null ? 0 : 1 + m.amount();
+    }
+
+    /**
+     * Makes a creature as strong as content for a hunter of {@code level} is (the penalty zone, nests):
+     * {@link Balance#healthAt} and {@link Balance#damageAt} instead of its rank's numbers, evened out by the pool it
+     * came from ({@link #poolScale} of the rank it was made for).
+     */
+    public static void strengthForLevel(Mob mob, double level) {
+        double scale = poolScale(rankOf(mob));
+        strength(mob, Balance.healthAt(level) * scale, Balance.damageAt(level) * scale);
+    }
+
+    /**
+     * The creatures of the cave that hides a sealed door are fought before the System: whatever the gate's rank, they
+     * stay at an old D-rank gate's strength ({@link Balance#DOOR_HEALTH}).
+     */
+    public static void doorStrength(Mob mob) {
+        strength(mob, Balance.DOOR_HEALTH, Balance.DOOR_DAMAGE);
     }
 
     /**

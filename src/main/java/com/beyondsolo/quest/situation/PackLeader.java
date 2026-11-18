@@ -142,7 +142,7 @@ public final class PackLeader extends Situation {
     public void runEntityDied(ServerPlayer player, Quest q, Run run, LivingEntity dead, DamageSource source) {
         if (!run.is(HEAD) || !dead.getUUID().equals(run.target())) return;
         Component name = run.name(player.registryAccess());
-        if (Foes.playerBehind(source.getEntity()) != player) {
+        if (!Foes.killedBy(player, source, dead)) {
             QuestEngine.complete(player, q, outcome("leader_fell", name), q.rewards().partial(0.5f));
             return;
         }

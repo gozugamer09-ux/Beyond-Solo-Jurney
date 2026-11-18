@@ -7,6 +7,7 @@ import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestEvent;
 import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.trigger.QuestTriggers;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -104,7 +105,7 @@ public final class LastStand extends Situation {
 
     /** The System's second wind: some health back, strength and speed for as long as it lasts. */
     static void breathe(ServerPlayer player) {
-        player.heal(player.getMaxHealth() * 0.25f);
+        Balance.healRaw(player, player.getMaxHealth() * 0.25f);
         player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 20 * 8, 1));
         player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 20 * WIND_SECONDS, 0));
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 20 * WIND_SECONDS, 0));

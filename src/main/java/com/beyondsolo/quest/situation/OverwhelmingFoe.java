@@ -275,7 +275,7 @@ public final class OverwhelmingFoe extends Situation {
     public void runEntityDied(ServerPlayer player, Quest q, Run run, LivingEntity dead, DamageSource source) {
         if (!dead.getUUID().equals(run.target())) return;
         SEEN.remove(dead.getUUID());
-        boolean mine = Foes.playerBehind(source.getEntity()) == player;
+        boolean mine = Foes.killedBy(player, source, dead);
         Component name = run.name(player.registryAccess());
         switch (run.stage()) {
             case SURVIVE -> {

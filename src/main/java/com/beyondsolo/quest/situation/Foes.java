@@ -4,6 +4,7 @@ import com.beyondsolo.enemy.Affinity;
 import com.beyondsolo.enemy.EnemyTraits;
 import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.gate.DungeonBoss;
+import com.beyondsolo.party.Parties;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -11,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -88,6 +90,16 @@ public final class Foes {
     public static boolean ownedBy(Entity e, Player player) {
         if (e instanceof OwnableEntity own && player.getUUID().equals(own.getOwnerUUID())) return true;
         return e instanceof TamableAnimal t && t.isTame();
+    }
+
+    /**
+     * A kill the player can call their own: by them, by a summon of theirs, or by a party member fighting beside them
+     * (the rule shared quest kills go by, {@link Parties#sharers}).
+     */
+    public static boolean killedBy(ServerPlayer player, DamageSource source, LivingEntity dead) {
+        ServerPlayer killer = playerBehind(source.getEntity());
+        if (killer == null) return false;
+        return killer == player || Parties.sharers(killer, dead).contains(player);
     }
 
     /** Who really dealt a blow or a kill: the player, or the player a summon of theirs fights for. */

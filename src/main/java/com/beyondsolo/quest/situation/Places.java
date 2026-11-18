@@ -249,7 +249,7 @@ public final class Places {
         @Override
         public void runEntityDied(ServerPlayer player, Quest q, Run run, LivingEntity dead, DamageSource source) {
             if (!run.is(AWAKENED) || !dead.getUUID().equals(run.target())) return;
-            if (Foes.playerBehind(source.getEntity()) == player) {
+            if (Foes.killedBy(player, source, dead)) {
                 QuestEngine.complete(player, q, outcome("warden_slain"), explore(player, run.next(EXPLORE)).rewards());
             }
         }
@@ -474,7 +474,7 @@ public final class Places {
         public void runEntityDied(ServerPlayer player, Quest q, Run run, LivingEntity dead, DamageSource source) {
             if (!run.is(GUARDIAN) || !dead.getUUID().equals(run.target())) return;
             Component name = run.name(player.registryAccess());
-            if (Foes.playerBehind(source.getEntity()) == player) {
+            if (Foes.killedBy(player, source, dead)) {
                 q.setOutcome(outcome("guardian_slain", name));
                 Situations.set(player, q, KILL, 1);
             } else {

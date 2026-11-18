@@ -4,6 +4,7 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.chronicle.title.TitleDef;
 import com.beyondsolo.chronicle.title.TitleService;
 import com.beyondsolo.chronicle.title.Titles;
+import com.beyondsolo.party.Parties;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
@@ -26,6 +27,7 @@ import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.Progression;
 import com.beyondsolo.system.SystemAPI;
+import com.beyondsolo.util.OnlinePlayers;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -146,6 +148,31 @@ public final class SituationGameTests {
         helper.assertTrue(annihilate.objectives().stream().filter(o -> o.display() == QuestObjective.Display.HEALTH).allMatch(o -> o.progress() == 0),
                 "its health row reads empty in the completed quest");
         helper.assertTrue(xp(p) - before > plain, "annihilating it is paid (" + (xp(p) - before) + " vs " + plain + " for a plain kill)");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void aPartyMembersKillCountsAsTheHuntersOwn(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.E);
+        ServerPlayer mate = player(helper, PlayerRank.E);
+        OnlinePlayers.addTestPlayer(p);
+        OnlinePlayers.addTestPlayer(mate);
+        Parties.invite(p, mate);
+        Parties.accept(mate, p.getUUID());
+        helper.assertTrue(Parties.together(p, mate), "they hunt as a party");
+        Zombie foe = zombie(helper, 3, 3);
+        foe.setTarget(p);
+        Quest survive = Situations.FOE.survive(p, foe, 3.0);
+        helper.assertTrue(SituationTestAccess.begin(p, Situations.FOE, survive), "the survive quest starts");
+        foe.setHealth(foe.getMaxHealth() * 0.3f);
+        Situations.FOE.update(p, survive, Run.of(survive));
+        Quest annihilate = Situations.running(p, Situations.FOE);
+        helper.assertTrue(OverwhelmingFoe.ANNIHILATE.equals(stage(annihilate)), "the quest turns into Annihilate, got " + stage(annihilate));
+        kill(mate, foe);
+        Parties.disband(p);
+        helper.assertTrue(QuestEngine.data(p).hasFinished(annihilate.template()), "the party member's kill ends it");
+        helper.assertTrue(outcomeKey(annihilate).endsWith("outcome.annihilated"),
+                "and counts as the hunter's own, not someone else's: " + outcomeKey(annihilate));
         helper.succeed();
     }
 

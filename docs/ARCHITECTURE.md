@@ -10,7 +10,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `notify` | `SystemNotification` (pop-up content) and `Notifications.send(...)` |
 | `network` | Packets: data sync, pop-ups, stat allocation, the evaluation overlay |
 | `evaluation` | Evaluation Crystal block and block entity, the evaluation flow, village pool injection |
-| `spawn` | Random first spawn and the "find a village" objective |
+| `spawn` | Random first spawn (everyone after the world's first player lands beside them: `LandingData`, `spawn.together`) and the "find a village" objective |
 | `combat` | Elements, buildups and statuses, element damage, attributes, sync to clients, exhaustion from combat, Combat Roll hook |
 | `item` | System weapons, armor (and set bonuses), remedies |
 | `client` | Key bindings, client config, the theme colours (`SystemTheme`) |
@@ -37,6 +37,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
 | `breaks`, `client.breaks` | Dungeon breaks: the collapse timer on every uncleared gate, the break itself (waves, the boss coming through, suppression), and gate sensing in Pulse Scan; the break's banners, timer chip, gate compass and world effects (see "Dungeon breaks and gate sensing") |
 | `tower`, `client.tower` | The Crimson Citadel: the castle's hundred floors (`TowerFloors`), its halls (`CitadelHalls`), runs of the climb, the Endless Spire and the boss rush (`TowerRun`), the lord (`CitadelLordEntity`), the key and the Sigil of Dominion, the hunter's records (`TowerData`, read through `TowerAPI`); the CITADEL page, the HUD, the light in the halls and the citadel's sky (see "The Crimson Citadel") |
+| `party`, `client.party` | Parties for playing together: invitations, the party itself and its saved data, `/party`, shared kills, no friendly fire, gates that wait for the party, regrouping; the PARTY page, the party HUD and the markers in the world (see "Parties") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -155,8 +156,8 @@ Rules that came out of building it, worth keeping for gates and bosses:
   lists the live bonuses (`StatEffects.bonusesOf(stat)`). Points spent by hand are counted in
   `evaluation/EvaluationRecord` (attachment `evaluation_record`), and the **Elixir of Rebirth** (CRAFT tab, C rank)
   gives exactly those back (`Reevaluation.refundAllocated`); rank, job-change and reward points stay.
-- **Hidden rank thresholds** (`Reevaluation`, config `reevaluation.rankThresholds`, default D 90, C 140, B 210, A 300,
-  S 420 on the total of the five stats): crossing one makes the player truly that rank (`Reevaluation.trueRank`), but
+- **Hidden rank thresholds** (`Reevaluation`, config `reevaluation.rankStatTotals`, default D 90, C 135, B 185, A 240,
+  S 300 on the total of the five stats, about the levels each rank's gates are made for): crossing one makes the player truly that rank (`Reevaluation.trueRank`), but
   the window, HUD and license keep the evaluated rank, and the true rank is never sent to the client. The System only
   whispers "something has changed" the first time (config `reevaluation.hintOnThreshold`).
 - **Re-evaluation**: touching a crystal once a new milestone is reached (every `reevaluation.milestoneLevels` = 10
@@ -169,6 +170,53 @@ Rules that came out of building it, worth keeping for gates and bosses:
   glows when it is open (`ReevaluationSyncPayload`).
 - Commands: `/system reeval [rank]` (play now, optionally forced), `reeval info` (total, true rank, thresholds),
   `reeval unlock`, `reeval reset`. Tests: `ReevaluationGameTests`.
+
+## The power curve (`system/Balance`)
+
+All of the game's growth lives in `system/Balance`, and what keeps old flat numbers fair next to it in
+`system/BalanceHooks`. It is the interim pass; the final balancing pass tunes the same constants.
+
+- **The hunter**: levels 1 to 100 (`Balance.MAX_LEVEL`). Each level adds 4 max health and 3% to every blow, arrow,
+  skill and summon (`levelHealth`, `levelDamage`). Stat points are big steps: a VIT point is +5% max health (of the
+  base, the levels and flat gear health), a STR point +10% melee damage, a SENSE point +10% with bows, crossbows and
+  thrown weapons (`rangedPower`, applied when the arrow lands, since Apothic's arrow attributes are capped). A fresh
+  hunter has 20 health; a level 75 hunter about 1,500 (a VIT-heavy guardian twice that). XP to the next level is
+  `100 x L^1.4 x (1 + L/50)` (102 at level 1, about 102,000 at 74); quest XP grows by the same `xpGrowth`.
+- **Skill power** (`Balance.power`): every skill hit (`SkillActions.hit`), flat skill and gear proc (`flatDamage`) and
+  summon grows with the level bonus times `1 + 3%` for each point of a stat the class leans on (weighted by
+  `PlayerClass.statWeight`, the main stat fully). Parts of a skill's damage that are already in today's sizes (health
+  paid, blows taken and thrown back) go through `keepSize` so the power is not applied twice. The STATUS tab's stat
+  tooltip shows what each stat adds (`powerFrom`).
+- **Creatures** keep pace: a gate rank's typical creature is an even match for a hunter at the rank's home level
+  (`homeLevel`: E 3, D 13, C 26, B 41, A 56, S 74). Its health is multiplied by `health(rank)` (E 1 up to S 55: as much
+  as a hunter's blows grew by then) and its damage by `damage(rank)` (E 1 up to S 70: as much as a hunter's staying
+  power grew). The higher ranks' pools hold heavier kinds (an S pool's average kind is about 2.7 times an E pool's
+  `HiddenLevel.power`, `EnemyRoster.basePower`), so both are evened out by `Enemies.poolScale` (E 1, D 0.78, C 0.57,
+  B 0.46, A 0.40, S 0.37, worked out from the pools, so adding a kind to a pool moves it): the pool's average creature
+  lands on the curve and its kinds keep their spread around it (`Enemies.rankHealth`/`rankDamage`, through
+  `Enemies.apply`). A kill's System XP counts the health before that evening (`Enemies.killWorth`), so a level costs
+  about 70 to 150 home-rank kills. Bosses are `300 x health` and `7 x damage`. `healthAt`/`damageAt` are the same
+  curve by level for content made for one hunter (job trials, the penalty zone, nests; `Enemies.strengthForLevel`,
+  evened out by the pool the creature came from), and `strengthAt` is both in one number (`levelForStrength` reads it
+  back).
+  Summons, Call of the Pack and the shadow army grow with their master (`summonHealth`, `summonDamage`); a soul is sized
+  the old way (`ShadowService.soulSize`). The sealed door's cave stays at an old D-rank gate's strength (it is fought
+  without the System); the Citadel's lord has 60,000 health.
+- **Old flat numbers** (`BalanceHooks`): flat heals (food, potions, regeneration, most healing skills), Absorption
+  shields, hazards with no attacker and the blows of creatures the System did not make are multiplied by
+  `legacyScale` (how much bigger the hunter's pool is than it was before), so each keeps its share of the hunter's
+  health. Heals that are already sized (a share of max health or of a blow) go through `Balance.healRaw`; another
+  mod's heal in the middle of a blow (Apothic's life steal) is left alone too. Armour works on a blow's size next to
+  the body it lands on (`armorScale` = max health / 20), so it protects as much against a 400-damage blow on a
+  1,500-health hunter as against a 6-damage blow on a 20-health one. Venom and the other statuses take a share of
+  max health; flat max health passives and gear rolls are percentages.
+- **Where a hunter stands** (`powerLevel`, the scale of creatures' hidden levels and of the rankings): their level
+  plus every stat point beyond what their levels gave (rank bonus, rewards, the job change, unspent points), 6 to a
+  level (`POINTS_PER_LEVEL`: a level is its three points and about as much again in health and damage), never below
+  E's home level. The rival hunters on the rankings stand near their ranks' home levels and climb at most 30% past
+  their start (`Rival.GROWTH_CAP`), so the best ends just under the cap and a hunter at level 100 can take first place.
+- **AttributeFix** is a required dependency: it lifts vanilla's attribute caps (1024 max health, 2048 damage).
+- Tests: `BalanceGameTests`.
 
 ## Hooks per planned module
 
@@ -389,7 +437,9 @@ Rules (`Situations`): one emergency at a time; one calmer situation at a time an
 Crimson Citadel run (`QuestTriggers.quiet`). **Follow-ups** (`FollowUps`, saved in `SituationData`, attachment
 `SITUATIONS`) are what comes back later: a nemesis, a revenge offer. A handler that can't happen yet is asked again a
 minute later (a nemesis waits while the hunter is in a gate or the Citadel). When the creature a quest watches dies,
-its health row drops to 0 before the quest ends.
+its health row drops to 0 before the quest ends. Its death is the hunter's own (`Foes.killedBy`) when they, a summon of
+theirs or a party member beside them (`Parties.sharers`, the rule shared quest kills go by) dealt it; anyone else's
+kill ends the quest with part of the pay. Heals that are a share of health go through `Balance.healRaw`.
 **Secret quests** (`Secrets`, category `SECRET`) are never announced: brave or unusual deeds (a far stronger kill, a
 whole raid, an untouched gate, a lone clear above your rank, a nemesis, a finished streak, a silent city plundered)
 reveal them already complete, paid once, with a title kept in the chronicle (`Secrets.registerTitles` puts the eight
@@ -496,15 +546,15 @@ a player anything that belongs to the System; check `isAwakened` for anything th
 | Stage (`AwakeningData.Stage`) | What happens |
 | --- | --- |
 | `DORMANT` | No System. `GateSpawner` opens D-rank gates near such players (`awakening.gateChancePerMinute`, for sure every `awakening.gateGuaranteeMinutes`; the first one in front of them within a minute and a half) or points out a D-rank one standing near. Gates let them in; players who have the System but are not evaluated are still turned away. The first gate of rank D or higher they walk into, before anyone has (so before its rock is carved), hides the sealed door: `AwakeningService.enteringGate` (from `GateService.beginEnter` and `arrive`) forces its hidden chamber to `HiddenKind.SEALED`, which `DungeonLayout.planSealed` puts past the boss's room instead of off a cavern (a gate whose own layout has no room there, a boss on an island over a chasm say, is laid out as caverns instead: `DungeonLayout.shapeForDoor`). Caves from before hidden chambers (`GateDepths.legacy()`) are passed over |
-| `CALLED` | Set by `AwakeningService.gateCleared` when the boss of the cave that hides their door falls with them inside. `REVEAL_DELAY` later (the boss has crumbled, the exit is not open yet) `revealDoors` breaks the wall (no HIDDEN DUNGEON moment, no XP: knocks and Pulse Scan get nothing from this wall) and opens a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`, `temple` set) for each called player in the chamber (`DepthsBuild.sealedDoor`), with `trialHome` set to the cave's own home. While it stands the cave's exit turns them back (`heldBack`, checked in `GateService.beginExit`). Out of the gate depths without going through (they fell, logged out and the cave closed), the call lapses back to `DORMANT` (`tether`, `leftGate`); a door opened out in the world (`/system trial call` outside a cave, old saves) still pulls them back past `awakening.tetherRadius`. Only the owner can enter |
-| `TRIAL` | Inside. The door shuts behind them (`arrived`). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonDecor.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
+| `CALLED` | Set by `AwakeningService.gateCleared` when the boss of the cave that hides their door falls with them inside. `REVEAL_DELAY` later (the boss has crumbled, the exit is not open yet) `revealDoors` breaks the wall (no HIDDEN DUNGEON moment, no XP: knocks and Pulse Scan get nothing from this wall) and opens a sealed gate (`GateService.spawnSealedGate`, a `GateInstance` with an `owner`, theme `GateTheme.TRIAL`, `temple` set) for each called player in the chamber (`DepthsBuild.sealedDoor`), or one for each party called there together (owned by its leader if they are among them, every member bound to it), with `trialHome` set to the cave's own home. While it stands the cave's exit turns them back (`heldBack`, checked in `GateService.beginExit`). Out of the gate depths without going through (they fell, logged out and the cave closed), the call lapses back to `DORMANT` (`tether`, `leftGate`); a door opened out in the world (`/system trial call` outside a cave, old saves) still pulls them back past `awakening.tetherRadius`. Only those it opened for can enter (`mayEnter`) |
+| `TRIAL` | Inside. The door shuts behind them (`arrived`; a party's behind the last of them still in the cave). A temple trial (`GateInstance.temple`, every trial since 0.1.1) is planned by `DungeonLayout.temple`: the way in, an antechamber with the Arbiter's three tenets on a stele (`DungeonDecor.tenets`, signs read from `trial.beyondsolo.tenet.*`), the hall; no side caves, and no trial wakes packs (`GateService.watch`). Every player death in a trial is cancelled (`LivingDeathEvent`, highest priority), so nothing is dropped: before the Arbiter's hall they stand up again at the last room reached (`GateInstance.checkpoint`), in the hall the awakening begins |
 | `AWAKENING` | `begin` freezes the player and plays `AwakeningPayload.AWAKEN` on their client (14.6 s). The server follows the same clock: out of the cave at `TELEPORT_TICK` (the screen is black; to `trialHome`, in front of the gate they first went into, or for a door out in the world, in front of it), System bound at `GRANT_TICK`, released at `END_TICK`, then `FirstSpawnHandler.systemIntro` (welcome pop-up, "find a village"). Logging out halfway finishes it at once |
 | `DONE` | Has the System. The evaluation follows as before |
 
 The Hollow Arbiter (`ArbiterEntity`, a `DungeonBoss` like `GateBossEntity`, so the boss bar and intro work for both)
 kneels dormant and invulnerable until its challenger is well inside the hall, rises for `INTRO_TICKS`, then uses
 three attacks: a cleave across everything in front of it, a sunder that sends a ring along the floor (jump it), and
-judgment, marks of light under each player that burst a moment later. Under half health it is unbound: faster,
+judgment, marks of light under each player that burst a moment later. A party fights it together: it passes its verdict only when the last of them falls (`challengers`), and if they bring it down every one still standing gets the title and a cache of their own. Under half health it is unbound: faster,
 double rings, three marks. A strike that fells its challenger ends the fight in the middle of an attack
 (`passVerdict` clears every ring and mark), so the attacks walk copies and stop at once (`fighting()`); walking the
 lists themselves crashed the server in the 0.1.0 playtest. 1500 health, heavy armour, arrows do little. Killing it (`arbiterSlain`) drops a cache
@@ -876,15 +926,17 @@ their level or a little above, **red** when it is far stronger. A boss's name on
 - **The creature's level** is the level of the hunter it is an even match for. `HiddenLevel.power` measures a creature
   as it really is once everything is on it (kind, gate rank, variant, size roll, affixes, a red gate's fury, a boss's
   kind and ascension): `sqrt(health x (1 + 0.04 armour + 0.01 toughness) x damage)`, the product an even fight comes
-  down to. `powerAt(level)` is the same measure for a hunter of each level, a line through (1, 7), (10, 12), (20, 20),
-  (50, 50) and then 0.6 a level. That puts a gate rank's typical plain creature at the level its rank's armour can be
-  worn from (E 1, D 10, C 20, B 30, A 40, S 50; `CreatureNameGameTests` checks it). Elites, champions, giants and
-  bosses climb from there (an E-rank boss is about 31, an S-rank boss well over 200).
-- **The hunter's level** for the comparison (`hunterLevel`) counts every stat point they have, three to a level: their
-  level, plus the rank's bonus points (an S-rank starts at 16), rewards, the job change and unspent points. Gear does
-  not count yet.
-- **The colour**: the ratio of the two powers. Under 0.9 white, from 1.5 red, orange in between
-  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`). All of it is first guesses for the balancing pass.
+  down to. `powerAt(level)` is the same measure for a hunter of each level: an E gate's typical creature
+  (`EnemyRoster.basePower(E)`) grown along the power curve (`Balance.strengthAt`), so a gate rank's typical plain
+  creature sits at its rank's home level (E 3, D 13, C 26, B 41, A 56, S 74; each rank's pool is evened out to it by
+  `Enemies.poolScale`; `CreatureNameGameTests` checks it). Elites, champions, giants, a pool's heavy kinds and bosses
+  climb from there.
+- **The hunter's level** for the comparison (`hunterLevel` = `Balance.powerLevel`): their level, plus every stat point
+  beyond what their levels gave (the rank's bonus points, rewards, the job change, unspent points), 6 to a level, and
+  never below E's home level (E gates are made for hunters who have just awakened). Gear does not count yet.
+- **The colour**: the ratio of the two powers. Under 0.85 white, from 1.5 red, orange in between
+  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`): in the middle levels about three levels below to seven above is orange.
+  All of it is first guesses for the balancing pass.
 - **Kept, not recomputed**: the level is worked out the first time it is asked for (a player starts seeing the
   creature) and kept in its persistent data under `beyondsolo_level`. Code that makes a creature stronger or weaker
   after it appeared calls `HiddenLevel.refresh` (red gate fury, a splitting creature's halves), which also tells the
@@ -1326,6 +1378,40 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## Parties
+
+Friends who join a server should end up in the same place and go through gates together. Three things kept them apart
+before parties: every new player's random first spawn was 800 to 3000 blocks from everyone else's, the awakening's
+sealed door was personal (two friends without the System each got their own trial), and a keyed or red gate sealed
+shortly after the first hunter went in. Parties fix that.
+
+| Piece | What it does |
+|---|---|
+| `Party`, `PartyData` | A party: its id, leader and members (in the order they joined, with the name each went by). Saved with the overworld (`beyondsolo_parties`); a hunter is in one party at most, a party of one is never kept (loading drops one, and a hunter found in two parties stays in the first) |
+| `Parties` | Everything that changes a party goes through here: `invite` (the leader, or anyone not in a party yet; the party is only made when the first invitation is accepted), `accept`/`decline` (by inviter, or the newest), `leave` (a leader who leaves hands the lead to the first member online; a party left with one member ends), `kick`, `promote`, `disband`, and `handle` for the PARTY page's buttons. Invitations live in memory for `party.inviteSeconds`. News goes out as a System pop-up to those who have the System and as a grey chat line to those who don't (`inform`); invitations also come as a chat line with clickable `[Accept]` `[Decline]` |
+| `PartyCommand` | `/party` (no permission needed): `list`, `invite <player>`, `accept [name]`, `decline [name]`, `leave`, `kick <name>`, `leader <name>`, `disband`, `regroup <name>`. `list` shows each member's rank, class, level, health, where they are and a clickable `[Regroup]`. It is how players without the System use parties (they have no System window) |
+| Sharing | A kill counts for the party members near it (`sharers`: alive, in the same gate's cave, or within `party.shareRange` blocks anywhere else): the quest progress in full (`QuestHooks`, `GateService`'s key objective), `party.killShare` of the XP (`SystemEventHandler.onKill`, source `beyondsolo:party_kill`) and gold (`EconomyHooks`, reason `PARTY`) |
+| Friendly fire | `onIncomingDamage` cancels a hit when the attacker (the player, or the owner of the shadow, pet or arrow: `culprit`) and the victim (or its owner) are in the same party, unless `party.friendlyFire` |
+| Gates | Going in together already shared one cave. A keyed gate's door (`KeyedRuns`) and a red gate (`RedGates`) about to seal hold up to `party.followSeconds` while a party member of someone inside is within 48 blocks of it outside (`followers`, `holdFor`), and say who they wait for. Party members out by a gate hear who went in (`wentIn`). A dormant friend near a System hunter still gets their door: `AwakeningService.enteringGate` hides it when the one walking in, or a party member of theirs within 48 blocks, still waits for it |
+| `Regroup` | Travel to a party member's side: stand still `CHANNEL_TICKS` (5 s; moving more than `DRIFT` or being hurt breaks it), then land beside them (`spotNear`). Both must be out in the overworld, the Nether or the End, not in a gate, trial, the Citadel, the Penalty Zone, an evaluation or the awakening. At least `party.regroupMinDistance` blocks apart; then `party.regroupCooldownMinutes` (kept on the player in `PartyModule.REGROUP_READY`, through deaths and logouts; -1 turns regrouping off) |
+| Sync | `PartySyncPayload` (members with health and whereabouts, `Place`: world, gate with its rank and name, red gate, Citadel, Penalty Zone, trial, job trial, offline; invitations; the regroup clock) on every change and every `SYNC_TICKS` to everyone in a party with someone else online. `PartyEventPayload` carries the regroup moments and the answer to a button. `PartyActionPayload` is a button |
+| `client.party` | `PartyClient` (what the client knows), `PartyTab` (the PARTY page: members with class, rank, level, health, where, and regroup / lead / remove buttons; invitations; hunters online to invite; leave and disband), `PartyHud` (a frame per member on the right with health and where they are, an arrow and distance when they are where the player is: the same world out in the open, or the same cave (`PartyClient.samePlace`: every gate's cave shares one dimension, so the cave's slot must match); a marker over each such member in view and an arrow at the screen's edge for those out of view; the regroup gathering and its end) |
+
+What stays solo, as in the series: the Crimson Citadel, the Penalty Zone and the job change trial. The awakening is
+shared only when friends are called in the same cave. Config: `beyondsolo-party.toml` (`party.maxSize` 6,
+`party.inviteSeconds` 60, `party.shareRange` 48, `party.killShare` 0.5, `party.friendlyFire` false,
+`party.followSeconds` 45, `party.regroupCooldownMinutes` 10, `party.regroupMinDistance` 64) and `spawn.together` in the
+main config. Game tests stand fake players in for real ones; `util/OnlinePlayers` lets them be found by id
+(`addTestPlayer`), since fake players are never in the server's player list.
+
+Landing together (`spawn.LandingData`): the world's first player lands on the usual random first spawn and it is kept;
+everyone after lands 3 to 8 blocks from it. Both pick only spots with room to stand (`roomToStand`: nothing solid at the
+feet or head, so nobody starts out crawling under a tree's low leaves).
+
+Testing: `/party ...` with a second account, or in the headless client `partydemo [alone]` (a made-up party round the
+player), `partygo <action> [name]` and `partyfx start|broken|done|joined` (`tools/uitest`). A second real client can
+join the dev server under another name (offline mode) for checks with two players.
+
 ## The chronicle: titles, rankings and the journal
 
 Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
@@ -1406,8 +1492,9 @@ has added to `/system` by then).
   gate, shadows, the awakening, exhaustion, situations), removes every data attachment in the `beyondsolo` namespace but the
   System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
   every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
-  ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
-  then start over like a new player: the presystem hint with the awakening trial on, the System at once with it off.
+  ender chest, clears effects and XP and sends the player to where a new player lands (`FirstSpawnHandler.startOver`:
+  beside the world's first landing with `spawn.together`, else a new random start). Both then start over like a new
+  player: the presystem hint with the awakening trial on, the System at once with it off.
 - **Text:** every message is `command.beyondsolo.solo.*` in `assets/beyondsolo_commands/lang` (English and Spanish).
   Command words, ids and the help's usage lines stay as typed.
 - Tests: `test/SoloCommandGameTests` (the tree and op-only, awaken/set/add/reset, a number read as a level, give,
@@ -1491,13 +1578,15 @@ checks use zombies.
 `test/KeyGameTests` covers: a held key opening a keyed gate three steps ahead (facing its holder, going home to where it turned, used up, counted), refusals (rank, no System, no room, one at a time, waiting gate), a menu turn taking the same time and walking off stopping it, a cleared cave chaining the next run home to the first turn with the bonus (and the keyed quest paying no stat points), doors sealing behind the party and closing when everyone is out, an unused gate giving its key back seal and all (and an ascendant key's boss coming crowned), a gate that has closed and gone freeing its spot for the next key, records and timing, the re-run prompt's choice of key, boss drop rates, the shop, sell prices and forging, and the wiper putting rock back, removing what was left, forgetting the gate and handing its slot to the next one.
 `test/DepthsGameTests` (in the original cave of each gate's rank, so every run tests the same) covers: creature profiles (a blaze immune to fire and drowning, the undead, an affinity on top, shared entries), skill hits landing by rating with their tag and the weakness noted once, weather rolls (same seed same sky, still caves by rank, every condition, the theme's lean), element shifts and the reward bonus, saving the depths and old caves loading without them, hidden chambers being secluded and leaving the rest of the cave as it was, a vault walled off and knocked open, the shrine blessing once, a lair paying when its guardians fall, a trap core shattering and disarming its room, a lockdown sealing the room until both waves fall, and a storm bolt striking where it was marked.
 `test/RedGateGameTests` covers: about one gate in sixteen waiting to turn red (always the same answer; never a trial or a keyed gate; a defused one never, a forced one always), what waits inside being one or two ranks up with a master of that rank and only our own frost-touched creatures, the payload's round trip, someone without the System defusing it for good, entering (the gate turning red, arriving by the red way out with the emergency quest, the break clock held, sealing, the way out and the gate turning hunters back, ending), the master's fall (the seal broken, a red cache, the clear paid and on the record, the way out letting them go, the gate closing), the clock running faster, nights bringing raids of angrier creatures after the hunter that go at dawn, the cold biting in the open at night and a fire warming, and the last hunter falling (quest failed, the red fading, an ordinary gate at its last minute before it breaks).
+`test/PartyGameTests` covers: an accepted invitation forming a party (and every refusal, declining, invitations being used up), the lead handed on and a party of one ending (leaving, removing, joining another party), parties saved and a damaged save cleaned up, the payloads' round trip, kills shared with a party member nearby (gold and XP; none for a stranger or from far away), no friendly fire (blows, arrows, pets; again once the party is over), a gate holding for a party member on the way and a keyed gate's door shutting once the wait is over, regrouping (every refusal, the gathering broken by a step, landing beside them, the cooldown), new players landing beside the first, a friend without the System still finding their door, and a party going through one sealed door together (one door, its leader's, letting both through and nobody else, shutting behind the last).
 `test/SituationGameTests` covers: surviving a far stronger creature turning into Annihilate in the same slot when it
 breaks and paying more, fleeing making it withdraw and come back later as a stronger Nemesis (and its death revealing a
 secret), the last stand paying on the spot and turning into a second wind, resting being broken by a blow and healing
 when quiet (and the gap and one-calm-at-a-time rules), the Untouchable streak moving up a tier and keeping what it paid
 when a hit breaks it, a Frenzy fading after a tier counting as done, saving a villager (emeralds, gossip) and hunting
-down its killer, secret quests revealed once (and no secret for an ordinary kill), and follow-ups waiting their turn
-and being retried.
+down its killer, a party member's kill of the target counting as the hunter's own, secret quests revealed once (their
+titles kept even with another one worn, and no secret for an ordinary kill), and follow-ups waiting their turn and
+being retried.
 `test/TranslationGameTests` covers: every English line of every namespace having Spanish with the same arguments,
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
