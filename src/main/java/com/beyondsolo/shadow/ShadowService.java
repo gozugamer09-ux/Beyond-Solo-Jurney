@@ -611,7 +611,7 @@ public final class ShadowService {
             }
             // the master learns from their army's battles too, at half the usual rate
             if (SystemAPI.isAwakened(owner)) {
-                long sys = Math.max(1, Math.round(victim.getMaxHealth() * Config.KILL_XP_MULTIPLIER.get() * 0.5));
+                long sys = Math.max(1, Math.round(Enemies.killWorth(victim) * Config.KILL_XP_MULTIPLIER.get() * 0.5));
                 SystemAPI.grantXp(owner, sys, SystemAPI.XP_SOURCE_KILL);
             }
         } else {

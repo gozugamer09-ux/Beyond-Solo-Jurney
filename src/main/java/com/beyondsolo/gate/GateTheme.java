@@ -119,13 +119,13 @@ public enum GateTheme {
         return com.beyondsolo.system.Balance.bossDamage(rank);
     }
 
-    /** Monsters get this much more health (on top of their own: E +0%, S +5400%). */
+    /** Monsters get this much more health (on top of their own: E +0%, S about +2000%, its pool's heavy kinds evened out). */
     public double mobHealthBonus() {
-        return com.beyondsolo.system.Balance.health(rank) - 1;
+        return com.beyondsolo.enemy.Enemies.rankHealth(rank) - 1;
     }
 
     public double mobDamageBonus() {
-        return com.beyondsolo.system.Balance.damage(rank) - 1;
+        return com.beyondsolo.enemy.Enemies.rankDamage(rank) - 1;
     }
 
     /** Element buildup per hit from the gate's monsters (the boss hits much harder). */

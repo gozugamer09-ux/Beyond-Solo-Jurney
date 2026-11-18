@@ -185,11 +185,18 @@ All of the game's growth lives in `system/Balance`, and what keeps old flat numb
   `PlayerClass.statWeight`, the main stat fully). Parts of a skill's damage that are already in today's sizes (health
   paid, blows taken and thrown back) go through `keepSize` so the power is not applied twice. The STATUS tab's stat
   tooltip shows what each stat adds (`powerFrom`).
-- **Creatures** keep pace: a gate rank's plain creature is an even match for a hunter at the rank's home level
+- **Creatures** keep pace: a gate rank's typical creature is an even match for a hunter at the rank's home level
   (`homeLevel`: E 3, D 13, C 26, B 41, A 56, S 74). Its health is multiplied by `health(rank)` (E 1 up to S 55: as much
   as a hunter's blows grew by then) and its damage by `damage(rank)` (E 1 up to S 70: as much as a hunter's staying
-  power grew), through `Enemies.strength`. Bosses are `300 x health` and `7 x damage`. `healthAt`/`damageAt` are the
-  same curve by level for content made for one hunter (job trials, the penalty zone, nests; `Enemies.strengthForLevel`).
+  power grew). The higher ranks' pools hold heavier kinds (an S pool's average kind is about 2.7 times an E pool's
+  `HiddenLevel.power`, `EnemyRoster.basePower`), so both are evened out by `Enemies.poolScale` (E 1, D 0.78, C 0.57,
+  B 0.46, A 0.40, S 0.37, worked out from the pools, so adding a kind to a pool moves it): the pool's average creature
+  lands on the curve and its kinds keep their spread around it (`Enemies.rankHealth`/`rankDamage`, through
+  `Enemies.apply`). A kill's System XP counts the health before that evening (`Enemies.killWorth`), so a level costs
+  about 70 to 150 home-rank kills. Bosses are `300 x health` and `7 x damage`. `healthAt`/`damageAt` are the same
+  curve by level for content made for one hunter (job trials, the penalty zone, nests; `Enemies.strengthForLevel`,
+  evened out by the pool the creature came from), and `strengthAt` is both in one number (`levelForStrength` reads it
+  back).
   Summons, Call of the Pack and the shadow army grow with their master (`summonHealth`, `summonDamage`); a soul is sized
   the old way (`ShadowService.soulSize`). The sealed door's cave stays at an old D-rank gate's strength (it is fought
   without the System); the Citadel's lord has 60,000 health.
@@ -201,6 +208,11 @@ All of the game's growth lives in `system/Balance`, and what keeps old flat numb
   the body it lands on (`armorScale` = max health / 20), so it protects as much against a 400-damage blow on a
   1,500-health hunter as against a 6-damage blow on a 20-health one. Venom and the other statuses take a share of
   max health; flat max health passives and gear rolls are percentages.
+- **Where a hunter stands** (`powerLevel`, the scale of creatures' hidden levels and of the rankings): their level
+  plus every stat point beyond what their levels gave (rank bonus, rewards, the job change, unspent points), 6 to a
+  level (`POINTS_PER_LEVEL`: a level is its three points and about as much again in health and damage), never below
+  E's home level. The rival hunters on the rankings stand near their ranks' home levels and climb at most 30% past
+  their start (`Rival.GROWTH_CAP`), so the best ends just under the cap and a hunter at level 100 can take first place.
 - **AttributeFix** is a required dependency: it lifts vanilla's attribute caps (1024 max health, 2048 damage).
 - Tests: `BalanceGameTests`.
 
@@ -865,15 +877,17 @@ their level or a little above, **red** when it is far stronger. A boss's name on
 - **The creature's level** is the level of the hunter it is an even match for. `HiddenLevel.power` measures a creature
   as it really is once everything is on it (kind, gate rank, variant, size roll, affixes, a red gate's fury, a boss's
   kind and ascension): `sqrt(health x (1 + 0.04 armour + 0.01 toughness) x damage)`, the product an even fight comes
-  down to. `powerAt(level)` is the same measure for a typical plain creature made for each level by the power curve
-  (`Balance.healthAt`, `Balance.damageAt`), so a gate rank's typical plain creature sits at its rank's home level
-  (E 3, D 13, C 26, B 41, A 56, S 74; `CreatureNameGameTests` checks it). Elites, champions, giants and bosses climb
-  from there.
-- **The hunter's level** for the comparison (`hunterLevel` = `Balance.powerLevel`) counts every stat point they have,
-  3.5 to a level (three a level plus what rewards add): their level, plus the rank's bonus points, rewards, the job
-  change and unspent points. Gear does not count yet.
-- **The colour**: the ratio of the two powers. Under 0.9 white, from 1.5 red, orange in between
-  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`). All of it is first guesses for the balancing pass.
+  down to. `powerAt(level)` is the same measure for a hunter of each level: an E gate's typical creature
+  (`EnemyRoster.basePower(E)`) grown along the power curve (`Balance.strengthAt`), so a gate rank's typical plain
+  creature sits at its rank's home level (E 3, D 13, C 26, B 41, A 56, S 74; each rank's pool is evened out to it by
+  `Enemies.poolScale`; `CreatureNameGameTests` checks it). Elites, champions, giants, a pool's heavy kinds and bosses
+  climb from there.
+- **The hunter's level** for the comparison (`hunterLevel` = `Balance.powerLevel`): their level, plus every stat point
+  beyond what their levels gave (the rank's bonus points, rewards, the job change, unspent points), 6 to a level, and
+  never below E's home level (E gates are made for hunters who have just awakened). Gear does not count yet.
+- **The colour**: the ratio of the two powers. Under 0.85 white, from 1.5 red, orange in between
+  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`): in the middle levels about three levels below to seven above is orange.
+  All of it is first guesses for the balancing pass.
 - **Kept, not recomputed**: the level is worked out the first time it is asked for (a player starts seeing the
   creature) and kept in its persistent data under `beyondsolo_level`. Code that makes a creature stronger or weaker
   after it appeared calls `HiddenLevel.refresh` (red gate fury, a splitting creature's halves), which also tells the

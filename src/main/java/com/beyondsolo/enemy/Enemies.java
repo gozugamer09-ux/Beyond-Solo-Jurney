@@ -11,6 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -62,12 +63,12 @@ public final class Enemies {
 
     /**
      * Gives a creature its rank's strength and its traits (attributes, affinity, effects) and remembers them. Its health
-     * and damage grow by the rank's {@link Balance#health} and {@link Balance#damage} (E x1, S x55 and x70): a rank's
-     * plain creature is an even match for a hunter at the rank's home level.
+     * and damage grow by the rank's {@link #rankHealth} and {@link #rankDamage}: a rank's typical creature is an even
+     * match for a hunter at the rank's home level.
      */
     public static void apply(Mob mob, PlayerRank rank, EnemyTraits traits) {
         Variant v = traits.variant();
-        strength(mob, Balance.health(rank), Balance.damage(rank));
+        strength(mob, rankHealth(rank), rankDamage(rank));
         mod(mob, Attributes.MAX_HEALTH, "variant_health", v.health - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.ATTACK_DAMAGE, "variant_damage", v.damage - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.SCALE, "variant_scale", v.scale - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
@@ -103,6 +104,35 @@ public final class Enemies {
         HiddenLevel.forget(mob);
     }
 
+    /**
+     * How much a rank's numbers are evened out by how heavy its pool is: the higher ranks' pools hold heavier kinds, so
+     * their typical creature would stand above the power curve. E 1, down to about 0.37 for S. Every creature of the
+     * rank gets it, so its kinds keep their spread around the typical one.
+     */
+    public static double poolScale(@Nullable PlayerRank rank) {
+        if (rank == null) return 1;
+        return EnemyRoster.basePower(PlayerRank.E) / EnemyRoster.basePower(rank);
+    }
+
+    /** The health multiplier a gate rank gives its creatures: {@link Balance#health} evened out by {@link #poolScale}. */
+    public static double rankHealth(PlayerRank rank) {
+        return Balance.health(rank) * poolScale(rank);
+    }
+
+    /** The damage multiplier a gate rank gives its creatures: {@link Balance#damage} evened out by {@link #poolScale}. */
+    public static double rankDamage(PlayerRank rank) {
+        return Balance.damage(rank) * poolScale(rank);
+    }
+
+    /**
+     * The health a kill is worth in System XP: its max health, counted as if its rank's pool had not been evened out
+     * ({@link #poolScale}), so the heavier ranks pay what their creatures' size says they should.
+     */
+    public static float killWorth(LivingEntity victim) {
+        float health = victim.getMaxHealth();
+        return victim instanceof Mob mob ? (float) (health / poolScale(rankOf(mob))) : health;
+    }
+
     /** Gives {@code to} the same strength multipliers {@code from} has (when it has any). */
     public static void copyStrength(Mob from, Mob to) {
         double health = multiplier(from, Attributes.MAX_HEALTH, "gate_health");
@@ -124,11 +154,13 @@ public final class Enemies {
     }
 
     /**
-     * Makes a creature as strong as content for a hunter of {@code level} is (job trials, the penalty zone, nests):
-     * {@link Balance#healthAt} and {@link Balance#damageAt} instead of its rank's numbers.
+     * Makes a creature as strong as content for a hunter of {@code level} is (the penalty zone, nests):
+     * {@link Balance#healthAt} and {@link Balance#damageAt} instead of its rank's numbers, evened out by the pool it
+     * came from ({@link #poolScale} of the rank it was made for).
      */
     public static void strengthForLevel(Mob mob, double level) {
-        strength(mob, Balance.healthAt(level), Balance.damageAt(level));
+        double scale = poolScale(rankOf(mob));
+        strength(mob, Balance.healthAt(level) * scale, Balance.damageAt(level) * scale);
     }
 
     /**

@@ -14,6 +14,7 @@ import com.beyondsolo.enemy.Variant;
 import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.gate.GateBossEntity;
 import com.beyondsolo.registry.ModEntities;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.Progression;
@@ -110,12 +111,11 @@ public final class CreatureNameGameTests {
     }
 
     /**
-     * Where each gate rank's typical plain creature sits: about the level its rank's armour can first be worn at (E 1,
-     * D 10, C 20, B 30, A 40, S 50). When the balancing pass moves creatures' numbers, move HiddenLevel's curve with
-     * them (or this line), so the colours keep meaning the same.
+     * Where each gate rank's typical plain creature sits: its rank's home level on the power curve (E 3, D 13, C 26,
+     * B 41, A 56, S 74), whatever kinds its pool holds (each rank's pool is evened out by Enemies.poolScale).
      */
     @GameTest(template = ARENA, timeoutTicks = 200)
-    public static void typicalCreatureOfARankSitsAtItsGearLevel(GameTestHelper helper) {
+    public static void typicalCreatureOfARankSitsAtItsHomeLevel(GameTestHelper helper) {
         StringBuilder found = new StringBuilder();
         boolean ok = true;
         for (PlayerRank rank : PlayerRank.values()) {
@@ -129,19 +129,23 @@ public final class CreatureNameGameTests {
                 m.discard();
             }
             int typical = HiddenLevel.levelFor(sum / weight);
-            int gear = rank == PlayerRank.E ? 1 : rank.tier() * 10;
-            found.append(rank).append(' ').append(typical).append(" (gear ").append(gear).append(")  ");
-            if (Math.abs(typical - gear) > 4) ok = false;
+            int home = Balance.homeLevel(rank);
+            found.append(rank).append(' ').append(typical).append(" (home ").append(home).append(")  ");
+            if (Math.abs(typical - home) > 1) ok = false;
         }
-        helper.assertTrue(ok, "each rank's typical creature should sit near its gear level: " + found);
+        helper.assertTrue(ok, "each rank's typical creature should sit at its home level: " + found);
         helper.succeed();
     }
 
-    /** A hunter's side counts every stat point they have, three to a level: rank bonus and unspent points included. */
+    /**
+     * A hunter's side is their level plus every stat point beyond what their levels gave (rank bonus included),
+     * unspent points too, and never below E's home level.
+     */
     @GameTest(template = ARENA)
     public static void hunterLevelCountsEveryPoint(GameTestHelper helper) {
         ServerPlayer e = hunter(helper, PlayerRank.E);
-        helper.assertTrue(Math.abs(HiddenLevel.hunterLevel(SystemAPI.get(e)) - 1f) < 0.01f, "a fresh E-rank hunter stands at 1");
+        helper.assertTrue(Math.abs(HiddenLevel.hunterLevel(SystemAPI.get(e)) - Balance.homeLevel(PlayerRank.E)) < 0.01f,
+                "a fresh E-rank hunter stands at E's home level");
         long xp = 0;
         for (int l = 1; l < 10; l++) xp += Progression.xpToNext(l);
         SystemAPI.grantXp(e, xp, SystemAPI.XP_SOURCE_COMMAND);
@@ -197,11 +201,10 @@ public final class CreatureNameGameTests {
         Mob far = creature(helper, MonsterKind.PIT_RAVAGER, PlayerRank.A, EnemyTraits.NONE);
         helper.assertTrue(HiddenLevel.threat(far, p) == Threat.FAR_STRONGER, "an A gate's creature is red to a fresh hunter");
 
-        // a pit ravager is one of an A gate's heaviest creatures (near S's home level on the power curve)
         ServerPlayer veteran = hunter(helper, PlayerRank.E);
-        SystemAPI.addStatPoints(veteran, Math.round(HiddenLevel.POINTS_PER_LEVEL * 65));
-        helper.assertTrue(HiddenLevel.threat(champion, veteran) == Threat.WEAKER, "an E gate's champion is white to a level 66");
-        helper.assertTrue(HiddenLevel.threat(far, veteran) != Threat.FAR_STRONGER, "an A gate's plain creature is no red to a level 66");
+        SystemAPI.addStatPoints(veteran, Math.round(HiddenLevel.POINTS_PER_LEVEL * 59));
+        helper.assertTrue(HiddenLevel.threat(champion, veteran) == Threat.WEAKER, "an E gate's champion is white to a level 60");
+        helper.assertTrue(HiddenLevel.threat(far, veteran) != Threat.FAR_STRONGER, "an A gate's plain creature is no red to a level 60");
         champion.discard();
         far.discard();
         helper.succeed();

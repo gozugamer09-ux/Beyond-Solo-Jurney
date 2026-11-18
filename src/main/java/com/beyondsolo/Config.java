@@ -30,7 +30,7 @@ public final class Config {
             .comment("Free stat points granted on each level up.")
             .defineInRange("progression.statPointsPerLevel", 3, 0, 100);
     public static final ModConfigSpec.DoubleValue KILL_XP_MULTIPLIER = B
-            .comment("System XP from a kill = victim max health * this.")
+            .comment("System XP from a kill = victim max health * this (a gate creature counts the health its rank gave it before the rank's pool was evened out).")
             .defineInRange("progression.killXpMultiplier", 0.5, 0.0, 100.0);
 
     // --- Exhaustion ---

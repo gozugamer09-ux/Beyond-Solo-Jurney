@@ -1,5 +1,6 @@
 package com.beyondsolo.system;
 
+import com.beyondsolo.Config;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -14,11 +15,14 @@ import org.jetbrains.annotations.Nullable;
  * raises the power of their skills, procs and summons ({@link #power}). A fresh hunter has the vanilla 20 health;
  * a level 75 hunter has about 1,500 (a VIT-heavy guardian twice that), and hits about sixty times harder.</p>
  *
- * <p><b>The creatures.</b> They keep pace: a gate rank's plain creature is an even match for a hunter at that rank's
+ * <p><b>The creatures.</b> They keep pace: a gate rank's typical creature is an even match for a hunter at that rank's
  * {@link #homeLevel} (E 3, D 13, C 26, B 41, A 56, S 74), so its health is multiplied by {@link #health} (as much as
- * a hunter's blows grew by then) and its damage by {@link #damage} (as much as a hunter's staying power grew).
- * {@link #healthAt} and {@link #damageAt} are the same curve by level, for content made for one hunter (job trials,
- * the penalty zone, nests, summons).</p>
+ * a hunter's blows grew by then) and its damage by {@link #damage} (as much as a hunter's staying power grew). The
+ * higher ranks' pools hold heavier kinds, so each rank's numbers are evened out by how heavy its pool is
+ * ({@code enemy.Enemies#poolScale}): the pool's average creature lands on the curve and its kinds keep their spread
+ * around it. {@link #healthAt} and {@link #damageAt} are the same curve by level, for content made for one hunter
+ * (job trials, the penalty zone, nests, summons); {@link #strengthAt} is both in one number, the scale creatures'
+ * hidden levels are read on.</p>
  *
  * <p><b>Old flat numbers.</b> Flat heals (food, potions, most healing skills), absorption shields, hazards and the
  * blows of creatures that are not the System's were sized for health pools of 20 to 60. They are multiplied by
@@ -49,8 +53,11 @@ public final class Balance {
     public static final double LEVEL_DAMAGE = 0.03;
     /** Each point of a stat the hunter's class leans on: +3% skill, proc and summon power (scaled by how much it leans). */
     public static final double POWER_PER_POINT = 0.03;
-    /** Stat points one level is worth on the creatures' level scale: 3 a level, plus what rewards add. */
-    public static final float POINTS_PER_LEVEL = 3.5f;
+    /**
+     * Stat points beyond what a hunter's levels gave them (rank bonus, rewards, the job change) that count as one more
+     * level on the creatures' level scale: a level is its three points and about as much again in health and damage.
+     */
+    public static final float POINTS_PER_LEVEL = 6f;
     /** Max health a VIT point gave before this curve. Only used to keep old flat numbers at their old share. */
     private static final double LEGACY_VIT_HEALTH = 0.5;
 
@@ -109,6 +116,29 @@ public final class Balance {
         return best;
     }
 
+    /**
+     * How much stronger in all content for this level is than content for E's home level: the root of its health and
+     * damage multipliers, the measure an even fight comes down to.
+     */
+    public static double strengthAt(double level) {
+        return Math.sqrt(healthAt(level) * damageAt(level));
+    }
+
+    /** The level whose content has this strength ({@link #strengthAt}): fractions allowed, at least 1, on past the cap. */
+    public static double levelForStrength(double strength) {
+        int last = CURVE_LEVELS.length - 1;
+        if (!(strength > Math.sqrt(CURVE_HEALTH[0] * CURVE_DAMAGE[0]))) return CURVE_LEVELS[0];
+        for (int i = 1; i <= last; i++) {
+            double from = Math.sqrt(CURVE_HEALTH[i - 1] * CURVE_DAMAGE[i - 1]);
+            double to = Math.sqrt(CURVE_HEALTH[i] * CURVE_DAMAGE[i]);
+            if (strength <= to || i == last) {
+                double t = Math.log(strength / from) / Math.log(to / from);
+                return CURVE_LEVELS[i - 1] + t * (CURVE_LEVELS[i] - CURVE_LEVELS[i - 1]);
+            }
+        }
+        return CURVE_LEVELS[last];
+    }
+
     public static float bossHealth(PlayerRank rank) {
         return (float) (BOSS_HEALTH * health(rank));
     }
@@ -151,13 +181,16 @@ public final class Balance {
     }
 
     /**
-     * Where a hunter stands on the creatures' level scale: every stat point they have, rank bonus, rewards and unspent
-     * points included, {@link #POINTS_PER_LEVEL} to a level. Works on both sides.
+     * Where a hunter stands on the creatures' level scale: their level, plus every stat point they have beyond what
+     * their levels gave (rank bonus, rewards, the job change; unspent points count too), {@link #POINTS_PER_LEVEL} to
+     * a level. Never below E's home level: E gates are made for hunters who have just awakened. Works on both sides.
      */
     public static float powerLevel(SystemData d) {
         int points = d.statPoints();
         for (Stat s : Stat.values()) points += d.stat(s) - Stat.BASE;
-        return Math.max(1f, 1f + points / POINTS_PER_LEVEL);
+        int level = Math.max(1, d.level());
+        int fromLevels = Config.STAT_POINTS_PER_LEVEL.get() * (level - 1);
+        return Math.max(homeLevel(PlayerRank.E), level + (points - fromLevels) / POINTS_PER_LEVEL);
     }
 
     /**

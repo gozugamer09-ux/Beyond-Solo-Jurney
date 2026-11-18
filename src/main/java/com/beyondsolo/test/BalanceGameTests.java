@@ -1,7 +1,14 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.chronicle.ranking.Rival;
+import com.beyondsolo.chronicle.ranking.Rivals;
 import com.beyondsolo.enemy.Enemies;
+import com.beyondsolo.enemy.EnemyModule;
+import com.beyondsolo.enemy.EnemyRoster;
+import com.beyondsolo.enemy.EnemyTraits;
+import com.beyondsolo.enemy.HiddenLevel;
+import com.beyondsolo.enemy.MonsterKind;
 import com.beyondsolo.gear.BonusStat;
 import com.beyondsolo.quest.RankScaling;
 import com.beyondsolo.shadow.ShadowRank;
@@ -21,6 +28,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.level.GameType;
@@ -116,6 +124,22 @@ public final class BalanceGameTests {
                     "the curve only climbs, at " + l);
         }
         helper.assertTrue(Balance.healthAt(120) > Balance.healthAt(100), "and on past the cap");
+        for (double l = 1; l <= 150; l += 0.5) {
+            helper.assertTrue(near(Balance.levelForStrength(Balance.strengthAt(l)), l, 1e-6), "strength reads back as its level, at " + l);
+        }
+
+        // the higher ranks' pools hold heavier kinds; each is evened out so its typical creature lands on the curve
+        helper.assertTrue(near(Enemies.poolScale(PlayerRank.E), 1, 1e-9), "E's pool is the baseline");
+        helper.assertTrue(EnemyRoster.basePower(PlayerRank.S) > EnemyRoster.basePower(PlayerRank.E) * 2, "an S pool is much heavier");
+        helper.assertTrue(near(Enemies.rankHealth(PlayerRank.S) * EnemyRoster.basePower(PlayerRank.S),
+                Balance.health(PlayerRank.S) * EnemyRoster.basePower(PlayerRank.E), 1e-6), "S's numbers are evened out by its pool");
+        // and a kill is still worth the health the rank gave it before that
+        Mob gloomfang = Enemies.spawn(helper.getLevel(), PlayerRank.S, EnemyModule.type(MonsterKind.GLOOMFANG),
+                helper.absolutePos(new BlockPos(2, 2, 2)), EnemyTraits.NONE, -1);
+        helper.assertTrue(gloomfang != null, "an S gloomfang");
+        helper.assertTrue(near(Enemies.killWorth(gloomfang), gloomfang.getMaxHealth() / Enemies.poolScale(PlayerRank.S), 0.5),
+                "its kill is worth its rank's full health: " + Enemies.killWorth(gloomfang));
+        gloomfang.discard();
 
         // a gate's creature carries its rank's growth, and the growth can be read back
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
@@ -248,6 +272,22 @@ public final class BalanceGameTests {
         helper.assertTrue(near(BonusStat.MAX_HEALTH.amount(1.5f), 0.03, 1e-6), "an old +1.5 roll is +3%");
         helper.assertTrue(near(BonusStat.MAX_HEALTH.amount(0.03f), 0.03, 1e-6), "a new roll is what it says");
         helper.assertTrue(BonusStat.ARMOR.amount(0.8f) == 0.8f, "other stats are left alone");
+        helper.succeed();
+    }
+
+    /** The rival hunters stand near their ranks' home levels and stay under the cap, so a hunter at the cap can top the board. */
+    @GameTest(template = ARENA)
+    public static void aHunterAtTheCapCanTopTheRankings(GameTestHelper helper) {
+        for (Rival r : Rivals.ALL) {
+            float last = r.levelOn(1_000_000L);
+            helper.assertTrue(last < Balance.MAX_LEVEL, r.name() + " stays under the level cap: " + last);
+            helper.assertTrue(Math.abs(r.levelOn(0) - Balance.homeLevel(r.rank())) <= 12, r.name() + " starts near their rank's home level: " + r.levelOn(0));
+        }
+        ServerPlayer p = player(helper, PlayerClass.WARRIOR);
+        levelTo(p, Balance.MAX_LEVEL);
+        float standing = HiddenLevel.hunterLevel(SystemAPI.get(p));
+        helper.assertTrue(standing >= Balance.MAX_LEVEL, "a hunter at the cap stands at it: " + standing);
+        SystemAPI.reset(p);
         helper.succeed();
     }
 
