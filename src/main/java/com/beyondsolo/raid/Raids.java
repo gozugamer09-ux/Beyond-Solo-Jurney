@@ -728,7 +728,7 @@ public final class Raids {
             double dx = lt.getX() - player.getX(), dz = lt.getZ() - player.getZ();
             if (dx * dx + dz * dz < 13 * 13 && Math.abs(lt.getY() - player.getY()) < 7) {
                 lt.wake();
-                for (ServerPlayer p : GateService.playersIn(dungeon, g)) {
+                for (ServerPlayer p : inside(dungeon, g)) {
                     PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_INTRO, g.theme().ordinal(), lt.getId(), 0,
                             lt.getDisplayName(), Component.translatable(KEY + "lieutenant_subtitle", g.rank().displayName())));
                 }
@@ -779,7 +779,7 @@ public final class Raids {
         RaidState s = state(g);
         Run run = run(g.id());
         List<ServerPlayer> inside = new ArrayList<>();
-        for (ServerPlayer p : GateService.playersIn(dungeon, g)) {
+        for (ServerPlayer p : inside(dungeon, g)) {
             RaidState.Raider r = s.raider(p.getUUID());
             if (r != null && p.isAlive() && !p.isSpectator()) {
                 inside.add(p);
@@ -820,6 +820,22 @@ public final class Raids {
             phases(server, dungeon, g, s, run, boss, inside, hunters, now);
         }
         syncInside(server, dungeon, g, inside);
+    }
+
+    /**
+     * The players in a raid's cave: {@link GateService#playersIn}, and a game test's stand-ins (which the level's
+     * player list never holds) standing in it too.
+     */
+    static List<ServerPlayer> inside(ServerLevel dungeon, GateInstance g) {
+        List<ServerPlayer> out = new ArrayList<>();
+        if (!GateService.isDungeon(dungeon)) return out;
+        GateData data = GateData.get(dungeon.getServer());
+        for (ServerPlayer p : OnlinePlayers.all(dungeon.getServer())) {
+            if (p.level() != dungeon) continue;
+            GateInstance at = data.bySlotPos(p.blockPosition());
+            if (at != null && at.id().equals(g.id())) out.add(p);
+        }
+        return out;
     }
 
     /** The hunters' bodies in the cave right now. */
@@ -878,7 +894,7 @@ public final class Raids {
         RaidState s = state(g);
         ServerPlayer best = null;
         double bestD = Double.MAX_VALUE;
-        for (ServerPlayer p : GateService.playersIn(level, g)) {
+        for (ServerPlayer p : inside(level, g)) {
             if (!s.has(p.getUUID()) || !p.isAlive() || p.isSpectator()) continue;
             if (p.getUUID().equals(s.leader)) return p;
             double d = p.distanceToSqr(e);
@@ -1074,7 +1090,7 @@ public final class Raids {
         dirty(server);
         ServerLevel dungeon = GateService.dungeon(server);
         if (dungeon == null) return;
-        List<ServerPlayer> inside = GateService.playersIn(dungeon, g);
+        List<ServerPlayer> inside = inside(dungeon, g);
         if (s.pylonsLeft > 0) {
             for (ServerPlayer p : inside) p.displayClientMessage(Component.translatable(KEY + "pylon_down", s.pylonsLeft), true);
             syncInside(server, dungeon, g, inside);
@@ -1181,7 +1197,8 @@ public final class Raids {
         dirty(server);
         Run run = RUNS.remove(g.id());
         List<ServerPlayer> raiders = new ArrayList<>();
-        for (ServerPlayer p : players) if (s.has(p.getUUID())) raiders.add(p);
+        for (ServerPlayer p : players) if (s.has(p.getUUID()) && !raiders.contains(p)) raiders.add(p);
+        for (ServerPlayer p : inside(level, g)) if (s.has(p.getUUID()) && !raiders.contains(p)) raiders.add(p);
 
         // a cache for each raider (the boss's own is the first), around where it fell
         BlockPos center = boss.blockPosition();
@@ -1330,7 +1347,7 @@ public final class Raids {
         h.fallen = true;
         dirty(server);
         Guilds.hunterFell(server, h.guild, h.hunter);
-        for (ServerPlayer p : GateService.playersIn(level, g)) p.displayClientMessage(Component.translatable(KEY + "hunter_down", h.name), true);
+        for (ServerPlayer p : inside(level, g)) p.displayClientMessage(Component.translatable(KEY + "hunter_down", h.name), true);
     }
 
     // ------------------------------------------------------------------ keeping clients up to date
@@ -1628,7 +1645,7 @@ public final class Raids {
                     QuestEngine.fail(p, q, QuestEvent.FailReason.DIED);
                 }
             }
-            for (ServerPlayer m : GateService.playersIn(level, g)) {
+            for (ServerPlayer m : inside(level, g)) {
                 if (m != p) m.displayClientMessage(Component.translatable(KEY + "raider_down", r.name), true);
             }
             ServerScheduler.schedule(2, () -> sync(p));
@@ -1653,7 +1670,7 @@ public final class Raids {
         CONTROLLED.remove(lt.getUUID());
         MinecraftServer server = level.getServer();
         dirty(server);
-        List<ServerPlayer> inside = GateService.playersIn(level, g);
+        List<ServerPlayer> inside = inside(level, g);
         for (ServerPlayer p : inside) {
             if (s.has(p.getUUID())) QuestEngine.progress(p, LIEUTENANT_KEY, 1);
             if (s.lieutenants.isEmpty()) {
@@ -1748,7 +1765,7 @@ public final class Raids {
         if (!g.bossAwake()) GateService.wakeBossNow(dungeon, g);
         s.lieutenants.clear();
         Run run = run(g.id());
-        List<ServerPlayer> inside = GateService.playersIn(dungeon, g);
+        List<ServerPlayer> inside = inside(dungeon, g);
         long now = dungeon.getGameTime();
         switch (phase) {
             case "barrier" -> {
@@ -1794,7 +1811,7 @@ public final class Raids {
         ServerLevel dungeon = GateService.dungeon(server);
         Run run = RUNS.get(g.id());
         if (dungeon == null || run == null || g.boss() == null || !(dungeon.getEntity(g.boss()) instanceof GateBossEntity boss)) return;
-        landCataclysm(dungeon, g, state(g), run, boss, GateService.playersIn(dungeon, g), hunterBodies(dungeon, state(g)), dungeon.getGameTime());
+        landCataclysm(dungeon, g, state(g), run, boss, inside(dungeon, g), hunterBodies(dungeon, state(g)), dungeon.getGameTime());
     }
 
     /** Runs a raid's upkeep now (tests). */
