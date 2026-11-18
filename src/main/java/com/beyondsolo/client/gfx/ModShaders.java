@@ -9,11 +9,15 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 
-/** Loads the mod's shaders: the one behind every rounded, glowing shape in the System UI, and the one for light in the world. */
+/**
+ * Loads the mod's shaders: the one behind every rounded, glowing shape in the System UI, the one for light in the world
+ * and the one for the skins of skill effects.
+ */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class ModShaders {
     private static ShaderInstance shape;
     private static ShaderInstance light;
+    private static ShaderInstance energy;
 
     @SubscribeEvent
     static void register(RegisterShadersEvent event) {
@@ -32,6 +36,13 @@ public final class ModShaders {
         } catch (Exception e) {
             BeyondSolo.LOGGER.error("Could not load the world light shader. Glows fall back to the vanilla shader and look harder.", e);
         }
+        energy = null;
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), BeyondSolo.id("energy"), DefaultVertexFormat.POSITION_TEX_COLOR),
+                    loaded -> energy = loaded);
+        } catch (Exception e) {
+            BeyondSolo.LOGGER.error("Could not load the skill skin shader. Skill effects fall back to plain light.", e);
+        }
     }
 
     /** Null if the shader failed to load. */
@@ -42,6 +53,14 @@ public final class ModShaders {
     /** The shader for glows and magic circles in the world. Falls back to a vanilla shader if ours failed to load. */
     public static ShaderInstance light() {
         return light != null ? light : GameRenderer.getPositionTexColorShader();
+    }
+
+    /**
+     * The shader for the skins of skill effects (blades, beams, orbs, shells): heat and cover in one texture, drawn
+     * with premultiplied alpha. Falls back to {@link #light()} if it failed to load.
+     */
+    public static ShaderInstance energy() {
+        return energy != null ? energy : light();
     }
 
     private ModShaders() {}

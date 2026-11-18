@@ -216,7 +216,7 @@ public final class SkillAPI {
         }
         SkillCombat.begin(player, skill);
         boolean done;
-        SkillFx.beginCast();
+        SkillFx.beginCast(player, skill);
         try {
             done = skill.action().cast(player, skill, level);
         } finally {

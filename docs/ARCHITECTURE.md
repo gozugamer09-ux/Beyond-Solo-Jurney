@@ -662,12 +662,27 @@ for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools
   files (no `version`) playerAnimator reads `torso` as `body`, the whole player turned about the hips, and its `y`
   moves the whole player by that many **blocks**: a `"y": 2.6` meant as a crouch lifted casters two blocks off the
   ground. Leave `y` off the torso; `gen_skill_anims.py` turns the legs back against every lean so the feet stay down.
-- *The light.* `SkillWorldFx` draws each kind with the light render type. A blade's cut is a swept band with a
-  white-hot edge (`swipe` / `arc`, texture `fx/arc.png`), not a picture of a crescent; ground blows split the
-  ground (`fissures`) and send soft shock ripples (`fx/shock.png`). **Weapon skills draw no circle or sigil** (Yordan's
-  rule): magic circles and crisp `RING`s are for spells (`CAST`, only under `Skill.castCircle` skills), zones,
-  shields, marks and ultimates; hits, blinks, bashes, shots and reactions ripple with `SHOCK`. A streak that passes
-  through the eye fades out (a fountain at your own feet), and beams and shots start past the hand in first person.
+- *The light.* `SkillWorldFx` draws each kind as shapes wearing a skin, never as a picture of a glow: a blade's cut is
+  a crescent (`Skins.crescent`), beams, columns and geysers are tubes with a white-hot core, blasts and domes are
+  shells (`Skins.sphere`, `cap`), ground blows are flat cracks with a sheet of light standing on them, tornadoes are
+  funnels, chains are links, wings are feathers. The shapes are in `client.skill.Skins` (ribbon, line, strip,
+  crescent, tube, sphere, cap, ring, disk, wall, lightning, lance, spikes, billboard, decal) and the composite effects
+  in `SkinFx` (blast, shock, cracks, fault, geyser, flames, column, shells, barrier, tornado, sword, smoke, scorch).
+  Skins use the `energy` render type (`shaders/core/energy.fsh`, premultiplied alpha): a skin texture's red is heat
+  (the colour ramping up to white) and its alpha is cover (a body in the effect's own colour), so a skin stays solid
+  against a bright sky instead of washing out the way added light does. The 16 skins in `textures/effect/skin` come
+  from `tools/gen_skill_skins.py` and move by scrolling their UVs in code; smoke and scorch marks are blended over the
+  world (`softTexture`). Every effect carries its skill's `SkillElement` (`SkillFxPayload.element`, set while the
+  action runs by `SkillFx.beginCast`, read by `SkillFx.castElement`), and `Skins.Look` dresses it: fire burns, water
+  runs, air swirls, shadow is dark with a bright edge, the rest are raw energy. An effect of no skill guesses its
+  element from its colour. All energy types share the one buffer of the frame's `BufferSource`: they draw in the
+  order they are asked for, and every change of texture is another draw, so draw many of one thing together (see
+  `motes`); `Skins.flush` ends the open batches when the frame's effects are done. **Weapon skills draw no circle or
+  sigil** (Yordan's rule): magic circles and crisp rings are for spells (`CAST`, only under `Skill.castCircle`
+  skills), zones, shields, marks and ultimates; hits, blinks, bashes, shots and reactions land with a shell, spikes
+  and a `SHOCK` ripple. Ribbons, tubes and shells fade as they come close to the eye (a fountain at your own feet),
+  beams and shots start past the hand in first person, and a caster's own dome, wings or halo are faint or left out
+  in first person.
 - *The particles.* `FxParticles` is the skill effects' own particle system: smoke and dust that billow and thin
   (blended, darkened where the world is dark), flames from a flipbook, sparks that streak and skip off the ground,
   embers, motes, shards, petals, leaves, feathers, drops, shock rings and ground glows, all soft textures from
