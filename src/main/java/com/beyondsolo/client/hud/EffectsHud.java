@@ -143,13 +143,13 @@ public final class EffectsHud {
         Shapes.circle(cx, cy, r).fillV(glassTop, glassBottom)
                 .border(0.6f, Gfx.alpha(rim, ambient ? 0.35f : 0.55f), Gfx.alpha(color, 0.2f))
                 .glow(2.5f + 5 * fresh, Gfx.alpha(color, 0.18f + 0.5f * fresh)).draw(g);
-        float left = infinite || ambient ? 1f : Math.clamp(duration / (float) slot.full, 0f, 1f);
+        float remaining = infinite || ambient ? 1f : Math.clamp(duration / (float) slot.full, 0f, 1f);
         Shapes.ring(cx, cy, r - 0.2f, 1.5f).fill(0x26FFFFFF).draw(g);
         if (ambient) {
             // beacons and conduits: a calm dotted ring, no clock
             Shapes.ring(cx, cy, r - 0.2f, 1.2f).fill(Gfx.alpha(rim, 0.6f)).dashes(16, 0.5f).rotation(Anim.loop(18f)).draw(g);
         } else {
-            Shapes.ring(cx, cy, r - 0.2f, 1.5f).fillAround(Gfx.mix(color, 0xFFFFFFFF, 0.55f), color).progress(left)
+            Shapes.ring(cx, cy, r - 0.2f, 1.5f).fillAround(Gfx.mix(color, 0xFFFFFFFF, 0.55f), color).progress(remaining)
                     .glow(2f, Gfx.alpha(color, 0.55f * alpha)).draw(g);
         }
 
