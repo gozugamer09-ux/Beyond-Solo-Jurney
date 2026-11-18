@@ -88,15 +88,6 @@ public final class NpcQuests {
             List.of(new Prey("minecraft:wither_skeleton", 3), new Prey("minecraft:blaze", 4), new Prey("minecraft:evoker", 1)),
             List.of(new Prey("minecraft:evoker", 2), new Prey("minecraft:ravager", 1), new Prey("minecraft:wither_skeleton", 4)));
 
-    /** What gathers at a nest, by tier. */
-    static final List<List<String>> NEST = List.of(
-            List.of("minecraft:zombie", "minecraft:skeleton", "minecraft:spider"),
-            List.of("minecraft:husk", "minecraft:stray", "minecraft:zombie", "minecraft:spider"),
-            List.of("minecraft:zombie", "minecraft:skeleton", "minecraft:witch", "minecraft:pillager"),
-            List.of("minecraft:vindicator", "minecraft:pillager", "minecraft:skeleton", "minecraft:witch"),
-            List.of("minecraft:vindicator", "minecraft:wither_skeleton", "minecraft:witch", "minecraft:pillager"),
-            List.of("minecraft:vindicator", "minecraft:evoker", "minecraft:wither_skeleton"));
-
     // ------------------------------------------------------------------ the board
 
     /** How many requests a villager has each day: one per job level up to three; a trader two; children none. */
@@ -196,11 +187,11 @@ public final class NpcQuests {
                 float angle = r.nextFloat() * Mth.TWO_PI;
                 BlockPos center = offset(giver, dist, angle, accepting);
                 b.text(key, name, dist, direction(angle));
+                // the area is only where the nest is (its marker): its creatures count wherever and however they die
                 b.area(new QuestArea(giver.level().dimension(), center, 16, 0));
-                int count = RankScaling.count(6, tier);
-                b.objective(ObjectiveType.KILL, Targets.HOSTILE, count, true, Component.translatable("quest_objective.beyondsolo.clear_nest"));
+                b.custom(nestKey(extra), NEST_SIZE, Component.translatable("quest_objective.beyondsolo.clear_nest"));
                 b.timeLimit(DAY).xp(140);
-                extra.putInt("nest", count + 1);
+                extra.putInt("nest", NEST_SIZE);
             }
             case ESCORT -> {
                 int dist = Math.min(190, 70 + 20 * tier + r.nextInt(20));
@@ -245,6 +236,16 @@ public final class NpcQuests {
         ItemStack armor = com.beyondsolo.armory.ArmorDrops.questPiece(profession(giver), kind == NpcQuestKind.CLEAR || kind == NpcQuestKind.ESCORT, r);
         if (!armor.isEmpty()) b.item(armor);
         return b.extra(extra).build();
+    }
+
+    /**
+     * A clearing request's nest: always this many of the gate's own creatures, as strong as the hunter who took it.
+     * Every one of them that dies counts, whoever or whatever killed it and wherever it wandered off to.
+     */
+    public static final int NEST_SIZE = 10;
+
+    public static String nestKey(CompoundTag extra) {
+        return "beyondsolo:nest/" + extra.getString("token");
     }
 
     public static String escortKey(CompoundTag extra) {
