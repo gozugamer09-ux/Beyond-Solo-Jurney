@@ -320,7 +320,7 @@ def bow_parts(spec, draw=0.0):
             a, b = sorted((um + side * (L - tip_len), um + side * L))
             parts.append(Part(a, b, lambda u: sh.width(u) + (0.1 if style != "serpent" else 0.0), spec["tips"],
                               bend=sh.arc, relief="limb"))
-    parts.append(Part(um - 2.7, um + 2.7, const(sh.thick + 0.45), spec["grip"], kind="grip", bend=sh.arc))
+    parts.append(Part(um - 2.7, um + 2.7, const(sh.thick + 0.45), spec["grip"], kind="grip", bend=sh.arc, relief="riser"))
     if style == "serpent":
         # eyes, and a pale belly line
         for side in (-1, 1):
