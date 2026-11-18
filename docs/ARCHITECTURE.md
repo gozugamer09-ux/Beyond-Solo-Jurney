@@ -1502,8 +1502,8 @@ join the dev server under another name (offline mode) for checks with two player
 Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
 `ChronicleModule.init` registers the hunter's chronicle (`ChronicleData`, attachment `beyondsolo:chronicle`, kept
 through death: titles earned with the game time, the chronicle's own counters, journal pages, what is not looked at
-yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle plus how far
-along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
+yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle, never how
+far along a title is; `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
 `ChronicleActionPayload` the page's buttons: wear, take off, read, ask for the boards).
 
 - **Titles** (`title/Titles`, 52 of them and the eight secret ones of the situation quests, in five categories: hunt,
@@ -1515,8 +1515,10 @@ along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPa
   gold earned, the shadow army, journal pages). `TitleService.check` runs every 2 s. A title without a feat is given by
   its feature: `SystemAPI.setTitle(player, key)` fires `SystemEvent.TitleGranted` (cancellable) and the chronicle keeps
   it. A new title is worn when nothing is worn or when the System picked the worn one and the new one is rarer; one the
-  hunter picked on the page stays on. Some titles are secret (shown as "???" until earned). Titles worn before the
-  chronicle existed are taken in quietly at login.
+  hunter picked on the page stays on. What earns a title, how far along it is and its perks stay hidden until it is
+  earned: the page shows the rest by name and rarity only, as a guide, and TITLE ACQUIRED tells what earned it. Some
+  titles are secret (not even the name: "???" until earned). Titles worn before the chronicle existed are taken in
+  quietly at login.
 - **Perks** (`TitlePerk`, only the worn title's): attribute ones as transient modifiers `beyondsolo:title_<perk>`
   (attack, health, speed, armor, luck, elemental and spell power, mana efficiency, skill haste, exhaustion
   resistance) put back on login, respawn and every change; event ones in `TitleService` (System XP on `XpGain`, gold
@@ -1534,7 +1536,7 @@ along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPa
   its ascended form. Another feature adds its pages with `Journal.register`. Lore lines are
   `chronicle.beyondsolo.lore.<category>.<name>` (a weapon's own `.lore` line comes first).
 - **Client**: the CHRONICLE page (`ChronicleTab`, order 108) with three sections: `TitlesPage` (filters, every title
-  with its progress, the picked one's crest, goal, perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
+  by name and rarity, the picked one's crest and, once earned, what earned it, its perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
   hunter's place and who is next, the rush tiers) and `JournalPage` (a grid per section: creatures and bosses drawn
   as themselves, weapons as their icons, realms as pictures, all dark shapes until known; the page with the creature
   turning, its lore once one is slain, kills, the first day it was met and a boss's forms). `TitleOverlay` plays

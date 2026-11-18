@@ -3,7 +3,6 @@ package com.beyondsolo.client.chronicle;
 import com.beyondsolo.chronicle.ChronicleData;
 import com.beyondsolo.chronicle.journal.Journal;
 import com.beyondsolo.chronicle.journal.JournalEntry;
-import com.beyondsolo.chronicle.title.TitleDef;
 import com.beyondsolo.chronicle.title.TitleTier;
 import com.beyondsolo.chronicle.title.Titles;
 import com.beyondsolo.client.ClientSystemData;
@@ -17,18 +16,16 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
- * The client's copy of the hunter's chronicle (titles, feats, journal pages), how far along each title still to earn
- * is, and the rankings boards last sent. The CHRONICLE page and the status window read it.
+ * The client's copy of the hunter's chronicle (titles, feats, journal pages) and the rankings boards last sent. The
+ * CHRONICLE page and the status window read it. How far along a title is never comes here: what earns a title is
+ * told only once it is earned.
  */
 public final class ChronicleClient {
     private static ChronicleData data = new ChronicleData();
-    private static final Map<String, Long> PROGRESS = new HashMap<>();
     private static @Nullable CompoundTag boards;
     private static double boardsAt = -1;
     private static boolean synced;
@@ -37,10 +34,6 @@ public final class ChronicleClient {
 
     public static ChronicleData data() {
         return data;
-    }
-
-    public static long progress(TitleDef def) {
-        return PROGRESS.getOrDefault(def.key(), 0L);
     }
 
     public static @Nullable CompoundTag boards() {
@@ -61,9 +54,6 @@ public final class ChronicleClient {
             }
         }
         data = next;
-        PROGRESS.clear();
-        CompoundTag progress = tag.getCompound("progress");
-        for (String k : progress.getAllKeys()) PROGRESS.put(k, progress.getLong(k));
         synced = true;
     }
 
@@ -121,7 +111,6 @@ public final class ChronicleClient {
 
     public static void clear() {
         data = new ChronicleData();
-        PROGRESS.clear();
         boards = null;
         boardsAt = -1;
         synced = false;
