@@ -28,6 +28,10 @@ import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
  * dungeon key has a keyhole of light at its heart and a tumbler ring turning in the swirl, and no beam (its holder
  * turned it right in front of themselves).
  *
+ * <p>A raid gate ({@code raid.Raids}) is crowned: a second rim of violet light turns just outside the first, a wide
+ * sigil turns on the ground before it and its beam stands thicker and taller, tinted violet, so a raid can be told from
+ * a gate across a valley.</p>
+ *
  * <p>A gate coming apart before its dungeon break ({@code breaks.DungeonBreaks}) shows it: its light runs red, its
  * swirl turns faster, it flickers, and cracks of red light spread out across the air around it, further the nearer the
  * break (in its last minute it trembles). Broken, it is torn wider, red through and through, and its beam stands
@@ -51,6 +55,8 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     private static final int BREAK_RED = 0xFF2A22;
     /** A red gate's colour: blood, darker than a break's ({@code redgate.RedGates}). */
     private static final int RED_GATE = 0xC8102E;
+    /** A raid gate's crown, its sigil and the tint of its beam ({@code raid.Raids}). */
+    private static final int RAID_VIOLET = 0xB98BFF;
 
     public GateRenderer(BlockEntityRendererProvider.Context context) {
         super(new GateModels.Gate());
@@ -146,6 +152,14 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
                 pose.pushPose();
                 pose.translate(0, 0, side == 0 ? 0.03f : -0.03f);
                 GateFx.quad(ring, pose.last().pose(), hx * 1.12f, hy * 1.08f, pale, (0.65f + 0.25f * pulse) * flicker);
+                if (gate.isRaid()) {
+                    // a raid gate's crown: a second rim of violet light just outside the first, turning slowly
+                    pose.pushPose();
+                    pose.scale(hx * 1.34f, hy * 1.28f, 1f);
+                    pose.mulPose(Axis.ZP.rotationDegrees((side == 0 ? 1 : -1) * time * 0.35f));
+                    GateFx.quad(ring, pose.last().pose(), 1f, 1f, GateFx.mix(RAID_VIOLET, 0xFFFFFF, 0.15f), (0.45f + 0.25f * pulse) * flicker);
+                    pose.popPose();
+                }
                 if (red > 0.001f) {
                     // its seal: a second rim of red light just outside the first, beating with it
                     float beat = heartbeat(time / 20f * 1.1f);
@@ -207,14 +221,28 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
             pose.popPose();
         }
 
-        // a beam over the gate, so it can be found from far away (a broken gate's stands thick and red)
+        if (gate.isRaid() && open > 0.05f) {
+            // a raid gate's sigil: a wide circle turning on the ground in front of it, inside a ring of violet light
+            float beat = 0.7f + 0.3f * Mth.sin(time * 0.1f);
+            pose.pushPose();
+            pose.translate(0.5f, 0f, 0.5f);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.07f, 5.2f * open, time * 0.5f, RAID_VIOLET, 0.55f * open);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, 0.09f, 6.6f * open, -time * 0.3f, GateFx.mix(RAID_VIOLET, rgb, 0.3f), 0.45f * beat * open);
+            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, 0.05f, 7.5f * open, 0, RAID_VIOLET, 0.22f * beat * open);
+            pose.popPose();
+        }
+
+        // a beam over the gate, so it can be found from far away (a broken gate's stands thick and red; a raid gate's
+        // thicker and taller, tinted violet)
         if (open > 0.5f && !gate.isExit() && !gate.isKeyed()) {
-            float inner = broken ? 0.11f : 0.04f + 0.03f * look + 0.04f * red;
-            float outer = broken ? 0.24f : 0.09f + 0.06f * look + 0.07f * red;
+            float raid = gate.isRaid() ? 1f : 0f;
+            float inner = broken ? 0.11f : 0.04f + 0.03f * look + 0.04f * red + 0.04f * raid;
+            float outer = broken ? 0.24f : 0.09f + 0.06f * look + 0.07f * red + 0.08f * raid;
+            int beam = raid > 0 ? GateFx.mix(GateFx.mix(rgb, RAID_VIOLET, 0.5f), 0xFFFFFF, 0.15f) : GateFx.mix(rgb, 0xFFFFFF, broken ? 0.05f : 0.2f);
             pose.pushPose();
             pose.translate(0f, GateBlockEntity.CENTER_Y + 2.4f, 0f);
-            BeaconRenderer.renderBeaconBeam(pose, buffers, BeaconRenderer.BEAM_LOCATION, partialTick, 1f, gate.getLevel().getGameTime(), 0, broken ? 192 : 96,
-                    0xFF000000 | GateFx.mix(rgb, 0xFFFFFF, broken ? 0.05f : 0.2f), inner * open, outer * open);
+            BeaconRenderer.renderBeaconBeam(pose, buffers, BeaconRenderer.BEAM_LOCATION, partialTick, 1f, gate.getLevel().getGameTime(), 0,
+                    broken ? 192 : raid > 0 ? 160 : 96, 0xFF000000 | beam, inner * open, outer * open);
             pose.popPose();
         }
     }
@@ -266,7 +294,7 @@ public class GateRenderer extends GeoBlockRenderer<GateBlockEntity> {
     @Override
     public AABB getRenderBoundingBox(GateBlockEntity gate) {
         BlockPos p = gate.getBlockPos();
-        int r = gate.isSealed() ? 70 : 4;
-        return new AABB(p.getX() - r, p.getY() - 1, p.getZ() - r, p.getX() + r + 1, p.getY() + (gate.isBroken() ? 200 : 100), p.getZ() + r + 1);
+        int r = gate.isSealed() ? 70 : gate.isRaid() ? 8 : 4;
+        return new AABB(p.getX() - r, p.getY() - 1, p.getZ() - r, p.getX() + r + 1, p.getY() + (gate.isBroken() ? 200 : gate.isRaid() ? 170 : 100), p.getZ() + r + 1);
     }
 }

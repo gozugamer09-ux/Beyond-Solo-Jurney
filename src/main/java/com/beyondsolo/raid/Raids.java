@@ -218,7 +218,7 @@ public final class Raids {
     /** Opens a guild's permit raid gate of this rank in front of {@code player}, who leads its muster. */
     public static boolean openPermitGate(ServerPlayer player, Guild guild, PlayerRank rank) {
         ServerLevel level = player.serverLevel();
-        GateBlockEntity gate = GateSpawner.trySpawnNear(level, player, rank, true);
+        GateBlockEntity gate = GateSpawner.trySpawnNear(level, player, rank, true, true);
         if (gate == null || gate.gateId() == null) return false;
         GateInstance g = GateData.get(player.server).get(gate.gateId());
         if (g == null) return false;
@@ -307,7 +307,7 @@ public final class Raids {
     @Nullable
     public static GateInstance open(ServerPlayer near, PlayerRank rank) {
         ServerLevel level = near.serverLevel();
-        GateBlockEntity gate = GateSpawner.trySpawnNear(level, near, rank, true);
+        GateBlockEntity gate = GateSpawner.trySpawnNear(level, near, rank, true, true);
         if (gate == null || gate.gateId() == null) return null;
         GateInstance g = GateData.get(near.server).get(gate.gateId());
         if (g == null) return null;

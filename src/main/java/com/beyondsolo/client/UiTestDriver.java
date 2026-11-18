@@ -69,6 +69,7 @@ import java.util.Deque;
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
+ * lang &lt;code&gt;                          switch the game's language (en_us, es_es...) and wait for the reload
  * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
  *                                      ./gradlew processResources first to see changed models, animations or textures)
  * engrave &lt;skill&gt;                      pick a skill on the open engraving screen (a rune of Haste/Thrift/Might in use)
@@ -366,6 +367,14 @@ public final class UiTestDriver {
             case "reload" -> {
                 reloading = mc.reloadResourcePacks();
                 waitTicks = 1;   // ends this tick's run of commands
+            }
+            case "lang" -> {
+                // lang <code>: the game's language (en_us, es_es...), as the options screen sets it, then a reload
+                mc.getLanguageManager().setSelected(arg);
+                mc.options.languageCode = arg;
+                mc.options.save();
+                reloading = mc.reloadResourcePacks();
+                waitTicks = 1;
             }
             case "press" -> {
                 String[] a = arg.split(" ");

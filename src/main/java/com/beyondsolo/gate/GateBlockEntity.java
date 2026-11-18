@@ -91,7 +91,7 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     public boolean isClosing() { return closingAt >= 0; }
     public boolean isSealed() { return sealed; }
     public boolean isKeyed() { return keyed; }
-    /** A raid gate: bigger, crowned with a second rim and a wide sigil on the ground ({@code raid.Raids}). */
+    /** A raid gate: crowned with a second rim, a wide sigil on the ground and a taller beam ({@code raid.Raids}). */
     public boolean isRaid() { return raid; }
     public int breakPhase() { return breakPhase; }
     /** Coming apart, its collapse timer running. */

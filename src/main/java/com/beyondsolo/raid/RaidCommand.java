@@ -45,7 +45,10 @@ public final class RaidCommand {
                 .then(Commands.literal("join").executes(ctx -> {
                     ServerPlayer me = me(ctx);
                     GateInstance g = Raids.nearest(me);
-                    return run(ctx, g == null ? Raids.Outcome.no("none_near") : Raids.join(me, g));
+                    int done = run(ctx, g == null ? Raids.Outcome.no("none_near") : Raids.join(me, g));
+                    // as walking into the gate does: the briefing, to pick a role in
+                    if (done > 0) Raids.brief(me);
+                    return done;
                 }))
                 .then(Commands.literal("leave").executes(ctx -> run(ctx, Raids.leave(me(ctx)))))
                 .then(Commands.literal("role").then(Commands.argument("role", StringArgumentType.word())

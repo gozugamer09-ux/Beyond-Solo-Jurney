@@ -234,9 +234,11 @@ public final class GateService {
         for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(gate.getBlockPos()).inflate(40))) {
             Set<UUID> seen = NOTICED.computeIfAbsent(p.getUUID(), k -> new HashSet<>());
             if (!seen.add(gate.gateId())) continue;
+            // a raid gate says so: walking into it musters instead of going through
+            String key = g != null && g.isRaid() ? "notify.beyondsolo.raid.detected" : "notify.beyondsolo.gate.detected";
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
-                    Component.translatable("notify.beyondsolo.gate.detected.title", gate.rank().displayName()),
-                    Component.translatable("notify.beyondsolo.gate.detected.body", name, gate.rank().displayName())));
+                    Component.translatable(key + ".title", gate.rank().displayName()),
+                    Component.translatable(key + ".body", name, gate.rank().displayName())));
             if (SystemAPI.isAwakened(p) && gate.rank().tier() > SystemAPI.get(p).rank().tier() + 1) {
                 Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
                         Component.translatable("notify.beyondsolo.gate.danger.title"),

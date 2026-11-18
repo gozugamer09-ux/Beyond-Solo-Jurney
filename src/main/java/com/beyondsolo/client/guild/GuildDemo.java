@@ -121,11 +121,7 @@ public final class GuildDemo {
 
         // the hired hunters: one hurt in the last raid, one out on a raid when one is underway
         boolean raid = variant.equals("raid");
-        List<GuildHunter> hired = List.of(
-                Recruits.of(RandomSource.create(SEED), PlayerRank.C, PlayerClass.GUARDIAN),
-                Recruits.of(RandomSource.create(SEED + 1), PlayerRank.C, PlayerClass.RANGER),
-                Recruits.of(RandomSource.create(SEED + 2), PlayerRank.B, PlayerClass.MAGE),
-                Recruits.of(RandomSource.create(SEED + 3), PlayerRank.D, PlayerClass.HEALER));
+        List<GuildHunter> hired = hired();
         int[][] records = {{3, 41}, {2, 27}, {3, 58}, {1, 6}};
         ListTag hunters = new ListTag();
         for (int i = 0; i < hired.size(); i++) {
@@ -137,7 +133,8 @@ public final class GuildDemo {
             hunters.add(ht);
         }
         t.put("hunters", hunters);
-        RandomSource r = RandomSource.create(SEED + 10);
+        // a generator of its own, far from the hired hunters' (seeds side by side start out alike)
+        RandomSource r = RandomSource.create(SEED * 0x9E3779B97F4A7C15L + 0x5DEECE66DL);
         ListTag pool = new ListTag();
         for (int i = 0; i < 4; i++) pool.add(Recruits.roll(r, level).save());
         t.put("recruits", pool);
@@ -175,6 +172,16 @@ public final class GuildDemo {
             t.put("raid", rt);
         }
         return t;
+    }
+
+    /** The guild's four hired hunters: a guardian, a ranger, a mage and a healer, the same in every demo. */
+    private static List<GuildHunter> hired() {
+        RandomSource r = RandomSource.create(SEED);
+        return List.of(
+                Recruits.of(r, PlayerRank.C, PlayerClass.GUARDIAN),
+                Recruits.of(r, PlayerRank.C, PlayerClass.RANGER),
+                Recruits.of(r, PlayerRank.B, PlayerClass.MAGE),
+                Recruits.of(r, PlayerRank.D, PlayerClass.HEALER));
     }
 
     private static CompoundTag invite(String name, String tag, int crest, int color, int level, int size, String from, int ticks) {
@@ -246,7 +253,7 @@ public final class GuildDemo {
         t.putString("role", RaidRole.forClass(myClass).id());
         t.putString("status", inside ? "INSIDE" : "WAITING");
         t.putInt("countdown", phase.equals("COUNTDOWN") ? 20 * 17 : -1);
-        t.putInt("maxSize", 8);
+        t.putInt("maxSize", RaidConfig.MAX_SIZE.get());
         t.putBoolean("bring", true);
         t.putInt("lieutenants", 3);
         t.putInt("lieutenantsLeft", switch (variant) {
@@ -264,7 +271,7 @@ public final class GuildDemo {
             case "boss" -> 20 * 447;
             default -> 0;
         });
-        t.putFloat("reward", 1.45f);
+        t.putFloat("reward", RaidConfig.REWARD_SCALE.get().floatValue());
         t.putLong("guildXp", GuildPerks.raidXp(RAID_RANK));
         var p = Minecraft.getInstance().player;
         t.putInt("x", p == null ? 140 : (int) p.getX() + 6);
@@ -272,11 +279,11 @@ public final class GuildDemo {
         t.putInt("guildHunters", 3);
 
         // the guild's hunters coming along, and the raiders
+        List<GuildHunter> hired = hired();
         ListTag hunters = new ListTag();
-        hunters.add(hunter(Recruits.of(RandomSource.create(SEED), PlayerRank.C, PlayerClass.GUARDIAN), inside ? 0.74f : 1f, false));
-        hunters.add(hunter(Recruits.of(RandomSource.create(SEED + 1), PlayerRank.C, PlayerClass.RANGER), inside ? 0.41f : 1f, false));
-        hunters.add(hunter(Recruits.of(RandomSource.create(SEED + 2), PlayerRank.B, PlayerClass.MAGE), variant.equals("boss") ? 0f : inside ? 0.88f : 1f,
-                variant.equals("boss")));
+        hunters.add(hunter(hired.get(0), inside ? 0.74f : 1f, false));
+        hunters.add(hunter(hired.get(1), inside ? 0.41f : 1f, false));
+        hunters.add(hunter(hired.get(2), variant.equals("boss") ? 0f : inside ? 0.88f : 1f, variant.equals("boss")));
         t.put("hunters", hunters);
         ListTag raiders = new ListTag();
         raiders.add(raider(me(), myName(), RaidRole.forClass(myClass), inside ? "INSIDE" : "WAITING", true, myClass.ordinal(),
@@ -337,18 +344,19 @@ public final class GuildDemo {
         ListTag lines = new ListTag();
         lines.add(line("Kael", false, RaidRole.STRIKER, 18_420, PlayerClass.MAGE, -1, false));
         lines.add(line(myName(), false, RaidRole.forClass(myClass), 15_960, myClass, -1, false));
-        GuildHunter mage = Recruits.of(RandomSource.create(SEED + 2), PlayerRank.B, PlayerClass.MAGE);
+        List<GuildHunter> hired = hired();
+        GuildHunter mage = hired.get(2);
         lines.add(line(mage.name(), true, RaidRole.STRIKER, 9_310, PlayerClass.MAGE, cleared ? 0 : -1, true));
-        GuildHunter archer = Recruits.of(RandomSource.create(SEED + 1), PlayerRank.C, PlayerClass.RANGER);
+        GuildHunter archer = hired.get(1);
         lines.add(line(archer.name(), true, RaidRole.STRIKER, 7_045, PlayerClass.RANGER, cleared ? 2 : -1, false));
         lines.add(line("Juno", false, RaidRole.VANGUARD, 3_880, PlayerClass.GUARDIAN, -1, true));
-        GuildHunter tank = Recruits.of(RandomSource.create(SEED), PlayerRank.C, PlayerClass.GUARDIAN);
+        GuildHunter tank = hired.get(0);
         lines.add(line(tank.name(), true, RaidRole.VANGUARD, 2_515, PlayerClass.GUARDIAN, cleared ? 3 : -1, false));
         lines.add(line("Mira", false, RaidRole.SUPPORT, 1_240, PlayerClass.HEALER, -1, false));
         results.put("lines", lines);
         if (cleared) {
             results.putString("mvp", "Kael");
-            results.putFloat("scale", 1.45f);
+            results.putFloat("scale", RaidConfig.REWARD_SCALE.get().floatValue());
             results.putLong("guildXp", GuildPerks.raidXp(RAID_RANK));
             results.putInt("caches", 3);
         }

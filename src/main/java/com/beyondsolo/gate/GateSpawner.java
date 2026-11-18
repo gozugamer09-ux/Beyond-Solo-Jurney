@@ -275,6 +275,15 @@ public final class GateSpawner {
      */
     @Nullable
     public static GateBlockEntity trySpawnNear(ServerLevel level, ServerPlayer p, @Nullable PlayerRank fixed, boolean inView) {
+        return trySpawnNear(level, p, fixed, inView, false);
+    }
+
+    /**
+     * As {@link #trySpawnNear(ServerLevel, ServerPlayer, PlayerRank, boolean)}; {@code raid}: the caller makes it a raid
+     * gate, whose opening {@code raid.Raids.makeRaid} tells everyone near of, so the plain "a gate opened" is not said.
+     */
+    @Nullable
+    public static GateBlockEntity trySpawnNear(ServerLevel level, ServerPlayer p, @Nullable PlayerRank fixed, boolean inView, boolean raid) {
         RandomSource r = level.random;
         // beyond the view distance the world isn't loaded around them (a server that keeps none, the game-test one, has no limit)
         int view = level.getServer().getPlayerList().getViewDistance();
@@ -299,17 +308,19 @@ public final class GateSpawner {
         // the world shudders as it tears, harder the higher the gate, and they hear it from where they stand
         PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.SHAKE, 0, -1, 0.18f + 0.05f * rank.tier(), Component.empty(), Component.empty()));
         p.playNotifySound(SoundEvents.END_PORTAL_SPAWN, SoundSource.AMBIENT, 0.3f, 0.7f);
+        // now and then a high-rank gate is a raid gate, made for a whole band of hunters (the raid tells of itself)
+        if (!raid && fixed == null) raid = com.beyondsolo.raid.Raids.naturalRoll(level, gate, r);
         int blocks = Mth.floor(Math.sqrt(flatDistSqr(p.position(), top)) + 0.5);
         Component dir = direction(p.position(), top);
         if (SystemAPI.hasSystem(p)) {
-            Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
-                    Component.translatable("notify.beyondsolo.gate.opened.title", rank.displayName()),
-                    Component.translatable("notify.beyondsolo.gate.opened.body", blocks, dir)));
+            if (!raid) {
+                Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
+                        Component.translatable("notify.beyondsolo.gate.opened.title", rank.displayName()),
+                        Component.translatable("notify.beyondsolo.gate.opened.body", blocks, dir)));
+            }
         } else {
             thought(p, Component.translatable("message.beyondsolo.presystem.gate_opened", blocks, dir));
         }
-        // now and then a high-rank gate is a raid gate, made for a whole band of hunters
-        if (fixed == null) com.beyondsolo.raid.Raids.naturalRoll(level, gate, r);
         return gate;
     }
 

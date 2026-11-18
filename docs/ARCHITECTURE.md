@@ -1527,7 +1527,9 @@ Spanish). Operators: `/solo guild create/level/gold/hunter/heal hunters/disband`
 now/phase barrier|cataclysm` (`SoloGuilds`). `/solo wipe` takes a player out of their guild as if they left and off
 any raid.
 
-Testing: in the headless client `guilddemo`, `guildtab <page>`, `raiddemo`, `raidbrief` and `raidresults` (`tools/uitest`).
+Testing: `GuildGameTests` and `RaidGameTests`; in the headless client (`tools/uitest`) `guilddemo`, `guildtab <page>`,
+`guildform`, `guildfx`, `raiddemo`, `raidbrief`, `raidresults` and `raidfx` stand in made-up guilds and raids
+(`client.guild.GuildDemo`), and `lang es_es` switches the language for Spanish screenshots.
 
 ## The chronicle: titles, rankings and the journal
 
