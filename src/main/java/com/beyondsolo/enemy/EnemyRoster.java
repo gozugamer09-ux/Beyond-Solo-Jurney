@@ -104,6 +104,34 @@ public final class EnemyRoster {
         return POOLS.get(rank.ordinal());
     }
 
+    /** Each rank's {@link #basePower}, worked out the first time it is needed (the kinds' types must be registered). */
+    private static volatile double[] basePowers;
+
+    /**
+     * How strong a rank's typical creature is at its kinds' own numbers, before its rank grows it: the weighted average
+     * of its pool's {@link HiddenLevel#power}. The higher ranks' pools hold heavier kinds (an S pool's average is about
+     * two and a half times an E pool's); {@link Enemies#poolScale} evens that out.
+     */
+    public static double basePower(PlayerRank rank) {
+        double[] powers = basePowers;
+        if (powers == null) {
+            powers = new double[PlayerRank.values().length];
+            for (PlayerRank r : PlayerRank.values()) {
+                double sum = 0;
+                int weight = 0;
+                for (Entry e : pool(r)) {
+                    MonsterKind kind = kindOf(e.type.get());
+                    if (kind == null) continue;
+                    sum += HiddenLevel.power(kind.health, kind.damage, kind.armor, 0) * e.weight;
+                    weight += e.weight;
+                }
+                powers[r.ordinal()] = weight == 0 ? 1 : sum / weight;
+            }
+            basePowers = powers;
+        }
+        return powers[rank.ordinal()];
+    }
+
     /** A gate's mix, the same every time for the same seed. */
     public static Mix forSeed(PlayerRank rank, long seed) {
         return random(rank, RandomSource.create(seed ^ 0x5EED_BEA5_7L));

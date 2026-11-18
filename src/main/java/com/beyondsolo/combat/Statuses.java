@@ -52,7 +52,7 @@ public final class Statuses {
         boolean fresh = !target.hasEffect(ModEffects.DEEP_BURN);
         target.addEffect(new MobEffectInstance(ModEffects.DEEP_BURN, MobEffectInstance.INFINITE_DURATION, 0, false, true, true), source);
         target.igniteForSeconds(3);
-        CombatDamage.deal(target, DamageElement.FIRE, 2f, source);
+        CombatDamage.deal(target, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(source, 2f), source);
         if (fresh) {
             target.level().playSound(null, target.blockPosition(), SoundEvents.BLAZE_SHOOT, SoundSource.HOSTILE, 0.9f, 0.7f);
             CombatFx.play(target, CombatFxPayload.Kind.IGNITE, 0);

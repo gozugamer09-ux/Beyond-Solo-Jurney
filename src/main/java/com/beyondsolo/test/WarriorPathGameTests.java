@@ -172,7 +172,7 @@ public final class WarriorPathGameTests {
         ServerPlayer p = warrior(helper, Subclass.BLOODRAGER);
         double health = p.getMaxHealth();
         SkillAPI.learn(p, WarriorPath.THICK_BLOOD, 5, SkillEvent.Source.OTHER);
-        helper.assertTrue(Math.abs(p.getMaxHealth() - health - 5) < 0.01, "Thick Blood 5 adds 5 max health: " + (p.getMaxHealth() - health));
+        helper.assertTrue(Math.abs(p.getMaxHealth() - health * 1.125f) < 0.01, "Thick Blood 5 adds 12.5% max health: " + (p.getMaxHealth() - health));
 
         // Last Stand refuses death
         SkillAPI.learn(p, WarriorPath.LAST_STAND, 1, SkillEvent.Source.OTHER);

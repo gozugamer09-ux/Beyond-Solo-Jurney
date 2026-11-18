@@ -38,7 +38,8 @@ public final class ModEffects {
     public static final DeferredHolder<MobEffect, MobEffect> VENOM = EFFECTS.register("venom",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0x7CCF3A,
                     Set.of(EffectCures.MILK, EffectCures.HONEY, ElementCures.ANTIDOTE, ElementCures.GREATER_ANTIDOTE), 30,
-                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, 0.5f * (amp + 1), null)));
+                    // half a point a stack on a vanilla body, and the same share of a bigger one
+                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, (amp + 1) * (0.25f + e.getMaxHealth() * 0.0125f), null)));
 
     public static final DeferredHolder<MobEffect, MobEffect> HEAVY_VENOM = EFFECTS.register("heavy_venom",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0x4E7A1E, Set.of(ElementCures.GREATER_ANTIDOTE), 20,

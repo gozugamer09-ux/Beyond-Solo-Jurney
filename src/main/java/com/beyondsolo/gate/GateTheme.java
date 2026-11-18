@@ -109,22 +109,23 @@ public enum GateTheme {
         return Component.translatable("gate.beyondsolo.boss." + name().toLowerCase());
     }
 
-    /** Boss health: 120 for an E-rank boss, up to 660 for S. */
+    /** Boss health: 300 for an E-rank boss, about 16,500 for S (see {@link com.beyondsolo.system.Balance}). */
     public float bossHealth() {
-        return 120f * (1f + 0.9f * rank.tier());
+        return com.beyondsolo.system.Balance.bossHealth(rank);
     }
 
+    /** Boss damage: 7 for an E-rank boss, about 490 for S. */
     public float bossDamage() {
-        return 7f + 3.5f * rank.tier();
+        return com.beyondsolo.system.Balance.bossDamage(rank);
     }
 
-    /** Monsters get this much more health (as a multiplier on top of their own: E +0%, S +200%). */
+    /** Monsters get this much more health (on top of their own: E +0%, S about +2000%, its pool's heavy kinds evened out). */
     public double mobHealthBonus() {
-        return 0.4 * rank.tier();
+        return com.beyondsolo.enemy.Enemies.rankHealth(rank) - 1;
     }
 
     public double mobDamageBonus() {
-        return 0.25 * rank.tier();
+        return com.beyondsolo.enemy.Enemies.rankDamage(rank) - 1;
     }
 
     /** Element buildup per hit from the gate's monsters (the boss hits much harder). */

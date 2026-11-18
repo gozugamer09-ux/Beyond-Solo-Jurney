@@ -92,7 +92,7 @@ public final class SystemEventHandler {
         LivingEntity victim = event.getEntity();
         if (victim instanceof Player || victim.level().isClientSide) return;
         if (event.getSource().getEntity() instanceof ServerPlayer killer && SystemAPI.isAwakened(killer)) {
-            long xp = Math.max(1, Math.round(victim.getMaxHealth() * Config.KILL_XP_MULTIPLIER.get()));
+            long xp = Math.max(1, Math.round(com.beyondsolo.enemy.Enemies.killWorth(victim) * Config.KILL_XP_MULTIPLIER.get()));
             SystemAPI.grantXp(killer, xp, SystemAPI.XP_SOURCE_KILL);
         }
     }

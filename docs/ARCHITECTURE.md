@@ -154,8 +154,8 @@ Rules that came out of building it, worth keeping for gates and bosses:
   lists the live bonuses (`StatEffects.bonusesOf(stat)`). Points spent by hand are counted in
   `evaluation/EvaluationRecord` (attachment `evaluation_record`), and the **Elixir of Rebirth** (CRAFT tab, C rank)
   gives exactly those back (`Reevaluation.refundAllocated`); rank, job-change and reward points stay.
-- **Hidden rank thresholds** (`Reevaluation`, config `reevaluation.rankThresholds`, default D 90, C 140, B 210, A 300,
-  S 420 on the total of the five stats): crossing one makes the player truly that rank (`Reevaluation.trueRank`), but
+- **Hidden rank thresholds** (`Reevaluation`, config `reevaluation.rankStatTotals`, default D 90, C 135, B 185, A 240,
+  S 300 on the total of the five stats, about the levels each rank's gates are made for): crossing one makes the player truly that rank (`Reevaluation.trueRank`), but
   the window, HUD and license keep the evaluated rank, and the true rank is never sent to the client. The System only
   whispers "something has changed" the first time (config `reevaluation.hintOnThreshold`).
 - **Re-evaluation**: touching a crystal once a new milestone is reached (every `reevaluation.milestoneLevels` = 10
@@ -168,6 +168,53 @@ Rules that came out of building it, worth keeping for gates and bosses:
   glows when it is open (`ReevaluationSyncPayload`).
 - Commands: `/system reeval [rank]` (play now, optionally forced), `reeval info` (total, true rank, thresholds),
   `reeval unlock`, `reeval reset`. Tests: `ReevaluationGameTests`.
+
+## The power curve (`system/Balance`)
+
+All of the game's growth lives in `system/Balance`, and what keeps old flat numbers fair next to it in
+`system/BalanceHooks`. It is the interim pass; the final balancing pass tunes the same constants.
+
+- **The hunter**: levels 1 to 100 (`Balance.MAX_LEVEL`). Each level adds 4 max health and 3% to every blow, arrow,
+  skill and summon (`levelHealth`, `levelDamage`). Stat points are big steps: a VIT point is +5% max health (of the
+  base, the levels and flat gear health), a STR point +10% melee damage, a SENSE point +10% with bows, crossbows and
+  thrown weapons (`rangedPower`, applied when the arrow lands, since Apothic's arrow attributes are capped). A fresh
+  hunter has 20 health; a level 75 hunter about 1,500 (a VIT-heavy guardian twice that). XP to the next level is
+  `100 x L^1.4 x (1 + L/50)` (102 at level 1, about 102,000 at 74); quest XP grows by the same `xpGrowth`.
+- **Skill power** (`Balance.power`): every skill hit (`SkillActions.hit`), flat skill and gear proc (`flatDamage`) and
+  summon grows with the level bonus times `1 + 3%` for each point of a stat the class leans on (weighted by
+  `PlayerClass.statWeight`, the main stat fully). Parts of a skill's damage that are already in today's sizes (health
+  paid, blows taken and thrown back) go through `keepSize` so the power is not applied twice. The STATUS tab's stat
+  tooltip shows what each stat adds (`powerFrom`).
+- **Creatures** keep pace: a gate rank's typical creature is an even match for a hunter at the rank's home level
+  (`homeLevel`: E 3, D 13, C 26, B 41, A 56, S 74). Its health is multiplied by `health(rank)` (E 1 up to S 55: as much
+  as a hunter's blows grew by then) and its damage by `damage(rank)` (E 1 up to S 70: as much as a hunter's staying
+  power grew). The higher ranks' pools hold heavier kinds (an S pool's average kind is about 2.7 times an E pool's
+  `HiddenLevel.power`, `EnemyRoster.basePower`), so both are evened out by `Enemies.poolScale` (E 1, D 0.78, C 0.57,
+  B 0.46, A 0.40, S 0.37, worked out from the pools, so adding a kind to a pool moves it): the pool's average creature
+  lands on the curve and its kinds keep their spread around it (`Enemies.rankHealth`/`rankDamage`, through
+  `Enemies.apply`). A kill's System XP counts the health before that evening (`Enemies.killWorth`), so a level costs
+  about 70 to 150 home-rank kills. Bosses are `300 x health` and `7 x damage`. `healthAt`/`damageAt` are the same
+  curve by level for content made for one hunter (job trials, the penalty zone, nests; `Enemies.strengthForLevel`,
+  evened out by the pool the creature came from), and `strengthAt` is both in one number (`levelForStrength` reads it
+  back).
+  Summons, Call of the Pack and the shadow army grow with their master (`summonHealth`, `summonDamage`); a soul is sized
+  the old way (`ShadowService.soulSize`). The sealed door's cave stays at an old D-rank gate's strength (it is fought
+  without the System); the Citadel's lord has 60,000 health.
+- **Old flat numbers** (`BalanceHooks`): flat heals (food, potions, regeneration, most healing skills), Absorption
+  shields, hazards with no attacker and the blows of creatures the System did not make are multiplied by
+  `legacyScale` (how much bigger the hunter's pool is than it was before), so each keeps its share of the hunter's
+  health. Heals that are already sized (a share of max health or of a blow) go through `Balance.healRaw`; another
+  mod's heal in the middle of a blow (Apothic's life steal) is left alone too. Armour works on a blow's size next to
+  the body it lands on (`armorScale` = max health / 20), so it protects as much against a 400-damage blow on a
+  1,500-health hunter as against a 6-damage blow on a 20-health one. Venom and the other statuses take a share of
+  max health; flat max health passives and gear rolls are percentages.
+- **Where a hunter stands** (`powerLevel`, the scale of creatures' hidden levels and of the rankings): their level
+  plus every stat point beyond what their levels gave (rank bonus, rewards, the job change, unspent points), 6 to a
+  level (`POINTS_PER_LEVEL`: a level is its three points and about as much again in health and damage), never below
+  E's home level. The rival hunters on the rankings stand near their ranks' home levels and climb at most 30% past
+  their start (`Rival.GROWTH_CAP`), so the best ends just under the cap and a hunter at level 100 can take first place.
+- **AttributeFix** is a required dependency: it lifts vanilla's attribute caps (1024 max health, 2048 damage).
+- Tests: `BalanceGameTests`.
 
 ## Hooks per planned module
 
@@ -832,15 +879,17 @@ their level or a little above, **red** when it is far stronger. A boss's name on
 - **The creature's level** is the level of the hunter it is an even match for. `HiddenLevel.power` measures a creature
   as it really is once everything is on it (kind, gate rank, variant, size roll, affixes, a red gate's fury, a boss's
   kind and ascension): `sqrt(health x (1 + 0.04 armour + 0.01 toughness) x damage)`, the product an even fight comes
-  down to. `powerAt(level)` is the same measure for a hunter of each level, a line through (1, 7), (10, 12), (20, 20),
-  (50, 50) and then 0.6 a level. That puts a gate rank's typical plain creature at the level its rank's armour can be
-  worn from (E 1, D 10, C 20, B 30, A 40, S 50; `CreatureNameGameTests` checks it). Elites, champions, giants and
-  bosses climb from there (an E-rank boss is about 31, an S-rank boss well over 200).
-- **The hunter's level** for the comparison (`hunterLevel`) counts every stat point they have, three to a level: their
-  level, plus the rank's bonus points (an S-rank starts at 16), rewards, the job change and unspent points. Gear does
-  not count yet.
-- **The colour**: the ratio of the two powers. Under 0.9 white, from 1.5 red, orange in between
-  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`). All of it is first guesses for the balancing pass.
+  down to. `powerAt(level)` is the same measure for a hunter of each level: an E gate's typical creature
+  (`EnemyRoster.basePower(E)`) grown along the power curve (`Balance.strengthAt`), so a gate rank's typical plain
+  creature sits at its rank's home level (E 3, D 13, C 26, B 41, A 56, S 74; each rank's pool is evened out to it by
+  `Enemies.poolScale`; `CreatureNameGameTests` checks it). Elites, champions, giants, a pool's heavy kinds and bosses
+  climb from there.
+- **The hunter's level** for the comparison (`hunterLevel` = `Balance.powerLevel`): their level, plus every stat point
+  beyond what their levels gave (the rank's bonus points, rewards, the job change, unspent points), 6 to a level, and
+  never below E's home level (E gates are made for hunters who have just awakened). Gear does not count yet.
+- **The colour**: the ratio of the two powers. Under 0.85 white, from 1.5 red, orange in between
+  (`Threat.WEAKER_BELOW`, `Threat.FAR_FROM`): in the middle levels about three levels below to seven above is orange.
+  All of it is first guesses for the balancing pass.
 - **Kept, not recomputed**: the level is worked out the first time it is asked for (a player starts seeing the
   creature) and kept in its persistent data under `beyondsolo_level`. Code that makes a creature stronger or weaker
   after it appeared calls `HiddenLevel.refresh` (red gate fury, a splitting creature's halves), which also tells the

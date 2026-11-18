@@ -510,6 +510,9 @@ public final class PenaltyZone {
         sound(level, ps.at, SoundEvents.SAND_BREAK, 1.2f, 0.6f);
         sound(level, ps.at, SoundEvents.ROOTED_DIRT_BREAK, 1f, 0.5f);
         if (mob == null) return;
+        // as strong as creatures made for the hunter's level (their rank alone would be far off for a high rank at a low level)
+        Enemies.strengthForLevel(mob, com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(s.player)));
+        mob.setHealth(mob.getMaxHealth());
         mob.addTag(FOE_TAG);
         mob.setPersistenceRequired();
         AttributeInstance follow = mob.getAttribute(Attributes.FOLLOW_RANGE);
@@ -558,8 +561,9 @@ public final class PenaltyZone {
         AABB box = new AABB(e.at, e.at).inflate(e.radius, 2.5, e.radius);
         for (LivingEntity hit : level.getEntitiesOfClass(LivingEntity.class, box, l -> l.isAlive()
                 && l.position().distanceToSqr(e.at.x, l.getY(), e.at.z) <= e.radius * e.radius)) {
-            // creatures caught in it are hit harder: worth luring them in
-            float amount = hit instanceof Player ? damage : damage * 2;
+            // creatures caught in it are hit harder: worth luring them in (grown like they are)
+            float amount = hit instanceof Player ? damage
+                    : (float) (damage * 2 * com.beyondsolo.system.Balance.healthAt(com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(s.player))));
             hit.hurt(level.damageSources().magic(), amount);
             hit.push(0, 0.75, 0);
             hit.hurtMarked = true;
