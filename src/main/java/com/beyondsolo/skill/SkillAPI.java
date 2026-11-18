@@ -52,7 +52,8 @@ public final class SkillAPI {
         SkillData data = get(player);
         if (data.knows(skill.path())) return false;
         data.learn(skill.path(), Math.max(1, Math.min(Skill.MAX_LEVEL, level)), player.level().getGameTime());
-        if (skill.isActive()) {
+        // a monarch's powers sit on the crown keys, not the skill bar
+        if (skill.isActive() && !skill.monarch()) {
             for (int i = 0; i < SkillData.SLOTS; i++) {
                 if (data.slot(i).isEmpty()) {
                     data.setSlot(i, skill.path());
@@ -194,7 +195,8 @@ public final class SkillAPI {
         SystemData sys = SystemAPI.get(player);
         int level = data.level(skill.path());
         if (!skill.isActive() || level <= 0 || skill.action() == null) return false;
-        if (!sys.isAwakened() || sys.isCollapsed() || !player.isAlive() || player.isSpectator() || player.isSleeping()) {
+        if (!sys.isAwakened() || sys.isCollapsed() || !player.isAlive() || player.isSpectator() || player.isSleeping()
+                || skill.monarch() && !com.beyondsolo.monarch.MonarchAPI.crowned(player)) {
             refuse(player, skill, SkillMomentPayload.BLOCKED);
             return false;
         }

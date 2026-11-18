@@ -43,7 +43,9 @@ public final class SkillPassives {
         }
         int font = data.level(Skills.ARCANE_FONT.path());
         SubclassPassives.apply(player, data);
-        SystemAPI.setManaBonus(player, font * 8f + SubclassPassives.manaBonus(data));
+        // a monarch's strength rides along with the passives (put back on login, respawn and every change)
+        com.beyondsolo.monarch.MonarchAPI.applyBonuses(player);
+        SystemAPI.setManaBonus(player, font * 8f + SubclassPassives.manaBonus(data) + com.beyondsolo.monarch.MonarchAPI.manaBonus(player));
     }
 
     /** Once a second: mana flow and life bloom. */

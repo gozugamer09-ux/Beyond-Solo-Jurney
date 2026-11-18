@@ -231,6 +231,7 @@ public class PartyTab implements SystemTab {
             case PartySyncPayload.RED_GATE, PartySyncPayload.PENALTY -> 0xFFFF7A7A;
             case PartySyncPayload.CITADEL -> 0xFFFF8A94;
             case PartySyncPayload.TRIAL, PartySyncPayload.JOB_TRIAL -> SystemTheme.GOLD;
+            case PartySyncPayload.THRONE -> 0xFFB57BFF;
             default -> SystemTheme.TEXT_SOFT;
         };
     }
@@ -243,6 +244,7 @@ public class PartyTab implements SystemTab {
             case PartySyncPayload.PENALTY -> "penalty";
             case PartySyncPayload.TRIAL -> "trial";
             case PartySyncPayload.JOB_TRIAL -> "job_trial";
+            case PartySyncPayload.THRONE -> "throne";
             case PartySyncPayload.OFFLINE -> "offline";
             default -> "world";
         };

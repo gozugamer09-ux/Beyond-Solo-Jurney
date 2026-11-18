@@ -79,7 +79,9 @@ public class StormMonarch extends MonarchBoss {
         // the Tempest: a bolt drawn under a hunter in his domain every few seconds (faster as he angers)
         if (--tempest <= 0) {
             tempest = phase() >= 3 ? 40 : phase() == 2 ? 55 : 70;
-            List<LivingEntity> in = near(position(), DOMAIN);
+            List<LivingEntity> in = new java.util.ArrayList<>(near(position(), DOMAIN));
+            // a hunter monarch's domain keeps the storm off whoever it shelters
+            in.removeIf(com.beyondsolo.monarch.MonarchDomain::shelters);
             if (!in.isEmpty()) {
                 LivingEntity e = in.get(random.nextInt(in.size()));
                 circleStrike(ground(e.position()), 2.4f, 24, 0.6f, TEMPEST);

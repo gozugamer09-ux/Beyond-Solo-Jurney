@@ -213,11 +213,21 @@ public final class Skills {
         return Collections.unmodifiableList(new ArrayList<>(ALL.values()));
     }
 
-    /** Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts are not listed (see {@link #runeArts}). */
+    /**
+     * Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts (see {@link #runeArts}) and the
+     * monarch powers (see {@link #monarchPowers}) are not listed.
+     */
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune()) out.add(s);
-        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune() && !s.monarch()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune() && !s.monarch()) out.add(s);
+        return out;
+    }
+
+    /** The monarch powers: the three every crown gives, then each crown's authority. */
+    public static List<Skill> monarchPowers() {
+        List<Skill> out = new ArrayList<>();
+        for (Skill s : ALL.values()) if (s.monarch()) out.add(s);
         return out;
     }
 
@@ -289,6 +299,7 @@ public final class Skills {
     public static void init() {
         SubclassSkills.init();
         RuneArts.init();
+        MonarchPowers.init();
     }
 
     private Skills() {}

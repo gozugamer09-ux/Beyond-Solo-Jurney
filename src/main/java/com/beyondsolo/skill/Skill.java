@@ -17,7 +17,8 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>A skill belongs to a class ({@code owner}) or to everyone ({@code owner == null}). Class skills unlock at a
  * player level, earlier the higher the player's rank. {@code advanced} skills never unlock by level or from books:
- * they are for the job change (see {@link SkillAPI#grantAdvanced}).</p>
+ * they are for the job change (see {@link SkillAPI#grantAdvanced}). The {@code monarch} powers come only with a crown
+ * ({@link MonarchPowers}) and sit on the crown keys, not the skill bar.</p>
  */
 public final class Skill {
     public enum Kind { ACTIVE, PASSIVE }
@@ -56,6 +57,8 @@ public final class Skill {
     private boolean rune;
     /** Overrides whether casting draws the magic circle (null = the usual rule). */
     private @Nullable Boolean circle;
+    /** A monarch's power: only a crown gives it ({@link MonarchPowers}). */
+    private boolean monarch;
 
     Skill(String path, Kind kind, @Nullable PlayerClass owner, PlayerRank grade, int unlockLevel, boolean advanced, int color,
           float mana, int cooldown, int cooldownAtMax, @Nullable Action action, Args args) {
@@ -94,6 +97,14 @@ public final class Skill {
 
     /** Only rune stones teach it: it never unlocks by level and no tome rolls it. */
     public boolean rune() { return rune; }
+
+    /** A monarch's power: only a crown gives it, and only a monarch can use it ({@link MonarchPowers}). */
+    public boolean monarch() { return monarch; }
+
+    Skill monarch(boolean monarch) {
+        this.monarch = monarch;
+        return this;
+    }
 
     Skill rune(boolean rune) {
         this.rune = rune;

@@ -30,7 +30,9 @@ import java.util.List;
  *   blow that shakes the land, and lays down its domain.</li>
  *   <li><b>Its domain</b>: a circle of its own rule round it ({@link #DOMAIN} blocks) where the world bends to it (each
  *   monarch's own: cold that freezes, a hunger that bleeds, a storm that strikes).</li>
- *   <li><b>Its presence</b>: hunters below level {@link #PRESSURE_LEVEL} near it are weighed down (slower, weaker).</li>
+ *   <li><b>Its presence</b>: hunters below level {@link #PRESSURE_LEVEL} near it are weighed down (slower, weaker);
+ *   a crowned hunter never is, and a crowned hunter's domain shelters whoever stands in it from this one's
+ *   ({@link com.beyondsolo.monarch.MonarchDomain#shelters}).</li>
  *   <li><b>Its army</b>: S-rank creatures of its affinity, called up round it as it lands and again as it angers; they
  *   crumble when it falls.</li>
  *   <li><b>Its authority</b>: in its last phase, its greatest power, named on every hunter's screen and given time to
@@ -191,9 +193,12 @@ public abstract class MonarchBoss extends ColossalBoss {
         if (landed || introTicks() <= 0) {
             landed = true;
             if (tickCount % 20 == 0) {
-                for (LivingEntity e : near(position(), DOMAIN)) domainTick(server, e);
+                for (LivingEntity e : near(position(), DOMAIN)) {
+                    // a hunter monarch's domain holds this one back from whoever it shelters
+                    if (!com.beyondsolo.monarch.MonarchDomain.shelters(e)) domainTick(server, e);
+                }
                 for (Player p : server.getEntitiesOfClass(Player.class, getBoundingBox().inflate(PRESSURE_RANGE), this::canHit)) {
-                    if (SystemAPI.get(p).level() >= PRESSURE_LEVEL) continue;
+                    if (SystemAPI.get(p).level() >= PRESSURE_LEVEL || com.beyondsolo.monarch.MonarchAPI.crowned(p)) continue;
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, true, false), this);
                     p.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0, true, false), this);
                 }

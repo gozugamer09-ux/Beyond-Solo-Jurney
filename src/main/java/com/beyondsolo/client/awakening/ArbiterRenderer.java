@@ -26,10 +26,25 @@ public class ArbiterRenderer extends GeoEntityRenderer<ArbiterEntity> {
     private static final int RED = 0xFF4050;
 
     public ArbiterRenderer(EntityRendererProvider.Context context) {
-        super(context, new DefaultedEntityGeoModel<>(BeyondSolo.id("arbiter"), false));
+        this(context, new DefaultedEntityGeoModel<>(BeyondSolo.id("arbiter"), false));
+    }
+
+    /** Another Arbiter on the same bones (the throne's, in its own colours: see {@link #calm} and {@link #angry}). */
+    protected ArbiterRenderer(EntityRendererProvider.Context context, software.bernie.geckolib.model.GeoModel<ArbiterEntity> model) {
+        super(context, model);
         addRenderLayer(new AutoGlowingGeoLayer<>(this));
         withScale(SCALE);
         this.shadowRadius = 3.2f;
+    }
+
+    /** The colour of its light while it is calm. */
+    protected int calm() {
+        return GOLD;
+    }
+
+    /** The colour of its light once it is enraged. */
+    protected int angry() {
+        return RED;
     }
 
     @Override
@@ -53,7 +68,7 @@ public class ArbiterRenderer extends GeoEntityRenderer<ArbiterEntity> {
         float stand = a.standing(partialTick);
         float dying = a.deathTime > 0 ? Mth.clamp((a.deathTime + partialTick) / ArbiterEntity.DEATH_TICKS, 0f, 1f) : 0f;
         float awake = a.isAwake() ? Mth.clamp((ArbiterEntity.INTRO_TICKS - a.introTicks() + partialTick) / 30f, 0f, 1f) : 0f;
-        int rgb = a.isEnraged() ? RED : GOLD;
+        int rgb = a.isEnraged() ? angry() : calm();
         float live = 1 - dying;
 
         // the circle it kneels in
@@ -97,11 +112,11 @@ public class ArbiterRenderer extends GeoEntityRenderer<ArbiterEntity> {
                 float u = (time * 0.035f + i * 0.05f) % 1f;
                 float ang = i * 2.4f;
                 AwakeningWorldFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(AwakeningWorldFx.GLOW)), pose, camera,
-                        Mth.cos(ang) * (1f + 5f * u), 1f + (i % 5) * 1.8f + 2f * u, Mth.sin(ang) * (1f + 5f * u), 0.22f, GOLD, gather * (1 - u));
+                        Mth.cos(ang) * (1f + 5f * u), 1f + (i % 5) * 1.8f + 2f * u, Mth.sin(ang) * (1f + 5f * u), 0.22f, calm(), gather * (1 - u));
             }
             if (pillar > 0) {
                 AwakeningWorldFx.column(buffers.getBuffer(ModRenderTypes.lightTexture(AwakeningWorldFx.BEAM)), pose, camera, a.getX(), a.getZ(), 1.2f + 3.5f * pillar, 40f, 0xFFFFFF, Math.min(1f, pillar * 1.5f));
-                AwakeningWorldFx.column(buffers.getBuffer(ModRenderTypes.lightTexture(AwakeningWorldFx.BEAM)), pose, camera, a.getX(), a.getZ(), 3f + 5f * pillar, 40f, GOLD, 0.6f * pillar);
+                AwakeningWorldFx.column(buffers.getBuffer(ModRenderTypes.lightTexture(AwakeningWorldFx.BEAM)), pose, camera, a.getX(), a.getZ(), 3f + 5f * pillar, 40f, calm(), 0.6f * pillar);
             }
         }
     }

@@ -52,6 +52,8 @@ public final class WorldBossJournal {
         if (kind.monarch()) {
             SystemAPI.setTitle(p, CROWNBREAKER);
             if (top) SystemAPI.setTitle(p, THRONE_TAKER);
+            // crown against crown: a monarch who had a share in it
+            com.beyondsolo.monarch.MonarchAPI.monarchSlain(p);
         } else {
             SystemAPI.setTitle(p, COLOSSUS_BREAKER);
         }

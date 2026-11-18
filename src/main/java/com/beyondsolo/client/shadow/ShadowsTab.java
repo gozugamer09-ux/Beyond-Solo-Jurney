@@ -216,7 +216,7 @@ public class ShadowsTab implements SystemTab {
         }
         cy += 2;
         // level and xp
-        boolean max = r.maxed();
+        boolean max = r.maxed(ShadowClient.top());
         SysFont.title(g, Component.translatable("shadows.beyondsolo.level", r.level(), com.beyondsolo.shadow.ShadowRank.LEVEL_CAP).getString(), tx, cy, 7.5f,
                 Gfx.mix(c, 0xFFFFFFFF, 0.4f));
         String xp = max ? Component.translatable("shadows.beyondsolo.max").getString() : r.xp() + " / " + r.xpToNext();

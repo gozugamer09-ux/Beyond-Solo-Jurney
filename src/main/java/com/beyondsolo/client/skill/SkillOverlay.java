@@ -75,6 +75,7 @@ public final class SkillOverlay {
 
     public static void refuse(String path, int reason) {
         SkillBar.refused(path);
+        com.beyondsolo.client.monarch.CrownBar.refused(path);
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         String key = switch (reason) {
@@ -97,7 +98,8 @@ public final class SkillOverlay {
             NotificationManager.setHeld(false);
         }
         if (current == null && !LEARNED.isEmpty() && !EvaluationOverlay.active() && !QuestOverlay.active()
-                && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.rune.RuneClient.absorbing()) {
+                && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.rune.RuneClient.absorbing()
+                && !com.beyondsolo.client.monarch.CoronationOverlay.active()) {
             current = LEARNED.pollFirst();
             startedAt = Anim.now();
             learnTime = LEARNED.isEmpty() ? 4.0f : 2.7f;
@@ -209,7 +211,8 @@ public final class SkillOverlay {
             float oldD = Gfx.fade(d);
             float dy = ny + 22 + (1 - d) * 5;
             String kind = Component.translatable(s.isActive() ? "skills.beyondsolo.active" : "skills.beyondsolo.passive").getString();
-            String owner = s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
+            String owner = s.monarch() ? Component.translatable("skills.beyondsolo.monarch").getString()
+                    : s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
                     : s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
             String lv = Component.translatable("skills.beyondsolo.level", m.level).getString();
             String grade = Component.translatable("skills.beyondsolo.grade", s.grade().name()).getString();
@@ -234,9 +237,13 @@ public final class SkillOverlay {
             if (e > 0) {
                 float oldE = Gfx.fade(e);
                 int slot = ClientSkills.data().slotOf(s.path());
+                int crownKey = com.beyondsolo.client.monarch.MonarchClientEvents.crownKeyOf(s);
                 String hint;
                 String key;
-                if (slot >= 0) {
+                if (crownKey >= 0) {
+                    hint = Component.translatable("skills.beyondsolo.acquired.crown").getString();
+                    key = com.beyondsolo.client.monarch.MonarchClientEvents.CROWN_KEYS[crownKey].getTranslatedKeyMessage().getString();
+                } else if (slot >= 0) {
                     hint = Component.translatable("skills.beyondsolo.acquired.slot").getString();
                     key = SkillClientEvents.SLOT_KEYS[slot].getTranslatedKeyMessage().getString();
                 } else {

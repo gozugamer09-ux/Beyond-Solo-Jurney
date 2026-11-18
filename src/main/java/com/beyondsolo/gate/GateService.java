@@ -524,8 +524,8 @@ public final class GateService {
         GateInstance g = data.bySlotPos(player.blockPosition());
         // a cave whose gate has broken has spilled out into the world: nobody is left standing in it
         if (g == null || g.state() == GateInstance.State.CLOSED || g.breakState().hasBroken()) {
-            // the job change trial also takes place in this dimension, in its own halls
-            if (!inTransit(player) && !com.beyondsolo.job.JobTrial.inTrial(player)) sendHome(player);
+            // the job change trial and the throne's hall also stand in this dimension, in their own halls
+            if (!inTransit(player) && !com.beyondsolo.job.JobTrial.inTrial(player) && !com.beyondsolo.monarch.ThroneTrial.inTrial(player)) sendHome(player);
             return;
         }
         if (!g.built()) return;

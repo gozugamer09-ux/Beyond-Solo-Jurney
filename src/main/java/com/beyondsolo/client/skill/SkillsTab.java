@@ -185,9 +185,10 @@ public class SkillsTab implements SystemTab {
         float cy = y + 9;
         float chipX = tx;
         chipX += Ui.chip(g, chipX, cy, 10, Component.translatable(s.isActive() ? "skills.beyondsolo.active" : "skills.beyondsolo.passive").getString(), 6f, color, true) + 4;
-        String owner = s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
+        String owner = s.monarch() ? Component.translatable("skills.beyondsolo.monarch").getString()
+                : s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
                 : s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
-        chipX += Ui.chip(g, chipX, cy, 10, owner, 6f, s.rune() ? 0xFF7FE8C8 : SystemTheme.TEXT_SOFT, false) + 4;
+        chipX += Ui.chip(g, chipX, cy, 10, owner, 6f, s.monarch() ? 0xFFC77DFF : s.rune() ? 0xFF7FE8C8 : SystemTheme.TEXT_SOFT, false) + 4;
         chipX += Ui.chip(g, chipX, cy, 10, Component.translatable("skills.beyondsolo.grade", s.grade().name()).getString(), 6f, SystemTheme.GOLD, false) + 4;
         chipX += Ui.chip(g, chipX, cy, 10, s.element().displayName().getString(), 6f, Gfx.opaque(s.element().color()), false) + 4;
         var engraving = have ? com.beyondsolo.client.rune.RuneClient.data().engraving(s.path()) : null;

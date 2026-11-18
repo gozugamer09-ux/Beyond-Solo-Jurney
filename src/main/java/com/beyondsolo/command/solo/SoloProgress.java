@@ -11,6 +11,8 @@ import com.beyondsolo.job.JobAPI;
 import com.beyondsolo.job.JobTrial;
 import com.beyondsolo.job.Subclass;
 import com.beyondsolo.key.DungeonKeys;
+import com.beyondsolo.monarch.MonarchAPI;
+import com.beyondsolo.monarch.MonarchData;
 import com.beyondsolo.penalty.PenaltyZone;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
@@ -125,6 +127,12 @@ final class SoloProgress {
         TowerData t = TowerAPI.data(p);
         out.append("\n").append(Solo.t("info.counts", Skills.known(SkillAPI.get(p)).size(), ShadowService.army(p).size(),
                 q.active().size(), q.completedCount(), t.highest));
+        MonarchData m = MonarchAPI.get(p);
+        if (m.dominion() != null) {
+            out.append("\n").append(Solo.t("info.monarch", m.dominion().title(), m.monarchsSlain(), m.clashes(), m.authorities()));
+        } else if (m.called()) {
+            out.append("\n").append(Solo.t("info.monarch_called", m.attempts()));
+        }
         return out;
     }
 

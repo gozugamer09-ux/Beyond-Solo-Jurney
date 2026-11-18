@@ -551,7 +551,12 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
     @Override
     public void die(DamageSource source) {
         super.die(source);
-        if (level() instanceof ServerLevel server) AwakeningService.arbiterSlain(server, this, source);
+        if (level() instanceof ServerLevel server) slain(server, source);
+    }
+
+    /** It has fallen: the awakening trial's ending. The throne's Arbiter ({@code ThroneArbiterEntity}) has its own. */
+    protected void slain(ServerLevel server, DamageSource source) {
+        AwakeningService.arbiterSlain(server, this, source);
     }
 
     @Override
