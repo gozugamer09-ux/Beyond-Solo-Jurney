@@ -308,6 +308,8 @@ public final class GateSpawner {
         } else {
             thought(p, Component.translatable("message.beyondsolo.presystem.gate_opened", blocks, dir));
         }
+        // now and then a high-rank gate is a raid gate, made for a whole band of hunters
+        if (fixed == null) com.beyondsolo.raid.Raids.naturalRoll(level, gate, r);
         return gate;
     }
 

@@ -76,6 +76,8 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     int moveTick;
     final BossMoves.State moveState = new BossMoves.State();
     long lastSummon = -10000;
+    /** Server: ticks it reels (a raid's barrier broke) or stands calling a cataclysm down (raid.Raids). */
+    private int staggerTicks, channelTicks;
 
     public GateBossEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -300,8 +302,42 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
         return false;
     }
 
+    /** It reels for a while: no moves, no steps (a raid boss whose barrier broke). */
+    public void stagger(int ticks) {
+        staggerTicks = Math.max(staggerTicks, ticks);
+        move = null;
+        getNavigation().stop();
+    }
+
+    public boolean staggered() {
+        return staggerTicks > 0;
+    }
+
+    /** It stands still, calling something down (a raid boss's cataclysm). */
+    public void channel(int ticks) {
+        channelTicks = Math.max(channelTicks, ticks);
+        move = null;
+        getNavigation().stop();
+    }
+
+    public boolean channeling() {
+        return channelTicks > 0;
+    }
+
+    /** Reeling or channelling: not fighting. */
+    public boolean held() {
+        return staggerTicks > 0 || channelTicks > 0;
+    }
+
     @Override
     public void aiStep() {
+        if (!level().isClientSide && held()) {
+            if (staggerTicks > 0) staggerTicks--;
+            if (channelTicks > 0) channelTicks--;
+            move = null;
+            setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
+            getNavigation().stop();
+        }
         if (!isAwake() || introTicks() > 0) {
             // dormant, or in its intro: stands its ground
             setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
@@ -420,7 +456,7 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
 
         @Override
         public boolean canUse() {
-            return isAwake() && introTicks() <= 0 && getTarget() != null && getTarget().isAlive();
+            return isAwake() && introTicks() <= 0 && !held() && getTarget() != null && getTarget().isAlive();
         }
 
         @Override

@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class Economy {
     /** Why gold changed (shown with the change on the client). */
-    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY, PARTY }
+    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY, PARTY, GUILD, RAID }
 
     public static HunterData data(Player player) {
         return player.getData(EconomyModule.HUNTER.get());
@@ -29,6 +29,8 @@ public final class Economy {
         if (amount == 0) return;
         // the worn title's gold perk (kills, quests, gates and the Citadel only)
         amount = com.beyondsolo.chronicle.title.TitleService.gold(player, amount, reason);
+        // and the guild's (the same sources, and raids)
+        amount = com.beyondsolo.guild.GuildPerks.gold(player, amount, reason);
         HunterData d = data(player);
         long before = d.gold;
         d.gold = Math.max(0, d.gold + amount);

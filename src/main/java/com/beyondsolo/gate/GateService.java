@@ -268,8 +268,10 @@ public final class GateService {
             player.hurtMarked = true;
             return;
         }
+        // a raid gate holds its raiders at the muster until the leader takes them through together, then seals
+        if (g.isRaid() && com.beyondsolo.raid.Raids.enter(player, gate, g)) return;
         // a red gate in waiting turns red for an awakened hunter; one that has turned lets its party follow, then seals
-        if (com.beyondsolo.redgate.RedGates.enter(player, gate, g)) return;
+        if (!g.isRaid() && com.beyondsolo.redgate.RedGates.enter(player, gate, g)) return;
         if (level.getServer().getLevel(DIMENSION) == null) {
             BeyondSolo.LOGGER.error("The gate dimension {} is missing; is the mod's datapack loaded?", DIMENSION.location());
             return;
@@ -288,6 +290,12 @@ public final class GateService {
         level.playSound(null, gate.getBlockPos(), SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 1.2f, 0.6f);
         PacketDistributor.sendToPlayer(player, new GatePayload(GatePayload.ENTER, g.theme().ordinal(), -1, 0,
                 g.dungeonName(), gateLabel(g)));
+    }
+
+    /** Takes a player through a gate now, as if they had just walked in (a raid's leader taking the raiders in). */
+    public static void pullIn(ServerPlayer player, GateBlockEntity gate) {
+        COOLDOWN.remove(player.getUUID());
+        beginEnter(player, gate);
     }
 
     /** "D-Rank Gate", or "Sealed Gate" for the trial. */
@@ -383,7 +391,8 @@ public final class GateService {
         player.getPersistentData().putUUID(IN_GATE_TAG, g.id());
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.arrived(player, g);
         if (g.isTrial()) com.beyondsolo.awakening.AwakeningService.arrived(player, g);
-        else giveQuest(player, g);
+        // a raid gives its own quest (the lieutenants, then the boss)
+        else if (!com.beyondsolo.raid.Raids.arrived(player, g)) giveQuest(player, g);
         com.beyondsolo.party.Parties.wentIn(player, g);
         return true;
     }
@@ -480,6 +489,8 @@ public final class GateService {
         if (g.built()) return;
         g.setBuilt(true);
         if (!g.bossSpawned()) spawnBoss(dungeon, g);
+        // a raid's boss is grown for the raiders, and its lieutenants take their caverns
+        if (g.isRaid()) com.beyondsolo.raid.Raids.caveBuilt(dungeon, g);
         GateData.get(dungeon.getServer()).setDirty();
     }
 
@@ -516,6 +527,8 @@ public final class GateService {
             return;
         }
         if (!g.built()) return;
+        // a raid's lieutenants wake as raiders come near, and keep the boss's chamber shut while one stands
+        if (g.isRaid()) com.beyondsolo.raid.Raids.watch(player, g);
         BlockPos at = player.blockPosition();
         for (DungeonLayout.Room room : g.layout().rooms()) {
             BlockPos c = g.world(room.center());
@@ -528,7 +541,8 @@ public final class GateService {
                 data.setDirty();
             }
             if (room.kind() == DungeonLayout.Kind.BOSS) {
-                if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - (g.isTrial() ? 8 : 4)) wakeBoss(dungeon, g);
+                if (!g.bossAwake() && !g.bossDefeated() && dist < room.reach() - (g.isTrial() ? 8 : 4)
+                        && !com.beyondsolo.raid.Raids.sealed(g)) wakeBoss(dungeon, g);
             } else if (room.kind().hasPack() && !g.roomTriggered(room.index()) && dist < room.reach() + 7
                     // the awakening trial holds nothing but its Arbiter
                     && !g.isTrial()) {
@@ -545,6 +559,8 @@ public final class GateService {
         BlockPos c = g.world(room.center());
         int floor = room.floorY();
         int count = theme.packSize + r.nextInt(2) + (room.kind() == DungeonLayout.Kind.SIDE ? 1 : 0) + (room.reach() >= 12 ? 1 : 0);
+        // a raid's caverns hold bigger packs
+        count = com.beyondsolo.raid.Raids.packSize(g, count);
         com.beyondsolo.enemy.EnemyRoster.Mix mix = g.isTrial() ? null : g.mix();
         // later caverns are more likely to be led by an elite or a champion
         boolean late = room.index() > g.layout().rooms().size() / 2;
@@ -652,7 +668,8 @@ public final class GateService {
         boss.wake();
         for (ServerPlayer p : playersIn(dungeon, g)) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_INTRO, g.theme().ordinal(), boss.getId(), 0,
-                    g.bossName(), Component.translatable("gate.beyondsolo.boss_subtitle", g.rank().displayName())));
+                    g.bossName(), g.isRaid() ? com.beyondsolo.raid.Raids.bossSubtitle(g)
+                            : Component.translatable("gate.beyondsolo.boss_subtitle", g.rank().displayName())));
         }
     }
 
@@ -677,6 +694,8 @@ public final class GateService {
         for (ServerPlayer p : playersIn(level, g)) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.ENRAGED, g.rank().ordinal(), boss.getId(), 0, g.bossName(), Component.empty()));
         }
+        // a raid boss calls more of its kind, one for each raider it was grown for
+        if (g.isRaid()) com.beyondsolo.raid.Raids.bossEnraged(level, boss, g);
     }
 
     /** Shakes the camera of players near {@code at}, weaker further away. */
@@ -709,6 +728,8 @@ public final class GateService {
         data.setDirty();
 
         List<ServerPlayer> players = playersIn(level, g);
+        // a raid's own spoils: a cache for each raider, guild renown, its hunters' growth, the results board
+        if (g.isRaid()) com.beyondsolo.raid.Raids.bossDefeated(level, g, boss, players);
         com.beyondsolo.awakening.AwakeningService.gateCleared(level, g, players);
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.cleared(level, g, players);
         for (ServerPlayer p : players) {
@@ -728,12 +749,15 @@ public final class GateService {
             level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
             if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
             // a chain of keyed runs pays a little more for each run in it, and so does a cave with weather
-            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g) * com.beyondsolo.depths.WeatherService.rewardBonus(g);
+            float bonus = com.beyondsolo.key.KeyedRuns.bonus(g) * com.beyondsolo.depths.WeatherService.rewardBonus(g)
+                    * com.beyondsolo.raid.Raids.rewardBonus(g);
             long xp = Math.round(g.theme().clearXp() * (double) bonus);
             for (ServerPlayer p : playersIn(level, g)) {
                 SystemAPI.grantXp(p, xp, BeyondSolo.id("gate_clear"));
                 QuestEngine.progress(p, CLEAR_KEY, 1);
                 com.beyondsolo.economy.EconomyHooks.gateCleared(p, g.rank(), bonus);
+                // a guild's renown grows with its members' clears (a raid pays it its own way)
+                if (!g.isRaid()) com.beyondsolo.guild.Guilds.gateCleared(p, g);
                 // the cleared banner is the System talking; without it there's just the quiet
                 if (!SystemAPI.hasSystem(p)) continue;
                 PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.CLEARED, g.theme().ordinal(), -1, xp,

@@ -53,6 +53,8 @@ public final class BeyondSolo {
         com.beyondsolo.redgate.RedGateModule.init(modBus, container);
         com.beyondsolo.worldboss.WorldBossModule.init(modBus, container);
         com.beyondsolo.party.PartyModule.init(modBus, container);
+        com.beyondsolo.guild.GuildModule.init(modBus, container);
+        com.beyondsolo.raid.RaidModule.init(modBus, container);
         com.beyondsolo.chronicle.ChronicleModule.init(modBus);
         container.registerConfig(ModConfig.Type.COMMON, com.beyondsolo.quest.situation.SituationConfig.SPEC, "beyondsolo-situations.toml");
         com.beyondsolo.quest.situation.Secrets.registerTitles();
