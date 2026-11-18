@@ -170,8 +170,8 @@ public final class SkillCombat {
                     stun(e, 20);
                 }
                 stun(target, 20);
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, 40, 1.2, 0.8, 1.2, 0.4);
-                level.sendParticles(ParticleTypes.SPLASH, at.x, at.y, at.z, 30, 1.0, 0.5, 1.0, 0.2);
+                SkillParticles.send(level, ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, 40, 1.2, 0.8, 1.2, 0.4);
+                SkillParticles.send(level, ParticleTypes.SPLASH, at.x, at.y, at.z, 30, 1.0, 0.5, 1.0, 0.2);
                 sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 0.6f, 1.5f);
                 sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.5f, 1.4f);
             }
@@ -183,7 +183,7 @@ public final class SkillCombat {
                     e.igniteForSeconds(3);
                     splash(p, e, power * 0.3f);
                 }
-                level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, 60, 1.4, 1.0, 1.4, 0.08);
+                SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y, at.z, 60, 1.4, 1.0, 1.4, 0.08);
                 sound(level, at, SoundEvents.FIRECHARGE_USE, 1f, 0.6f);
             }
             case STEAM -> {
@@ -193,37 +193,37 @@ public final class SkillCombat {
                     e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0));
                 }
                 target.clearFire();
-                level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 40, 1.2, 0.8, 1.2, 0.03);
+                SkillParticles.send(level, ParticleTypes.CLOUD, at.x, at.y, at.z, 40, 1.2, 0.8, 1.2, 0.03);
                 sound(level, at, SoundEvents.FIRE_EXTINGUISH, 1f, 0.9f);
             }
             case WILDFIRE -> {
                 Statuses.apply(target, DamageElement.FIRE, 70, p);
                 target.igniteForSeconds(6);
-                level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0.04);
+                SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0.04);
                 sound(level, at, SoundEvents.BLAZE_SHOOT, 0.8f, 0.8f);
             }
             case MAGMA -> {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 2));
                 target.igniteForSeconds(4);
-                level.sendParticles(ParticleTypes.LAVA, at.x, at.y, at.z, 16, 0.5, 0.4, 0.5, 0);
+                SkillParticles.send(level, ParticleTypes.LAVA, at.x, at.y, at.z, 16, 0.5, 0.4, 0.5, 0);
                 sound(level, at, SoundEvents.LAVA_POP, 1f, 0.7f);
             }
             case FROST -> {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 4));
                 target.setTicksFrozen(target.getTicksRequiredToFreeze() + 80);
                 target.clearFire();
-                level.sendParticles(ParticleTypes.SNOWFLAKE, at.x, at.y, at.z, 40, 0.6, 0.8, 0.6, 0.03);
+                SkillParticles.send(level, ParticleTypes.SNOWFLAKE, at.x, at.y, at.z, 40, 0.6, 0.8, 0.6, 0.03);
                 sound(level, at, SoundEvents.GLASS_BREAK, 0.8f, 1.5f);
             }
             case OVERGROWTH -> {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 50, 9));
                 p.heal(2);
-                level.sendParticles(ParticleTypes.HAPPY_VILLAGER, at.x, at.y, at.z, 24, 0.6, 0.8, 0.6, 0);
+                SkillParticles.send(level, ParticleTypes.HAPPY_VILLAGER, at.x, at.y, at.z, 24, 0.6, 0.8, 0.6, 0);
                 sound(level, at, SoundEvents.BIG_DRIPLEAF_TILT_UP, 1f, 0.7f);
             }
             case ECLIPSE -> {
-                level.sendParticles(ParticleTypes.FLASH, at.x, at.y, at.z, 1, 0, 0, 0, 0);
-                level.sendParticles(ParticleTypes.SQUID_INK, at.x, at.y, at.z, 24, 0.4, 0.6, 0.4, 0.1);
+                SkillParticles.send(level, ParticleTypes.FLASH, at.x, at.y, at.z, 1, 0, 0, 0, 0);
+                SkillParticles.send(level, ParticleTypes.SQUID_INK, at.x, at.y, at.z, 24, 0.4, 0.6, 0.4, 0.1);
                 sound(level, at, SoundEvents.WARDEN_SONIC_BOOM, 0.4f, 1.6f);
             }
             case TEMPEST -> {
@@ -240,7 +240,7 @@ public final class SkillCombat {
                     e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 80, 0));
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 1));
                 }
-                level.sendParticles(ParticleTypes.POOF, at.x, at.y, at.z, 50, 1.6, 0.8, 1.6, 0.05);
+                SkillParticles.send(level, ParticleTypes.POOF, at.x, at.y, at.z, 50, 1.6, 0.8, 1.6, 0.05);
                 sound(level, at, SoundEvents.SAND_BREAK, 1f, 0.6f);
             }
             case OVERLOAD -> {
@@ -253,30 +253,30 @@ public final class SkillCombat {
                     }
                     if (e != target) splash(p, e, power * 0.4f);
                 }
-                level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y, at.z, 2, 0.4, 0.2, 0.4, 0);
+                SkillParticles.send(level, ParticleTypes.EXPLOSION, at.x, at.y, at.z, 2, 0.4, 0.2, 0.4, 0);
                 sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.7f, 1.2f);
             }
             case BLIGHT -> {
                 Statuses.apply(target, DamageElement.POISON, 40, p);
                 target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100, 0));
-                level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0);
+                SkillParticles.send(level, ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0);
                 sound(level, at, SoundEvents.SCULK_BLOCK_SPREAD, 1f, 0.7f);
             }
             case SHATTER -> {
                 stun(target, 30);
-                level.sendParticles(ParticleTypes.CRIT, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0.4);
+                SkillParticles.send(level, ParticleTypes.CRIT, at.x, at.y, at.z, 30, 0.5, 0.8, 0.5, 0.4);
                 sound(level, at, SoundEvents.STONE_BREAK, 1f, 0.6f);
                 sound(level, at, SoundEvents.ANVIL_LAND, 0.4f, 1.4f);
             }
             case RADIANCE -> {
                 for (Player ally : level.getEntitiesOfClass(Player.class, new AABB(at, at).inflate(5), Player::isAlive)) ally.heal(3);
                 p.heal(3);
-                level.sendParticles(ParticleTypes.END_ROD, at.x, at.y, at.z, 30, 0.6, 0.8, 0.6, 0.08);
+                SkillParticles.send(level, ParticleTypes.END_ROD, at.x, at.y, at.z, 30, 0.6, 0.8, 0.6, 0.08);
                 sound(level, at, SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.8f);
             }
             case RESONANCE -> {
                 SystemAPI.restoreMana(p, 6);
-                level.sendParticles(ParticleTypes.ENCHANT, at.x, at.y + 0.5, at.z, 40, 0.5, 0.8, 0.5, 0.6);
+                SkillParticles.send(level, ParticleTypes.ENCHANT, at.x, at.y + 0.5, at.z, 40, 0.5, 0.8, 0.5, 0.6);
                 sound(level, at, SoundEvents.AMETHYST_BLOCK_RESONATE, 1f, 1.2f);
             }
         }

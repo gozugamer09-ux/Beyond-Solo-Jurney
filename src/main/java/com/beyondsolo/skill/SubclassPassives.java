@@ -390,7 +390,7 @@ public final class SubclassPassives {
         Entity e = event.getEntity();
         if (e.tickCount % 20 != 0 || !(e.level() instanceof ServerLevel level) || !e.getTags().contains(SubclassActions.SUMMON_TAG)) return;
         if (level.getGameTime() > e.getPersistentData().getLong(SubclassActions.SUMMON_EXPIRES)) {
-            level.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, e.getX(), e.getY() + 0.5, e.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
+            SkillParticles.send(level, net.minecraft.core.particles.ParticleTypes.POOF, e.getX(), e.getY() + 0.5, e.getZ(), 12, 0.3, 0.3, 0.3, 0.02);
             e.discard();
         }
     }

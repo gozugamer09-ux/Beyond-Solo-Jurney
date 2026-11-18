@@ -457,7 +457,7 @@ public final class RangerPath {
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
             sound(target, SoundEvents.PHANTOM_BITE, 1f, 1.4f);
             Vec3 at = mid(target);
-            p.serverLevel().sendParticles(ParticleTypes.CRIT, at.x, at.y, at.z, 6, 0.2, 0.2, 0.2, 0.2);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, at.x, at.y, at.z, 6, 0.2, 0.2, 0.2, 0.2);
         });
         return true;
     }
@@ -851,7 +851,7 @@ public final class RangerPath {
             snare(p, s, target, 8 * m(l, tier(p)) + sense(p, 0.2f));
             stun(target, 20);
             sound(target, SoundEvents.PLAYER_BIG_FALL, 1f, 0.8f);
-            level.sendParticles(ParticleTypes.POOF, target.getX(), target.getY() + 0.1, target.getZ(), 8, 0.4, 0.1, 0.4, 0.02);
+            SkillParticles.send(level, ParticleTypes.POOF, target.getX(), target.getY() + 0.1, target.getZ(), 8, 0.4, 0.1, 0.4, 0.02);
         });
         return true;
     }
@@ -873,8 +873,8 @@ public final class RangerPath {
             sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.9f, 1.2f);
             fxAt(level, Kind.GEYSER, s.color(), at, 3.5f, 1);
             fxAt(level, Kind.SPLASH, s.color(), at.add(0, 0.5, 0), 4.5f, 1);
-            level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.6, at.z, 1, 0, 0, 0, 0);
-            level.sendParticles(GRIT, at.x, at.y + 0.4, at.z, 30, 0.5, 0.3, 0.5, 0.6);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION, at.x, at.y + 0.6, at.z, 1, 0, 0, 0, 0);
+            SkillParticles.send(level, GRIT, at.x, at.y + 0.4, at.z, 30, 0.5, 0.3, 0.5, 0.6);
         });
         return true;
     }
@@ -894,8 +894,8 @@ public final class RangerPath {
             sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.7f, 0.6f);
             sound(level, at, SoundEvents.DEEPSLATE_BREAK, 1.5f, 0.6f);
             fxAt(level, Kind.QUAKE, s.color(), at, 4, 16);
-            level.sendParticles(GRIT, at.x, at.y + 0.3, at.z, 40, 1.6, 0.3, 1.6, 0.3);
-            level.sendParticles(ParticleTypes.POOF, at.x, at.y + 0.3, at.z, 14, 1.6, 0.2, 1.6, 0.03);
+            SkillParticles.send(level, GRIT, at.x, at.y + 0.3, at.z, 40, 1.6, 0.3, 1.6, 0.3);
+            SkillParticles.send(level, ParticleTypes.POOF, at.x, at.y + 0.3, at.z, 14, 1.6, 0.2, 1.6, 0.03);
         });
         return true;
     }
@@ -934,7 +934,7 @@ public final class RangerPath {
             sound(level, center, SoundEvents.DEEPSLATE_BREAK, 1.5f, 0.5f);
             fxAt(level, Kind.QUAKE, s.color(), center, 9, 20);
             fxAt(level, Kind.CRACK, s.color(), center, 9, 0);
-            level.sendParticles(GRIT, center.x, center.y + 0.3, center.z, 80, 4, 0.3, 4, 0.3);
+            SkillParticles.send(level, GRIT, center.x, center.y + 0.3, center.z, 80, 4, 0.3, 4, 0.3);
         });
         return true;
     }
@@ -1264,7 +1264,7 @@ public final class RangerPath {
             for (Projectile shotAt : level.getEntitiesOfClass(Projectile.class, new AABB(a, b).inflate(1.5, 2.5, 1.5), x -> !(x.getOwner() instanceof Player))) {
                 Vec3 rel = shotAt.position().subtract(center);
                 if (Math.abs(rel.dot(dir)) > 1.4 || Math.abs(rel.dot(side)) > half) continue;
-                level.sendParticles(ParticleTypes.CLOUD, shotAt.getX(), shotAt.getY(), shotAt.getZ(), 4, 0.1, 0.1, 0.1, 0.05);
+                SkillParticles.send(level, ParticleTypes.CLOUD, shotAt.getX(), shotAt.getY(), shotAt.getZ(), 4, 0.1, 0.1, 0.1, 0.05);
                 shotAt.discard();
             }
         });

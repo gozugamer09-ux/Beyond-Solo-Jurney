@@ -46,7 +46,25 @@ public final class ModRenderTypes {
         return LIGHT_TEXTURE.apply(texture);
     }
 
-    private static final Function<ResourceLocation, RenderType> LIGHT_THROUGH = Util.memoize(texture -> RenderType.create("beyondsolo_light_through",
+    private static final Function<ResourceLocation, RenderType> SOFT_TEXTURE = Util.memoize(texture -> RenderType.create("beyondsolo_soft_texture",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::light))
+                    .setTextureState(new RenderStateShard.TextureStateShard(texture, true, false))
+                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .createCompositeState(false)));
+
+    /**
+     * Like {@link #lightTexture}, but blended over the scene instead of added to it: smoke and dust, which hide what
+     * is behind them rather than light it. The texture's colour is kept (tinted by the vertex colour).
+     */
+    public static RenderType softTexture(ResourceLocation texture) {
+        return SOFT_TEXTURE.apply(texture);
+    }
+
+    private static final Function<ResourceLocation, RenderType> LIGHT_THROUGH =Util.memoize(texture -> RenderType.create("beyondsolo_light_through",
             DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
             RenderType.CompositeState.builder()
                     .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::light))

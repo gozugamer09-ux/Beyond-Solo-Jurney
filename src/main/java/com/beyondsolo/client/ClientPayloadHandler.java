@@ -83,5 +83,13 @@ public final class ClientPayloadHandler {
         com.beyondsolo.client.skill.SkillWorldFx.play(payload);
     }
 
+    public static void onSkillCast(com.beyondsolo.network.SkillCastPayload payload) {
+        com.beyondsolo.client.skill.SkillGestures.cast(payload);
+    }
+
+    public static void onSkillParticles(com.beyondsolo.network.SkillParticlesPayload payload) {
+        com.beyondsolo.client.skill.SkillParticleLooks.play(payload);
+    }
+
     private ClientPayloadHandler() {}
 }

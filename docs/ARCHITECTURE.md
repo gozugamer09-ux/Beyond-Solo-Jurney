@@ -620,7 +620,38 @@ reward them. Events for other modules: `SkillEvent.Learned` (with its source), `
 Adding a skill: one `Skills` entry with its element, an action in `SkillActions` that sends a `SkillFxPayload`
 kind for the look (`client.skill.SkillWorldFx` draws each kind with the light textures and particles; add a kind
 for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools/gen_ui_assets.py`
-(`skill_<path>`), and a test. Subclass skills live apart (see "Job change"). Every skill hit goes through `SkillActions.hit`, which is
+(`skill_<path>`), and a test.
+
+**How skills look.** Three client pieces draw a cast, and a new skill gets all three without extra work:
+
+- *The body.* After a cast goes off `SkillAPI.cast` sends `SkillCastPayload` (caster, skill, the first effect kind
+  the action showed, its duration; `SkillFx` notes the first kind while the action runs, `RuneFx` too, as
+  `rune:<kind>`). `client.skill.SkillGestures` picks a gesture from the kind and the skill's class (a cut swings,
+  `SLAM` brings both hands down, `QUAKE` stomps, `BOLT` throws from the hand, `HEAL` prays, `ARROW` draws and looses,
+  `TRAP` sets something down...) and plays `player_animations/skill_<gesture>.json` on its own playerAnimator layer
+  (priority 1950, under the weapon arts' 2000). 28 gestures, written by `tools/gen_skill_anims.py`; strikes land by
+  tick 2 to 4, because the effects appear on the cast tick. Spells also gather light at the hand. In these emote
+  files (no `version`) playerAnimator reads `torso` as `body`, the whole player turned about the hips, and its `y`
+  moves the whole player by that many **blocks**: a `"y": 2.6` meant as a crouch lifted casters two blocks off the
+  ground. Leave `y` off the torso; `gen_skill_anims.py` turns the legs back against every lean so the feet stay down.
+- *The light.* `SkillWorldFx` draws each kind with the light render type. A blade's cut is a swept band with a
+  white-hot edge (`swipe` / `arc`, texture `fx/arc.png`), not a picture of a crescent; ground blows split the
+  ground (`fissures`) and send soft shock ripples (`fx/shock.png`). **Weapon skills draw no circle or sigil** (Yordan's
+  rule): magic circles and crisp `RING`s are for spells (`CAST`, only under `Skill.castCircle` skills), zones,
+  shields, marks and ultimates; hits, blinks, bashes, shots and reactions ripple with `SHOCK`. A streak that passes
+  through the eye fades out (a fountain at your own feet), and beams and shots start past the hand in first person.
+- *The particles.* `FxParticles` is the skill effects' own particle system: smoke and dust that billow and thin
+  (blended, darkened where the world is dark), flames from a flipbook, sparks that streak and skip off the ground,
+  embers, motes, shards, petals, leaves, feathers, drops, shock rings and ground glows, all soft textures from
+  `tools/gen_skill_fx_textures.py` (`textures/effect/fx`). Ready-made bursts (`smoke`, `dust`, `fire`, `fireRing`,
+  `sparks`, `embers`, `motes`, `flash`, `shockwave`...) keep the effects short; counts follow the particle setting.
+  Skill server code calls `SkillParticles.send` where it used to call `ServerLevel.sendParticles`: vanilla flames,
+  blasts, sparks, motes and smoke go out as `SkillParticlesPayload` and come back as soft particles
+  (`SkillParticleLooks`); block debris stays vanilla. Heavy blows jolt the camera (`SkillShake`, off with the
+  screen effects option), harder the closer they land.
+
+New skill code: show a `SkillFxPayload` kind first (it picks the gesture), use `SkillParticles.send` for particles,
+and keep circles for spells. Subclass skills live apart (see "Job change"). Every skill hit goes through `SkillActions.hit`, which is
 where combos, range passives and elements apply; a new damaging skill should use it rather than `hurt`.
 
 ### Combos and element reactions
