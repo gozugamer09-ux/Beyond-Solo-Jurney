@@ -1261,6 +1261,55 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## The chronicle: titles, rankings and the journal
+
+Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
+`ChronicleModule.init` registers the hunter's chronicle (`ChronicleData`, attachment `beyondsolo:chronicle`, kept
+through death: titles earned with the game time, the chronicle's own counters, journal pages, what is not looked at
+yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle plus how far
+along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
+`ChronicleActionPayload` the page's buttons: wear, take off, read, ask for the boards).
+
+- **Titles** (`title/Titles`, 52 of them in five categories: hunt, gates, citadel, system, mastery; five tiers from
+  common to mythic). A title with a `Feat` is earned when that number reaches its goal: the chronicle counts kills,
+  bosses, ascended bosses, clutch kills (a boss falling while the hunter is under 15% health), kills of far stronger
+  creatures, deaths, kills by creature family (`journal/CreatureFamily`), dungeon breaks held, hidden and trap rooms,
+  dailies, surprise quests, reactions and the longest combo itself; everything else is read from the record its own
+  feature keeps (gates cleared, red gates, keys, weaknesses, the Citadel and the rush, quests, the penalty zone, level,
+  gold earned, the shadow army, journal pages). `TitleService.check` runs every 2 s. A title without a feat is given by
+  its feature: `SystemAPI.setTitle(player, key)` fires `SystemEvent.TitleGranted` (cancellable) and the chronicle keeps
+  it. A new title is worn when nothing is worn or when the System picked the worn one and the new one is rarer; one the
+  hunter picked on the page stays on. Some titles are secret (shown as "???" until earned). Titles worn before the
+  chronicle existed are taken in quietly at login.
+- **Perks** (`TitlePerk`, only the worn title's): attribute ones as transient modifiers `beyondsolo:title_<perk>`
+  (attack, health, speed, armor, luck, elemental and spell power, mana efficiency, skill haste, exhaustion
+  resistance) put back on login, respawn and every change; event ones in `TitleService` (System XP on `XpGain`, gold
+  in `Economy.add` for kills, quests, gates and the Citadel, more damage to creatures, bosses, a family or far stronger
+  foes, less damage taken capped at 50%, and both below 30% health). Every number waits for the balancing pass.
+- **Rankings** (`ranking/`): the hunters' board by power (ten times `HiddenLevel.hunterLevel`), the Citadel (highest
+  floor, then the spire), the boss rush per tier (best time) and gates cleared. Players' standings are kept in the
+  saved data `beyondsolo_rankings` (taken at login, every minute and at logout); a fixed roster of 16 rival hunters
+  (`Rivals`, own names, guilds, ranks E to S) stands in for the national rankings and grows a little with the days of
+  the world. Climbing past someone on the hunters' board is announced with the next one to pass.
+- **The journal** (`journal/Journal`, about 107 pages: every gate creature by family, every boss and the Arbiter and
+  the lord, every realm plus the red gates' world, the Citadel and the Wastes, every graded weapon). `JournalService`
+  fills pages in from what the hunter sees within 24 blocks (every second), where they stand (a gate's realm or a
+  place) and what they carry (every 2 s); kills count on the page and a boss remembers each rank it was met at and
+  its ascended form. Another feature adds its pages with `Journal.register`. Lore lines are
+  `chronicle.beyondsolo.lore.<category>.<name>` (a weapon's own `.lore` line comes first).
+- **Client**: the CHRONICLE page (`ChronicleTab`, order 108) with three sections: `TitlesPage` (filters, every title
+  with its progress, the picked one's crest, goal, perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
+  hunter's place and who is next, the rush tiers) and `JournalPage` (a grid per section: creatures and bosses drawn
+  as themselves, weapons as their icons, realms as pictures, all dark shapes until known; the page with the creature
+  turning, its lore once one is slain, kills, the first day it was met and a boss's forms). `TitleOverlay` plays
+  TITLE ACQUIRED (the world dims to the tier's colour, the crest bursts in, the name types out on a band of light,
+  perks, worn or how to wear it; titles earned together share one moment) and a small card for each new page; both
+  wait while another System moment has the screen, and the hide key skips them. The worn title in the STATUS page
+  takes its tier's colour and opens the titles when clicked. Realm pictures (256x144) and icons come from
+  `tools/gen_chronicle_assets.py`.
+- **Commands** (`/system chronicle ...`, level 2): title grant|revoke|equip <id|all>, title check, count <feat>
+  <value>, journal reveal <all|section|page>, journal clear, rankings, info, reset.
+
 ## Operator commands: /solo
 
 `/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
@@ -1381,4 +1430,10 @@ checks use zombies.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/ChronicleGameTests` covers: titles a feature gives being kept and worn (a rarer one replacing one the System
+picked, one the hunter picked staying on, taking it off), feats giving their titles at the goal, the title table
+(categories, goals, perks), perks following the worn title (attributes on and off, damage to a family, System XP,
+gold, damage taken), the journal filling in from kills (counted by family) and a boss's forms, every creature and
+boss having a page, the rankings holding every rival and the player with every board sent, and every title, perk,
+family, guild and page having its English line.
 `test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.

@@ -31,7 +31,10 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|chronicle|gallery  open a System page (or the drawing test page)
+ * chronicle titles [id|category|all]   what the CHRONICLE page shows: a title, or the list filtered by category
+ * chronicle rankings [hunters|citadel|rush|gates] [tier]   ... a leaderboard (tier: e..s or sovereign for the rush)
+ * chronicle journal [creatures|bosses|realms|arsenal] [page]   ... a journal section and page (page id or bare name)
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory
@@ -220,6 +223,7 @@ public final class UiTestDriver {
                     case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
                     case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     case "citadel" -> SystemScreen.openOn(com.beyondsolo.client.tower.TowerClientEvents.CITADEL_TAB);
+                    case "chronicle" -> SystemScreen.openOn(com.beyondsolo.client.chronicle.ChronicleClientEvents.CHRONICLE_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -344,6 +348,7 @@ public final class UiTestDriver {
                     moveMouse(mc, cs.getGuiLeft() + slot.x + 8, cs.getGuiTop() + slot.y + 8);
                 }
             }
+            case "chronicle" -> com.beyondsolo.client.chronicle.ChronicleTab.show(arg);
             case "npc" -> {
                 String[] a = arg.split(" ");
                 if (a[0].equals("scroll")) com.beyondsolo.client.npc.NpcBoardScreen.scrollBy(Float.parseFloat(a[1]));
