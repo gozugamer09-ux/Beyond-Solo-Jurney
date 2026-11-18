@@ -133,6 +133,10 @@ final class SoloProgress {
         } else if (m.called()) {
             out.append("\n").append(Solo.t("info.monarch_called", m.attempts()));
         }
+        com.beyondsolo.ruler.RulerRecord r = p.getData(com.beyondsolo.ruler.RulerModule.RECORD.get());
+        if (r.rulers() + r.sentences() + r.alliedWars() + r.heralds() + r.blessings() > 0) {
+            out.append("\n").append(Solo.t("info.rulers", r.rulers(), r.sentences(), r.overturned(), r.alliedWars(), r.heralds()));
+        }
         return out;
     }
 

@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 
 /**
- * The world's great threats. Two tiers:
+ * The world's great threats. Three tiers:
  * <ul>
  *   <li><b>World bosses</b> ({@link Tier#WORLD}): colossal creatures that climb out of the earth somewhere in the
  *   overworld, roam the land round where they rose, and fight in three phases. The System calls every hunter to
@@ -18,6 +18,10 @@ import java.util.Locale;
  *   <li><b>Monarchs</b> ({@link Tier#MONARCH}): rulers from beyond the gates. A monarch comes down out of a gate torn
  *   open in the sky, lays its domain over the land, brings its army, and fights with powers no gate boss has. A
  *   monarch can be beaten: no immunity, no second life, no regeneration; it is simply stronger than anything else.</li>
+ *   <li><b>Rulers</b> ({@link Tier#RULER}): beings of light, the monarchs' enemies since before the gates
+ *   ({@code com.beyondsolo.ruler}). A ruler comes down through a rift of light to make war on a monarch that has landed,
+ *   or to pass sentence on a hunter who took a crown; it spares whoever does not stand against it. Beatable like a
+ *   monarch: no immunity, no second life, no healing.</li>
  * </ul>
  * Names and looks are this mod's own.
  */
@@ -31,10 +35,16 @@ public enum WorldBossKind {
     /** Khorvane, Monarch of Hunger: a feral king in a wolf's skull with blades for claws, faster the longer he hunts. */
     HUNGER("hunger", Tier.MONARCH, Affinity.BLOOD, DamageElement.BLOOD, 0xFF2E46, 5.2f, 1.15f, 0.6f, 0.25f),
     /** Thyrax, Monarch of Storms: a winged lord in storm-dark plate with a glaive of lightning. */
-    STORMS("storms", Tier.MONARCH, Affinity.STORM, null, 0xB9A6FF, 5.2f, 1.2f, 0.6f, 0.25f);
+    STORMS("storms", Tier.MONARCH, Affinity.STORM, null, 0xB9A6FF, 5.2f, 1.2f, 0.6f, 0.25f),
+    /** Aurenthe, Ruler of the Verdict: a knight of white gold under a crown of light, a greatsword of light in his hands. */
+    VERDICT("verdict", Tier.RULER, Affinity.NONE, null, 0xFFD878, 5.2f, 1.15f, 0.6f, 0.25f),
+    /** Caelistor, Ruler of a Thousand Wings: four wings of white steel and a lance of light; the sky is hers. */
+    WINGS("wings", Tier.RULER, Affinity.NONE, null, 0xFFF0B8, 4.8f, 1.15f, 0.6f, 0.25f),
+    /** Ithrael, Ruler of the Unseen Hand: a masked one in robes who never touches the ground, and never needs to. */
+    HAND("hand", Tier.RULER, Affinity.NONE, null, 0xF6E2A8, 5.0f, 1.1f, 0.6f, 0.25f);
 
     public enum Tier {
-        WORLD(0xFFB347), MONARCH(0xC77DFF);
+        WORLD(0xFFB347), MONARCH(0xC77DFF), RULER(0xFFE7A0);
 
         public final int color;
 
@@ -91,9 +101,25 @@ public enum WorldBossKind {
         return tier == Tier.MONARCH;
     }
 
-    /** The name its entity, model, animations and skin are filed under ("titan", "monarch_stillness"). */
+    public boolean ruler() {
+        return tier == Tier.RULER;
+    }
+
+    /**
+     * Whether it comes from beyond the world (a monarch or a ruler): down out of the sky, with a domain (a ruler's
+     * sanctum), an authority and a host of its own.
+     */
+    public boolean sovereign() {
+        return tier != Tier.WORLD;
+    }
+
+    /** The name its entity, model, animations and skin are filed under ("titan", "monarch_stillness", "ruler_verdict"). */
     public String asset() {
-        return monarch() ? "monarch_" + id : id;
+        return switch (tier) {
+            case MONARCH -> "monarch_" + id;
+            case RULER -> "ruler_" + id;
+            default -> id;
+        };
     }
 
     /** Its name ("Ghorrath"). */
@@ -116,7 +142,7 @@ public enum WorldBossKind {
         return Component.translatable("worldboss.beyondsolo." + id + ".phase." + Math.max(1, Math.min(3, phase)));
     }
 
-    /** A monarch's domain ("Stillness"); world bosses have none. */
+    /** A monarch's domain ("Stillness"), a ruler's sanctum; world bosses have none. */
     public Component domainName() {
         return Component.translatable("worldboss.beyondsolo." + id + ".domain");
     }
@@ -132,6 +158,10 @@ public enum WorldBossKind {
 
     public static WorldBossKind[] monarchs() {
         return new WorldBossKind[]{STILLNESS, HUNGER, STORMS};
+    }
+
+    public static WorldBossKind[] rulers() {
+        return new WorldBossKind[]{VERDICT, WINGS, HAND};
     }
 
     @Nullable

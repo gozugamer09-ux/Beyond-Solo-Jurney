@@ -22,8 +22,9 @@ import java.util.Deque;
 
 /**
  * What this player knows of the great threat abroad ({@link WorldBossPayload}): which boss, where, its phase and health,
- * how long until a monarch lands, this player's share of the damage, and the banners waiting to be shown. The HUD
- * ({@link WorldBossHud}) and the light in the world ({@link WorldBossWorldFx}) read it.
+ * how long until a monarch lands, this player's share of the damage, and the banners waiting to be shown. A ruler of
+ * light abroad is kept in a slot of its own beside it ({@link #ruler()}): the two can be abroad at once, at war. The HUD
+ * ({@link WorldBossHud}) and the light in the world ({@link WorldBossWorldFx}) read both.
  */
 public final class WorldBossClient {
     /** The boss abroad as last heard. */
@@ -47,6 +48,9 @@ public final class WorldBossClient {
         public int domain;
         public boolean leaving;
         public boolean slain;
+        /** A ruler's: the monarch it makes war on (null: none), and whether it came to judge this player. */
+        @Nullable public WorldBossKind against;
+        public boolean judgesMe;
         /** When it was first heard of (for the sky gate's opening), {@link Anim#now()}. */
         public final double since;
         /** When it fell or left ({@link Anim#now()}), -1 while it is abroad. */
@@ -92,7 +96,7 @@ public final class WorldBossClient {
         }
     }
 
-    public enum BannerKind { APPEAR, DESCENT, PHASE, DOMAIN, AUTHORITY, SLAIN, WITHDRAW }
+    public enum BannerKind { APPEAR, DESCENT, PHASE, DOMAIN, AUTHORITY, SLAIN, WITHDRAW, WAR, SENTENCE, BLESSED }
 
     /** A moment in the middle of the screen. */
     public static final class Banner {
@@ -132,6 +136,8 @@ public final class WorldBossClient {
     }
 
     @Nullable private static Tracked tracked;
+    /** The ruler of light abroad, beside the great threat. */
+    @Nullable private static Tracked ruler;
     private static final Deque<Banner> BANNERS = new ArrayDeque<>();
     @Nullable private static Banner current;
     @Nullable private static ClientLevel seenLevel;
@@ -142,8 +148,18 @@ public final class WorldBossClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         WorldBossKind kind = WorldBossKind.byIndex(p.boss());
+        if (p.kind() == WorldBossPayload.BLESSED) {
+            // a ruler's favour: this hunter's own moment, no boss to track
+            push(new Banner(BannerKind.BLESSED, kind, 1, p.a(), 0, p.pos(), 4.8f, 0), false);
+            sound(SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.5f);
+            return;
+        }
         if (p.kind() == WorldBossPayload.GONE) {
-            if (tracked != null && (tracked.event == p.event() || p.event() == 0)) tracked = null;
+            if (kind.ruler()) {
+                if (ruler != null && (ruler.event == p.event() || p.event() == 0)) ruler = null;
+            } else if (tracked != null && (tracked.event == p.event() || p.event() == 0)) {
+                tracked = null;
+            }
             return;
         }
         Tracked t = track(p, kind);
@@ -157,14 +173,40 @@ public final class WorldBossClient {
                 setLand(t, 0);
                 t.anchor = p.pos();
                 t.health = 1f;
-                push(new Banner(BannerKind.APPEAR, kind, 1, 0, 0, p.pos(), kind.monarch() ? 5.2f : 5.6f, 0), false);
-                sound(kind.monarch() ? SoundEvents.WITHER_SPAWN : SoundEvents.RAID_HORN.value(), 0.5f, 0.35f);
+                push(new Banner(BannerKind.APPEAR, kind, 1, 0, 0, p.pos(), kind.sovereign() ? 5.2f : 5.6f, 0), false);
+                if (kind.ruler()) sound(SoundEvents.BELL_RESONATE, 0.6f, 0.6f);
+                else sound(kind.monarch() ? SoundEvents.WITHER_SPAWN : SoundEvents.RAID_HORN.value(), 0.5f, 0.35f);
             }
             case WorldBossPayload.DESCENT -> {
                 setLand(t, p.a());
                 t.anchor = p.pos();
                 push(new Banner(BannerKind.DESCENT, kind, 1, p.a(), 0, p.pos(), 6.0f, 0), false);
-                sound(SoundEvents.END_PORTAL_SPAWN, 0.6f, 0.45f);
+                sound(kind.ruler() ? SoundEvents.BEACON_ACTIVATE : SoundEvents.END_PORTAL_SPAWN, 0.6f, kind.ruler() ? 0.6f : 0.45f);
+            }
+            case WorldBossPayload.WAR -> {
+                // a ruler comes to make war on the monarch abroad (b: ticks until it lands), or has landed beside it
+                t.against = p.a() >= 0 ? WorldBossKind.byIndex(p.a()) : null;
+                if (p.b() > 0) {
+                    setLand(t, p.b());
+                    t.anchor = p.pos();
+                }
+                // landed at war: the war banner says what the plain "descended" one would, so that one goes
+                if (p.b() <= 0) drop(BannerKind.APPEAR, kind);
+                push(new Banner(BannerKind.WAR, kind, 1, p.a(), p.b(), p.pos(), p.b() > 0 ? 6.4f : 5.2f, 0), p.b() <= 0);
+                sound(SoundEvents.BEACON_ACTIVATE, 0.6f, 0.55f);
+                sound(SoundEvents.BELL_RESONATE, 0.5f, 0.5f);
+            }
+            case WorldBossPayload.SENTENCE -> {
+                // a ruler comes to judge a crowned hunter (a: ticks until it lands; b: 1 if it is this player)
+                t.judgesMe = p.b() == 1;
+                if (p.a() > 0) {
+                    setLand(t, p.a());
+                    t.anchor = p.pos();
+                }
+                if (p.a() <= 0) drop(BannerKind.APPEAR, kind);
+                push(new Banner(BannerKind.SENTENCE, kind, 1, p.a(), p.b(), p.pos(), t.judgesMe ? 6.8f : 5.6f, 0), t.judgesMe);
+                sound(SoundEvents.BELL_BLOCK, 0.7f, 0.5f);
+                if (t.judgesMe) sound(SoundEvents.WARDEN_SONIC_CHARGE, 0.5f, 1.2f);
             }
             case WorldBossPayload.PHASE -> {
                 t.phase = Math.max(t.phase, p.phase());
@@ -209,10 +251,14 @@ public final class WorldBossClient {
         }
     }
 
-    /** The tracked boss for a message, made anew when the message names another event. */
+    /** The tracked boss for a message (a ruler in its own slot), made anew when the message names another event. */
     private static Tracked track(WorldBossPayload p, WorldBossKind kind) {
-        if (tracked == null || tracked.event != p.event() || tracked.kind != kind) tracked = new Tracked(p.event(), kind, p.pos());
-        Tracked t = tracked;
+        Tracked t = kind.ruler() ? ruler : tracked;
+        if (t == null || t.event != p.event() || t.kind != kind) {
+            t = new Tracked(p.event(), kind, p.pos());
+            if (kind.ruler()) ruler = t;
+            else tracked = t;
+        }
         t.pos = p.pos();
         if (p.entity() >= 0) t.entity = p.entity();
         return t;
@@ -228,8 +274,8 @@ public final class WorldBossClient {
     private static int priority(BannerKind k) {
         return switch (k) {
             case SLAIN -> 5;
-            case AUTHORITY -> 4;
-            case PHASE -> 3;
+            case AUTHORITY, SENTENCE -> 4;
+            case PHASE, WAR -> 3;
             case DESCENT, APPEAR -> 2;
             default -> 1;
         };
@@ -250,6 +296,12 @@ public final class WorldBossClient {
     private static void drop(BannerKind kind) {
         BANNERS.removeIf(b -> b.kind == kind);
         if (current != null && current.kind == kind) current = null;
+    }
+
+    /** Drops one boss's banners of a kind, queued or on screen. */
+    private static void drop(BannerKind kind, WorldBossKind boss) {
+        BANNERS.removeIf(b -> b.kind == kind && b.boss == boss);
+        if (current != null && current.kind == kind && current.boss == boss) current = null;
     }
 
     /** The banner on screen now, or null. {@code free} is false while another moment holds the middle of the screen. */
@@ -274,9 +326,16 @@ public final class WorldBossClient {
 
     // ================================================================ state
 
+    /** The great threat abroad (a world boss or a monarch), as last heard. */
     @Nullable
     public static Tracked tracked() {
         return tracked;
+    }
+
+    /** The ruler of light abroad, as last heard. */
+    @Nullable
+    public static Tracked ruler() {
+        return ruler;
     }
 
     /** Clears what is known when the player leaves the overworld or the server (the server tells it again on return). */
@@ -284,14 +343,19 @@ public final class WorldBossClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != seenLevel) {
             seenLevel = mc.level;
-            if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) tracked = null;
+            if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) {
+                tracked = null;
+                ruler = null;
+            }
         }
         // a boss that fell or left is let go a little after (the bar empties, the gate closes)
         if (tracked != null && tracked.endedAt >= 0 && Anim.since(tracked.endedAt) > 12f) tracked = null;
+        if (ruler != null && ruler.endedAt >= 0 && Anim.since(ruler.endedAt) > 12f) ruler = null;
     }
 
     static void clear() {
         tracked = null;
+        ruler = null;
         BANNERS.clear();
         current = null;
         seenLevel = null;

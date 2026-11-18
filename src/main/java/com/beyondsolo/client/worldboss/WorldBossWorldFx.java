@@ -38,7 +38,7 @@ import java.util.List;
  *   out over the ground from a heavy blow.</li>
  *   <li><b>The threat itself</b> ({@link WorldBossClient}): a column of light over a world boss seen from far off; the
  *   gate torn open in the sky that a monarch comes down through; a monarch's domain, a ring of its light on the land
- *   round it.</li>
+ *   round it; a ruler of light's rift and its sanctum (the ruler has its own slot: it can be abroad beside a monarch).</li>
  * </ul>
  * Runs on game time, so it pauses with the game and follows /tick rate.
  */
@@ -79,6 +79,9 @@ public final class WorldBossWorldFx {
     private static final List<Fx> ACTIVE = new ArrayList<>();
     private static final Terrain DOMAIN_LAND = new Terrain(64);
     private static final Terrain BEACON_LAND = new Terrain(64);
+    /** The ruler of light's own land: it can stand far from the threat it came to fight. */
+    private static final Terrain LIGHT_BEACON_LAND = new Terrain(64);
+    private static final Terrain SANCTUM_LAND = new Terrain(64);
 
     /** The camera, for vertices given in world coordinates. */
     private static double camX, camY, camZ;
@@ -409,9 +412,19 @@ public final class WorldBossWorldFx {
 
     // ================================================================ the threat itself
 
-    /** The beacon over a world boss, a monarch's gate in the sky, its domain on the land. */
+    /** The great threat abroad and the ruler of light abroad (each in its own slot, with its own land). */
     private static boolean threat(MultiBufferSource buffers, float time, float partial) {
-        WorldBossClient.Tracked t = WorldBossClient.tracked();
+        boolean drew = threat(buffers, WorldBossClient.tracked(), BEACON_LAND, DOMAIN_LAND, time, partial);
+        drew |= threat(buffers, WorldBossClient.ruler(), LIGHT_BEACON_LAND, SANCTUM_LAND, time, partial);
+        return drew;
+    }
+
+    /**
+     * The beacon over a world boss or a ruler seen from afar; a monarch's gate in the sky and its domain on the land; a
+     * ruler's rift of light and its sanctum.
+     */
+    private static boolean threat(MultiBufferSource buffers, @org.jetbrains.annotations.Nullable WorldBossClient.Tracked t, Terrain beaconLand,
+                                  Terrain domainLand, float time, float partial) {
         Minecraft mc = Minecraft.getInstance();
         if (t == null || mc.player == null) return false;
         ColossalBoss boss = t.boss();
@@ -425,8 +438,8 @@ public final class WorldBossWorldFx {
         if (!t.descending() && !t.leaving && !t.slain) {
             float far = Mth.clamp((float) (dist - 36) / 50f, 0, 1);
             if (far > 0.01f) {
-                BEACON_LAND.around((float) at.y);
-                float ground = BEACON_LAND.at(at.x, at.z);
+                beaconLand.around((float) at.y);
+                float ground = beaconLand.at(at.x, at.z);
                 float pulse = 0.85f + 0.15f * Mth.sin(time * 0.08f);
                 column(buf(buffers, BEAM), at.x, ground, at.z, 3.2f, 240, c, 0.32f * far * pulse);
                 column(buf(buffers, BEAM), at.x, ground, at.z, 0.9f, 220, GateFx.mix(c, 0xFFFFFF, 0.7f), 0.55f * far);
@@ -434,15 +447,17 @@ public final class WorldBossWorldFx {
             }
         }
 
-        if (t.kind.monarch()) {
+        if (t.kind.sovereign()) {
             float open = gateOpen(t, boss, ended);
             if (open > 0.01f) {
-                gate(buffers, t, open, time);
+                if (t.kind.ruler()) rift(buffers, t, open, time);
+                else gate(buffers, t, open, time);
                 drew = true;
             }
             if (boss != null && boss.isAlive() && t.domain > 0 && !t.leaving && boss.introTicks() <= 31) {
                 float in = boss.introTicks() > 0 ? Mth.clamp((31 - boss.introTicks()) / 12f, 0, 1) : 1;
-                domain(buffers, DOMAIN_LAND, boss.getPosition(partial), t.domain, c, in, time);
+                if (t.kind.ruler()) sanctum(buffers, domainLand, boss.getPosition(partial), t.domain, c, in, time);
+                else domain(buffers, domainLand, boss.getPosition(partial), t.domain, c, in, time);
                 drew = true;
             }
         }
@@ -598,6 +613,68 @@ public final class WorldBossWorldFx {
             float ang = turn + i * Mth.TWO_PI / 8;
             double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
             flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 1.7f, (time * 3 + i * 45) % 360, 0.06f, c, 0.6f * in);
+        }
+    }
+
+    /**
+     * The rift a ruler of light comes down through: a wound of white light in the sky, still and bright where a
+     * monarch's gate is a dark storm; straight rays standing out from it, rings of gold turning slowly, and a broad
+     * shaft of light falling to the ground under it.
+     */
+    private static void rift(MultiBufferSource buffers, WorldBossClient.Tracked t, float open, float time) {
+        int c = t.kind.color;
+        int white = GateFx.mix(c, 0xFFFFFF, 0.65f);
+        double x = t.anchor.getX() + 0.5, z = t.anchor.getZ() + 0.5;
+        double y = t.anchor.getY() + MonarchBoss.GATE_HEIGHT + 4.5;
+        float spin = time % 7200;
+        float breathe = 0.92f + 0.08f * Mth.sin(time * 0.05f);
+        flat(buf(buffers, GLOW), x, y + 0.2, z, 36 * open, 0, c, 0.5f * open);
+        flat(buf(buffers, GLOW), x, y + 0.15, z, 13 * open * breathe, 0, 0xFFFFFF, 0.85f * open);
+        flat(buf(buffers, CIRCLE), x, y + 0.05, z, 19f * open, spin * 0.25f, c, 0.75f * open);
+        flat(buf(buffers, CIRCLE), x, y, z, 10.5f * open, -spin * 0.6f, white, 0.6f * open);
+        flat(buf(buffers, RING), x, y + 0.1, z, 9f * open * breathe, 0, white, 0.95f * open);
+        flat(buf(buffers, RING), x, y + 0.12, z, 15f * open, 0, c, 0.7f * open);
+        // rays of light standing out from it, straight and still
+        VertexConsumer rays = buf(buffers, LINE);
+        for (int i = 0; i < 16; i++) {
+            float ang = i / 16f * Mth.TWO_PI + spin * 0.002f;
+            float r0 = 8.5f * open;
+            float len = (i % 2 == 0 ? 17 : 10) * open;
+            double x0 = x + Mth.cos(ang) * r0, z0 = z + Mth.sin(ang) * r0;
+            double x1 = x + Mth.cos(ang) * (r0 + len), z1 = z + Mth.sin(ang) * (r0 + len);
+            float shimmer = 0.7f + 0.3f * Mth.sin(time * 0.15f + i * 1.3f);
+            flatRibbon(rays, x0, y, z0, x1, y, z1, i % 2 == 0 ? 1.1f : 0.7f, white, 0.75f * open * shimmer);
+        }
+        // the shaft of light down to the ground as it comes
+        int land = t.landIn();
+        float shaft = t.descending() ? Mth.clamp(1 - land / 100f, 0.15f, 1) : open;
+        double ground = t.anchor.getY();
+        column(buf(buffers, BEAM), x, ground, z, 5.5f * shaft, (float) (y - ground), c, 0.3f * shaft * open);
+        column(buf(buffers, BEAM), x, ground, z, 1.6f * shaft, (float) (y - ground), white, 0.5f * shaft * open);
+        // and the ground lit under it
+        flat(buf(buffers, GLOW), x, ground + 0.1, z, 9 * shaft, 0, c, 0.4f * shaft * open);
+    }
+
+    /**
+     * A ruler's sanctum: a golden ring on the land round it with a soft curtain of light at its edge and its seals
+     * turning slowly on the ring; the ground inside glows faintly. Inside, the light stands between hunters who are not
+     * its foes and a monarch's dread.
+     */
+    private static void sanctum(MultiBufferSource buffers, Terrain land, Vec3 at, int radius, int c, float in, float time) {
+        land.around((float) at.y);
+        float r = radius * outCubic(in);
+        float pulse = 0.85f + 0.15f * Mth.sin(time * 0.06f);
+        int white = GateFx.mix(c, 0xFFFFFF, 0.5f);
+        annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.8f, r + 0.8f, 0, Mth.TWO_PI, 0.05f, c, 0.6f * pulse * in);
+        annulus(buf(buffers, BAND), land, at.x, at.z, r * 0.94f - 0.25f, r * 0.94f + 0.25f, 0, Mth.TWO_PI, 0.05f, white, 0.35f * in);
+        annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.03f, c, 0.07f * in * pulse);
+        wall(buf(buffers, BEAM), land, at.x, at.z, r, 3.5f, c, 0.13f * in);
+        float turn = -(time % 7200) * 0.0025f;
+        for (int i = 0; i < 6; i++) {
+            float ang = turn + i * Mth.TWO_PI / 6;
+            double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
+            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 2.3f, (time * 1.2f + i * 60) % 360, 0.06f, white, 0.55f * in);
+            flatOnLand(buf(buffers, GLOW), land, sx, sz, 3.2f, 0, 0.05f, c, 0.35f * in);
         }
     }
 

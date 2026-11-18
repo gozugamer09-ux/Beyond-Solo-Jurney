@@ -337,6 +337,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         if (e instanceof ShadowEntity) return false;
         if (e instanceof OwnableEntity o && owner != null && owner.equals(o.getOwnerUUID())) return false;
         if (e instanceof TamableAnimal t && t.isTame()) return false;
+        // the light, unless its master stands against it
+        if (com.beyondsolo.ruler.Rulers.spares(owner, e)) return false;
         return !e.isInvulnerable();
     }
 

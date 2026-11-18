@@ -67,7 +67,8 @@ import java.util.function.Predicate;
  *   S-rank gear, and from a monarch, maybe a piece of monarch armor ({@link MonarchArmor}).</li>
  * </ul>
  * Everything a client needs goes out as {@link WorldBossPayload}s (the status every two seconds to everyone in the
- * overworld).
+ * overworld). The rulers of light keep their own slot beside this one ({@link WorldBossData#ruler()}, run by
+ * {@link com.beyondsolo.ruler.Rulers}): a ruler can be abroad at the same time, at war with the monarch abroad.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class WorldBosses {
@@ -219,7 +220,7 @@ public final class WorldBosses {
     }
 
     /** Awakened hunters in the overworld of at least {@code level}, not in a gate's passage. */
-    static List<ServerPlayer> hunters(ServerLevel level, int minLevel) {
+    public static List<ServerPlayer> hunters(ServerLevel level, int minLevel) {
         List<ServerPlayer> out = new ArrayList<>();
         for (ServerPlayer p : level.players()) {
             if (p.isSpectator() || !SystemAPI.isAwakened(p) || GateService.inTransit(p)) continue;
@@ -236,6 +237,8 @@ public final class WorldBosses {
      */
     @Nullable
     public static Event begin(ServerLevel level, WorldBossKind kind, BlockPos at, boolean called) {
+        // a ruler comes in its own slot, beside whatever else is abroad
+        if (kind.ruler()) return com.beyondsolo.ruler.Rulers.begin(level, kind, at, com.beyondsolo.ruler.Rulers.CALLED, null);
         WorldBossData data = WorldBossData.get(level.getServer());
         if (data.current() != null) return null;
         long now = level.getGameTime();
@@ -252,7 +255,7 @@ public final class WorldBosses {
 
     /** Brings the event's boss into the world: a world boss climbing out of the earth, a monarch coming down from its gate. */
     @Nullable
-    static ColossalBoss spawnBoss(ServerLevel level, Event ev) {
+    public static ColossalBoss spawnBoss(ServerLevel level, Event ev) {
         ColossalBoss boss = WorldBossModule.create(level, ev.kind);
         if (boss == null) return null;
         Vec3 at = Vec3.atBottomCenterOf(ev.home);
@@ -290,7 +293,7 @@ public final class WorldBosses {
     }
 
     /** "112 blocks to the north-east". */
-    static Component whereFrom(ServerPlayer p, BlockPos at) {
+    public static Component whereFrom(ServerPlayer p, BlockPos at) {
         double dx = at.getX() + 0.5 - p.getX(), dz = at.getZ() + 0.5 - p.getZ();
         int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
         // 0 = south (+z), turning towards west: Minecraft's yaw
@@ -362,7 +365,7 @@ public final class WorldBosses {
     }
 
     /** The status to every player in the overworld, and each hunter who has hurt it their share. */
-    static void status(ServerLevel level, Event ev, @Nullable ColossalBoss boss, long now) {
+    public static void status(ServerLevel level, Event ev, @Nullable ColossalBoss boss, long now) {
         int health = boss == null ? 1000 : Math.round(1000 * boss.getHealth() / Math.max(1, boss.getMaxHealth()));
         int land = ev.descending() ? (int) Math.max(0, ev.landAt - now) : 0;
         BlockPos pos = boss != null ? boss.blockPosition() : ev.descending() ? ev.home : ev.last;
@@ -382,7 +385,7 @@ public final class WorldBosses {
     }
 
     /** Hunters by the damage they have done, most first. */
-    static List<Map.Entry<UUID, Float>> ranked(ColossalBoss boss) {
+    public static List<Map.Entry<UUID, Float>> ranked(ColossalBoss boss) {
         List<Map.Entry<UUID, Float>> out = new ArrayList<>(boss.dealt().entrySet());
         out.sort(Map.Entry.<UUID, Float>comparingByValue(Comparator.reverseOrder()));
         return out;
@@ -406,11 +409,14 @@ public final class WorldBosses {
         boss.shake(phase >= 3 ? 1.6f : 1.1f, 64);
     }
 
-    /** The event a boss belongs to, if it is the one abroad. */
+    /** The event a boss belongs to, if it is the one abroad (or the ruler abroad). */
     @Nullable
     public static Event eventOf(ServerLevel level, ColossalBoss boss) {
-        Event ev = WorldBossData.get(level.getServer()).current();
-        return ev != null && ev.id.equals(boss.eventId()) ? ev : null;
+        WorldBossData data = WorldBossData.get(level.getServer());
+        Event ev = data.current();
+        if (ev != null && ev.id.equals(boss.eventId())) return ev;
+        Event ruler = data.ruler();
+        return ruler != null && ruler.id.equals(boss.eventId()) ? ruler : null;
     }
 
     // ================================================================ the end
@@ -418,6 +424,10 @@ public final class WorldBosses {
     /** It fell: every hunter who hurt it is paid by their share, and the world hears of it. */
     public static void slain(ServerLevel level, ColossalBoss boss, DamageSource source) {
         WorldBossKind kind = boss.kind();
+        if (kind.ruler()) {
+            com.beyondsolo.ruler.Rulers.slain(level, boss, source);
+            return;
+        }
         WorldBossData data = WorldBossData.get(level.getServer());
         Event ev = eventOf(level, boss);
         data.countKill(kind);
@@ -440,6 +450,8 @@ public final class WorldBosses {
                     boss.blockPosition(), boss.phase(), -1, 0));
         }
         level.playSound(null, boss.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 3f, 0.8f);
+        // a ruler at war with it has won: it blesses the hunters who fought at its side
+        if (kind.monarch()) com.beyondsolo.ruler.Rulers.monarchFell(level, boss);
         if (ev != null) {
             // its army falls with it
             MonarchArmy.disband(level, ev.id);
@@ -487,7 +499,7 @@ public final class WorldBosses {
     }
 
     /** Into the hunter's pack, or at their feet if it is full. */
-    static void give(ServerPlayer p, ItemStack stack) {
+    public static void give(ServerPlayer p, ItemStack stack) {
         if (stack.isEmpty()) return;
         if (!p.getInventory().add(stack) && !stack.isEmpty()) {
             var item = p.drop(stack, false);
@@ -500,6 +512,10 @@ public final class WorldBosses {
 
     /** It has gone (sunk into the earth, risen back into its gate). */
     static void left(ServerLevel level, ColossalBoss boss) {
+        if (boss.kind().ruler()) {
+            com.beyondsolo.ruler.Rulers.left(level, boss);
+            return;
+        }
         Event ev = eventOf(level, boss);
         if (ev != null) withdrawn(level, WorldBossData.get(level.getServer()), ev);
     }
@@ -559,10 +575,12 @@ public final class WorldBosses {
     static void onJoin(EntityJoinLevelEvent event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Entity e = event.getEntity();
-        Event ev = WorldBossData.get(level.getServer()).current();
+        WorldBossData data = WorldBossData.get(level.getServer());
+        Event ev = data.current();
         if (e instanceof ColossalBoss boss) {
             if (!event.loadedFromDisk()) return;
-            if (ev == null || !ev.id.equals(boss.eventId()) || !boss.getUUID().equals(ev.entity)) event.setCanceled(true);
+            Event own = boss.kind().ruler() ? data.ruler() : ev;
+            if (own == null || !own.id.equals(boss.eventId()) || !boss.getUUID().equals(own.entity)) event.setCanceled(true);
             return;
         }
         if (event.loadedFromDisk() && e.getPersistentData().hasUUID(ARMY_TAG)
@@ -583,6 +601,7 @@ public final class WorldBosses {
     }
 
     private static void catchUp(ServerPlayer p) {
+        com.beyondsolo.ruler.Rulers.catchUp(p);
         ServerLevel level = p.server.overworld();
         Event ev = WorldBossData.get(p.server).current();
         if (ev == null || p.level() != level) return;
