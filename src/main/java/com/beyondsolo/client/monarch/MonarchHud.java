@@ -59,6 +59,9 @@ public final class MonarchHud {
     private static float domainTint;
     private static int domainColor;
 
+    private static double eclipseAt = -10;
+    private static float eclipseLength = 3.5f;
+
     // ================================================================ moments
 
     static void authority(MonarchFxPayload p) {
@@ -69,6 +72,10 @@ public final class MonarchHud {
         authorityName = MonarchPowers.authority(d).displayName();
         authorityBy = who == null ? d.title() : Component.translatable("ui.beyondsolo.monarch.authority.by", who.getDisplayName(), d.title());
         authorityColor = Gfx.opaque(p.color());
+        if (d == Dominion.NIGHT) {
+            eclipseAt = authorityAt;
+            eclipseLength = Math.max(1, p.ticks()) / 20f;
+        }
         float near = who == null || mc.player == null ? 0.3f : 1 - Math.min(1, mc.player.distanceTo(who) / 64f);
         shake(0.5f + 0.9f * near, 0.9f);
         play(SoundEvents.BEACON_POWER_SELECT, 0.5f, 0.7f);
@@ -132,8 +139,13 @@ public final class MonarchHud {
     }
 
     static void reset() {
-        authorityAt = clashAt = dreadAt = crownedAt = shakeAt = -10;
+        authorityAt = clashAt = dreadAt = crownedAt = shakeAt = eclipseAt = -10;
         domainTint = 0;
+    }
+
+    /** An authority's or a clash's banner is across the screen: new pop-ups wait for it (they would cover it). */
+    public static boolean bannerUp() {
+        return Anim.since(authorityAt) < BANNER || Anim.since(clashAt) < BANNER;
     }
 
     // ================================================================ drawing
@@ -150,6 +162,20 @@ public final class MonarchHud {
         float c = Anim.since(clashAt);
         if (c < BANNER && a >= BANNER) clashBanner(g, w, h, c);
         ThroneScreen.renderPrompt(g, w, h);
+    }
+
+    /**
+     * A Night monarch's authority: the sun goes out over everyone near while the dark strikes, the edges of sight
+     * going black. Drawn under the whole HUD ({@link MonarchClientEvents#ECLIPSE_LAYER}), so only the world darkens.
+     */
+    public static void renderEclipse(GuiGraphics g, DeltaTracker delta) {
+        float t = Anim.since(eclipseAt);
+        if (t >= eclipseLength + 1.2f || Minecraft.getInstance().player == null) return;
+        float k = Anim.outCubic(Anim.window(t, 0, 0.4f)) * (1 - Anim.window(t, eclipseLength, eclipseLength + 1.2f));
+        if (k <= 0.01f) return;
+        int w = g.guiWidth(), h = g.guiHeight();
+        Shapes.box(0, 0, w, h).fill(Gfx.alpha(0xFF07030F, 0.5f * k)).draw(g);
+        Shapes.vignette(0, 0, w, h, 0.3f, 1.15f).fill(Gfx.alpha(0xFF000000, 0.75f * k)).draw(g);
     }
 
     /** What colours the edges of sight: dread, the crown form, a domain. */

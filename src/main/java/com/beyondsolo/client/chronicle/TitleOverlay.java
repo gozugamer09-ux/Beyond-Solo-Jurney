@@ -86,6 +86,7 @@ public final class TitleOverlay {
                 && !com.beyondsolo.client.rune.RuneClient.absorbing()
                 && !com.beyondsolo.client.breaks.BreakClient.bannerPending()
                 && !com.beyondsolo.client.worldboss.WorldBossClient.bannerPending()
+                && !com.beyondsolo.client.monarch.MonarchHud.bannerUp()
                 && !com.beyondsolo.client.tower.TowerClient.holdsScreen()
                 && !com.beyondsolo.client.raid.RaidClient.holdsScreen();
     }

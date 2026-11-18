@@ -39,6 +39,8 @@ public final class MonarchClientEvents {
     public static final ResourceLocation CROWN_BAR_LAYER = BeyondSolo.id("monarch_crown_bar");
     public static final ResourceLocation HUD_LAYER = BeyondSolo.id("monarch_hud");
     public static final ResourceLocation CORONATION_LAYER = BeyondSolo.id("monarch_coronation");
+    /** Under every other layer: the dark of a Night monarch's eclipse falls on the world, not on the HUD. */
+    public static final ResourceLocation ECLIPSE_LAYER = BeyondSolo.id("monarch_eclipse");
 
     /** The crown keys: the domain, dread, the crown form and the crown's authority. */
     public static final KeyMapping[] CROWN_KEYS = {
@@ -73,6 +75,7 @@ public final class MonarchClientEvents {
             event.registerAboveAll(CROWN_BAR_LAYER, CrownBar::render);
             event.registerAboveAll(HUD_LAYER, MonarchHud::render);
             event.registerAboveAll(CORONATION_LAYER, CoronationOverlay::render);
+            event.registerBelowAll(ECLIPSE_LAYER, MonarchHud::renderEclipse);
         }
 
         @SubscribeEvent

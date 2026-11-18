@@ -6,6 +6,7 @@ import com.beyondsolo.job.JobAPI;
 import com.beyondsolo.job.Subclass;
 import com.beyondsolo.monarch.Dominion;
 import com.beyondsolo.monarch.MonarchAPI;
+import com.beyondsolo.monarch.MonarchConfig;
 import com.beyondsolo.monarch.MonarchDomain;
 import com.beyondsolo.monarch.MonarchModule;
 import com.beyondsolo.monarch.ThroneHall;
@@ -178,10 +179,14 @@ public final class MonarchGameTests {
         helper.assertTrue(ShadowService.activeLimit(p) == out + 8, "Night: more shadows again");
         helper.assertTrue(ShadowService.canRaise(p), "Night raises shadows whatever the class");
 
+        float crowned = p.getMaxHealth();
         MonarchAPI.uncrown(p);
         helper.assertTrue(!MonarchAPI.crowned(p), "uncrowned");
         helper.assertTrue(Skills.monarchPowers().stream().noneMatch(s -> SkillAPI.knows(p, s)), "every power forgotten");
-        helper.assertTrue(near(p.getMaxHealth(), health), "the strength goes with the crown");
+        // the crown's title stays theirs (worn, with its own small perks); the monarch's strength goes
+        float strength = 1 + MonarchConfig.HEALTH_BONUS.get().floatValue();
+        helper.assertTrue(Math.abs(crowned / p.getMaxHealth() - strength) < 1.0e-3f,
+                "the strength goes with the crown: " + crowned + " -> " + p.getMaxHealth());
         helper.assertTrue(!ShadowService.canRaise(p), "a mage without the crown raises no shadows");
         helper.succeed();
     }
@@ -446,6 +451,10 @@ public final class MonarchGameTests {
         ThroneTrial.begin(p, true);
         ThroneTrial.jump(p, "1", null);
         helper.runAfterDelay(5, () -> {
+            // a courtier's deep burn on them, and a potion of their own
+            p.addEffect(new net.minecraft.world.effect.MobEffectInstance(com.beyondsolo.combat.ModEffects.DEEP_BURN,
+                    net.minecraft.world.effect.MobEffectInstance.INFINITE_DURATION));
+            p.addEffect(new net.minecraft.world.effect.MobEffectInstance(MobEffects.MOVEMENT_SPEED, 6000));
             // fake players can't be hurt, so post the death the way a fatal hit would
             var death = net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
                     new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(p, p.damageSources().genericKill()));
@@ -455,6 +464,8 @@ public final class MonarchGameTests {
             helper.assertTrue(p.position().distanceTo(home) < 2, "sent home");
             helper.assertTrue(!MonarchAPI.crowned(p), "no crown");
             helper.assertTrue(MonarchAPI.get(p).retryAt() > p.level().getGameTime(), "the throne is sealed to them for a while");
+            helper.assertTrue(!p.hasEffect(com.beyondsolo.combat.ModEffects.DEEP_BURN), "the court's burn stays in the hall");
+            helper.assertTrue(p.hasEffect(MobEffects.MOVEMENT_SPEED), "their own potion stays with them");
             helper.succeed();
         });
     }

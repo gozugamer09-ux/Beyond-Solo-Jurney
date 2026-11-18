@@ -254,7 +254,13 @@ public class ThroneScreen extends Screen {
         ty += 7;
         Skill auth = MonarchPowers.authority(d);
         SkillEmblem.draw(g, auth, x + 11, ty + 2.6f, 3.6f, 0.4f * k, false);
-        SysFont.draw(g, SysFont.fit(auth.displayName().getString(), 5.4f, true, CARD_W - 24), x + 17, ty, 5.4f, light, true, 0f);
+        // a long name ("The Long Winter", "El Largo Invierno") is set a little smaller rather than cut
+        String authName = auth.displayName().getString();
+        float avail = CARD_W - 24;
+        float as = 5.4f;
+        float aw = SysFont.width(authName, as, true);
+        if (aw > avail) as = Math.max(4.3f, as * avail / aw);
+        SysFont.draw(g, SysFont.fit(authName, as, true, avail), x + 17, ty + (5.4f - as) / 2f, as, light, true, 0f);
         ty += 8;
         ty = lines(g, auth.flavour(), x + 7, ty, 4.4f, SystemTheme.TEXT_SOFT, CARD_W - 14, 3);
         // what it is

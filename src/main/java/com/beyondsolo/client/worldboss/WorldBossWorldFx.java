@@ -647,15 +647,16 @@ public final class WorldBossWorldFx {
             if (e == viewer && firstPerson) continue;
             Vec3 at = e.getPosition(partial);
             int c = f.color;
-            VertexConsumer glow = buf(buffers, GLOW);
             // their aura burns off them, more than any armour's
-            aura(glow, monarch, at, time, c, 6, k);
+            aura(buf(buffers, GLOW), monarch, at, time, c, 6, k);
             // a crown of light over their head: a ring, and points of light standing up from it
             float h = e.getBbHeight();
             double y = at.y + h + 0.28;
             float spin = (time * 1.4f) % 360;
             int light = GateFx.mix(c, 0xFFFFFF, 0.55f);
             flat(buf(buffers, RING), at.x, y, at.z, 0.42f * k, spin, light, 0.9f * k);
+            // asked for again: asking for the ring's buffer closed the glow's (drawing into it then crashes the game)
+            VertexConsumer glow = buf(buffers, GLOW);
             flat(glow, at.x, y, at.z, 0.7f * k, 0, c, 0.45f * k);
             for (int i = 0; i < 7; i++) {
                 float ang = i / 7f * Mth.TWO_PI + time * 0.015f;

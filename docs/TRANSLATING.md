@@ -91,6 +91,8 @@ If you change an English line's meaning, fix the Spanish too: the test only chec
 | Gutterkin, Grave Thrall, Bone Archer, Rime Stalker, Tuskbrute, Tusk Shaman, Deepkin | Trasgo del Albañal, Siervo Sepulcral, Arquero de Hueso, Acechador Gélido, Bruto Colmilludo, Chamán Colmilludo, Morador Abisal |
 | Duskwing, Hive Drone, Brimling, Wailing Wraith, Static Drifter, Rimeclaw | Ala del Ocaso, Zángano de la Colmena, Diablillo de Azufre, Espectro Plañidero, Errante Estático, Zarpa Gélida |
 | Pit Ravager, Coilfang, Cragcrawler, Hive Reaver, Rune Colossus, Thorn Spitter | Devastador del Foso, Colmillo Enroscado, Reptador de Riscos, Segador de la Colmena, Coloso Rúnico, Escupespinas |
+| Monarch / crown / the empty throne / Domain (a monarch's power) / Dread / Crown Form / Authority | Monarca / corona / el trono vacío / Dominio del Monarca ("Dominio" alone is Mastery and a world boss's domain) / Pavor / Forma Coronada / Autoridad |
+| Night, Winter, Cinders, Thunder (the crowns) | Noche, Invierno, Cenizas, Trueno ("Monarca de la Noche") |
 | Shift + click | Mayús + clic |
 
 Subclasses, sets, bosses and skills already have names in `es_es.json`; search there before naming something new so

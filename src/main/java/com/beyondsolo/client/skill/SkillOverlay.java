@@ -57,7 +57,8 @@ public final class SkillOverlay {
         if (s == null) return;
         switch (p.moment()) {
             case SkillMomentPayload.LEARNED -> {
-                LEARNED.addLast(new Learned(s, p.level()));
+                // a crown's powers were just shown on the coronation's card: only the log hears of them again
+                if (!(s.monarch() && com.beyondsolo.client.monarch.CoronationOverlay.justCrowned())) LEARNED.addLast(new Learned(s, p.level()));
                 NotificationManager.log(SystemNotification.of(SystemNotification.Kind.REWARD,
                         Component.translatable("skills.beyondsolo.acquired"), s.displayName()));
             }

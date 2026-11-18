@@ -56,6 +56,8 @@ public final class CoronationOverlay {
     }
 
     private static boolean active;
+    /** When the last coronation ended on screen (ms). */
+    private static long endedAt = -100_000;
     private static int ticks;
     private static float offset, time, lastTime;
     private static boolean skippedToEnd, sawCamera;
@@ -80,6 +82,7 @@ public final class CoronationOverlay {
     }
 
     static void reset() {
+        if (active) endedAt = net.minecraft.Util.getMillis();
         active = false;
         SPARKS.clear();
         flags();
@@ -87,6 +90,14 @@ public final class CoronationOverlay {
 
     public static boolean active() {
         return active;
+    }
+
+    /**
+     * The coronation is on screen or has just ended. Its card already showed the crown's powers, so their own Skill
+     * Acquired moments are left out then (they still go in the log).
+     */
+    public static boolean justCrowned() {
+        return active || net.minecraft.Util.getMillis() - endedAt < 10_000;
     }
 
     private static void flags() {
@@ -276,8 +287,9 @@ public final class CoronationOverlay {
         float in = Anim.outCubic(Anim.window(t, CARD - 0.1f, CARD + 0.5f));
         if (in <= 0) return;
         float o = Gfx.fade(in);
-        float cw = 320, ch = 136;
-        float x0 = -cw / 2f, y0 = -22 + 12 * (1 - in);
+        // sized to sit inside the letterbox bars at every GUI scale
+        float cw = 320, ch = 124;
+        float x0 = -cw / 2f, y0 = -28 + 12 * (1 - in);
         Shapes.box(x0, y0, cw, ch).radius(12).fillV(0xF2100A20, 0xF2050310)
                 .border(1f, Gfx.fade(c, 0.95f), Gfx.fade(c, 0.25f)).glow(14, Gfx.alpha(c, 0.28f)).draw(g);
         float y = y0 + 10;

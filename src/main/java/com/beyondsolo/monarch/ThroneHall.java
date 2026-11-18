@@ -129,7 +129,9 @@ public final class ThroneHall {
             }
             level.setBlock(top, Blocks.SOUL_CAMPFIRE.defaultBlockState(), flags);
         }
-        // hidden light: a bright grid under the dome and a ring lower down, so the fight reads well
+        // hidden light, so the fight reads well in a hall of black stone: a grid under the dome for its shape, and a
+        // close one just over head height (over the dais too) that keeps the whole floor lit, light falling off a
+        // level a block
         BlockState light = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15);
         for (int dx = -20; dx <= 20; dx += 5) {
             for (int dz = -20; dz <= 20; dz += 5) {
@@ -137,10 +139,13 @@ public final class ThroneHall {
                 level.setBlock(c.offset(dx, 12, dz), light, flags);
             }
         }
-        for (int i = 0; i < 20; i++) {
-            double a = Math.PI * 2 * i / 20;
-            BlockPos at = c.offset((int) Math.round(Math.cos(a) * 12), 4, (int) Math.round(Math.sin(a) * 12));
-            if (level.getBlockState(at).isAir()) level.setBlock(at, light, flags);
+        for (int dx = -24; dx <= 24; dx += 4) {
+            for (int dz = -24; dz <= 24; dz += 4) {
+                if (dx * dx + dz * dz > (RADIUS - 2) * (RADIUS - 2)) continue;
+                int y = dz <= -DAIS_FROM + 1 ? DAIS_HEIGHT + 3 : 3;
+                BlockPos at = c.offset(dx, y, dz);
+                if (level.getBlockState(at).isAir()) level.setBlock(at, light, flags);
+            }
         }
     }
 

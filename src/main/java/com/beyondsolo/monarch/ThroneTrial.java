@@ -233,8 +233,9 @@ public final class ThroneTrial {
         spawnArbiter(s);
         Vec3 c = Vec3.atBottomCenterOf(s.center);
         Vec3 seat = ThroneHall.seat(s.center);
-        // the camera starts at the empty throne and comes down the hall to the hunter
-        send(p, CutscenePayload.glide(seat.add(0, 7, 4), start.add(0, 2.8, 6.5), seat.add(0, 2, 0), c.add(0, 4, -12), INTRO_TICKS - 50));
+        // the camera starts at the empty throne and comes down the hall, over the kneeling Arbiter, to just behind the
+        // hunter (in front of the pillar at their back)
+        send(p, CutscenePayload.glide(seat.add(0, 11, 4), start.add(1.2, 2.6, 1.4), seat.add(0, 2, 0), c.add(0, 4, -12), INTRO_TICKS - 50));
         sound(level, c, SoundEvents.END_PORTAL_SPAWN, 0.6f, 0.9f);
         sound(level, c, SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), 1f, 0.6f);
         banner(s, JobTrialPayload.INTRO, Component.translatable("monarch.beyondsolo.trial.title"), Component.translatable("monarch.beyondsolo.trial.intro"), 0, 0);
@@ -497,7 +498,7 @@ public final class ThroneTrial {
         Vec3 at = ThroneHall.arbiterSpot(s.center);
         Vec3 face = at.add(0, 8.5, 0);
         // over the hunter's shoulder, pushing in on the Arbiter as it stands
-        send(p, CutscenePayload.glide(start.add(1.8, 2.6, 3.5), at.add(3.5, 4.5, 14), face.add(0, -2.5, 0), face, ARBITER_INTRO_TICKS - 45));
+        send(p, CutscenePayload.glide(start.add(2.0, 2.6, 1.0), at.add(3.5, 4.5, 14), face.add(0, -2.5, 0), face, ARBITER_INTRO_TICKS - 45));
         sound(level, at, SoundEvents.WARDEN_EMERGE, 1.6f, 0.5f);
         level.sendParticles(ParticleTypes.SOUL, at.x, at.y + 1, at.z, 80, 2, 2, 2, 0.05);
         banner(s, JobTrialPayload.BOSS, Component.translatable("entity.beyondsolo.throne_arbiter"),
@@ -633,6 +634,7 @@ public final class ThroneTrial {
         freeze(p, false);
         returnHome(p, false);
         crowned(p, d, s.flawless);
+        shakeOff(p);
         p.setHealth(p.getMaxHealth());
         Notifications.send(p, new SystemNotification(SystemNotification.Kind.LEVEL_UP,
                 Component.translatable("notify.beyondsolo.monarch_crowned.title"),
@@ -659,8 +661,7 @@ public final class ThroneTrial {
         send(p, CutscenePayload.stop());
         freeze(p, false);
         p.setHealth(p.getMaxHealth() * 0.5f);
-        p.removeAllEffects();
-        p.clearFire();
+        shakeOff(p);
         returnHome(p, true);
         banner(s, JobTrialPayload.FAILED, Component.translatable("monarch.beyondsolo.trial.failed"),
                 Component.translatable("monarch.beyondsolo.trial.failed_sub", MonarchConfig.RETRY_MINUTES.get()), 0, 0);
@@ -683,6 +684,20 @@ public final class ThroneTrial {
         if (s.level == null) return;
         for (UUID id : s.foes) discard(s, id);
         if (s.arbiter != null) discard(s, s.arbiter);
+    }
+
+    /**
+     * What the hall leaves on a hunter going home, whichever way they leave: none of the court's burns, venom or
+     * chill (a deep burn would otherwise follow them out); their own boons stay.
+     */
+    private static void shakeOff(ServerPlayer p) {
+        List<net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>> harmful = new ArrayList<>();
+        for (MobEffectInstance e : p.getActiveEffects()) {
+            if (e.getEffect().value().getCategory() == net.minecraft.world.effect.MobEffectCategory.HARMFUL) harmful.add(e.getEffect());
+        }
+        harmful.forEach(p::removeEffect);
+        p.clearFire();
+        p.setTicksFrozen(0);
     }
 
     private static void discard(Session s, UUID id) {
@@ -789,6 +804,7 @@ public final class ThroneTrial {
         MonarchData data = MonarchAPI.get(p);
         if (data.inTrial() && !SESSIONS.containsKey(p.getUUID())) {
             freeze(p, false);
+            shakeOff(p);
             returnHome(p, false);
             Dominion d = MonarchAPI.dominion(p);
             if (d != null) MonarchAPI.info(p, "monarch_returned_crowned", d.title());
@@ -883,6 +899,11 @@ public final class ThroneTrial {
         if (s == null || s.level == null) return false;
         for (UUID id : s.foes) discard(s, id);
         s.foes.clear();
+        // an Arbiter already up goes too (a jump back to the court, or to a fresh Arbiter, never leaves a second one)
+        if (s.arbiter != null) {
+            discard(s, s.arbiter);
+            s.arbiter = null;
+        }
         switch (to) {
             case "arbiter" -> {
                 send(player, CutscenePayload.stop());
