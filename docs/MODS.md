@@ -263,3 +263,7 @@ that dimension, and Lithostitched helps tweak structure data.
 - ND licenses (Cataclysm, CTOV, Legendary Tooltips) mean we cannot ship modified copies of those
   mods. Datapack/config tweaks are fine.
 - Our own mod should not reuse names, characters or art from the anime that inspired it.
+- **Pack configs** live in `modpack/overrides/` here; a pack build copies them into the zip's `overrides/`
+  (CurseForge applies overrides on install and on every update, so they replace a player's own change to the same
+  file). `config/xaerohud.txt` puts Xaero's minimap in the top-right corner, away from the System's status capsule
+  and quest cards. The System's HUD steps around the minimap in either top corner (`client.hud.HudSpace`).

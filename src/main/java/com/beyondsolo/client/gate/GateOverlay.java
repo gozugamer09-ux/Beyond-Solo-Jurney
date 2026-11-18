@@ -7,6 +7,7 @@ import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.gate.GateService;
@@ -592,6 +593,8 @@ public final class GateOverlay {
         boolean enraged = db.isEnraged();
         float bw = Math.min(260, w * 0.55f), x = (w - bw) / 2f, y = 8 - 20 * (1 - Anim.outCubic(barIn));
         float old = Gfx.fade(barIn);
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x - 4, y - 2, bw + 8, 25);
         float rage = enraged ? 0.5f + 0.5f * Mth.sin((float) Anim.now() * 6f) : 0f;
         Shapes.box(x - 4, y - 2, bw + 8, 25).radius(8).fillV(0xC00A1222, 0xC0050912)
                 .border(0.75f, Gfx.alpha(enraged ? 0xFFFF4050 : color, 0.6f + 0.4f * rage))

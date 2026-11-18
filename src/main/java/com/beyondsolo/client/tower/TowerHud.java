@@ -8,6 +8,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.network.TowerPayload;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.tower.TowerFloors;
@@ -127,6 +128,8 @@ public final class TowerHud {
         railDrop = Anim.approach(railDrop, crowded ? 1 : 0, 6f);
 
         float old = Gfx.fade(Math.min(1, plaqueIn * 1.3f));
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x, y, bw, bh);
         boolean won = r.phase() == TowerPayload.CLEARED || r.phase() == TowerPayload.RUSH_DONE;
         int edge = won ? SystemTheme.GOLD : accent;
         Shapes.box(x, y, bw, bh).radius(bh / 2f).fillV(GLASS_TOP, GLASS_BOTTOM)

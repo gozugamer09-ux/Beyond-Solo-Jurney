@@ -10,6 +10,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.network.RedGatePayload;
 import com.beyondsolo.redgate.RedWorld;
@@ -72,8 +73,11 @@ public final class RedGateOverlay {
         if (!mc.options.hideGui) {
             boolean passing = GateOverlay.passing();
             float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + BreakHud.shownHeight();
+            float top = y;
             y = inside(g, mc, w, y, partial, passing);
             y = outside(g, w, y, passing);
+            // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+            HudSpace.claimTop(w / 2f - 150, top, 300, y - top);
             if (b != null) banner(g, w, y + 2, b);
         }
         if (RedGateClient.warningUp()) warning(g, w, h, partial);

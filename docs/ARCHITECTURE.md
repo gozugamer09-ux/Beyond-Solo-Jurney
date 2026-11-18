@@ -114,6 +114,17 @@ While `systemHud` is on (client config, default on), the System draws Minecraft'
 - `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
   follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
   for pieces that sit beside it (the shadow army counter).
+- `HudSpace` shares the screen with other mods' HUD pieces. **Xaero's minimap:** where Xaero put it this frame is read
+  back by reflection (`HudMod.INSTANCE` → `Hud` → module `xaerominimap:minimap` → `getPushState()`, plus 12 px for
+  its coordinates line; nothing needs Xaero, and a failed read only logs once and stops making room). In a top
+  corner it keeps that corner: on the left `StatusHud` starts under it (`StatusHud.top()`, the quest cards and the
+  combat rail follow); on the right the unread badge and the System's effect icons start under it, and
+  `EffectsHud.bottom()`/`left()` count it, so pop-ups, gold and party frames do too. The pack puts the minimap top
+  right (`modpack/overrides/config/xaerohud.txt`). **The top centre:** our bars there (gate and world boss bars, run
+  clock, break timer and compass, red gate and depths chips, tower plaque, trial wave, penalty timer, pinned pop-ups)
+  `claimTop` the box they drew each frame (cleared on `RenderGuiEvent.Pre`). `JadePlugin` (`@WailaPlugin`, loaded by
+  Jade only; Jade is `compileOnly`) adds a before-render callback, `JadeRoom`, that holds Jade's tooltip under
+  those claims, gliding, the way Jade keeps it under vanilla's boss bars (Jade only sees vanilla's).
 
 ## The evaluation
 

@@ -8,6 +8,7 @@ import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.client.quest.QuestOverlay;
 import com.beyondsolo.client.skill.SkillOverlay;
@@ -336,6 +337,8 @@ public final class DepthsHud {
         float x = (w - bw) / 2f;
         y -= 8 * (1 - in);
         float old = Gfx.fade(in);
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x, y, bw, bh);
         float breathe = 0.5f + 0.5f * Anim.pulse(3.2f);
         Shapes.pill(x, y, bw, bh).fillV(0xC00A1222, 0xC0050912).border(0.7f, Gfx.alpha(c, 0.55f + 0.2f * breathe), Gfx.alpha(c, 0.25f))
                 .glow(4 + 2 * breathe, Gfx.alpha(c, 0.16f)).draw(g);
@@ -373,6 +376,7 @@ public final class DepthsHud {
         float x = (w - bw) / 2f;
         float blink = 0.5f + 0.5f * Anim.pulse(0.9f);
         float old = Gfx.fade(Math.min(1f, trapIn));
+        HudSpace.claimTop(x, y, bw, bh);
         g.pose().pushPose();
         g.pose().translate(w / 2f, y + bh / 2f, 0);
         g.pose().scale(0.85f + 0.15f * in, 0.85f + 0.15f * in, 1);

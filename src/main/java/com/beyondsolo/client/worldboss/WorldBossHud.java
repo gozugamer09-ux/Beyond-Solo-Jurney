@@ -10,6 +10,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.worldboss.ColossalBoss;
 import com.beyondsolo.worldboss.WorldBossKind;
@@ -113,6 +114,8 @@ public final class WorldBossHud {
         float bw = Math.min(300, w * 0.6f), x = (w - bw) / 2f;
         y -= 22 * (1 - in);
         float old = Gfx.fade(in);
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x - 6, y - 3, bw + 12, 36);
         float surge = shifting ? 0.5f + 0.5f * Mth.sin((float) Anim.now() * 9f) : 0f;
         Shapes.box(x - 6, y - 3, bw + 12, 36).radius(9).fillV(0xD00A0C18, 0xD0050610)
                 .border(0.9f, Gfx.alpha(tc, 0.75f + 0.25f * surge), Gfx.alpha(tc, 0.25f))
@@ -197,6 +200,7 @@ public final class WorldBossHud {
         float x = (w - mw) / 2f;
         y -= 6 * (1 - in);
         float old = Gfx.fade(in);
+        HudSpace.claimTop(x, y, mw, hgt);
         float pulse = 0.6f + 0.4f * Anim.pulse(t.descending() ? 1.0f : 2.2f);
         Shapes.pill(x, y, mw, hgt).fillV(0xC00A0C18, 0xC0050610).border(0.8f, Gfx.alpha(tc, 0.8f), Gfx.alpha(tc, 0.3f))
                 .glow(5, Gfx.alpha(kc, 0.25f * pulse)).draw(g);

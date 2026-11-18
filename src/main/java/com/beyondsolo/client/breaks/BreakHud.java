@@ -13,6 +13,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.client.quest.QuestOverlay;
 import com.beyondsolo.client.skill.SkillOverlay;
@@ -319,6 +320,7 @@ public final class BreakHud {
         float x = (w - bw) / 2f;
         y -= 14 * (1 - in);
         float old = Gfx.fade(in);
+        HudSpace.claimTop(x, y, bw, bh);
         float blink = phase == 2 ? 0.5f + 0.5f * Anim.pulse(0.8f) : phase == 3 ? 0.5f + 0.5f * Anim.pulse(2.2f) : 0.5f + 0.5f * Anim.pulse(3f);
         Shapes.box(x, y, bw, bh).radius(bh / 2f).fillV(Gfx.mix(0xC00A1222, Gfx.alpha(c, 0.75f), phase == 1 ? 0.12f : 0.22f), 0xC0050912)
                 .border(0.8f, Gfx.alpha(c, 0.55f + 0.4f * blink), Gfx.alpha(c, 0.3f))
@@ -401,6 +403,8 @@ public final class BreakHud {
         float x = (w - bw) / 2f;
         y -= 8 * (1 - in);
         float old = Gfx.fade(in);
+        // the nearest gates have their distance under the dial
+        HudSpace.claimTop(x, y, bw, bh + 12);
         inView(g, mc, w, ss, y + bh + 16, partial);
         int ac = SystemTheme.ACCENT;
         Shapes.pill(x, y, bw, bh).fillV(0xB80A1222, 0xB8050912).border(0.7f, Gfx.alpha(ac, 0.55f), Gfx.alpha(ac, 0.2f)).glow(5, Gfx.alpha(ac, 0.18f)).draw(g);
