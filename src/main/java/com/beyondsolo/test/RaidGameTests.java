@@ -431,6 +431,30 @@ public final class RaidGameTests {
         helper.succeed();
     }
 
+    // ------------------------------------------------------------------ raiders gone
+
+    @GameTest(template = ARENA, timeoutTicks = 1100)
+    public static void aRaidWaitsForRaidersWhoAreOffline(GameTestHelper helper) {
+        GateInstance g = raidGate(helper, new BlockPos(5, 2, 5), PlayerRank.E, null);
+        RaidState s = g.raid();
+        // a raid underway whose only raider has logged out (a restart, a lost connection)
+        RaidState.Raider r = new RaidState.Raider(UUID.randomUUID(), "away", RaidRole.STRIKER);
+        r.status = RaidState.Status.INSIDE;
+        s.raiders.put(r.id, r);
+        s.leader = r.id;
+        s.phase = RaidState.Phase.RUNNING;
+        s.startedAt = helper.getLevel().getGameTime() - 20 * 60;
+        helper.startSequence()
+                .thenIdle(20 * 17)
+                .thenExecute(() -> {
+                    helper.assertTrue(s.phase == RaidState.Phase.RUNNING, "it waits for them: " + s.phase);
+                    // once every raider has fallen there is nobody to wait for
+                    r.status = RaidState.Status.FALLEN;
+                })
+                .thenWaitUntil(() -> helper.assertTrue(s.phase == RaidState.Phase.FAILED, "with every raider fallen it fails: " + s.phase))
+                .thenSucceed();
+    }
+
     // ------------------------------------------------------------------ saving
 
     @GameTest(template = ARENA)

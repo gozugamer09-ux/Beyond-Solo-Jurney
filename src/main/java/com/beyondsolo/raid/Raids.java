@@ -837,11 +837,19 @@ public final class Raids {
                 run.emptySince = -1;
                 return;
             }
-            boolean waiting = false;
+            boolean waiting = false, onIt = false, online = false;
             for (RaidState.Raider r : s.raiders.values()) {
                 if (r.status == RaidState.Status.WAITING && OnlinePlayers.get(server, r.id) != null && now - s.startedAt < 20 * 30) waiting = true;
+                if (r.status != RaidState.Status.INSIDE && r.status != RaidState.Status.WAITING) continue;
+                onIt = true;
+                if (OnlinePlayers.get(server, r.id) != null) online = true;
             }
             if (waiting) return;
+            // everyone still on the raid is offline (a restart, a lost connection): it waits for them, as a gate does
+            if (onIt && !online) {
+                run.emptySince = -1;
+                return;
+            }
             if (run.emptySince < 0) run.emptySince = now;
             else if (now - run.emptySince > 20 * 15) fail(server, g);
             return;
