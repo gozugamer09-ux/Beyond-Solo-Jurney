@@ -201,8 +201,8 @@ public final class SituationGameTests {
     public static void aPartyMembersKillCountsAsTheHuntersOwn(GameTestHelper helper) {
         ServerPlayer p = player(helper, PlayerRank.E);
         ServerPlayer mate = player(helper, PlayerRank.E);
-        OnlinePlayers.addTestPlayer(p);
-        OnlinePlayers.addTestPlayer(mate);
+        OnlinePlayers.addTestPlayer(helper, p);
+        OnlinePlayers.addTestPlayer(helper, mate);
         Parties.invite(p, mate);
         Parties.accept(mate, p.getUUID());
         helper.assertTrue(Parties.together(p, mate), "they hunt as a party");
