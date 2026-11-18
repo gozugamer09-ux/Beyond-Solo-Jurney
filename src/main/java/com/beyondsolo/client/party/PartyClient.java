@@ -126,6 +126,24 @@ public final class PartyClient {
         return state.inParty() && state.leader().equals(me());
     }
 
+    /**
+     * True if a member stands where this player does, so how far and which way mean something: the same world out in
+     * the open, or the same cave of the gate dimension (which holds every gate's cave side by side), or the same patch
+     * of the other dimensions that keep their runs apart (a red gate, the Citadel).
+     */
+    public static boolean samePlace(PartySyncPayload.Member m) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!m.online() || mc.player == null || mc.level == null || !mc.level.dimension().location().equals(m.dim())) return false;
+        if (m.place() == PartySyncPayload.WORLD) return true;
+        if (mc.level.dimension().equals(com.beyondsolo.gate.GateService.DIMENSION)) {
+            int slot = com.beyondsolo.gate.GateData.slotAt(net.minecraft.core.BlockPos.containing(m.x(), m.y(), m.z()));
+            return slot >= 1 && slot == com.beyondsolo.gate.GateData.slotAt(mc.player.blockPosition());
+        }
+        // their runs lie thousands of blocks apart: near means the same one
+        double dx = m.x() - mc.player.getX(), dz = m.z() - mc.player.getZ();
+        return dx * dx + dz * dz < 1024 * 1024;
+    }
+
     /** The other members, in the order they joined. */
     public static List<PartySyncPayload.Member> others() {
         List<PartySyncPayload.Member> out = new ArrayList<>();

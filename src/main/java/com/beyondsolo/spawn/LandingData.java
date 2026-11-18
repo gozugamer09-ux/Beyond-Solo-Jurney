@@ -62,7 +62,17 @@ public final class LandingData extends SavedData {
         if (y <= level.getMinBuildHeight() + 1) return null;
         if (!level.getFluidState(pos.below()).isEmpty() || !level.getFluidState(pos).isEmpty()) return null;
         if (!level.getBlockState(pos.below()).isSolid()) return null;
+        if (!roomToStand(level, pos)) return null;
         return pos;
+    }
+
+    /**
+     * Room to stand up at {@code pos}: nothing solid where the feet and the head go. The surface under a tree's low
+     * leaves has none, and a player landing there starts out crawling.
+     */
+    public static boolean roomToStand(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
+                && level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty();
     }
 
     @Override

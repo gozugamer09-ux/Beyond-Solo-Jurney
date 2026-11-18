@@ -1275,7 +1275,7 @@ shortly after the first hunter went in. Parties fix that.
 | Gates | Going in together already shared one cave. A keyed gate's door (`KeyedRuns`) and a red gate (`RedGates`) about to seal hold up to `party.followSeconds` while a party member of someone inside is within 48 blocks of it outside (`followers`, `holdFor`), and say who they wait for. Party members out by a gate hear who went in (`wentIn`). A dormant friend near a System hunter still gets their door: `AwakeningService.enteringGate` hides it when the one walking in, or a party member of theirs within 48 blocks, still waits for it |
 | `Regroup` | Travel to a party member's side: stand still `CHANNEL_TICKS` (5 s; moving more than `DRIFT` or being hurt breaks it), then land beside them (`spotNear`). Both must be out in the overworld, the Nether or the End, not in a gate, trial, the Citadel, the Penalty Zone, an evaluation or the awakening. At least `party.regroupMinDistance` blocks apart; then `party.regroupCooldownMinutes` (kept on the player in `PartyModule.REGROUP_READY`, through deaths and logouts; -1 turns regrouping off) |
 | Sync | `PartySyncPayload` (members with health and whereabouts, `Place`: world, gate with its rank and name, red gate, Citadel, Penalty Zone, trial, job trial, offline; invitations; the regroup clock) on every change and every `SYNC_TICKS` to everyone in a party with someone else online. `PartyEventPayload` carries the regroup moments and the answer to a button. `PartyActionPayload` is a button |
-| `client.party` | `PartyClient` (what the client knows), `PartyTab` (the PARTY page: members with class, rank, level, health, where, and regroup / lead / remove buttons; invitations; hunters online to invite; leave and disband), `PartyHud` (a frame per member on the right with health and where they are, an arrow and distance when in the same world; a marker over each member in view and an arrow at the screen's edge for those out of view; the regroup gathering and its end) |
+| `client.party` | `PartyClient` (what the client knows), `PartyTab` (the PARTY page: members with class, rank, level, health, where, and regroup / lead / remove buttons; invitations; hunters online to invite; leave and disband), `PartyHud` (a frame per member on the right with health and where they are, an arrow and distance when they are where the player is: the same world out in the open, or the same cave (`PartyClient.samePlace`: every gate's cave shares one dimension, so the cave's slot must match); a marker over each such member in view and an arrow at the screen's edge for those out of view; the regroup gathering and its end) |
 
 What stays solo, as in the series: the Crimson Citadel, the Penalty Zone and the job change trial. The awakening is
 shared only when friends are called in the same cave. Config: `beyondsolo-party.toml` (`party.maxSize` 6,
@@ -1284,8 +1284,13 @@ shared only when friends are called in the same cave. Config: `beyondsolo-party.
 main config. Game tests stand fake players in for real ones; `util/OnlinePlayers` lets them be found by id
 (`addTestPlayer`), since fake players are never in the server's player list.
 
+Landing together (`spawn.LandingData`): the world's first player lands on the usual random first spawn and it is kept;
+everyone after lands 3 to 8 blocks from it. Both pick only spots with room to stand (`roomToStand`: nothing solid at the
+feet or head, so nobody starts out crawling under a tree's low leaves).
+
 Testing: `/party ...` with a second account, or in the headless client `partydemo [alone]` (a made-up party round the
-player) and `partygo <action> [name]` (`tools/uitest`).
+player), `partygo <action> [name]` and `partyfx start|broken|done|joined` (`tools/uitest`). A second real client can
+join the dev server under another name (offline mode) for checks with two players.
 
 ## World generation
 

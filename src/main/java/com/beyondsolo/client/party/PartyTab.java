@@ -202,24 +202,25 @@ public class PartyTab implements SystemTab {
         return Component.translatable("ui.beyondsolo.party.hint." + what, m.name());
     }
 
-    /** "Overworld · 340 blocks north-east", "In a D-Rank Gate · Ashen Hollow", "Offline". */
+    /** "Overworld · 340 m NE", "In a D-Rank Gate · Ashen Hollow" (and how far, in the same cave), "Offline". */
     static String where(PartySyncPayload.Member m) {
-        Minecraft mc = Minecraft.getInstance();
         if (!m.online()) return Component.translatable("ui.beyondsolo.party.place.offline").getString();
+        String line;
         if (m.place() != PartySyncPayload.WORLD) {
             String place = m.place() == PartySyncPayload.GATE && m.placeRank() >= 0
                     ? Component.translatable("ui.beyondsolo.party.place.gate_rank", PlayerRank.values()[m.placeRank()].displayName()).getString()
                     : Component.translatable("ui.beyondsolo.party.place." + placeKey(m.place())).getString();
             String name = m.placeName().getString();
-            return name.isEmpty() ? place : place + " · " + name;
+            line = name.isEmpty() ? place : place + " · " + name;
+        } else {
+            line = dimName(m.dim().toString());
         }
-        String dim = dimName(m.dim().toString());
-        if (PartyClient.isMe(m.id()) || mc.player == null) return dim;
-        if (mc.level == null || !mc.level.dimension().location().equals(m.dim())) return dim;
+        if (PartyClient.isMe(m.id()) || !PartyClient.samePlace(m)) return line;
+        Minecraft mc = Minecraft.getInstance();
         double dx = m.x() - mc.player.getX(), dz = m.z() - mc.player.getZ();
         int d = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
-        if (d < 16) return dim + " · " + Component.translatable("ui.beyondsolo.party.near").getString();
-        return dim + " · " + Component.translatable("ui.beyondsolo.party.away", d,
+        if (d < 16) return line + " · " + Component.translatable("ui.beyondsolo.party.near").getString();
+        return line + " · " + Component.translatable("ui.beyondsolo.party.away", d,
                 Component.translatable("ui.beyondsolo.party.dir." + compass(dx, dz))).getString();
     }
 

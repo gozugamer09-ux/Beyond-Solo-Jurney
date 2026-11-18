@@ -430,6 +430,15 @@ public final class PartyGameTests {
         }
         CompoundTag saved = landing.save(new CompoundTag(), level.registryAccess());
         helper.assertTrue(saved.contains("landing"), "kept with the world");
+
+        // nobody lands under a tree's low leaves (they would start out crawling)
+        BlockPos spot = new BlockPos(2, 2, 2);
+        helper.setBlock(spot.below(), Blocks.STONE);
+        helper.setBlock(spot, Blocks.AIR);
+        helper.setBlock(spot.above(), Blocks.AIR);
+        helper.assertTrue(LandingData.roomToStand(level, helper.absolutePos(spot)), "room to stand up");
+        helper.setBlock(spot.above(), Blocks.OAK_LEAVES);
+        helper.assertFalse(LandingData.roomToStand(level, helper.absolutePos(spot)), "leaves at head height leave no room");
         helper.succeed();
     }
 

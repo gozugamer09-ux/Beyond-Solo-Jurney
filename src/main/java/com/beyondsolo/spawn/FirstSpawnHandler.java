@@ -99,6 +99,7 @@ public final class FirstSpawnHandler {
             if (y <= level.getMinBuildHeight() + 1) continue;
             if (!level.getFluidState(pos.below()).isEmpty() || !level.getFluidState(pos).isEmpty()) continue;
             if (!level.getBlockState(pos.below()).isSolid()) continue;
+            if (!LandingData.roomToStand(level, pos)) continue;
             return pos;
         }
         BeyondSolo.LOGGER.warn("Could not find a random spawn spot, using world spawn");

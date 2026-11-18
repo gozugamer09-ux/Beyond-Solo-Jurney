@@ -98,15 +98,16 @@ public final class PartyHud {
         ResourceLocation icon = m.cls() >= 0 ? Icons.of(PlayerClass.values()[m.cls()]) : Icons.QUESTION;
         Shapes.icon(icon, bx, by, 7.5f).fill(m.online() ? Gfx.mix(tint, 0xFFFFFFFF, 0.55f) : SystemTheme.TEXT_DIM).draw(g);
 
-        // where: a place, a world, or how far and which way
+        // where: how far and which way when they are where the player is (out in the world, or in the same cave), else
+        // the place they went (a gate, the Citadel...) or the world they are in
         String where;
         int wc = PartyTab.placeColor(m);
         float arrow = Float.NaN;
-        if (!m.online() || m.place() != PartySyncPayload.WORLD) {
+        if (!PartyClient.samePlace(m) && (!m.online() || m.place() != PartySyncPayload.WORLD)) {
             where = m.place() == PartySyncPayload.GATE && m.placeRank() >= 0
                     ? Component.translatable("ui.beyondsolo.party.short.gate_rank", PlayerRank.values()[m.placeRank()].displayName()).getString()
                     : Component.translatable("ui.beyondsolo.party.short." + PartyTab.placeKey(m.online() ? m.place() : PartySyncPayload.OFFLINE)).getString();
-        } else if (mc.level == null || !mc.level.dimension().location().equals(m.dim())) {
+        } else if (!PartyClient.samePlace(m)) {
             where = PartyTab.dimName(m.dim().toString());
         } else {
             Vec3 at = position(mc, m, partial);
@@ -157,7 +158,8 @@ public final class PartyHud {
         if (mc.level == null) return;
         int edgeRow = 0;
         for (PartySyncPayload.Member m : others) {
-            if (!m.online() || !mc.level.dimension().location().equals(m.dim())) continue;
+            // (someone in another gate's cave is in this dimension too, thousands of blocks off: no marker for them)
+            if (!PartyClient.samePlace(m)) continue;
             Player p = mc.level.getPlayerByUUID(m.id());
             Vec3 feet = position(mc, m, partial);
             double d = feet.distanceTo(mc.player.getPosition(partial));

@@ -77,7 +77,8 @@ public final class PartyCommand {
     }
 
     private static int run(CommandContext<CommandSourceStack> ctx, Parties.Outcome out) {
-        if (out.ok()) ctx.getSource().sendSuccess(() -> Parties.tag().append(out.message().copy().withStyle(ChatFormatting.GRAY)), false);
+        // always said (not command feedback, which a server can turn off): for a hunter without the System it is the only answer
+        if (out.ok()) ctx.getSource().sendSystemMessage(Parties.tag().append(out.message().copy().withStyle(ChatFormatting.GRAY)));
         else ctx.getSource().sendFailure(out.message());
         return out.ok() ? 1 : 0;
     }
