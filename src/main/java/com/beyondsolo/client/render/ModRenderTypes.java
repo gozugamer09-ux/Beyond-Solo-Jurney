@@ -1,6 +1,8 @@
 package com.beyondsolo.client.render;
 
 import com.beyondsolo.client.gfx.ModShaders;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.Util;
@@ -62,6 +64,35 @@ public final class ModRenderTypes {
      */
     public static RenderType softTexture(ResourceLocation texture) {
         return SOFT_TEXTURE.apply(texture);
+    }
+
+    /** Premultiplied alpha: the colour is added as it is, and alpha says how much of what is behind is hidden. */
+    private static final RenderStateShard.TransparencyStateShard PREMULTIPLIED = new RenderStateShard.TransparencyStateShard("beyondsolo_premultiplied", () -> {
+        RenderSystem.enableBlend();
+        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+    }, () -> {
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
+    });
+
+    private static final Function<ResourceLocation, RenderType> ENERGY = Util.memoize(texture -> RenderType.create("beyondsolo_energy",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::energy))
+                    .setTextureState(new RenderStateShard.TextureStateShard(texture, true, false))
+                    .setTransparencyState(PREMULTIPLIED)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .createCompositeState(false)));
+
+    /**
+     * The skin of a skill effect (a blade, a beam, an orb): the texture's red channel is heat, light that runs from the
+     * vertex colour's hue to white where it is hottest, and its alpha is cover, a body of the vertex colour that hides
+     * what is behind it. A dark vertex colour makes dark energy with bright edges. See {@code shaders/core/energy.fsh}.
+     */
+    public static RenderType energy(ResourceLocation texture) {
+        return ENERGY.apply(texture);
     }
 
     private static final Function<ResourceLocation, RenderType> LIGHT_THROUGH =Util.memoize(texture -> RenderType.create("beyondsolo_light_through",

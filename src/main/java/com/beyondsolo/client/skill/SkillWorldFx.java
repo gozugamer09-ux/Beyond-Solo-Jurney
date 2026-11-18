@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -65,6 +66,8 @@ public final class SkillWorldFx {
         final Vec3 origin;
         final float yaw;
         final long seed;
+        /** The skin the skill's element gives it (fire burns, shadow is dark with bright edges...). */
+        final Skins.Look look;
         /** Took the place of an older one of its kind: it is simply there, without fading in again. */
         boolean settled;
 
@@ -74,6 +77,7 @@ public final class SkillWorldFx {
             this.origin = origin;
             this.yaw = yaw;
             this.seed = seed;
+            this.look = Skins.Look.of(p.element(), p.color());
         }
 
         Vec3 target() {
@@ -870,11 +874,11 @@ public final class SkillWorldFx {
                         pose.mulPose(Axis.XP.rotationDegrees(-14));
                         r = p.size();
                     }
-                    swipe(pose, buffers, camera, r, age, life, back ? -1 : 1, c, self ? 0.8f : 1f);
+                    blade(pose, buffers, camera, r, age, life, back ? -1 : 1, c, self ? 0.8f : 1f, fx.look, time);
                     pose.popPose();
                 }
                 case DASH -> {
-                    // afterimages left along the way, and lines of wind streaming past at the body's heights
+                    // afterimages left along the way, and ribbons of wind streaming past at the body's heights
                     Vec3 start = fx.target().subtract(at);
                     Vec3 run = start.scale(-1);
                     if (run.lengthSqr() < 0.01) break;
@@ -893,214 +897,370 @@ public final class SkillWorldFx {
                         float k0 = Mth.clamp(out * 1.3f - 0.3f - lines.nextFloat() * 0.2f, 0, 1);
                         Vec3 a0 = start.lerp(Vec3.ZERO, k0 * 0.8).add(side.scale(off)).add(0, h, 0);
                         Vec3 b0 = start.lerp(Vec3.ZERO, Math.min(1, k0 * 0.8 + 0.35)).add(side.scale(off)).add(0, h, 0);
-                        streak(pose, buffers, camera, at, a0, b0, 0.05f, i % 2 == 0 ? 0xFFFFFF : light, fade * (self ? 0.4f : 0.8f));
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WIND), a0, b0, 4, 0.34f, k2 -> Mth.sin(k2 * Mth.PI),
+                                fade * (self ? 0.4f : 0.9f), Skins.FLAT, i % 2 == 0 ? 0xFFFFFF : fx.look.light(c), -time * 0.3f, 0.5f);
                     }
                 }
                 case PULSE -> {
-                    disc(pose, buffers, SHOCK, 0.1f, p.size() * out, 0, light, fade * 1.2f);
+                    // a wave running out over the ground (a scan, a blessing, a cold snap), a softer one after it
+                    int glow = fx.look.light(c);
+                    SkinFx.shock(pose, buffers, camera, at, Vec3.ZERO, 0.3f + p.size() * out, 0.55f + p.size() * 0.035f, fade, glow, fx.seed);
                     float k2 = Mth.clamp((age - 0.25f) / (life - 0.25f), 0, 1);
-                    if (k2 > 0) disc(pose, buffers, SHOCK, 0.1f, p.size() * 0.7f * (1 - (1 - k2) * (1 - k2)), 0, c, (1 - k2) * 0.9f);
-                    disc(pose, buffers, GLOW, 0.05f, 2.5f * (1 - t), 0, c, fade * 0.6f);
+                    if (k2 > 0) SkinFx.shock(pose, buffers, camera, at, Vec3.ZERO, p.size() * 0.7f * SkinFx.easeOut(k2), 0.3f, (1 - k2) * 0.7f, c, fx.seed + 1);
+                    if (!self && age < 0.2f) Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(0, 1, 0), 0.9f, glow, 1 - age / 0.2f, 0);
                 }
                 case ROAR -> {
-                    for (int i = 0; i < 3; i++) {
-                        float k = Mth.clamp((age - i * 0.12f) / 0.7f, 0, 1);
-                        if (k <= 0 || k >= 1) continue;
-                        float o = 1 - (1 - k) * (1 - k);
-                        disc(pose, buffers, SHOCK, 1.2f + i * 0.15f, 0.6f + p.size() * 0.75f * o, 0, i == 1 ? light : c, (1 - k) * 1.1f);
+                    // a shout made visible: shells of air running out of the chest one after another, a shock over the
+                    // ground, power flaring off the body for a moment. A war cry, not a spell: nothing drawn under it
+                    float chest = e != null ? e.getBbHeight() * 0.72f : 1.3f;
+                    SkinFx.shells(pose, buffers, camera, at, new Vec3(0, chest, 0), p.size() * 0.75f, age, 3, 0.13f, fx.look, c, self ? 0.25f : 0.55f);
+                    SkinFx.shock(pose, buffers, camera, at, Vec3.ZERO, 0.6f + p.size() * 0.85f * out, 0.3f, fade * 0.9f, fx.look.light(c), fx.seed);
+                    if (!self && e != null && age < 0.7f) {
+                        SkinFx.flames(pose, buffers, camera, at, Vec3.ZERO, e.getBbHeight() * 1.25f, Math.max(0.4f, e.getBbWidth() * 0.7f),
+                                Mth.clamp(age / 0.06f, 0, 1) * SkinFx.fadeOut(age, 0.3f, 0.4f), fx.look, c, fx.seed, time);
                     }
-                    if (!self) dot(pose, buffers, camera, 0, 1.3f, 0, 1.4f * (1 - t * 0.5f), c, fade * 0.6f);
                 }
                 case SLAM -> {
-                    // no sigil: a blow, not a spell. The ground splits from where it landed and a shock runs out
+                    // no sigil: a blow, not a spell. The ground splits from where it landed, a shockwave runs out and dust rises
                     Vec3 g = fx.target().subtract(at);
-                    pose.translate(g.x, g.y, g.z);
-                    fissures(pose, buffers, camera, fx.target(), fx.seed, p.size() * 0.95f, Mth.clamp(age / 0.12f, 0, 1), fade, c);
-                    disc(pose, buffers, GLOW, 0.04f, p.size() * 0.7f, 0, c, fade * 0.3f);
+                    float glow = SkinFx.fadeOut(age, 0.35f, life - 0.35f);
+                    if (SkinFx.scorches(fx.look)) SkinFx.scorch(pose, buffers, g, p.size() * 0.45f, glow, fx.seed);
+                    SkinFx.cracks(pose, buffers, camera, at, g, fx.seed, p.size() * 0.95f, 7, SkinFx.easeOut(age / 0.12f), glow, 0.45f * glow,
+                            fx.look, c, time);
+                    SkinFx.shock(pose, buffers, camera, at, g, p.size() * (0.25f + 0.95f * SkinFx.easeOut(age / 0.4f)), 0.45f + p.size() * 0.06f,
+                            SkinFx.fadeOut(age, 0.1f, 0.45f), fx.look.light(c), fx.seed);
+                    if (age < 0.12f) {
+                        float f = 1 - age / 0.12f;
+                        Skins.spikes(pose, buffers, camera, g.add(0, 0.3, 0), fx.seed, 10, 1.2f + p.size() * 0.35f, 0.35f, fx.look.light(c), f);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), g.add(0, 0.3, 0), 0.8f + p.size() * 0.2f, 0xFFFFFF, f, 0);
+                    }
+                    SkinFx.smoke(pose, buffers, camera, g.add(0, 0.2, 0), p.size() * 0.55f, age, fx.seed, 0x9A8C78, 0.8f * Mth.clamp((life - age) / 0.25f, 0, 1));
                 }
                 case BLINK -> {
-                    Vec3 from = fx.target().subtract(at);
-                    dot(pose, buffers, camera, (float) from.x, (float) from.y + 1f, (float) from.z, 1.2f * (1 - out * 0.6f), c, fade);
-                    pose.pushPose();
-                    pose.translate(from.x, from.y, from.z);
-                    disc(pose, buffers, SHOCK, 0.05f, 0.4f + 1.4f * out, 0, c, fade);
-                    pose.popPose();
-                    if (!self) dot(pose, buffers, camera, 0, 1f, 0, 1.3f * (1 - out), light, fade);
-                    disc(pose, buffers, SHOCK, 0.05f, 0.4f + 1.4f * out, 0, light, fade);
-                    streak(pose, buffers, camera, at, from.add(0, 1, 0), new Vec3(0, 1, 0), 0.25f * fade, c, fade * 0.7f);
+                    // where they left, a burst of the element folds in on itself; where they came out one opens, and a
+                    // streak of it is left between the two
+                    Vec3 from = fx.target().subtract(at).add(0, 1, 0);
+                    Vec3 here = new Vec3(0, 1, 0);
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    float k = Mth.clamp(age / 0.35f, 0, 1);
+                    Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), from, 0.05f + 1.1f * (1 - SkinFx.easeOut(k)), 8, 14,
+                            1 - k, body, time * 0.02f, 2, 0, 1, 0.8f);
+                    if (age < 0.12f) Skins.spikes(pose, buffers, camera, from, fx.seed, 9, 1.6f, 0.3f, glow, 1 - age / 0.12f);
+                    if (!self) {
+                        Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), here, 0.3f + 1.0f * SkinFx.easeOut(age / 0.3f), 8, 14,
+                                fade, body, -time * 0.02f, 2, 0, 1, 0.9f);
+                        if (age < 0.15f) Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), here, 1.1f, glow, 1 - age / 0.15f, 0);
+                    }
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), from, here, 10, 0.75f * fade,
+                            k2 -> 0.35f + 0.65f * Mth.sin(k2 * Mth.PI), fade * (self ? 0.5f : 0.85f), Skins.FLAT, body, -time * 0.3f, 0.5f);
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), from, here, 6, 0.2f * fade, Skins.FLAT,
+                            fade * (self ? 0.4f : 0.8f), Skins.FLAT, glow, -time * 0.4f, 0.5f);
                 }
                 case AURA -> {
-                    // a buff shows on the body (light rising off it), not as a ring on the ground
+                    // a buff shows on the body: power burning off it, not a ring on the ground
                     if (self) break;
-                    if (age < 0.5f) {
-                        float k = age / 0.5f;
-                        dot(pose, buffers, camera, 0, 1f, 0, 1.0f + 1.2f * k, light, (1 - k) * 0.5f);
+                    float tall = e != null ? e.getBbHeight() : 1.8f;
+                    float wide = e != null ? Math.max(0.38f, e.getBbWidth() * 0.65f) : 0.4f;
+                    if (age < 0.45f) {
+                        float k = age / 0.45f;
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(0, tall * 0.55f, 0), 1.2f + 0.6f * k,
+                                fx.look.light(c), (1 - k) * 0.8f, 0);
+                        SkinFx.flames(pose, buffers, camera, at, Vec3.ZERO, tall * (1.3f + 0.4f * k), wide * 1.15f, (1 - k) * 0.6f, fx.look, c, fx.seed + 1, time);
                     }
-                    dot(pose, buffers, camera, 0, 1f, 0, 1.0f, c, hold * (0.16f + 0.08f * Mth.sin(time * 0.25f)));
+                    SkinFx.flames(pose, buffers, camera, at, Vec3.ZERO, tall * (0.95f + 0.2f * p.size()), wide, hold * 0.85f, fx.look, c, fx.seed, time);
                 }
                 case BOLT -> {
-                    Vec3 from = (e != null ? e.getEyePosition(partial).add(e.getViewVector(partial).scale(0.6)).add(0, -0.35, 0) : fx.origin).subtract(at);
+                    Vec3 from = (e != null ? e.getEyePosition(partial).add(e.getViewVector(partial).scale(self ? 1.0 : 0.6)).add(0, -0.35, 0) : fx.origin).subtract(at);
                     Vec3 to = fx.target().subtract(at);
-                    float flick = 0.75f + 0.25f * Mth.sin(time * 3.1f);
-                    zigzag(pose, buffers, camera, at, from, to, fx.seed + (long) (time / 2), 0.32f * flick, c, fade * 1.3f);
-                    zigzag(pose, buffers, camera, at, from, to, fx.seed + (long) (time / 2), 0.12f, 0xFFFFFF, fade);
-                    dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, 0.6f + 0.9f * out, light, fade, fx.seed % 360);
-                    dot(pose, buffers, camera, (float) from.x, (float) from.y, (float) from.z, 0.35f, light, fade);
+                    if (fx.look == Skins.Look.LIGHTNING) {
+                        // a forked bolt from the hand, re-struck every couple of ticks while it lasts
+                        float flick = age < 0.1f ? 1 : fade * (0.75f + 0.25f * Mth.sin(time * 3.1f));
+                        Skins.lightning(pose, buffers, camera, at, from, to, fx.seed + (long) (time / 2), 0.2f, c, flick * 1.1f, 0.22f, 0.3f);
+                        impact(pose, buffers, camera, at, to, age, fx, 0.9f, 1f);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), from, 0.35f, fx.look.light(c), fade, time * 7);
+                        break;
+                    }
+                    // a spear of the element thrown from the hand, the trail it leaves, and the blow where it lands
+                    Vec3 path = to.subtract(from);
+                    double dist = path.length();
+                    if (dist < 0.05) break;
+                    float flight = Mth.clamp((float) dist / 70f, 0.05f, 0.15f);
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    Vec3 dir = path.scale(1 / dist);
+                    float scroll = -time * 0.3f;
+                    if (age < flight) {
+                        Vec3 head = from.add(path.scale(k));
+                        Skins.lance(pose, buffers, camera, at, head, dir, 1.4f, 0.45f, (float) Math.min(dist * k, 5), fx.look, c, 1f, scroll);
+                    } else {
+                        // the wake it left hangs a moment and fades
+                        float wake = Mth.clamp(1 - (age - flight) / 0.25f, 0, 1);
+                        Vec3 back = to.subtract(dir.scale(Math.min(dist, 6)));
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), back, to, 8, 0.4f * wake, k2 -> 0.3f + 0.7f * k2,
+                                wake * 0.6f, k2 -> k2 * k2, fx.look.body(c), scroll, 0.6f);
+                        impact(pose, buffers, camera, at, to, age - flight, fx, 1f, 1f);
+                    }
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), from, 0.3f * (1 - k * 0.5f), fx.look.light(c), Mth.clamp(1 - age / 0.2f, 0, 1), time * 7);
                 }
                 case NOVA -> {
-                    disc(pose, buffers, SHOCK, 0.15f, p.size() * out, 0, c, fade * 1.3f);
-                    disc(pose, buffers, RING, 0.6f, p.size() * 0.85f * out, 0, p.duration() == 0 ? mix(c, 0xFFE0A0, 0.4f) : light, fade * 0.9f);
-                    disc(pose, buffers, GLOW, 0.1f, p.size() * 0.9f * out, 0, c, fade * 0.35f);
-                    dot(pose, buffers, camera, 0, 0.9f, 0, 1.4f * (1 - t), mix(c, 0xFFFFFF, 0.3f), fade * 0.5f);
+                    // a blast of the element round the caster: a dome of force swelling out of the chest, a shockwave
+                    // over the ground, the ground scorched where it burned
+                    SkinFx.blast(pose, buffers, camera, at, new Vec3(0, 1.0, 0), Vec3.ZERO, p.size() * 0.9f, age, life, 0.2f, fx.look, c, fx.seed,
+                            self ? 0.6f : 1f);
                 }
                 case METEOR -> {
                     Vec3 land = fx.target().subtract(at);
                     float fall = p.duration() / 20f;
-                    pose.pushPose();
-                    pose.translate(land.x, land.y, land.z);
                     if (age < fall) {
                         float k = age / fall;
+                        // where it will land is marked on the ground (a spell: it may have its ring)
+                        pose.pushPose();
+                        pose.translate(land.x, land.y, land.z);
                         disc(pose, buffers, RING, 0.06f, p.size() * (1.2f - 0.6f * k), -time * 4, c, 0.5f + 0.5f * k);
                         disc(pose, buffers, GLOW, 0.05f, p.size() * 0.8f, 0, c, 0.3f + 0.4f * k);
-                    } else {
-                        float k = Mth.clamp((age - fall) / 0.6f, 0, 1);
-                        float o = 1 - (1 - k) * (1 - k);
-                        disc(pose, buffers, RING, 0.08f, p.size() * (0.5f + 1.3f * o), 0, light, 1 - k);
-                        dotTex(pose, buffers, camera, BURST, 0, 0.6f, 0, 1f + 2f * o, mix(c, 0xFFFFFF, 0.3f), (1 - k) * 1.2f, fx.seed % 360);
-                    }
-                    pose.popPose();
-                    if (age < fall) {
-                        float k = age / fall;
+                        pose.popPose();
+                        // the rock: a ball of the element, white-hot in front, dragging a tail of fire
                         Vec3 rock = meteorAt(fx, k).subtract(at);
-                        Vec3 tail = meteorAt(fx, Math.max(0, k - 0.18f)).subtract(at);
-                        streak(pose, buffers, camera, at, tail, rock, 0.7f, c, 0.9f);
-                        dot(pose, buffers, camera, (float) rock.x, (float) rock.y, (float) rock.z, 0.9f, mix(c, 0xFFFFFF, 0.4f), 1.2f);
-                        dot(pose, buffers, camera, (float) rock.x, (float) rock.y, (float) rock.z, 1.8f, c, 0.6f);
+                        Vec3 tail = meteorAt(fx, Math.max(0, k - 0.3f)).subtract(at);
+                        Vec3 dir = rock.subtract(meteorAt(fx, Math.max(0, k - 0.05f)).subtract(at));
+                        dir = dir.lengthSqr() < 1.0e-6 ? new Vec3(0, -1, 0) : dir.normalize();
+                        float rr = 0.45f + p.size() * 0.16f;
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.lightTexture(STREAK), tail, rock, 6, rr * 4.2f, k2 -> 0.3f + 0.7f * k2, 0.55f,
+                                k2 -> k2, fx.look.light(c), 0, 0);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), tail, rock, 10, rr * 2.4f, k2 -> 0.15f + 0.85f * k2, 0.95f,
+                                k2 -> k2, fx.look.body(c), -time * 0.3f, 0.3f);
+                        Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), rock, rr, 8, 14, 1f, fx.look.body(c), time * 0.02f, 2,
+                                -time * 0.03f, 1, -0.3f);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.ORB), rock, rr * 1.3f, fx.look.light(c), 0.9f, time * 3);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), rock.add(dir.scale(rr * 0.5)), rr * 1.7f, 0xFFFFFF, 0.8f, time * 5);
+                    } else {
+                        float since = age - fall;
+                        SkinFx.blast(pose, buffers, camera, at, land.add(0, 0.6, 0), land, p.size(), since, life - fall, 0.85f, fx.look, c, fx.seed, 1f);
+                        SkinFx.cracks(pose, buffers, camera, at, land, fx.seed, p.size() * 1.1f, 7, SkinFx.easeOut(since / 0.15f),
+                                SkinFx.fadeOut(since, 0.25f, life - fall - 0.25f), 0.5f, fx.look, c, time);
                     }
                 }
                 case DOME -> {
                     Vec3 cc = domeCenter(fx, e, partial).subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    float r = p.size() * (0.7f + 0.3f * Mth.clamp(age / 0.3f, 0, 1));
+                    float r = p.size() * (0.7f + 0.3f * SkinFx.easeOut(age / 0.3f));
                     boolean big = p.size() >= 3;
-                    float a = hold * (self && !big ? 0.45f : 1f);
-                    for (int i = 0; i < 3; i++) {
-                        pose.pushPose();
-                        pose.translate(0, big ? 0 : 0.9f, 0);
-                        pose.mulPose(Axis.YP.rotationDegrees(time * 2 + i * 60));
-                        pose.mulPose(Axis.ZP.rotationDegrees(90));
-                        disc(pose, buffers, RING, 0, r * 1.05f, 0, i == 0 ? light : c, a * 0.55f);
-                        pose.popPose();
+                    float a = hold * (self && !big ? 0.2f : 1f);
+                    Vec3 centre = big ? cc : cc.add(0, 0.9, 0);
+                    SkinFx.barrier(pose, buffers, camera, at, centre, r, a, null, fx.look, c, time);
+                    // it goes up with a ripple of light over it
+                    if (age < 0.3f) {
+                        Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), centre, r * (1.0f + 0.08f * age / 0.3f), 10, 18,
+                                (1 - age / 0.3f) * a, fx.look.light(c), 0, 2, age * 2, 1, 1f);
                     }
-                    disc(pose, buffers, RING, 0.06f, r, -time * 2, light, a * 0.9f);
-                    if (big) disc(pose, buffers, CIRCLE, 0.04f, r * 0.95f, time * 1.5f, c, a * 0.7f);
-                    if (!self || big) dot(pose, buffers, camera, 0, big ? r * 0.35f : 0.9f, 0, r * 1.15f, c, a * 0.22f);
                 }
                 case HEAL -> {
-                    if (!self) streak(pose, buffers, camera, at, new Vec3(0, -0.1, 0), new Vec3(0, 3.2, 0), 0.9f * (1 - t * 0.5f), c, fade * 0.9f);
+                    // a column of soft light round the healed with motes rising in it, a ring of light lifting off the ground
+                    int glow = fx.look.light(c);
+                    float a = Mth.clamp(age / 0.1f, 0, 1) * fade;
+                    float wide = 0.55f + 0.2f * p.size();
+                    Skins.wall(pose, buffers, camera, at, Vec3.ZERO, wide, 2.4f + 0.3f * p.size(), a * (self ? 0.35f : 0.8f), glow, time * 0.01f, 3,
+                            k -> 1 - k * 0.3f);
+                    RandomSource motes = RandomSource.create(fx.seed);
+                    for (int i = 0; i < 12; i++) {
+                        float ang = motes.nextFloat() * Mth.TWO_PI + age * 2.5f;
+                        float rr = wide * (0.3f + 0.6f * motes.nextFloat());
+                        float y = (motes.nextFloat() * 0.4f + age * (1.6f + motes.nextFloat())) % 2.8f;
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(Mth.cos(ang) * rr, y, Mth.sin(ang) * rr),
+                                0.12f + 0.1f * motes.nextFloat(), i % 3 == 0 ? 0xFFFFFF : glow, a * (self ? 0.5f : 1f) * (1 - y / 2.8f), i * 31);
+                    }
                     float rise = (float) Math.min(1, age / 0.9f);
                     disc(pose, buffers, RING, 0.05f + 1.9f * rise, 0.8f - 0.3f * rise, 0, light, fade);
                     disc(pose, buffers, CIRCLE, 0.04f, 0.9f + 0.3f * out, time * 3, c, fade * 0.9f);
                 }
                 case ZONE -> {
                     Vec3 cc = fx.target().subtract(at);
+                    float grow = SkinFx.easeOut(age / 0.5f);
+                    float r = p.size() * grow;
+                    int glow = fx.look.light(c);
+                    pose.pushPose();
                     pose.translate(cc.x, cc.y, cc.z);
-                    float grow = 1 - (float) Math.pow(1 - Mth.clamp(age / 0.5f, 0, 1), 3);
-                    disc(pose, buffers, CIRCLE, 0.05f, p.size() * grow, time * 1.2f, c, hold * 0.95f);
-                    disc(pose, buffers, RING, 0.07f, p.size() * grow * (1.02f + 0.03f * Mth.sin(time * 0.3f)), 0, light, hold * 0.7f);
-                    disc(pose, buffers, GLOW, 0.03f, p.size() * 1.1f * grow, 0, c, hold * 0.35f);
+                    disc(pose, buffers, CIRCLE, 0.05f, r, time * 1.2f, c, hold * 0.95f);
+                    disc(pose, buffers, GLOW, 0.03f, r * 1.1f, 0, c, hold * 0.35f);
+                    pose.popPose();
+                    // its edge: a low wall of the element's light; motes rising inside it
+                    Skins.wall(pose, buffers, camera, at, cc.add(0, 0.03, 0), r, 0.55f + 0.05f * p.size(), hold * 0.7f, glow, time * 0.004f,
+                            Math.max(3, Math.round(p.size() * 1.3f)), Skins.FLAT);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), cc.add(0, 0.05, 0), r, 0.18f + p.size() * 0.02f, glow, hold,
+                            time * 0.01f, Math.max(2, p.size() * 1.5f));
+                    RandomSource motes = RandomSource.create(fx.seed);
+                    int n = Mth.clamp((int) (p.size() * 3), 6, 30);
+                    for (int i = 0; i < n; i++) {
+                        double ang = motes.nextDouble() * Math.PI * 2;
+                        double rr = Math.sqrt(motes.nextDouble()) * r * 0.95;
+                        float y = (motes.nextFloat() * 1.5f + age * (0.6f + motes.nextFloat() * 0.6f)) % 1.8f;
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), cc.add(Math.cos(ang) * rr, y + 0.1, Math.sin(ang) * rr),
+                                0.1f + 0.08f * motes.nextFloat(), glow, hold * Math.min(1, (1.8f - y) * 1.5f) * Math.min(1, y * 4), i * 23);
+                    }
                 }
                 case MARK -> {
                     if (e == null) break;
                     float h = e.getBbHeight() + 0.75f;
                     float pulse = 0.8f + 0.2f * Mth.sin(time * 0.35f);
+                    float pop = SkinFx.easeOut(age / 0.2f);
+                    int glow = fx.look.light(c);
+                    // a sigil turning over the head, a point of light stabbing down at it, a line of the mark's colour
+                    // round the feet
                     pose.pushPose();
                     pose.translate(0, h, 0);
                     pose.mulPose(camera.rotation());
                     pose.mulPose(Axis.ZP.rotationDegrees(time * 4));
-                    sprite(buffers.getBuffer(ModRenderTypes.lightTexture(SIGIL)), pose.last().pose(), 0.45f * pulse, c, hold);
+                    sprite(buffers.getBuffer(ModRenderTypes.lightTexture(SIGIL)), pose.last().pose(), 0.6f * pulse * pop, c, hold);
                     pose.popPose();
-                    disc(pose, buffers, RING, 0.05f, Math.max(0.6f, e.getBbWidth()) * (1.1f + 0.1f * pulse), -time * 3, c, hold * 0.8f);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(0, h, 0), 0.5f * pop, glow, hold * 0.7f, time * 2);
+                    float bob = 0.12f * Mth.sin(time * 0.3f);
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, h + 1.0 + bob, 0), new Vec3(0, h + 0.45 + bob, 0), 4,
+                            0.36f * pop, k -> 1 - k * 0.92f, hold, Skins.FLAT, fx.look.body(c), 0, 0);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.05, 0), Math.max(0.6f, e.getBbWidth()) * (1.1f + 0.1f * pulse),
+                            0.14f, glow, hold * 0.9f, -time * 0.02f, 3);
                 }
                 case SHOT -> {
                     Vec3 from = (e == null ? fx.origin : self ? e.getEyePosition(partial).add(e.getViewVector(partial).scale(1.0)).add(0, -0.18, 0)
                             : e.getEyePosition(partial).add(0, -0.2, 0)).subtract(at);
                     Vec3 to = fx.target().subtract(at);
-                    float k = Mth.clamp(age / 0.08f, 0, 1);
-                    Vec3 head = from.lerp(to, k);
-                    streak(pose, buffers, camera, at, from, head, 0.28f * fade, c, fade * 1.2f);
-                    streak(pose, buffers, camera, at, from, head, 0.1f, 0xFFFFFF, fade);
-                    dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.45f, light, fade);
+                    Vec3 path = to.subtract(from);
+                    double dist = path.length();
+                    if (dist < 0.05) break;
+                    Vec3 dir = path.scale(1 / dist);
+                    float flight = Mth.clamp((float) dist / 120f, 0.04f, 0.1f);
+                    float k = Mth.clamp(age / flight, 0, 1);
+                    Vec3 head = from.add(path.scale(k));
+                    float scroll = -time * 0.4f;
+                    // the line it leaves: a tracer of its colour that thins and fades from the shooter's end first
+                    float wake = age < flight ? 1 : Mth.clamp(1 - (age - flight) / (life - flight), 0, 1);
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), from, head, 12, 0.24f * (0.4f + 0.6f * wake), k2 -> 0.35f + 0.65f * k2,
+                            wake, k2 -> 0.2f + 0.8f * k2, fx.look.body(c), scroll, 0.5f);
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.lightTexture(STREAK), from, head, 6, 0.7f * wake, k2 -> 0.3f + 0.7f * k2,
+                            wake * 0.5f, Skins.FLAT, c, 0, 0);
+                    if (age < flight) Skins.lance(pose, buffers, camera, at, head, dir, 1.1f, 0.32f, 0, fx.look, c, 1f, scroll);
+                    else impact(pose, buffers, camera, at, to, age - flight, fx, 0.7f, 0.8f);
                     // the loosing flashes at the bow (a star of light, not a ring: it is a weapon's shot, not a spell)
                     if (!self && age < 0.15f) {
-                        dotTex(pose, buffers, camera, FLARE, (float) from.x, (float) from.y, (float) from.z, 0.35f + 0.25f * out, light, 1 - age / 0.15f, fx.seed % 90);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), from, 0.3f + 0.25f * out, fx.look.light(c), 1 - age / 0.15f, fx.seed % 90);
                     }
                 }
                 case WAVE -> {
+                    int body = fx.look.body(c), glow = fx.look.light(c);
                     if (p.duration() == 3) {
-                        // a blade of wind: a crescent flying flat at chest height, its horns swept back, and the cut it leaves
+                        // a blade of wind: a crescent flying flat at chest height, its horns swept back, ghosts of it behind
                         Vec3 a0 = fx.origin.subtract(at).add(0, 1.0, 0), b0 = fx.target().subtract(at).add(0, 1.0, 0);
+                        Vec3 fly = b0.subtract(a0);
+                        if (fly.lengthSqr() < 1.0e-4) break;
+                        fly = fly.normalize();
+                        float yaw = (float) Math.toDegrees(Math.atan2(fly.x, fly.z));
                         float flown = Mth.clamp(age / 0.32f, 0, 1);
-                        Vec3 fly = b0.subtract(a0).normalize();
-                        Vec3 wide = new Vec3(-fly.z, 0, fly.x);
                         float seen = age < 0.32f ? 1 : Mth.clamp(1 - (age - 0.32f) / 0.3f, 0, 1);
-                        float sweep = p.size() * 0.55f;
-                        for (int ghost = 0; ghost < 3; ghost++) {
-                            Vec3 mid = a0.lerp(b0, Math.max(0, flown - ghost * 0.07f));
-                            float ga = seen * (ghost == 0 ? 1f : ghost == 1 ? 0.45f : 0.22f);
-                            Vec3 last = null;
-                            for (int i = -5; i <= 5; i++) {
-                                float u = i / 5f;
-                                Vec3 pt = mid.add(wide.scale(u * p.size())).add(fly.scale(-sweep * u * u)).add(0, 0.12 * u, 0);
-                                if (last != null) {
-                                    float thick = 1 - 0.75f * Math.abs(u - 0.1f);
-                                    streak(pose, buffers, camera, at, last, pt, 0.5f * thick + 0.08f, c, ga);
-                                    if (ghost == 0) streak(pose, buffers, camera, at, last, pt, 0.16f * thick + 0.03f, 0xFFFFFF, ga);
-                                }
-                                last = pt;
-                            }
-                        }
-                        Vec3 head = a0.lerp(b0, flown);
-                        for (int sgn = -1; sgn <= 1; sgn += 2) {
-                            Vec3 horn = head.add(wide.scale(sgn * p.size())).add(fly.scale(-sweep));
-                            Vec3 back = a0.lerp(b0, Math.max(0, flown - 0.4f)).add(wide.scale(sgn * p.size())).add(fly.scale(-sweep));
-                            streak(pose, buffers, camera, at, back, horn, 0.12f, light, seen * 0.5f);
+                        float r = p.size();
+                        for (int ghost = 2; ghost >= 0; ghost--) {
+                            Vec3 mid = a0.lerp(b0, Math.max(0, flown - ghost * 0.06f));
+                            float ga = seen * (ghost == 0 ? 1f : ghost == 1 ? 0.4f : 0.2f);
+                            pose.pushPose();
+                            pose.translate(mid.x - fly.x * r * 0.7, mid.y, mid.z - fly.z * r * 0.7);
+                            pose.mulPose(Axis.YP.rotationDegrees(yaw));
+                            Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.WIND), r * 1.03f, r * 0.42f, -70, 70, glow, ga * 0.7f, 0, -time * 0.1f, 2);
+                            Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.BLADE), r, r * 0.26f, -64, 64, body, ga, 0, 0, 1);
+                            pose.popPose();
                         }
                         break;
                     }
                     Vec3 a = fx.origin.subtract(at);
                     Vec3 b = fx.target().subtract(at);
+                    Vec3 dir = b.subtract(a);
+                    if (dir.lengthSqr() < 1.0e-4) break;
+                    dir = dir.normalize();
+                    Vec3 side = new Vec3(-dir.z, 0, dir.x);
                     float k = Mth.clamp(age / 0.3f, 0, 1);
                     Vec3 head = a.lerp(b, k);
-                    Vec3 up = new Vec3(0, 0.12, 0);
-                    Vec3 dir = b.subtract(a).normalize();
-                    Vec3 side = new Vec3(-dir.z, 0, dir.x).scale(p.size() * 0.8);
-                    streak(pose, buffers, camera, at, a.add(up).add(side), head.add(up).add(side), 0.5f, c, fade);
-                    streak(pose, buffers, camera, at, a.add(up).subtract(side), head.add(up).subtract(side), 0.5f, c, fade);
-                    if (p.duration() != 2) streak(pose, buffers, camera, at, a.add(up), head.add(up), p.size() * 1.6f, light, fade * 0.8f);
-                    dot(pose, buffers, camera, (float) head.x, (float) head.y + 0.6f, (float) head.z, p.size() * 1.3f, light, fade);
-                    RandomSource r = RandomSource.create(fx.seed);
-                    int n = 8;
-                    for (int i = 0; i < n && p.duration() != 2; i++) {
-                        float along = (i + 1f) / n;
-                        Vec3 at2 = a.lerp(b, along).add(side.scale((r.nextDouble() - 0.5) * 1.4));
-                        float rise = Mth.clamp((age - along * 0.3f) / 0.12f, 0, 1);
-                        if (rise <= 0) continue;
-                        if (p.duration() == 1) {
-                            // rock spikes: tall thin streaks leaning a little
-                            Vec3 tip = at2.add((r.nextDouble() - 0.5) * 0.5, 2.1 * rise, (r.nextDouble() - 0.5) * 0.5);
-                            streak(pose, buffers, camera, at, at2, tip, 0.55f, c, fade * 1.2f);
-                            streak(pose, buffers, camera, at, at2, tip, 0.18f, 0xFFFFFF, fade);
-                        } else {
-                            float h = (float) (1.0 + r.nextDouble() * 0.9);
-                            dot(pose, buffers, camera, (float) at2.x, (float) at2.y + 0.5f * h, (float) at2.z, 0.9f * h * rise, c, fade * 0.8f);
-                            dot(pose, buffers, camera, (float) at2.x, (float) at2.y + 0.4f, (float) at2.z, 0.45f, 0xFFF0C0, fade * 0.8f);
+                    float half = p.size() * 0.8f;
+                    if (p.duration() == 1) {
+                        // spikes (rock, thorns, ice) bursting out of the ground one after another along the way
+                        RandomSource r = RandomSource.create(fx.seed);
+                        int n = 11;
+                        float sink = SkinFx.fadeOut(age, life - 0.3f, 0.3f);
+                        List<Vec3> line = new ArrayList<>();
+                        for (int i = 0; i <= 8; i++) line.add(a.lerp(b, i / 8f).add(0, 0.04, 0));
+                        SkinFx.fault(pose, buffers, line, k, 0.35f + half * 0.2f, fade, 0.25f, fx.look, c, time);
+                        for (int i = 0; i < n; i++) {
+                            float along = (i + 1f) / n;
+                            Vec3 foot = a.lerp(b, along).add(side.scale((r.nextDouble() - 0.5) * 2 * half * 0.7));
+                            float tall = 1.2f + r.nextFloat() * 1.2f;
+                            float thick = 0.26f + 0.14f * r.nextFloat();
+                            Vec3 lean = new Vec3((r.nextDouble() - 0.5) * 0.7, 1, (r.nextDouble() - 0.5) * 0.7).normalize();
+                            float rise = SkinFx.easeOut((age - along * 0.3f) / 0.09f);
+                            if (rise <= 0) continue;
+                            Vec3 tip = foot.add(lean.scale(tall * rise * sink));
+                            Skins.tube(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), foot.add(0, -0.25, 0), tip, 6, 3,
+                                    k2 -> thick * (1 - k2 * 0.92f), Skins.FLAT, Math.min(1, fade * 2), body, i * 0.17f, 1, 0.1f, i * 0.3f, 0.4f, -0.5f);
+                            Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), foot, tip, 3, thick * 0.6f, k2 -> 1 - k2 * 0.8f,
+                                    fade * 0.6f, Skins.FLAT, glow, 0, 0);
+                        }
+                    } else if (p.duration() == 0) {
+                        // a wall of the element rolling forward over the ground, the ground burning behind it
+                        int m = 8;
+                        Vec3[] top = new Vec3[m + 1], foot = new Vec3[m + 1];
+                        float[] u = new float[m + 1], al = new float[m + 1];
+                        float tall = 1.2f + p.size() * 0.35f;
+                        for (int i = 0; i <= m; i++) {
+                            float s = i / (float) m * 2 - 1;
+                            float h = tall * (1 - 0.45f * s * s) * (0.85f + 0.15f * Mth.sin(time * 0.6f + i));
+                            Vec3 f = head.add(side.scale(s * half)).subtract(dir.scale(half * 0.6 * s * s));
+                            foot[i] = f;
+                            top[i] = f.add(0, h, 0).add(dir.scale(0.25));
+                            u[i] = i / (float) m * 1.5f;
+                            al[i] = fade * (1 - 0.6f * s * s);
+                        }
+                        Skins.strip(pose, buffers, ModRenderTypes.energy(fx.look.skin()), top, foot, u, al, body, -time * 0.06f, -time * 0.06f + 1.1f);
+                        Skins.strip(pose, buffers, ModRenderTypes.energy(Skins.WALL), top, foot, u, al, glow, 0.015f, 0.985f);
+                        // tongues of it licking up along the wall, so that it is a wall of fire from the side too
+                        for (int i = 0; i <= m; i += 2) {
+                            float h = (top[i].y - foot[i].y > 0 ? (float) (top[i].y - foot[i].y) : 1) * 1.15f;
+                            Vec3[] pts = new Vec3[5];
+                            float[] w = new float[5], al2 = new float[5];
+                            for (int j = 0; j < 5; j++) {
+                                float k2 = j / 4f;
+                                pts[j] = foot[i].add(dir.scale(0.15 * Mth.sin(time * 0.4f + i + k2 * 3))).add(0, h * k2, 0);
+                                w[j] = 0.9f * (1 - k2) + 0.05f;
+                                al2[j] = al[i] * Mth.clamp(k2 / 0.15f, 0, 1) * (1 - k2 * 0.6f);
+                            }
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.AURA), pts, w, al2, i % 4 == 0 ? glow : body, -time * 0.06f + i, 0.7f);
+                        }
+                        List<Vec3> trail = new ArrayList<>();
+                        for (int i = 0; i <= 8; i++) trail.add(a.lerp(head, i / 8f).add(0, 0.04, 0));
+                        SkinFx.fault(pose, buffers, trail, 1, half * 1.2f, fade * 0.8f, 0.6f, fx.look, c, time);
+                    } else {
+                        // a cut running along the ground: a crescent of the element standing up and racing forward, the
+                        // ground split in a line behind it
+                        List<Vec3> trail = new ArrayList<>();
+                        for (int i = 0; i <= 8; i++) trail.add(a.lerp(head, i / 8f).add(0, 0.04, 0));
+                        SkinFx.fault(pose, buffers, trail, 1, 0.3f + half * 0.25f, fade, 0.35f, fx.look, c, time);
+                        float r = 1.1f + p.size() * 0.75f;
+                        for (int ghost = 2; ghost >= 0; ghost--) {
+                            Vec3 at2 = a.lerp(b, Math.max(0, k - ghost * 0.07f));
+                            float ga = (age < 0.3f ? 1 : fade) * (ghost == 0 ? 1f : ghost == 1 ? 0.45f : 0.2f);
+                            int m = 12;
+                            Vec3[] pts = new Vec3[m + 1];
+                            float[] w = new float[m + 1], al = new float[m + 1];
+                            for (int i = 0; i <= m; i++) {
+                                float th = (i / (float) m * 2 - 1) * 1.45f;
+                                pts[i] = at2.add(side.scale(Mth.sin(th) * r * 0.75f)).add(0, Mth.cos(th) * r, 0)
+                                        .subtract(dir.scale(r * 0.55f * (1 - Mth.cos(th))));
+                                float mid = Mth.cos(th);
+                                w[i] = (0.12f + 0.55f * mid * mid) * (0.6f + 0.25f * p.size());
+                                al[i] = ga * (0.25f + 0.75f * mid);
+                            }
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), pts, w, al, body, -time * 0.2f, 0.5f);
+                            float[] core = new float[m + 1];
+                            for (int i = 0; i <= m; i++) core[i] = w[i] * 0.4f;
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, glow, -time * 0.3f, 0.6f);
                         }
                     }
                 }
                 case SPIN -> {
-                    // the blade's path round the body as bands of light at three heights, each chasing its own edge;
-                    // a weapon's turn, so nothing is drawn on the ground but the dust it raises
+                    // the blade's path round the body: cuts of the element at three heights, each chasing its own edge.
+                    // A weapon's turn, so nothing is drawn on the ground
                     float spin = age * 1100;
                     float a = Mth.clamp(age / 0.1f, 0, 1) * Mth.clamp((life - age) / 0.25f, 0, 1) * (self ? 0.35f : 1f);
                     for (int i = 0; i < 3; i++) {
@@ -1109,119 +1269,130 @@ public final class SkillWorldFx {
                         pose.mulPose(Axis.XP.rotationDegrees((i - 1) * 10));
                         float head = spin + i * 120;
                         float r = p.size() * (0.8f + 0.1f * i);
-                        arc(pose, buffers, r * 1.05f, r * 0.55f, head - 210, head, c, a * 0.45f);
-                        arc(pose, buffers, r, r * 0.26f, head - 170, head, light, a);
-                        arc(pose, buffers, r * 1.005f, r * 0.07f, head - 120, head, 0xFFFFFF, a * 0.9f);
+                        Skins.crescent(pose, buffers, ModRenderTypes.lightTexture(ARC), r * 1.03f, r * 0.42f, head - 200, head, fx.look.light(c), a * 0.35f, 1.2f, 0, 1);
+                        Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.BLADE), r, r * 0.22f, head - 170, head, fx.look.body(c), a, 0.8f, 0, 1);
                         pose.popPose();
                     }
                 }
                 case FAN -> {
+                    // blades thrown out in a fan: spears of the element flying apart
                     Vec3 a = fx.origin.subtract(at).add(0, 1.2, 0);
                     Vec3 d = fx.target().subtract(fx.origin);
                     float len = (float) d.length();
                     float base = (float) Math.atan2(d.z, d.x);
                     float k = Mth.clamp(age / 0.13f, 0, 1);
+                    float seen = k < 1 ? 1 : fade;
                     for (int i = -3; i <= 3; i++) {
                         float ang = base + i * 0.2f;
                         Vec3 dir = new Vec3(Math.cos(ang), 0, Math.sin(ang));
-                        Vec3 head = a.add(dir.scale(len * k));
-                        Vec3 tail = a.add(dir.scale(len * Math.max(0, k - 0.45f)));
-                        streak(pose, buffers, camera, at, tail, head, 0.3f, c, fade * 1.2f);
-                        streak(pose, buffers, camera, at, tail, head, 0.1f, 0xFFFFFF, fade);
-                        dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.3f, light, fade);
+                        Vec3 head = a.add(dir.scale(Math.max(0.6, len * k)));
+                        Skins.lance(pose, buffers, camera, at, head, dir, 0.75f, 0.24f, Math.min(len * k, 2.5f), fx.look, c, seen, -time * 0.3f);
                     }
                 }
                 case SPLASH -> {
                     Vec3 cc = fx.target().subtract(at);
-                    if (p.duration() == 0 && e != null && age < 0.12f) {
+                    float since = age;
+                    if (p.duration() == 0 && e != null) {
+                        // thrown from the hand first
+                        float flight = 0.12f;
                         Vec3 hand = e.getEyePosition(partial).subtract(at).add(0, -0.3, 0);
-                        Vec3 orb = hand.lerp(cc, age / 0.12f);
-                        dot(pose, buffers, camera, (float) orb.x, (float) orb.y, (float) orb.z, 0.6f, light, 1f);
-                        streak(pose, buffers, camera, at, hand.lerp(cc, Math.max(0, age / 0.12f - 0.4f)), orb, 0.35f, c, 0.9f);
+                        if (age < flight) {
+                            Vec3 head = hand.lerp(cc, age / flight);
+                            Skins.lance(pose, buffers, camera, at, head, cc.subtract(hand), 0.9f, 0.4f, (float) head.distanceTo(hand) * 0.7f, fx.look, c, 1f,
+                                    -time * 0.3f);
+                            break;
+                        }
+                        since = age - flight;
                     }
-                    pose.translate(cc.x, cc.y, cc.z);
-                    // where the blow lands: a flash and a soft ripple of air, not a ring of light
-                    disc(pose, buffers, SHOCK, 0.0f, p.size() * out, 0, light, fade);
-                    disc(pose, buffers, GLOW, -0.1f, p.size() * 0.8f, 0, c, fade * 0.4f);
-                    dotTex(pose, buffers, camera, BURST, 0, 0.1f, 0, p.size() * (0.3f + 0.45f * out), light, fade * 0.9f, fx.seed % 360);
-                    dot(pose, buffers, camera, 0, 0.1f, 0, p.size() * 0.55f * (1 - t), c, fade * 0.6f);
+                    // where the blow lands: a burst of the element, no ring of light
+                    SkinFx.blast(pose, buffers, camera, at, cc, null, p.size() * 0.75f, since, life, 0.6f, fx.look, c, fx.seed, 1f);
                 }
                 case VORTEX -> {
                     Vec3 cc = fx.target().subtract(at);
+                    float grow = SkinFx.easeOut(age / 0.4f);
+                    pose.pushPose();
                     pose.translate(cc.x, cc.y, cc.z);
-                    float grow = Mth.clamp(age / 0.4f, 0, 1);
-                    for (int i = 0; i < 7; i++) {
-                        float h = 0.25f + i * 0.7f;
-                        float r = p.size() * (0.2f + 0.13f * h) * grow;
-                        float wob = 0.25f * Mth.sin(time * 0.5f + i);
-                        pose.pushPose();
-                        pose.translate(wob * 0.4f * i * 0.3f, 0, wob * 0.3f * i * 0.3f);
-                        disc(pose, buffers, RING, h, r, time * (22 - i * 2) + i * 50, i % 2 == 0 ? c : light, hold * (0.85f - i * 0.07f));
-                        pose.popPose();
-                    }
                     disc(pose, buffers, CIRCLE, 0.05f, p.size() * grow, -time * 6, c, hold * 0.8f);
-                    disc(pose, buffers, GLOW, 0.04f, p.size() * 1.1f, 0, c, hold * 0.3f);
-                    streak(pose, buffers, camera, fx.target(), new Vec3(0, 0, 0), new Vec3(0, 5, 0), 1.4f, light, hold * 0.35f);
+                    pose.popPose();
+                    SkinFx.tornado(pose, buffers, camera, at, cc, p.size() * 0.6f * grow, 4.5f + p.size() * 0.4f, hold, fx.look, c, fx.seed, time);
                 }
                 case PILLAR -> {
                     Vec3 cc = fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
                     float warn = p.duration() / 20f;
-                    Vec3 base = fx.target();
+                    int glow = fx.look.light(c);
                     if (age < warn) {
                         float k = age / warn;
+                        pose.pushPose();
+                        pose.translate(cc.x, cc.y, cc.z);
                         disc(pose, buffers, RING, 0.06f, p.size() * (1.5f - 0.5f * k), time * 5, c, 0.4f + 0.6f * k);
                         disc(pose, buffers, CIRCLE, 0.05f, p.size() * k, -time * 3, light, 0.7f * k);
-                        streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, 16, 0), 0.12f + 0.1f * k, light, 0.5f * k);
+                        pose.popPose();
+                        // a thread of light already marks where it will come down
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), cc, cc.add(0, 16, 0), 8, 0.12f + 0.18f * k, Skins.FLAT,
+                                0.5f * k, k2 -> 1 - k2 * 0.8f, glow, -time * 0.3f, 0.3f);
                     } else {
-                        float k = Mth.clamp((age - warn) / 0.7f, 0, 1);
-                        float o = 1 - (1 - k) * (1 - k);
-                        float a = 1 - k;
+                        float since = age - warn;
+                        float k = Mth.clamp(since / 0.7f, 0, 1);
+                        float a = (1 - k) * Mth.clamp(since / 0.04f, 0, 1);
                         if (p.duration() == 0) {
-                            long reroll = fx.seed + (long) (time / 2);
-                            zigzag(pose, buffers, camera, base, new Vec3(1.5, 16, -1), new Vec3(0, 0, 0), reroll, 0.5f, c, a * 1.3f);
-                            zigzag(pose, buffers, camera, base, new Vec3(1.5, 16, -1), new Vec3(0, 0, 0), reroll, 0.16f, 0xFFFFFF, a);
+                            // a bolt out of the sky instead of a beam
+                            Skins.lightning(pose, buffers, camera, at, cc.add(1.5, 18, -1), cc, fx.seed + (long) (time / 2), 0.5f, c, a * 1.2f, 0.18f, 0.3f);
                         } else {
-                            streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, 18, 0), p.size() * 1.5f * (1 - 0.6f * k), c, a * 1.2f);
-                            streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, 18, 0), p.size() * 0.6f * (1 - 0.6f * k), 0xFFFFFF, a);
+                            float r = p.size() * 0.5f * (1 - 0.5f * k) * (0.5f + 0.5f * SkinFx.easeOut(since / 0.08f));
+                            SkinFx.column(pose, buffers, camera, at, cc, 20, r, a, fx.look, c, time);
+                            pose.pushPose();
+                            pose.translate(cc.x, cc.y, cc.z);
                             disc(pose, buffers, CIRCLE, 0.05f, p.size(), time * 4, light, a);
+                            pose.popPose();
                         }
-                        disc(pose, buffers, RING, 0.08f, p.size() * (0.4f + 1.2f * o), 0, light, a * 1.2f);
-                        dotTex(pose, buffers, camera, BURST, 0, 0.5f, 0, p.size() * (0.5f + 0.7f * o), light, a * 1.2f, fx.seed % 360);
-                        dot(pose, buffers, camera, 0, 0.6f, 0, p.size() * 1.2f, c, a * 0.6f);
+                        SkinFx.blast(pose, buffers, camera, at, cc.add(0, 0.4, 0), cc, p.size() * 0.9f, since, life - warn, 0.6f, fx.look, c, fx.seed, 1f);
                     }
                 }
                 case BLOSSOM -> {
-                    // blades thrown out like opening petals: the rings are the cut running out, no sigil under it
-                    disc(pose, buffers, SHOCK, 0.5f, p.size() * out, 0, light, fade);
-                    disc(pose, buffers, SHOCK, 1.1f, p.size() * 0.8f * out, 0, c, fade * 0.8f);
+                    // blades thrown out like opening petals, turning as they go; the cut runs out over the ground
+                    SkinFx.shock(pose, buffers, camera, at, Vec3.ZERO, p.size() * out, 0.4f, fade, fx.look.light(c), fx.seed);
+                    float r = 0.5f + p.size() * out;
                     for (int i = 0; i < 10; i++) {
-                        float ang = i * Mth.TWO_PI / 10 + age * 3;
-                        Vec3 dir = new Vec3(Math.cos(ang), 0, Math.sin(ang));
-                        Vec3 head = dir.scale(p.size() * out).add(0, 0.9, 0);
-                        Vec3 tail = dir.scale(p.size() * Math.max(0, out - 0.3f)).add(0, 0.9, 0);
-                        streak(pose, buffers, camera, at, tail, head, 0.3f, i % 2 == 0 ? c : light, fade * 1.1f);
+                        float ang = i * 36 + age * 172;
+                        pose.pushPose();
+                        pose.translate(0, 0.9f + 0.15f * Mth.sin(i * 1.7f), 0);
+                        Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.BLADE), r, 0.35f + r * 0.12f, ang - 14, ang + 14, fx.look.body(c),
+                                fade * (self ? 0.5f : 1f), 0.6f, 0, 1);
+                        pose.popPose();
                     }
-                    if (!self) dot(pose, buffers, camera, 0, 1f, 0, 1.6f * (1 - t), light, fade * 0.6f);
+                    if (!self && age < 0.2f) Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(0, 1, 0), 1.4f, fx.look.light(c), 1 - age / 0.2f, 0);
                 }
                 case BIND -> {
                     boolean small = p.size() < 3;
                     Vec3 cc = small && e != null ? Vec3.ZERO : fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    Vec3 base = at.add(cc);
-                    float grow = Mth.clamp(age / 0.25f, 0, 1);
-                    if (small) disc(pose, buffers, RING, 0.06f, p.size() * 1.05f * grow, time * 2, mix(c, 0x000000, 0.3f), hold * 0.7f);
+                    float grow = SkinFx.easeOut(age / 0.25f);
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    if (small) Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), cc.add(0, 0.05, 0), p.size() * 1.05f * grow, 0.16f, glow, hold * 0.8f,
+                            time * 0.02f, 3);
                     RandomSource r = RandomSource.create(fx.seed);
                     int n = small ? 6 : 16;
                     for (int i = 0; i < n; i++) {
                         double ang = i * Math.PI * 2 / n + (small ? 0 : r.nextDouble());
                         double rad = small ? p.size() * 0.85 : p.size() * (0.25 + 0.7 * r.nextDouble());
-                        Vec3 foot = new Vec3(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
-                        // chains lean in over a held creature; brambles stand and sway
-                        Vec3 tip = small ? new Vec3(foot.x * 0.15, 1.5 * grow, foot.z * 0.15)
-                                : foot.add(0.15 * Mth.sin(time * 0.2f + i), (0.7 + r.nextDouble() * 0.8) * grow, 0.15 * Mth.cos(time * 0.17f + i));
-                        streak(pose, buffers, camera, base, foot, tip, small ? 0.16f : 0.3f, c, hold * (small ? 1f : 0.85f));
-                        if (small) streak(pose, buffers, camera, base, foot, tip, 0.05f, 0xFFFFFF, hold * 0.6f);
+                        double tall = 0.7 + r.nextDouble() * 0.8;
+                        Vec3 out2 = new Vec3(Math.cos(ang), 0, Math.sin(ang));
+                        Vec3 foot = cc.add(out2.scale(rad));
+                        // chains rise out of the ground and close over a held creature; brambles stand and sway
+                        Vec3 tip = small ? cc.add(out2.scale(rad * 0.15)).add(0, 1.5 * grow, 0)
+                                : foot.add(0.15 * Mth.sin(time * 0.2f + i), tall * grow, 0.15 * Mth.cos(time * 0.17f + i));
+                        Vec3 bend = foot.lerp(tip, 0.5).add(out2.scale(small ? 0.35 : 0.12)).add(0, small ? 0.35 : 0.1, 0);
+                        int m = 8;
+                        Vec3[] pts = new Vec3[m + 1];
+                        float[] w = new float[m + 1], core = new float[m + 1], al = new float[m + 1];
+                        for (int j = 0; j <= m; j++) {
+                            float k = j / (float) m;
+                            pts[j] = StarBeasts.bezier(foot, bend, tip, k);
+                            w[j] = (small ? 0.22f : 0.3f) * (1 - 0.7f * k);
+                            core[j] = w[j] * 0.35f;
+                            al[j] = hold * (small ? 1f : 0.85f);
+                        }
+                        Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), pts, w, al, body, -time * 0.1f + i, 0.8f);
+                        Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, glow, -time * 0.2f, 0.8f);
                     }
                 }
                 case RAIN -> {
@@ -1257,51 +1428,57 @@ public final class SkillWorldFx {
                     if (e == null) break;
                     float h = e.getBbHeight();
                     float rad = Math.max(0.5f, e.getBbWidth() * 0.9f);
+                    int glow = fx.look.light(c);
+                    // the element it carries: a faint flame of it over the body and two motes chasing round
+                    SkinFx.flames(pose, buffers, camera, at, Vec3.ZERO, h * 0.85f, rad * 0.6f, hold * 0.3f, fx.look, c, fx.seed, time);
                     for (int i = 0; i < 2; i++) {
                         float ang = time * 0.22f + i * Mth.PI;
                         float y = h * (0.5f + 0.3f * Mth.sin(time * 0.1f + i * 2));
-                        dot(pose, buffers, camera, Mth.cos(ang) * rad, y, Mth.sin(ang) * rad, 0.2f, light, hold);
-                        dot(pose, buffers, camera, Mth.cos(ang) * rad, y, Mth.sin(ang) * rad, 0.42f, c, hold * 0.6f);
+                        Vec3 mote = new Vec3(Mth.cos(ang) * rad, y, Mth.sin(ang) * rad);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), mote, 0.24f, glow, hold, time * 4);
+                        dot(pose, buffers, camera, (float) mote.x, (float) mote.y, (float) mote.z, 0.42f, c, hold * 0.5f);
                     }
-                    disc(pose, buffers, RING, 0.05f, rad * 1.1f, time * 4, c, hold * 0.55f);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.05, 0), rad * 1.1f, 0.12f, glow, hold * 0.6f, time * 0.02f, 3);
                 }
                 case REACTION -> {
                     Vec3 cc = fx.target().subtract(at);
+                    // two elements meeting: a blast of them, its shock running out over the ground below
+                    SkinFx.blast(pose, buffers, camera, at, cc, null, p.size() * 0.85f, age, life, 0.7f, fx.look, c, fx.seed, 1f);
+                    pose.pushPose();
                     pose.translate(cc.x, cc.y, cc.z);
-                    // two elements meeting: a burst and a flash, its blast running out as a soft shock in the air and on the ground
-                    dotTex(pose, buffers, camera, BURST, 0, 0, 0, p.size() * (0.5f + 0.9f * out), light, fade * 0.9f, fx.seed % 360);
-                    dotTex(pose, buffers, camera, SHOCK, 0, 0, 0, p.size() * 1.0f * out, c, fade * 0.7f, 0);
-                    if (age < 0.15f) dotTex(pose, buffers, camera, FLARE, 0, 0, 0, p.size() * 0.7f, 0xFFFFFF, 1 - age / 0.15f, fx.seed % 90);
-                    dot(pose, buffers, camera, 0, 0, 0, p.size() * (1.2f - t), c, fade * 0.7f);
                     disc(pose, buffers, SHOCK, (float) -cc.y + 0.06f, p.size() * 1.5f * out, 0, light, fade * 0.7f);
+                    pose.popPose();
                 }
                 case CLEAVE -> {
                     Vec3 cc = fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    Vec3 base = fx.target();
                     float fall = Math.max(0.05f, p.duration() / 20f);
                     float len = p.size() * 1.7f;
+                    float wide = p.size() * 0.42f;
+                    Vec3 across = new Vec3(Mth.cos(fx.seed % 7), 0, Mth.sin(fx.seed % 7));
                     if (age < fall) {
                         float k = age / fall;
                         float h = 16 * (1 - k * k);
-                        streak(pose, buffers, camera, base, new Vec3(0, h, 0), new Vec3(0, h + len, 0), p.size() * 0.55f, c, 0.4f + 0.6f * k);
-                        streak(pose, buffers, camera, base, new Vec3(0, h, 0), new Vec3(0, h + len, 0), p.size() * 0.2f, 0xFFFFFF, 0.5f + 0.5f * k);
-                        streak(pose, buffers, camera, base, new Vec3(0, h + len, 0), new Vec3(0, h + len + 7, 0), p.size() * 0.3f, c, 0.5f * k);
+                        pose.pushPose();
+                        pose.translate(cc.x, cc.y, cc.z);
                         disc(pose, buffers, RING, 0.06f, p.size() * (1.6f - 0.8f * k), time * 6, c, 0.3f + 0.7f * k);
                         disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.7f * k, -time * 4, light, 0.8f * k);
+                        pose.popPose();
+                        // a sword of light coming down point first, a streak of its fall above it
+                        SkinFx.sword(pose, buffers, camera, at, cc.add(0, h, 0), len, wide, across, 0.5f + 0.5f * k, fx.look, c, time);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), cc.add(0, h + len, 0), cc.add(0, h + len + 7, 0), 6,
+                                wide * 0.8f, k2 -> 1 - k2, 0.6f * k, k2 -> 1 - k2, fx.look.light(c), -time * 0.4f, 0.3f);
                     } else {
-                        float k = Mth.clamp((age - fall) / 0.9f, 0, 1);
-                        float o = 1 - (1 - k) * (1 - k) * (1 - k);
-                        float a = 1 - k;
-                        // the blade stands in the ground and fades, cross-guard near the top
-                        streak(pose, buffers, camera, base, new Vec3(0, -0.3, 0), new Vec3(0, len, 0), p.size() * 0.55f * (1 - 0.5f * k), c, a * 1.2f);
-                        streak(pose, buffers, camera, base, new Vec3(0, -0.3, 0), new Vec3(0, len, 0), p.size() * 0.2f * (1 - 0.5f * k), 0xFFFFFF, a);
-                        Vec3 side = new Vec3(Mth.cos(fx.seed % 7), 0, Mth.sin(fx.seed % 7)).scale(p.size() * 0.45f);
-                        streak(pose, buffers, camera, base, side.add(0, len * 0.78f, 0), side.scale(-1).add(0, len * 0.78f, 0), p.size() * 0.22f, light, a);
-                        disc(pose, buffers, RING, 0.08f, p.size() * (0.5f + 1.3f * o), 0, light, a * 1.2f);
-                        disc(pose, buffers, RING, 0.5f, p.size() * 1.1f * o, 0, c, a * 0.8f);
-                        disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.9f, time * 2, c, a);
-                        dotTex(pose, buffers, camera, BURST, 0, 0.6f, 0, p.size() * (0.6f + 0.9f * o), light, a * 1.2f, fx.seed % 360);
+                        float since = age - fall;
+                        float k = Mth.clamp(since / 0.9f, 0, 1);
+                        // the blade stands in the ground and fades; the blow splits the ground round it
+                        SkinFx.sword(pose, buffers, camera, at, cc.add(0, -0.4, 0), len, wide * (1 - 0.3f * k), across, 1 - k, fx.look, c, time);
+                        SkinFx.blast(pose, buffers, camera, at, cc.add(0, 0.5, 0), cc, p.size() * 0.9f, since, life - fall, 0.5f, fx.look, c, fx.seed, 1f);
+                        SkinFx.cracks(pose, buffers, camera, at, cc, fx.seed, p.size() * 1.3f, 8, SkinFx.easeOut(since / 0.15f), 1 - k, 0.4f * (1 - k),
+                                fx.look, c, time);
+                        pose.pushPose();
+                        pose.translate(cc.x, cc.y, cc.z);
+                        disc(pose, buffers, SIGIL, 0.05f, p.size() * 0.9f, time * 2, c, 1 - k);
+                        pose.popPose();
                     }
                 }
                 case BANNER -> {
@@ -1310,77 +1487,84 @@ public final class SkillWorldFx {
                     Vec3 base = fx.target();
                     float rise = 1 - (float) Math.pow(1 - Mth.clamp(age / 0.35f, 0, 1), 3);
                     float top = 4.6f * rise;
-                    streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, top, 0), 0.22f, light, hold);
-                    streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, top, 0), 0.08f, 0xFFFFFF, hold);
-                    dot(pose, buffers, camera, 0, top + 0.15f, 0, 0.45f, light, hold);
-                    // the cloth: rows of light that ripple away from the pole
-                    for (int row = 0; row < 5; row++) {
-                        float y = top - 0.25f - row * 0.38f;
-                        if (y < 1) break;
-                        Vec3 prev = new Vec3(0, y, 0);
-                        for (int seg = 1; seg <= 4; seg++) {
-                            float wave = 0.22f * seg / 4f * Mth.sin(time * 0.35f - seg * 0.9f + row * 0.4f);
-                            Vec3 next = new Vec3(seg * 0.42f, y + wave * 0.5f - (row == 4 ? 0.12f * Math.abs(seg - 2.5f) : 0), wave);
-                            streak(pose, buffers, camera, base, prev, next, 0.42f, row % 2 == 0 ? c : mix(c, 0xFFFFFF, 0.25f), hold * 0.95f);
-                            prev = next;
+                    int body = fx.look.body(c);
+                    // the pole: a shaft of solid light with a white-hot line through it, a star on its top
+                    Skins.tube(pose, buffers, camera, base, ModRenderTypes.energy(Skins.PLASMA), Vec3.ZERO, new Vec3(0, top, 0), 6, 1, kk -> 0.08f, Skins.FLAT,
+                            hold, body, time * 0.02f, 1, 0, 0, 0.5f, -0.4f);
+                    streak(pose, buffers, camera, base, new Vec3(0, 0, 0), new Vec3(0, top, 0), 0.07f, 0xFFFFFF, hold);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(0, top + 0.15f, 0), 0.55f, light, hold, time * 2);
+                    // the cloth: a sheet of the element's energy rippling away from the pole, its edges burning
+                    if (top > 1.2f) {
+                        int cols = 8, rows = 4;
+                        Vec3[][] g = new Vec3[rows + 1][cols + 1];
+                        for (int row = 0; row <= rows; row++) {
+                            for (int col = 0; col <= cols; col++) {
+                                float x = col / (float) cols;
+                                float y = top - 0.1f - row * 0.46f * rise - (row == rows ? 0.35f * x : 0);
+                                float wave = 0.26f * x * Mth.sin(time * 0.35f - x * 7.2f + row * 0.4f);
+                                g[row][col] = new Vec3(x * 1.7f, y + wave * 0.4f, wave);
+                            }
                         }
+                        float[] u = new float[cols + 1], al = new float[cols + 1], ew = new float[cols + 1];
+                        for (int col = 0; col <= cols; col++) {
+                            u[col] = col / (float) cols * 1.4f - time * 0.01f;
+                            al[col] = hold * 0.9f;
+                            ew[col] = 0.12f;
+                        }
+                        for (int row = 0; row < rows; row++) {
+                            Skins.strip(pose, buffers, ModRenderTypes.energy(fx.look.skin()), g[row], g[row + 1], u, al, body, row / (float) rows, (row + 1f) / rows);
+                        }
+                        Vec3[] outer = new Vec3[rows + 1];
+                        float[] ow = new float[rows + 1], oa = new float[rows + 1];
+                        for (int row = 0; row <= rows; row++) {
+                            outer[row] = g[row][cols];
+                            ow[row] = 0.12f;
+                            oa[row] = hold;
+                        }
+                        Skins.ribbon(pose, buffers, camera, base, ModRenderTypes.energy(Skins.BEAM), g[0], ew, al, light, 0, 0);
+                        Skins.ribbon(pose, buffers, camera, base, ModRenderTypes.energy(Skins.BEAM), g[rows], ew, al, light, 0, 0);
+                        Skins.ribbon(pose, buffers, camera, base, ModRenderTypes.energy(Skins.BEAM), outer, ow, oa, light, 0, 0);
                     }
+                    // the ground it holds
                     disc(pose, buffers, CIRCLE, 0.05f, p.size() * rise, time * 0.8f, c, hold * 0.8f);
-                    disc(pose, buffers, RING, 0.07f, p.size() * rise, 0, light, hold * 0.7f);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.07, 0), p.size() * rise, 0.16f, light, hold * 0.8f, 0, 1);
                     float beat = (age % 1.2f) / 1.2f;
-                    disc(pose, buffers, RING, 0.08f, p.size() * beat, 0, light, hold * (1 - beat) * 0.9f);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.08, 0), p.size() * beat, 0.2f, light, hold * (1 - beat) * 0.9f, 0, 1);
                     disc(pose, buffers, GLOW, 0.03f, p.size() * 1.05f, 0, c, hold * 0.3f);
                 }
                 case BLADES -> {
                     int n = 6;
-                    Vec3 here = at;
                     // their owner sees them faintly in first person: they pass right in front of the eyes
                     float seen = self ? hold * 0.3f : hold;
                     for (int i = 0; i < n; i++) {
                         float ang = time * 0.42f + i * Mth.TWO_PI / n;
                         float bob = 0.2f * Mth.sin(time * 0.2f + i * 1.3f);
                         Vec3 mid = new Vec3(Mth.cos(ang) * p.size(), 1.05f + bob, Mth.sin(ang) * p.size());
-                        // each blade points along its path, tip a little down
-                        Vec3 dir = new Vec3(-Mth.sin(ang), -0.35f, Mth.cos(ang)).normalize().scale(0.75f);
-                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.3f, c, seen * 1.1f);
-                        streak(pose, buffers, camera, here, mid.subtract(dir), mid.add(dir), 0.1f, 0xFFFFFF, seen);
-                        Vec3 trail = new Vec3(Mth.cos(ang - 0.5f) * p.size(), 1.05f + bob, Mth.sin(ang - 0.5f) * p.size());
-                        streak(pose, buffers, camera, here, trail, mid.subtract(dir), 0.16f, c, seen * 0.4f);
+                        // each a blade of light flying point first along its path, tip a little down, a wake behind it
+                        Vec3 dir = new Vec3(-Mth.sin(ang), -0.35f, Mth.cos(ang)).normalize();
+                        int m = 6;
+                        Vec3[] pts = new Vec3[m + 1];
+                        float[] w = new float[m + 1], al = new float[m + 1];
+                        for (int j = 0; j <= m; j++) {
+                            float k = j / (float) m;
+                            float a2 = ang - 0.75f + 0.62f * k;
+                            pts[j] = new Vec3(Mth.cos(a2) * p.size(), 1.05f + bob + 0.25f * (1 - k), Mth.sin(a2) * p.size());
+                            w[j] = 0.3f * k;
+                            al[j] = seen * 0.5f * k;
+                        }
+                        Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), pts, w, al, fx.look.body(c), -time * 0.2f, 0.6f);
+                        Skins.lance(pose, buffers, camera, at, mid.add(dir.scale(0.75)), dir, 1.5f, 0.3f, 0, fx.look, c, seen, -time * 0.2f);
                     }
                 }
                 case CRACK -> {
                     Vec3 cc = fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    Vec3 base = fx.target();
-                    float grow = Mth.clamp(age / 0.18f, 0, 1);
-                    float glow = age < 0.5f ? 1 : Mth.clamp(1 - (age - 0.5f) / (life - 0.5f), 0, 1);
-                    RandomSource r = RandomSource.create(fx.seed);
-                    int arms = 7;
-                    for (int i = 0; i < arms; i++) {
-                        double ang = i * Math.PI * 2 / arms + r.nextDouble() * 0.5;
-                        int segs = 5;
-                        Vec3 prev = new Vec3(0, 0.09, 0);
-                        for (int sgm = 1; sgm <= segs; sgm++) {
-                            ang += (r.nextDouble() - 0.5) * 0.9;
-                            double step = p.size() / segs * (0.8 + r.nextDouble() * 0.4);
-                            Vec3 next = prev.add(Math.cos(ang) * step, 0, Math.sin(ang) * step);
-                            if (sgm / (float) segs <= grow + 0.01f) {
-                                float thin = 1 - 0.6f * sgm / segs;
-                                streak(pose, buffers, camera, base, prev, next, 0.5f * thin, c, glow * 1.2f);
-                                streak(pose, buffers, camera, base, prev, next, 0.16f * thin, 0xFFFFFF, glow);
-                                // a branch now and then
-                                if (r.nextFloat() < 0.4f) {
-                                    double b2 = ang + (r.nextBoolean() ? 0.9 : -0.9);
-                                    streak(pose, buffers, camera, base, next, next.add(Math.cos(b2) * step * 0.7, 0, Math.sin(b2) * step * 0.7), 0.28f * thin, c, glow);
-                                }
-                            } else {
-                                r.nextFloat();
-                            }
-                            prev = next;
-                        }
-                    }
-                    disc(pose, buffers, GLOW, 0.04f, p.size() * 0.9f, 0, c, glow * 0.5f);
-                    if (age < 0.5f) disc(pose, buffers, SHOCK, 0.08f, p.size() * 1.1f * (age / 0.5f), 0, light, 1 - age / 0.5f);
+                    float grow = SkinFx.easeOut(age / 0.2f);
+                    float glow = age < 0.6f ? 1 : SkinFx.fadeOut(age, 0.6f, life - 0.6f);
+                    if (SkinFx.scorches(fx.look)) SkinFx.scorch(pose, buffers, cc, p.size() * 0.35f, glow, fx.seed);
+                    SkinFx.cracks(pose, buffers, camera, at, cc, fx.seed, p.size(), 7, grow, glow, 0.15f + 0.45f * SkinFx.fadeOut(age, 0.1f, 0.8f),
+                            fx.look, c, time);
+                    SkinFx.shock(pose, buffers, camera, at, cc, p.size() * (0.2f + 1.0f * SkinFx.easeOut(age / 0.5f)), 0.3f + p.size() * 0.05f,
+                            SkinFx.fadeOut(age, 0.15f, 0.45f), fx.look.light(c), fx.seed);
                 }
                 case BEAM -> {
                     // from the caster's right hand, so the beam is not hidden behind them or seen dead end-on
@@ -1393,60 +1577,48 @@ public final class SkillWorldFx {
                         hand = self ? e.getEyePosition(partial).add(view.scale(1.3)).add(right.scale(0.7)).add(0, -0.3, 0)
                                 : e.getEyePosition(partial).add(view.scale(0.6)).add(right).add(0, -0.4, 0);
                     }
-                    Vec3 from = hand.subtract(at);
-                    Vec3 to = fx.target().subtract(at);
-                    float pulse = 0.85f + 0.15f * Mth.sin(time * 1.7f);
-                    float grow = Mth.clamp(age / 0.12f, 0, 1);
-                    streak(pose, buffers, camera, at, from, to, p.size() * 2.4f * pulse * grow, c, hold * 0.7f);
-                    streak(pose, buffers, camera, at, from, to, p.size() * pulse * grow, light, hold * 1.1f);
-                    streak(pose, buffers, camera, at, from, to, p.size() * 0.4f * grow, 0xFFFFFF, hold);
-                    dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, 0.8f + p.size() * 1.5f * pulse, light, hold, time * 9);
-                    dot(pose, buffers, camera, (float) from.x, (float) from.y, (float) from.z, p.size() * 0.9f, c, hold);
+                    beam(pose, buffers, camera, at, hand.subtract(at), fx.target().subtract(at), p.size(), age, hold, time, fx);
                 }
                 case ORB -> {
                     Vec3 cc = fx.target().subtract(at);
-                    float pulse = 1 + 0.1f * Mth.sin(time * 0.9f);
                     float grow = Mth.clamp(age / 0.2f, 0, 1);
-                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 1.7f * pulse * grow, c, hold * 0.6f);
-                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * pulse * grow, light, hold);
-                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 0.45f * grow, 0xFFFFFF, hold);
-                    dotTex(pose, buffers, camera, BURST, (float) cc.x, (float) cc.y, (float) cc.z, p.size() * 1.3f * grow, c, hold * 0.7f, time * 6);
+                    float pulse = 1 + 0.08f * Mth.sin(time * 0.9f);
+                    orb(pose, buffers, camera, at, cc, p.size() * grow * pulse, hold, time, fx, c);
                 }
                 case THUNDER -> {
                     Vec3 cc = fx.target().subtract(at);
                     Vec3 sky = cc.add(fx.seed % 7 - 3, 26, fx.seed / 7 % 7 - 3);
                     float flick = age < 0.12f ? 1 : fade;
-                    zigzag(pose, buffers, camera, at, sky, cc, fx.seed + (long) (time / 2), 0.9f, c, flick * 1.3f);
-                    zigzag(pose, buffers, camera, at, sky, cc, fx.seed + (long) (time / 2), 0.35f, 0xFFFFFF, flick);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    disc(pose, buffers, RING, 0.07f, p.size() * out, 0, light, fade * 1.2f);
-                    disc(pose, buffers, GLOW, 0.05f, p.size(), 0, c, fade * 0.8f);
-                    dotTex(pose, buffers, camera, BURST, 0, 0.4f, 0, 1f + 2f * out, light, fade, fx.seed % 360);
+                    Skins.lightning(pose, buffers, camera, at, sky, cc, fx.seed + (long) (time / 2), 0.5f + p.size() * 0.06f, c, flick * 1.1f, 0.16f, 0.35f);
+                    SkinFx.blast(pose, buffers, camera, at, cc.add(0, 0.5, 0), cc, p.size() * 0.7f, age, life, 0.7f, fx.look, c, fx.seed, 1f);
+                    SkinFx.cracks(pose, buffers, camera, at, cc, fx.seed, p.size() * 0.9f, 6, SkinFx.easeOut(age / 0.08f), fade, 0.2f, fx.look, c, time);
                 }
                 case SHIELD -> {
                     float yaw = e != null ? e.getViewYRot(partial) : fx.yaw;
-                    float pop = 1 - (1 - Mth.clamp(age / 0.1f, 0, 1)) * (1 - Mth.clamp(age / 0.1f, 0, 1));
+                    float pop = SkinFx.easeOut(age / 0.1f);
                     // up at once, so that even a half-second shield is seen; a very short one is a bash, thrust forward
                     float up = Mth.clamp(age / 0.1f, 0, 1) * Mth.clamp((life - age) / Math.min(0.5f, life * 0.5f), 0, 1);
                     boolean bash = p.duration() < 10;
                     // its owner looks through it: in first person only a faint rim is left, so the fight stays in view
                     if (self) up *= 0.3f;
-                    Vec3 front = Vec3.directionFromRotation(0, yaw).scale(bash ? 0.95 + 1.1 * out : 0.95);
-                    pose.pushPose();
-                    pose.translate(front.x, 1.0, front.z);
-                    pose.mulPose(Axis.YP.rotationDegrees(-yaw));
-                    pose.mulPose(Axis.XP.rotationDegrees(90));
+                    Vec3 fwd = Vec3.directionFromRotation(0, yaw);
+                    Vec3 front = fwd.scale(bash ? 0.95 + 1.1 * out : 0.95).add(0, 1.0, 0);
+                    int glow = fx.look.light(c);
                     if (bash) {
-                        // a bash is a blow, not a barrier: the air in front of the shield is shoved forward, with no rings
-                        disc(pose, buffers, SHOCK, 0.01f, p.size() * (0.3f + 0.55f * out), 0, light, up * 0.65f);
-                        if (!self) disc(pose, buffers, GLOW, 0, p.size() * 0.7f * pop, 0, c, up * 0.35f);
+                        // a bash is a blow, not a barrier: the air in front of the shield is shoved forward, no rings
+                        Skins.cap(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WIND), front, fwd, p.size() * (0.35f + 0.6f * out), 55, up * 0.8f, glow,
+                                2, time * 0.05f, 0, 0.7f);
+                        Skins.cap(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), front.subtract(fwd.scale(0.1)), fwd, p.size() * (0.3f + 0.5f * out),
+                                50, up * 0.45f, fx.look.body(c), 1, time * 0.02f, 0, 0.6f);
                     } else {
-                        if (!self) disc(pose, buffers, GLOW, 0, p.size() * 0.95f * pop, 0, c, up * 0.55f);
-                        disc(pose, buffers, RING, 0.01f, p.size() * pop, 0, light, up * 1.1f);
-                        disc(pose, buffers, RING, 0.02f, p.size() * 0.62f * pop, 0, c, up * 0.9f);
-                        if (!self) disc(pose, buffers, BURST, 0.03f, p.size() * 0.5f * pop, 45, light, up * (0.5f + 0.2f * Mth.sin(time * 0.4f)));
+                        // a shield of the element's light: hexes over a curved plate, bright at its rim
+                        Skins.cap(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), front.subtract(fwd.scale(0.02)), fwd, p.size() * pop, 40,
+                                up * 0.4f, fx.look.body(c), 1, time * 0.01f, 0, 0.5f);
+                        Skins.cap(pose, buffers, camera, at, ModRenderTypes.energy(Skins.HEX), front, fwd, p.size() * pop, 40, up, glow, 3,
+                                time * 0.003f, 0, 0.6f);
+                        if (!self) Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), front.add(fwd.scale(0.1)), p.size() * 0.5f * pop, glow,
+                                up * (0.5f + 0.2f * Mth.sin(time * 0.4f)), 45);
                     }
-                    pose.popPose();
                 }
                 case HAMMER -> {
                     // thrown from where the caster stood, tumbling head over haft; a big one is lobbed high and comes down hard
@@ -1467,12 +1639,39 @@ public final class SkillWorldFx {
                     Vec3 cross = left.scale(-Mth.sin(spin)).add(upward.scale(Mth.cos(spin)));
                     Vec3 butt = pos.subtract(axis.scale(0.6 * big)), head = pos.add(axis.scale(0.6 * big));
                     float a = age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.05f, 0, 1);
-                    float kb = Math.max(0, k - 0.15f);
-                    streak(pose, buffers, camera, at, from.lerp(to, kb).add(0, Mth.sin(kb * Mth.PI) * arc, 0), pos, 0.25f * big, c, a * 0.45f);
-                    streak(pose, buffers, camera, at, butt, head, 0.2f * big, light, a);
-                    streak(pose, buffers, camera, at, head.subtract(cross.scale(0.45 * big)), head.add(cross.scale(0.45 * big)), 0.6f * big, c, a * 1.2f);
-                    streak(pose, buffers, camera, at, head.subtract(cross.scale(0.38 * big)), head.add(cross.scale(0.38 * big)), 0.3f * big, 0xFFFFFF, a);
-                    dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.8f * big, c, a * 0.6f);
+                    int body = fx.look.body(c);
+                    // the way it came, burning out behind it
+                    Vec3[] trail = new Vec3[7];
+                    float[] tw = new float[7], ta = new float[7];
+                    for (int i = 0; i < 7; i++) {
+                        float kb = Math.max(0, k - i * 0.035f);
+                        trail[i] = from.lerp(to, kb).add(0, Mth.sin(kb * Mth.PI) * arc, 0);
+                        tw[i] = 0.6f * big * (1 - i / 6f);
+                        ta[i] = a * 0.55f * (1 - i / 6f);
+                    }
+                    Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), trail, tw, ta, c, 0, 0);
+                    dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.9f * big, c, a * 0.45f);
+                    // a hammer of solid light: the haft with a white-hot line through it, and across its end a heavy drum
+                    // of the element's energy whose faces burn white
+                    Skins.tube(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), butt, head, 6, 1, kk -> 0.075f * big, Skins.FLAT, a, body,
+                            time * 0.02f, 1, 0, 0, 1, -0.4f);
+                    streak(pose, buffers, camera, at, butt, head, 0.06f * big, 0xFFFFFF, a);
+                    Vec3 h0 = head.subtract(cross.scale(0.45 * big)), h1 = head.add(cross.scale(0.45 * big));
+                    Skins.tube(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), h0, h1, 12, 1, kk -> 0.27f * big, Skins.FLAT, a,
+                            body, time * 0.03f, 1, 0, 0, 1.2f, -0.6f);
+                    for (int f = 0; f < 2; f++) {
+                        Vec3 outward = f == 0 ? cross.scale(-1) : cross;
+                        Vec3 hf = f == 0 ? h0 : h1;
+                        pose.pushPose();
+                        pose.translate(hf.x, hf.y, hf.z);
+                        pose.mulPose(new Quaternionf().rotationTo(new Vector3f(0, 0, 1), new Vector3f((float) outward.x, (float) outward.y, (float) outward.z)));
+                        Skins.disk(pose, buffers, ModRenderTypes.energy(fx.look.skin()), 0.27f * big, body, a, 1, 1, time * 0.01f, 0);
+                        pose.mulPose(Axis.XP.rotationDegrees(90));
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, 0.25f * big, 0.1f * big, 0xFFFFFF, a, 0, 1);
+                        pose.popPose();
+                    }
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), h0, 0.32f * big, 0xFFFFFF, a * 0.85f, time * 3);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), h1, 0.32f * big, 0xFFFFFF, a * 0.85f, -time * 3);
                 }
                 case DISCUS -> {
                     // edge-on a flat disc would vanish, so it is drawn facing the camera and spun
@@ -1482,84 +1681,125 @@ public final class SkillWorldFx {
                     float k = Mth.clamp(age / flight, 0, 1);
                     Vec3 pos = from.lerp(to, k);
                     float a = age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.05f, 0, 1);
-                    streak(pose, buffers, camera, at, from.lerp(to, Math.max(0, k - 0.35f)), pos, 0.3f * p.size(), c, a * 0.5f);
-                    dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.6f * p.size(), c, a * 0.5f);
-                    dotTex(pose, buffers, camera, RING, (float) pos.x, (float) pos.y, (float) pos.z, 0.55f * p.size(), light, a * 1.2f, 0);
-                    dotTex(pose, buffers, camera, RING, (float) pos.x, (float) pos.y, (float) pos.z, 0.32f * p.size(), c, a, 0);
-                    dotTex(pose, buffers, camera, BURST, (float) pos.x, (float) pos.y, (float) pos.z, 0.34f * p.size(), 0xFFFFFF, a * 0.8f, time * 30);
+                    float r = 0.5f * p.size();
+                    Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), from.lerp(to, Math.max(0, k - 0.35f)), pos, 4, 0.36f * p.size(),
+                            kk -> kk, a * 0.7f, kk -> kk, c, 0, 0);
+                    dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, r * 1.6f, c, a * 0.4f);
+                    // a wheel of solid light: a plate of the element's energy, a white-hot rim and an inner ring
+                    pose.pushPose();
+                    pose.translate(pos.x, pos.y, pos.z);
+                    pose.mulPose(camera.rotation());
+                    pose.mulPose(Axis.ZP.rotationDegrees(time * 30));
+                    Skins.disk(pose, buffers, ModRenderTypes.energy(fx.look.skin()), r, fx.look.body(c), a * 0.85f, 0.6f, 1.2f, 0, 0);
+                    pose.mulPose(Axis.XP.rotationDegrees(90));
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, r, r * 0.3f, light, a, 0, 1);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, r * 0.5f, r * 0.16f, 0xFFFFFF, a * 0.8f, 0, 1);
+                    pose.popPose();
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), pos, r * 0.75f, 0xFFFFFF, a * 0.9f, time * 30);
                 }
                 case CHAIN -> {
                     Vec3 from = (e != null ? e.getPosition(partial).add(0, e.getBbHeight() * 0.6, 0) : fx.origin).subtract(at);
                     Vec3 to = fx.target().subtract(at);
                     double len = to.subtract(from).length();
-                    int links = Math.max(2, (int) (len / 0.55));
+                    if (len < 0.2) break;
                     float reach = Mth.clamp(age / 0.15f, 0, 1);
-                    streak(pose, buffers, camera, at, from, from.lerp(to, reach), 0.07f * p.size(), c, hold * 0.8f);
-                    for (int i = 0; i <= links * reach; i++) {
-                        double k = i / (double) links;
-                        // the chain hangs a little in the middle
-                        Vec3 g = from.lerp(to, k).add(0, -Math.sin(k * Math.PI) * Math.min(0.6, len * 0.05), 0);
-                        dot(pose, buffers, camera, (float) g.x, (float) g.y, (float) g.z, p.size() * (i % 2 == 0 ? 0.16f : 0.1f), i % 2 == 0 ? light : c, hold);
+                    // the chain hangs a little in the middle
+                    double sag = Math.min(0.6, len * 0.05);
+                    float size = p.size();
+                    int body = fx.look.body(c);
+                    // a glow along it
+                    Vec3[] glow = new Vec3[11];
+                    float[] gw = new float[11], ga = new float[11];
+                    for (int i = 0; i <= 10; i++) {
+                        glow[i] = chainAt(from, to, reach * i / 10.0, sag);
+                        gw[i] = 0.6f * size;
+                        ga[i] = hold * 0.35f;
                     }
-                    dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, p.size() * 0.6f, light, hold * reach, time * 5);
+                    Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.lightTexture(STREAK), glow, gw, ga, c, 0, 0);
+                    Vec3 dir = to.subtract(from).scale(1 / len);
+                    Vec3 face = dir.cross(camera.getPosition().subtract(at.add(from.lerp(to, 0.5))));
+                    if (face.lengthSqr() < 1.0e-6) face = dir.cross(new Vec3(0, 1, 0));
+                    if (face.lengthSqr() < 1.0e-6) face = new Vec3(1, 0, 0);
+                    face = face.normalize();
+                    if (fx.look == Skins.Look.NATURE) {
+                        // a vine: two green strands twisting round each other out to the mark
+                        Vec3 up2 = dir.cross(face);
+                        int segs = Math.max(8, (int) (len * 4));
+                        int shown = Math.max(2, Math.round(segs * reach) + 1);
+                        for (int s = 0; s < 2; s++) {
+                            Vec3[] pts = new Vec3[shown];
+                            float[] w = new float[shown], al = new float[shown], core = new float[shown];
+                            for (int i = 0; i < shown; i++) {
+                                double kk = i / (double) segs;
+                                double turn = kk * len * 2.4 + s * Math.PI;
+                                pts[i] = chainAt(from, to, kk, sag).add(face.scale(Math.cos(turn) * 0.13 * size)).add(up2.scale(Math.sin(turn) * 0.13 * size));
+                                w[i] = 0.17f * size;
+                                core[i] = 0.06f * size;
+                                al[i] = hold;
+                            }
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), pts, w, al, body, time * 0.01f + s * 0.5f, 1.2f);
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, light, 0, 0);
+                        }
+                    } else {
+                        // links of solid light, each through the last, turned alternately face on and half away
+                        float pitch = 0.4f * size;
+                        int links = Math.max(2, (int) (len / pitch));
+                        for (int i = 0; i <= links * reach; i++) {
+                            double kk = i / (double) links;
+                            Vec3 g = chainAt(from, to, kk, sag);
+                            Vec3 along = chainAt(from, to, Math.min(1, kk + 0.01), sag).subtract(chainAt(from, to, Math.max(0, kk - 0.01), sag)).normalize();
+                            Vec3 flat = along.cross(camera.getPosition().subtract(at.add(g)));
+                            if (flat.lengthSqr() < 1.0e-6) flat = along.cross(new Vec3(0, 1, 0));
+                            if (flat.lengthSqr() < 1.0e-6) continue;
+                            flat = flat.normalize();
+                            Vec3 across = i % 2 == 0 ? flat : flat.scale(0.35).add(along.cross(flat).scale(0.94));
+                            link(pose, buffers, g, along, across, pitch * 1.5f, pitch * 0.85f, 0.1f * size, i % 2 == 0 ? light : body, hold);
+                        }
+                    }
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), to, size * 0.6f, light, hold * reach, time * 5);
                 }
                 case GEYSER -> {
                     Vec3 cc = fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    Vec3 base = fx.target();
-                    float up = 1 - (1 - Mth.clamp(age / 0.22f, 0, 1)) * (1 - Mth.clamp(age / 0.22f, 0, 1));
-                    float a = age < 0.4f ? 1 : Mth.clamp(1 - (age - 0.4f) / (life - 0.4f), 0, 1);
-                    RandomSource r = RandomSource.create(fx.seed);
-                    streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, p.size() * up, 0), 0.8f * (1 - 0.4f * t), c, a * 0.8f);
-                    streak(pose, buffers, camera, base, new Vec3(0, -0.2, 0), new Vec3(0, p.size() * up * 0.9f, 0), 0.3f, 0xFFFFFF, a * 0.7f);
-                    for (int i = 0; i < 7; i++) {
-                        double ang = i * Math.PI * 2 / 7 + r.nextDouble();
-                        double lean = 0.5 + r.nextDouble() * 0.9;
-                        float h = p.size() * (0.55f + r.nextFloat() * 0.45f) * up;
-                        // each jet arcs outwards and droops as it ages
-                        Vec3 tip = new Vec3(Math.cos(ang) * lean * (0.4 + t), h * (1 - 0.5f * t * t), Math.sin(ang) * lean * (0.4 + t));
-                        streak(pose, buffers, camera, base, new Vec3(0, 0.1, 0), tip, 0.32f, i % 2 == 0 ? c : light, a * 0.85f);
-                        dot(pose, buffers, camera, (float) tip.x, (float) tip.y, (float) tip.z, 0.2f, light, a);
-                    }
-                    disc(pose, buffers, SHOCK, 0.07f, 0.5f + p.size() * 0.55f * out, 0, light, fade * 0.8f);
-                    disc(pose, buffers, GLOW, 0.04f, p.size() * 0.45f, 0, c, a * 0.5f);
+                    SkinFx.geyser(pose, buffers, camera, at, cc, p.size(), 0.28f + p.size() * 0.07f, age, life, fx.look, c, fx.seed, time);
                 }
                 case QUAKE -> {
                     Vec3 cc = fx.target().subtract(at);
-                    pose.translate(cc.x, cc.y, cc.z);
-                    Vec3 base = fx.target();
                     for (int i = 0; i < 3; i++) {
                         float k = ((age + i * 0.3f) % 0.9f) / 0.9f;
-                        disc(pose, buffers, RING, 0.06f + 0.01f * i, p.size() * k, 0, i == 1 ? light : c, hold * (1 - k) * 1.1f);
+                        SkinFx.shock(pose, buffers, camera, at, cc, p.size() * k, 0.25f + 0.35f * (1 - k), hold * (1 - k), i == 1 ? fx.look.light(c) : c, fx.seed + i);
                     }
-                    // short cracks that flicker in new places every few ticks
-                    RandomSource r = RandomSource.create(fx.seed + (long) (time / 4));
-                    for (int i = 0; i < 8; i++) {
-                        double ang = r.nextDouble() * Math.PI * 2;
-                        double rad = Math.sqrt(r.nextDouble()) * p.size() * 0.9;
-                        Vec3 a1 = new Vec3(Math.cos(ang) * rad, 0.08, Math.sin(ang) * rad);
-                        double a2 = r.nextDouble() * Math.PI * 2;
-                        Vec3 b1 = a1.add(Math.cos(a2) * 1.3, 0, Math.sin(a2) * 1.3);
-                        streak(pose, buffers, camera, base, a1, b1, 0.3f, c, hold * 0.9f);
-                        streak(pose, buffers, camera, base, a1, b1, 0.1f, 0xFFFFFF, hold * 0.6f);
-                    }
-                    disc(pose, buffers, GLOW, 0.03f, p.size(), 0, c, hold * 0.35f);
+                    // the ground keeps splitting: cracks opening in new places every few ticks
+                    long wave = (long) (time / 6);
+                    float k = (time / 6) % 1f;
+                    SkinFx.cracks(pose, buffers, camera, at, cc, fx.seed + wave * 31, p.size() * 0.9f, 5, SkinFx.easeOut(k / 0.3f), hold * (1 - k),
+                            0.3f * (1 - k), fx.look, c, time);
                 }
                 case HALO -> {
                     if (e == null || self) break;
                     float r = 0.34f * p.size();
                     float h = e.getBbHeight() + 0.3f + 0.03f * Mth.sin(time * 0.15f);
                     float appear = 1 - (1 - Mth.clamp(age / 0.25f, 0, 1)) * (1 - Mth.clamp(age / 0.25f, 0, 1));
+                    // it leans towards whoever looks at it, so that it is a ring from every side and never just a line
+                    Vec3 toEye = camera.getPosition().subtract(at.add(0, h, 0));
+                    float face = (float) Mth.atan2(toEye.x, toEye.z);
                     pose.pushPose();
                     pose.translate(0, h, 0);
-                    pose.mulPose(Axis.YP.rotationDegrees(-bodyYaw(e, partial)));
-                    // tipped back a little, so that it is a ring from every side and never just a line
-                    pose.mulPose(Axis.XP.rotationDegrees(-14));
-                    disc(pose, buffers, RING, 0, r * appear, time * 2, light, hold * 1.1f);
-                    disc(pose, buffers, RING, 0.01f, r * 0.8f * appear, -time * 2, 0xFFFFFF, hold * 0.7f);
-                    disc(pose, buffers, GLOW, -0.01f, r * 1.5f, 0, c, hold * 0.4f);
+                    pose.mulPose(Axis.YP.rotation(face));
+                    pose.mulPose(Axis.XP.rotationDegrees(28));
+                    // a hoop of solid light: a band of the element's energy with a white-hot line round it, a thin ring
+                    // inside it, and a soft glow under both
+                    disc(pose, buffers, GLOW, -0.01f, r * 1.5f, 0, c, hold * 0.35f);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.PLASMA), Vec3.ZERO, r * appear, r * 0.34f, fx.look.body(c), hold * 0.8f,
+                            time * 0.01f, 3);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, r * appear, r * 0.24f, light, hold, 0, 1);
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, r * 0.74f * appear, r * 0.07f, 0xFFFFFF, hold * 0.8f, 0, 1);
                     pose.popPose();
-                    dot(pose, buffers, camera, 0, h, 0, r * 1.7f, c, hold * 0.25f);
+                    // and two glints running round it (the same turns as the pose above, worked out by hand so they face the camera)
+                    for (int i = 0; i < 2; i++) {
+                        float th = time * 0.09f + i * Mth.PI;
+                        Vec3 g = new Vec3(Mth.sin(th) * r * appear, 0, Mth.cos(th) * r * appear).xRot(-28 * Mth.DEG_TO_RAD).yRot(face).add(0, h, 0);
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), g, r * 0.45f, 0xFFFFFF, hold * 0.9f, time * 4);
+                    }
                 }
                 case WINGS -> {
                     // behind their owner's back, so in first person there is nothing of them to see
@@ -1570,25 +1810,41 @@ public final class SkillWorldFx {
                     float open = 1 - (float) Math.pow(1 - Mth.clamp(age / 0.4f, 0, 1), 3);
                     float flap = 0.16f * Mth.sin(time * 0.22f);
                     float tall = e.getBbHeight();
-                    for (int w = -1; w <= 1; w += 2) {
-                        Vec3 outward = side.scale(w);
+                    int feathers = 7;
+                    Vec3[] roots = new Vec3[feathers * 2], tips = new Vec3[feathers * 2], bones = new Vec3[6];
+                    for (int w = 0; w < 2; w++) {
+                        Vec3 outward = side.scale(w * 2 - 1);
                         Vec3 shoulder = fwd.scale(-0.28).add(outward.scale(0.12)).add(0, tall * 0.74, 0);
                         // the arm of the wing goes up and out, then out; the feathers hang from it
                         Vec3 elbow = shoulder.add(wingDir(outward, fwd, 0.95f + flap).scale(0.7 * span * open));
                         Vec3 wrist = elbow.add(wingDir(outward, fwd, 0.2f + flap * 0.6f).scale(0.75 * span * open));
-                        streak(pose, buffers, camera, at, shoulder, elbow, 0.2f * span, light, hold);
-                        streak(pose, buffers, camera, at, elbow, wrist, 0.16f * span, light, hold);
-                        int feathers = 7;
+                        bones[w * 3] = shoulder;
+                        bones[w * 3 + 1] = elbow;
+                        bones[w * 3 + 2] = wrist;
                         for (int i = 0; i < feathers; i++) {
                             float u = (i + 1f) / feathers;
                             Vec3 root = u < 0.45f ? shoulder.lerp(elbow, u / 0.45f) : elbow.lerp(wrist, (u - 0.45f) / 0.55f);
                             // the inner feathers hang down, the outer ones reach out
-                            Vec3 tip = root.add(wingDir(outward, fwd, -1.35f + u + flap * 0.5f).scale(span * (0.5f + 0.6f * u) * open));
-                            streak(pose, buffers, camera, at, root, tip, 0.34f * span, c, hold * 0.8f);
-                            streak(pose, buffers, camera, at, root, tip, 0.11f * span, 0xFFFFFF, hold * 0.75f);
+                            roots[w * feathers + i] = root;
+                            tips[w * feathers + i] = root.add(wingDir(outward, fwd, -1.35f + u + flap * 0.5f).scale(span * (0.5f + 0.6f * u) * open));
                         }
                     }
-                    dot(pose, buffers, camera, (float) (-fwd.x * 0.28), tall * 0.74f, (float) (-fwd.z * 0.28), 0.55f * span, c, hold * 0.35f);
+                    int body = fx.look.body(c);
+                    dot(pose, buffers, camera, (float) (-fwd.x * 0.28), tall * 0.74f, (float) (-fwd.z * 0.28), 0.6f * span, c, hold * 0.35f);
+                    // every feather a long leaf of the element's energy with a white-hot quill down it, the bones of the
+                    // wing over them
+                    for (int i = 0; i < roots.length; i++) {
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), roots[i], tips[i], 5, 0.38f * span, SkillWorldFx::feather,
+                                hold * 0.6f, Skins.FLAT, body, time * 0.008f + i * 0.37f, 0);
+                    }
+                    for (int i = 0; i < roots.length; i++) {
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), roots[i], tips[i], 5, 0.17f * span, SkillWorldFx::feather,
+                                hold, Skins.FLAT, light, 0, 0);
+                    }
+                    for (int w = 0; w < 2; w++) {
+                        streak(pose, buffers, camera, at, bones[w * 3], bones[w * 3 + 1], 0.24f * span, light, hold);
+                        streak(pose, buffers, camera, at, bones[w * 3 + 1], bones[w * 3 + 2], 0.2f * span, light, hold);
+                    }
                 }
                 case BUBBLE -> {
                     if (e == null) break;
@@ -1596,17 +1852,19 @@ public final class SkillWorldFx {
                     float mid = e.getBbHeight() * 0.5f;
                     if (self) {
                         // from the inside only its rim on the ground is seen
-                        disc(pose, buffers, RING, 0.05f, r, time, light, hold * 0.45f);
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.05, 0), r, 0.14f, light, hold * 0.45f, 0, 1);
                         break;
                     }
-                    dotTex(pose, buffers, camera, RING, 0, mid, 0, r, light, hold * 0.95f, 0);
-                    dotTex(pose, buffers, camera, RING, 0, mid, 0, r * 0.93f, c, hold * 0.5f, 0);
-                    dot(pose, buffers, camera, 0, mid, 0, r * 1.05f, c, hold * 0.16f);
+                    Vec3 m = new Vec3(0, mid, 0);
+                    // a skin of water round them, clear in the middle and thick at its edges, its surface running
+                    Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WATER), m, r, 12, 18, hold * 0.8f, fx.look.body(c),
+                            time * 0.004f, 2, time * 0.006f, 1, 1f);
+                    dot(pose, buffers, camera, 0, mid, 0, r * 1.05f, c, hold * 0.12f);
                     // the glints that make it a bubble: one up on the left, a small one down on the right
                     Vector3f cl = camera.getLeftVector(), cu = camera.getUpVector();
-                    float gx = (cl.x() * 0.42f + cu.x() * 0.48f) * r, gy = (cl.y() * 0.42f + cu.y() * 0.48f) * r, gz = (cl.z() * 0.42f + cu.z() * 0.48f) * r;
-                    dot(pose, buffers, camera, gx, mid + gy, gz, r * 0.16f, 0xFFFFFF, hold * 0.85f);
-                    dot(pose, buffers, camera, -gx * 0.9f, mid - gy * 0.9f, -gz * 0.9f, r * 0.07f, 0xFFFFFF, hold * 0.6f);
+                    Vec3 gl = new Vec3(cl.x() * 0.42f + cu.x() * 0.48f, cl.y() * 0.42f + cu.y() * 0.48f, cl.z() * 0.42f + cu.z() * 0.48f).scale(r);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), m.add(gl), r * 0.28f, 0xFFFFFF, hold * 0.9f, 20);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), m.subtract(gl.scale(0.9)), r * 0.13f, 0xFFFFFF, hold * 0.7f, 60);
                 }
                 case STREAM -> {
                     if (e == null) break;
@@ -1616,25 +1874,30 @@ public final class SkillWorldFx {
                     if (dist < 0.3) break;
                     float a = Mth.clamp(age / 0.08f, 0, 1) * Mth.clamp((life - age) / 0.15f, 0, 1);
                     double arch = Math.min(0.9, dist * 0.14);
-                    // a faint thread along the whole arch, so the drops read as one stream
-                    Vec3 last = src;
-                    for (int i = 1; i <= 8; i++) {
-                        float u = i / 8f;
-                        Vec3 next = src.lerp(dst, u).add(0, Math.sin(u * Math.PI) * arch, 0);
-                        streak(pose, buffers, camera, at, last, next, 0.14f * p.size(), c, a * 0.3f);
-                        last = next;
+                    // a stream of the stuff itself flowing along the arch from the one to the other: thick in the middle of
+                    // its run, thin where it leaves and where it pours in, a bright line down it
+                    int segs = 14;
+                    Vec3[] pts = new Vec3[segs + 1];
+                    float[] w = new float[segs + 1], core = new float[segs + 1], al = new float[segs + 1];
+                    for (int i = 0; i <= segs; i++) {
+                        float u = i / (float) segs;
+                        pts[i] = src.lerp(dst, u).add(0, Math.sin(u * Math.PI) * arch, 0);
+                        float swell = 0.55f + 0.45f * Mth.sin(u * Mth.PI) + 0.15f * Mth.sin(u * 9 - age * 14);
+                        w[i] = 0.34f * p.size() * swell;
+                        core[i] = w[i] * 0.3f;
+                        al[i] = a * Math.min(1, Math.min(u, 1 - u) * 8 + 0.3f);
                     }
+                    Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WATER), pts, w, al, fx.look.body(c), -age * 2.2f, 0.9f);
+                    Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, light, 0, 0);
+                    // drops of it running down
                     int n = Mth.clamp((int) (dist * 1.2), 4, 9);
+                    Vec3[] drops = new Vec3[n];
                     for (int i = 0; i < n; i++) {
                         float k = (i / (float) n + age * 1.6f) % 1f;
-                        float k0 = Math.max(0, k - 0.12f);
-                        Vec3 pos = src.lerp(dst, k).add(0, Math.sin(k * Math.PI) * arch, 0);
-                        Vec3 tail = src.lerp(dst, k0).add(0, Math.sin(k0 * Math.PI) * arch, 0);
-                        float swell = 0.6f + 0.4f * Mth.sin(k * Mth.PI);
-                        streak(pose, buffers, camera, at, tail, pos, 0.3f * p.size() * swell, c, a * 0.9f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.3f * p.size() * swell, light, a);
+                        drops[i] = src.lerp(dst, k).add(0, Math.sin(k * Math.PI) * arch, 0);
                     }
-                    dot(pose, buffers, camera, (float) dst.x, (float) dst.y, (float) dst.z, 0.6f * p.size(), c, a * 0.5f);
+                    motes(pose, buffers, camera, drops, 0.15f * p.size(), light, a, time * 4);
+                    Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), dst, 0.45f * p.size(), light, a * 0.6f, time * 2);
                 }
                 case ORBIT -> {
                     if (e == null) break;
@@ -1643,15 +1906,23 @@ public final class SkillWorldFx {
                     // their owner sees them faintly in first person: they pass right in front of the eyes
                     float seen = self ? hold * 0.5f : hold;
                     float phase = (c & 0xFF) * 0.07f;
+                    Vec3[] beads = new Vec3[n];
                     for (int i = 0; i < n; i++) {
                         float ang = time * 0.16f + phase + i * Mth.TWO_PI / n;
-                        float y = e.getBbHeight() * 0.62f + 0.12f * Mth.sin(time * 0.13f + i * 1.9f);
-                        Vec3 pos = new Vec3(Mth.cos(ang) * rad, y, Mth.sin(ang) * rad);
-                        Vec3 tail = new Vec3(Mth.cos(ang - 0.55f) * rad, y, Mth.sin(ang - 0.55f) * rad);
-                        streak(pose, buffers, camera, at, tail, pos, 0.12f, c, seen * 0.55f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.28f, c, seen * 0.6f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.13f, light, seen);
+                        // the wake each draws round its owner: a ribbon of its light along the way it came, thinning out
+                        Vec3[] pts = new Vec3[6];
+                        float[] w = new float[6], al = new float[6];
+                        for (int j = 0; j < 6; j++) {
+                            float back = ang - j * 0.12f;
+                            float y = e.getBbHeight() * 0.62f + 0.12f * Mth.sin((time - j * 0.75f) * 0.13f + i * 1.9f);
+                            pts[j] = new Vec3(Mth.cos(back) * rad, y, Mth.sin(back) * rad);
+                            w[j] = 0.2f * (1 - j / 5f);
+                            al[j] = seen * 0.8f * (1 - j / 5f);
+                        }
+                        beads[i] = pts[0];
+                        Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, w, al, c, 0, 0);
                     }
+                    motes(pose, buffers, camera, beads, 0.14f, c, seen, time * 3);
                 }
                 case MIST -> {
                     // banks of fog that lie low, drift slowly round the middle and breathe; thickest at the centre
@@ -1671,7 +1942,10 @@ public final class SkillWorldFx {
                         // it thins around whoever stands in it, so nobody is blinded by fog, least of all their own
                         float away = Mth.sqrt((ox + x) * (ox + x) + (oy + y) * (oy + y) + (oz + z) * (oz + z));
                         float clear = Mth.clamp((away - half * 0.6f) / 4f, 0, 1);
-                        dot(pose, buffers, camera, x, y, z, half, i % 3 == 0 ? light : pale, hold * thick * clear);
+                        // soft puffs that hide what is behind them, the way fog does, with a little light in some
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.softTexture(Skins.SMOKE), new Vec3(x, y, z), half * 1.15f, i % 3 == 0 ? light : pale,
+                                Math.min(1f, hold * thick * clear * 2.4f), i * 47 + time * 0.25f * (i % 2 == 0 ? 1 : -1));
+                        if (i % 4 == 0) dot(pose, buffers, camera, x, y, z, half, pale, hold * thick * clear * 0.6f);
                     }
                     // where it ends, on the ground
                     disc(pose, buffers, RING, 0.04f, r * (0.97f + 0.03f * Mth.sin(time * 0.06f)), time * 0.2f, pale, hold * 0.22f);
@@ -1688,19 +1962,17 @@ public final class SkillWorldFx {
                     if (age < flight) {
                         double flown = dist * age / flight;
                         Vec3 head = from.add(dir.scale(flown));
-                        // the light it leaves behind it
-                        streak(pose, buffers, camera, at, from.add(dir.scale(Math.max(0, flown - 5 * scale))), head, 0.18f * scale, c, 0.45f);
+                        // the light it leaves behind it: a wake of its element, thinning back to the bow
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(fx.look.skin()), from.add(dir.scale(Math.max(0, flown - 5 * scale))), head, 8,
+                                0.34f * scale, k2 -> 0.2f + 0.8f * k2, 0.8f, k2 -> k2, fx.look.body(c), -time * 0.3f, 0.5f);
+                        streak(pose, buffers, camera, at, from.add(dir.scale(Math.max(0, flown - 3 * scale))), head, 0.1f * scale, fx.look.light(c), 0.6f);
                         arrow(pose, buffers, camera, at, head, dir, scale, c, 1f);
                         break;
                     }
                     float since = age - flight;
                     float stuck = p.duration() / 20f;
-                    if (since < 0.25f) {
-                        // where it struck
-                        float k = since / 0.25f;
-                        dotTex(pose, buffers, camera, BURST, (float) to.x, (float) to.y, (float) to.z, (0.3f + 0.8f * k) * scale, light, (1 - k) * 1.1f, fx.seed % 360);
-                        dot(pose, buffers, camera, (float) to.x, (float) to.y, (float) to.z, 0.5f * scale * (1 - k), c, (1 - k) * 0.7f);
-                    }
+                    // where it struck
+                    impact(pose, buffers, camera, at, to, since, fx, 0.65f * scale, 1f);
                     if (stuck <= 0) break;
                     // it stands where it landed and shakes itself still. A shaft that came in flat is shown steeper,
                     // so that it is seen standing in the ground and not lying on it
@@ -1729,29 +2001,29 @@ public final class SkillWorldFx {
                     float drop = Math.min(0.2f, fall);
                     if (age < fall) {
                         float k = age / fall;
-                        // the ground knows first: a ring closing on the spot, and a thread of light down from the sky
-                        disc(pose, buffers, RING, 0.06f, scale * (1.7f - 1.0f * k), time * 5, c, 0.3f + 0.6f * k);
+                        // the ground knows first: a ring of light closing on the spot, and a thread of it down from the sky
+                        disc(pose, buffers, GLOW, 0.05f, scale * (1.8f - k), 0, c, 0.3f * k);
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.06, 0), scale * (1.7f - 1.0f * k), 0.14f + 0.1f * k, light,
+                                0.3f + 0.6f * k, 0, 1);
                         streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.06f + 0.06f * k, light, 0.4f * k);
                         float d = (age - (fall - drop)) / drop;
                         if (d > 0) {
                             Vec3 head = sky.scale(1 - d);
                             Vec3 tail = sky.scale(Math.min(1, 1 - d + 0.4f));
-                            streak(pose, buffers, camera, base, tail, head, 0.55f * scale, c, 0.8f);
+                            // it comes down in a shaft of the element's own light
+                            Skins.tube(pose, buffers, camera, base, ModRenderTypes.energy(fx.look.skin()), head, tail, 10, 4, kk -> 0.3f * scale * (1 - 0.6f * kk),
+                                    kk -> 1 - kk, 0.9f, fx.look.body(c), time * 0.02f, 1, 0, -time * 0.05f, 0.2f, 0.4f);
                             streak(pose, buffers, camera, base, tail, head, 0.18f * scale, 0xFFFFFF, 0.9f);
                             arrow(pose, buffers, camera, base, head, dir, scale * 1.4f, c, 1f);
                         }
                     } else {
-                        float k = Mth.clamp((age - fall) / 0.9f, 0, 1);
-                        float o = 1 - (1 - k) * (1 - k) * (1 - k);
+                        float since = age - fall;
+                        float k = Mth.clamp(since / 0.9f, 0, 1);
                         float a = 1 - k;
-                        // the arrow stands in the ground, and the light it came down in hangs over it for a moment
+                        // the arrow stands in the ground in the light it came down in, and the ground goes up round it
                         arrow(pose, buffers, camera, base, dir.scale(0.2 * scale), dir, scale * 1.4f, c, Mth.clamp(a * 1.6f, 0, 1));
-                        streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.7f * scale * (1 - k), c, a * 0.7f);
-                        streak(pose, buffers, camera, base, Vec3.ZERO, sky, 0.2f * scale * (1 - k), 0xFFFFFF, a * 0.6f);
-                        disc(pose, buffers, SHOCK, 0.08f, scale * (0.5f + 2.1f * o), 0, light, a * 1.2f);
-                        disc(pose, buffers, SHOCK, 0.4f, scale * 1.4f * o, 0, c, a * 0.8f);
-                        disc(pose, buffers, GLOW, 0.05f, scale * 1.6f, 0, c, a * 0.6f);
-                        dotTex(pose, buffers, camera, BURST, 0, 0.5f, 0, scale * (0.6f + 1.2f * o), light, a * 1.2f, fx.seed % 360);
+                        SkinFx.column(pose, buffers, camera, base, Vec3.ZERO, 30, 0.45f * scale * (1 - k), a * 0.8f, fx.look, c, time);
+                        SkinFx.blast(pose, buffers, camera, base, new Vec3(0, 0.5, 0), Vec3.ZERO, scale * 1.5f, since, life - fall, 0.5f, fx.look, c, fx.seed, 1f);
                     }
                 }
                 case SEEKER -> {
@@ -1923,6 +2195,7 @@ public final class SkillWorldFx {
                     Vec3 left = new Vec3(cl.x(), cl.y(), cl.z()), upward = new Vec3(cu.x(), cu.y(), cu.z());
                     float len = p.size();
                     float a = Mth.clamp(1 - (age - 0.14f) / (life - 0.14f), 0, 1);
+                    int body = fx.look.body(c);
                     for (int i = 0; i < 3; i++) {
                         float k = Mth.clamp((age - i * 0.03f) / 0.07f, 0, 1);
                         if (k <= 0) continue;
@@ -1930,24 +2203,30 @@ public final class SkillWorldFx {
                         Vec3 top = cc.add(upward.scale(reach)).add(left.scale((i - 1) * 0.3 * len + 0.28 * len));
                         Vec3 bottom = cc.add(upward.scale(-reach)).add(left.scale((i - 1) * 0.3 * len - 0.28 * len));
                         Vec3 end = top.lerp(bottom, k);
-                        streak(pose, buffers, camera, at, top, end, 0.22f * len, c, a);
-                        streak(pose, buffers, camera, at, top, end, 0.07f * len, 0xFFFFFF, a);
+                        // each rake a blade of light, pointed at both ends and widest past its middle, a white-hot line down it
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.lightTexture(STREAK), top, end, 6, 0.55f * len, SkillWorldFx::rake, a * 0.35f,
+                                Skins.FLAT, c, 0, 0);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), top, end, 6, 0.26f * len, SkillWorldFx::rake, a, Skins.FLAT,
+                                body, 0, 0);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), top, end, 6, 0.08f * len, SkillWorldFx::rake, a, Skins.FLAT,
+                                0xFFFFFF, 0, 0);
                     }
-                    dot(pose, buffers, camera, (float) cc.x, (float) cc.y, (float) cc.z, len * 0.9f * (1 - t), c, fade * 0.3f);
+                    if (age < 0.12f) Skins.spikes(pose, buffers, camera, cc, fx.seed, 8, len * 0.9f, len * 0.15f, light, (1 - age / 0.12f) * 0.8f);
                 }
                 case SWARM -> {
                     if (e == null) break;
                     float mid = e.getBbHeight() * 0.6f;
+                    Vec3[] bugs = new Vec3[22];
                     for (int i = 0; i < 22; i++) {
                         long h = (fx.seed + i) * 0x9E3779B97F4A7C15L;
                         float u = ((h >>> 12) & 0xFFFF) / 65535f, v = ((h >>> 28) & 0xFFFF) / 65535f, w = ((h >>> 44) & 0xFFFF) / 65535f;
                         // each on its own crooked little orbit, darting in and out
                         float speed = 0.5f + 0.6f * u;
-                        Vec3 pos = hornet(time, i, speed, v, w, p.size(), mid);
-                        streak(pose, buffers, camera, at, hornet(time - 0.9f, i, speed, v, w, p.size(), mid), pos, 0.07f, c, hold * 0.7f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.13f, c, hold * 0.6f);
-                        dot(pose, buffers, camera, (float) pos.x, (float) pos.y, (float) pos.z, 0.06f, 0xFFFFFF, hold);
+                        bugs[i] = hornet(time, i, speed, v, w, p.size(), mid);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), hornet(time - 0.9f, i, speed, v, w, p.size(), mid), bugs[i], 3,
+                                0.1f, kk -> 0.3f + 0.7f * kk, hold * 0.8f, kk -> kk, c, 0, 0);
                     }
+                    motes(pose, buffers, camera, bugs, 0.1f, c, hold, time * 5);
                 }
                 case TRAP -> {
                     Vec3 cc = fx.target().subtract(at);
@@ -2073,7 +2352,10 @@ public final class SkillWorldFx {
                         float ang = v * Mth.TWO_PI + time * 0.006f * (0.5f + w);
                         float x = Mth.cos(ang) * dist, y = 7f + 1.1f * (w - 0.5f) + 0.12f * Mth.sin(time * 0.04f + i), z = Mth.sin(ang) * dist;
                         boolean lit = Math.floorMod((fx.seed ^ beat) * 0xC2B2AE3D27D4EB4FL + i * 0x165667B19E3779F9L >>> 20, 11) == 0;
-                        dot(pose, buffers, camera, x, y, z, 1.5f + 1.3f * w, lit ? mix(c, 0xFFFFFF, 0.6f) : dark, a * (lit ? 0.5f : 0.26f) * thin);
+                        // a storm cloud: dark, soft and heavy, hiding the sky behind it
+                        Skins.billboard(pose, buffers, camera, ModRenderTypes.softTexture(Skins.SMOKE), new Vec3(x, y, z), 1.6f + 1.4f * w, dark,
+                                Math.min(1f, a * 0.6f * thin), i * 53 + time * 0.1f * (i % 2 == 0 ? 1 : -1));
+                        if (lit) dot(pose, buffers, camera, x, y, z, 1.6f + 1.3f * w, mix(c, 0xFFFFFF, 0.6f), a * 0.55f * thin);
                     }
                     // thin rain under it
                     for (int i = 0; i < 18; i++) {
@@ -2095,16 +2377,12 @@ public final class SkillWorldFx {
                     float a = Mth.clamp(age / 0.12f, 0, 1) * (age <= flight ? 1 : Mth.clamp(1 - (age - flight) / 0.12f, 0, 1));
                     float r = p.size();
                     float pulse = 1 + 0.12f * Mth.sin(time * 1.3f);
-                    float px = (float) pos.x, py = (float) pos.y, pz = (float) pos.z;
-                    dot(pose, buffers, camera, px, py, pz, r * 2.4f * pulse, c, a * 0.5f);
-                    dot(pose, buffers, camera, px, py, pz, r * 1.3f * pulse, light, a * 0.9f);
-                    dot(pose, buffers, camera, px, py, pz, r * 0.6f, 0xFFFFFF, a);
-                    dotTex(pose, buffers, camera, BURST, px, py, pz, r * 1.6f, light, a * 0.7f, time * 11);
+                    orb(pose, buffers, camera, at, pos, r * pulse, a, time, fx, c);
                     // the arcs that reach out of it and are gone again
                     RandomSource arcs = RandomSource.create(fx.seed + (long) (time / 2));
                     for (int i = 0; i < 4; i++) {
                         Vec3 reach = new Vec3(arcs.nextDouble() - 0.5, arcs.nextDouble() - 0.5, arcs.nextDouble() - 0.5).normalize().scale(r * (1.6 + arcs.nextDouble() * 1.6));
-                        spark(pose, buffers, camera, at, pos, pos.add(reach), arcs.nextLong(), 0.1f, light, a);
+                        Skins.lightning(pose, buffers, camera, at, pos, pos.add(reach), arcs.nextLong(), 0.07f, c, a, 0.3f, 0);
                     }
                 }
                 case STATIC -> {
@@ -2132,12 +2410,20 @@ public final class SkillWorldFx {
                     dot(pose, buffers, camera, 0, tall * 0.5f, 0, rad * 1.6f, c, seen * (0.1f + 0.05f * Mth.sin(time * 0.7f)));
                 }
                 case VEIL -> {
-                    // the shadow itself is smoke (the particles); only a dark breath of it runs out over the ground
-                    if (age < 0.6f) disc(pose, buffers, SHOCK, 0.06f, 0.4f + 2.2f * (age / 0.6f), 0, mix(c, 0x000000, 0.4f), (1 - age / 0.6f) * 0.6f);
+                    // the shadow itself: dark smoke rolling off where they stood, and a dark breath running out over the ground
+                    Vec3 o = fx.origin.subtract(at);
+                    SkinFx.smoke(pose, buffers, camera, o.add(0, 0.8, 0), 1.8f, age, fx.seed, 0x1A1424, Mth.clamp((life - age) / 0.3f, 0, 1));
+                    if (age < 0.6f) {
+                        pose.pushPose();
+                        pose.translate(o.x, o.y, o.z);
+                        disc(pose, buffers, SHOCK, 0.06f, 0.4f + 2.2f * (age / 0.6f), 0, mix(c, 0x000000, 0.4f), (1 - age / 0.6f) * 0.6f);
+                        pose.popPose();
+                    }
                 }
             }
             pose.popPose();
         }
+        Skins.flush(buffers);
         for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
     }
 
@@ -2176,31 +2462,158 @@ public final class SkillWorldFx {
     }
 
     /**
-     * A blade's cut in the pose's XZ plane, round its origin at radius {@code r}: the edge sweeps 150 degrees in a
-     * tenth of a second ({@code dir} 1 from the right across to the left, -1 back), a trail of light chasing it and
-     * thinning away behind, a glint on the edge while it moves.
+     * A blade's cut in the pose's XZ plane, round its origin at radius {@code r}: a crescent of the skill's colour with
+     * a white-hot cutting edge sweeps 160 degrees in a tenth of a second ({@code dir} 1 from the right across to the
+     * left, -1 back), its tail catching up after it and the whole of it burning away; a glint on its point while it
+     * moves. The element dresses it: flames trail inside a fire cut, water runs in a water one, a shadow cut is dark
+     * with a bright edge, lightning crawls along a charged one.
      */
-    static void swipe(PoseStack pose, MultiBufferSource buffers, Camera camera, float r, float age, float life, int dir, int c, float strength) {
+    static void blade(PoseStack pose, MultiBufferSource buffers, Camera camera, float r, float age, float life, int dir, int c, float strength,
+                      Skins.Look look, float time) {
         float swing = 0.1f;
         float k = Mth.clamp(age / swing, 0, 1);
         float head = 1 - (1 - k) * (1 - k) * (1 - k);
-        // the trail holds a moment once the edge has passed, then gathers up after it and is gone
-        float tk = Mth.clamp((age - 0.04f) / Math.max(0.05f, life - 0.04f), 0, 1);
-        float tail = Math.min(head, tk * tk);
-        float span = 150;
+        // the tail holds a moment once the edge has passed, then gathers up after it
+        float tk = Mth.clamp((age - 0.05f) / Math.max(0.05f, life - 0.05f), 0, 1);
+        float tail = Math.min(head, tk * tk * 0.85f);
+        float span = 160;
         float from = -dir * span / 2;
         float aHead = from + dir * span * head;
         float aTail = from + dir * span * tail;
-        float gone = Mth.clamp((age - swing - 0.05f) / Math.max(0.05f, life - swing - 0.05f), 0, 1);
+        float gone = Mth.clamp((age - swing - 0.04f) / Math.max(0.05f, life - swing - 0.04f), 0, 1);
         float a = strength * (1 - gone * gone);
-        int light = mix(c, 0xFFFFFF, 0.55f);
-        arc(pose, buffers, r * 1.05f, r * 0.62f, aTail, aHead, c, a * 0.5f);
-        arc(pose, buffers, r, r * 0.32f, aTail, aHead, light, a * 1.1f);
-        arc(pose, buffers, r * 1.005f, r * 0.09f, aTail, aHead, 0xFFFFFF, a);
+        int body = look.body(c), light = look.light(c);
+        // a soft wake of light behind the blade, then the blade itself
+        float band = Mth.clamp(0.2f + 0.45f / r, 0.24f, 0.36f);
+        Skins.crescent(pose, buffers, ModRenderTypes.lightTexture(ARC), r * 1.03f, r * band * 1.5f, aTail, aHead, light, a * 0.3f, 1.3f, 0, 1);
+        Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.BLADE), r, r * band, aTail, aHead, body, a, 0.6f, 0, 1);
+        switch (look) {
+            case FIRE, WATER, AIR -> Skins.crescent(pose, buffers, ModRenderTypes.energy(look.skin()), r * 0.985f, r * band * 1.15f, aTail, aHead,
+                    body, a * 0.55f, 1.2f, -time * 0.06f, 1.4f);
+            case SHADOW -> Skins.crescent(pose, buffers, ModRenderTypes.energy(Skins.PLASMA), r * 0.99f, r * band * 1.25f, aTail, aHead,
+                    look.body(c), a * 0.7f, 1f, -time * 0.04f, 1.2f);
+            case LIGHTNING -> {
+                // a few short arcs crawling along the edge, struck anew every couple of ticks
+                RandomSource arcs = RandomSource.create((long) (time / 2) * 31 + dir);
+                for (int i = 0; i < 3; i++) {
+                    float at = Mth.lerp(0.35f + 0.6f * arcs.nextFloat(), aTail, aHead) * Mth.DEG_TO_RAD;
+                    float at2 = at + dir * (0.12f + 0.15f * arcs.nextFloat());
+                    Vec3 p1 = new Vec3(Mth.sin(at) * r, 0, Mth.cos(at) * r);
+                    Vec3 p2 = new Vec3(Mth.sin(at2) * r * 0.85f, (arcs.nextFloat() - 0.5f) * 0.25f, Mth.cos(at2) * r * 0.85f);
+                    Vector3f w1 = pose.last().pose().transformPosition((float) p1.x, (float) p1.y, (float) p1.z, new Vector3f());
+                    Vector3f w2 = pose.last().pose().transformPosition((float) p2.x, (float) p2.y, (float) p2.z, new Vector3f());
+                    Skins.lightning(new PoseStack(), buffers, camera, camera.getPosition(), new Vec3(w1.x(), w1.y(), w1.z()), new Vec3(w2.x(), w2.y(), w2.z()),
+                            arcs.nextLong(), 0.06f, light, a, 0.3f, 0);
+                }
+            }
+            default -> {}
+        }
         if (k < 1) {
             float rad = aHead * Mth.DEG_TO_RAD;
             Vector3f tip = pose.last().pose().transformPosition(Mth.sin(rad) * r, 0, Mth.cos(rad) * r, new Vector3f());
-            dotTex(new PoseStack(), buffers, camera, FLARE, tip.x(), tip.y(), tip.z(), 0.35f + 0.25f * r * 0.4f, 0xFFFFFF, strength * (1 - k * 0.5f), 45 * k);
+            Skins.billboard(new PoseStack(), buffers, camera, ModRenderTypes.energy(Skins.FLARE), new Vec3(tip.x(), tip.y(), tip.z()),
+                    0.3f + 0.1f * r, light, strength * (1 - k * 0.5f), 45 * k);
+        }
+    }
+
+    /**
+     * A beam from {@code from} to {@code to} (pose-relative; the pose origin is at {@code origin}): a tube of the
+     * element's energy running out of the hand, a hot core, two coils turning round it, a glow about it, the light
+     * gathered at the hand and the blow where it lands. A lightning beam is a sheaf of bolts instead of a tube.
+     */
+    private static void beam(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 from, Vec3 to, float size,
+                             float age, float hold, float time, Fx fx) {
+        int c = fx.p.color();
+        Skins.Look look = fx.look;
+        int body = look.body(c), light = look.light(c);
+        float grow = Mth.clamp(age / 0.12f, 0, 1);
+        Vec3 end = from.lerp(to, grow);
+        Vec3 axis = end.subtract(from);
+        double len = axis.length();
+        if (len < 0.05) return;
+        float pulse = 0.88f + 0.12f * Mth.sin(time * 1.7f);
+        int n = Mth.clamp((int) (len * 1.5), 4, 48);
+        Skins.Profile ends = k -> Math.min(1, k / 0.04f);
+        // the glow about it
+        Skins.line(pose, buffers, camera, origin, ModRenderTypes.lightTexture(STREAK), from, end, n, size * 3.4f * pulse, ends, hold * 0.6f, Skins.FLAT, c, 0, 0);
+        if (look == Skins.Look.LIGHTNING) {
+            for (int i = 0; i < 3; i++) {
+                Skins.lightning(pose, buffers, camera, origin, from, end, fx.seed + i * 7919L + (long) (time / 2), size * 0.45f, c, hold, 0.12f, 0.15f);
+            }
+        } else {
+            // the body: the element's energy pouring out of the hand, turning as it goes
+            Skins.tube(pose, buffers, camera, origin, ModRenderTypes.energy(look.skin()), from, end, 12, n, k -> size * 0.95f * pulse * ends.at(k),
+                    Skins.FLAT, hold, body, time * 0.01f, 2, (float) len * 0.12f, -time * 0.09f, 0.3f, 0.65f);
+        }
+        // the core, white-hot
+        Skins.line(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.BEAM), from, end, n, size * 1.25f * pulse, ends, hold, Skins.FLAT, light, -time * 0.22f, 0.35f);
+        Skins.line(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.BEAM), from, end, n, size * 0.45f, ends, hold, Skins.FLAT, 0xFFFFFF, -time * 0.35f, 0.5f);
+        // two coils winding round it
+        Vec3 d = axis.scale(1 / len);
+        Vec3 e1 = d.cross(Math.abs(d.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize();
+        Vec3 e2 = d.cross(e1);
+        int m = Mth.clamp((int) (len * 6), 8, 160);
+        for (int s = 0; s < 2; s++) {
+            Vec3[] pts = new Vec3[m + 1];
+            float[] w = new float[m + 1], al = new float[m + 1];
+            for (int i = 0; i <= m; i++) {
+                float k = i / (float) m;
+                double ang = k * len * 2.2 - time * 0.55 + s * Math.PI;
+                double rad = size * (1.2 + 0.12 * Math.sin(k * len * 0.7 + time * 0.2));
+                pts[i] = from.add(axis.scale(k)).add(e1.scale(Math.cos(ang) * rad)).add(e2.scale(Math.sin(ang) * rad));
+                w[i] = size * 0.2f;
+                al[i] = hold * 0.85f * ends.at(k) * Math.min(1, (1 - k) / 0.05f + 0.3f);
+            }
+            Skins.ribbon(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.BEAM), pts, w, al, light, -time * 0.3f, 0.6f);
+        }
+        // the light gathered at the hand, and the blow where it lands
+        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), from, size * 1.6f * pulse, light, hold, time * 6);
+        dot(pose, buffers, camera, (float) from.x, (float) from.y, (float) from.z, size * 1.4f, c, hold * 0.7f);
+        if (grow >= 1) {
+            Skins.spikes(pose, buffers, camera, end, fx.seed + (long) (time / 2), 9, 0.9f + size * 2.4f, 0.2f + size * 0.3f, light, hold);
+            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), end, 0.6f + size * 1.6f * pulse, light, hold, -time * 9);
+            dot(pose, buffers, camera, (float) end.x, (float) end.y, (float) end.z, 0.8f + size * 2.2f, c, hold * 0.6f);
+        }
+    }
+
+    /**
+     * A ball of the element's energy at {@code at}: a churning shell bright at its edges, a hot heart, a glow about
+     * it. Shadow is a dark ball with a burning rim.
+     */
+    private static void orb(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 at, float radius, float alpha, float time, Fx fx, int c) {
+        if (radius <= 0.01f || alpha <= 0.01f) return;
+        Skins.Look look = fx.look;
+        dot(pose, buffers, camera, (float) at.x, (float) at.y, (float) at.z, radius * 2.6f, c, alpha * 0.45f);
+        Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(look.skin()), at, radius, 10, 16, alpha, look.body(c),
+                time * 0.006f, 2, -time * 0.009f, 1, 0.7f);
+        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.ORB), at, radius * 1.02f, look.light(c), alpha * (look.dark() ? 0.6f : 0.9f), time * 2.5f);
+        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), at, radius * 0.9f, 0xFFFFFF, alpha * 0.8f, -time * 4);
+    }
+
+    /**
+     * The blow where something lands at {@code at} (pose-relative), {@code since} seconds ago: hard spikes of light
+     * and a star at once, a shell of the element's energy that runs out and burns away, a glow. {@code size} scales it.
+     */
+    private static void impact(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 at, float since, Fx fx, float size, float alpha) {
+        if (since < 0) return;
+        int c = fx.p.color();
+        Skins.Look look = fx.look;
+        int light = look.light(c);
+        float k = Mth.clamp(since / 0.3f, 0, 1);
+        float o = 1 - (1 - k) * (1 - k);
+        // lightning lands as a crack and a flash more than a blast: its shell stays small
+        float shell = look == Skins.Look.LIGHTNING ? 0.55f : 1f;
+        if (k < 1) {
+            Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(look.skin()), at, size * shell * (0.2f + 0.7f * o), 8, 12,
+                    alpha * 0.7f * (1 - k) * (1 - k), look.body(c), (fx.seed & 7) * 0.13f, 1, since * 0.6f, 1, 0.9f);
+        }
+        if (since < 0.12f) {
+            float f = 1 - since / 0.12f;
+            Skins.spikes(pose, buffers, camera, at, fx.seed, 10, size * (1.2f + 0.8f * (1 - f)), size * 0.3f, light, alpha * f);
+            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), at, size * (0.9f + 0.4f * (1 - f)), 0xFFFFFF, alpha * f, fx.seed % 90);
+        }
+        if (k < 1) {
+            dot(pose, buffers, camera, (float) at.x, (float) at.y, (float) at.z, size * (1.2f + 1.4f * o) * shell, c, alpha * (1 - k) * 0.7f);
         }
     }
 
@@ -2230,29 +2643,54 @@ public final class SkillWorldFx {
     }
 
     /**
-     * The ground split open from the pose origin (at {@code base} in the world) out to {@code reach}: crooked cracks
-     * of light, {@code grow} (0..1) of the way out, glowing {@code glow}.
+     * Beads of light at {@code at}: small orbs of the colour with a white-hot heart, solid against a bright sky. All the
+     * orbs first, then all the hearts, so a swarm of them is two draws.
      */
-    static void fissures(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 base, long seed, float reach, float grow, float glow, int c) {
-        if (glow <= 0.01f) return;
-        RandomSource r = RandomSource.create(seed);
-        int arms = 6 + r.nextInt(3);
-        for (int i = 0; i < arms; i++) {
-            double ang = i * Math.PI * 2 / arms + r.nextDouble() * 0.6;
-            int segs = 4;
-            Vec3 prev = new Vec3(0, 0.07, 0);
-            for (int sg = 1; sg <= segs; sg++) {
-                ang += (r.nextDouble() - 0.5) * 0.8;
-                double step = reach / segs * (0.7 + r.nextDouble() * 0.5);
-                Vec3 next = prev.add(Math.cos(ang) * step, 0, Math.sin(ang) * step);
-                if (sg / (float) segs <= grow + 0.01f) {
-                    float thin = 1 - 0.65f * sg / segs;
-                    streak(pose, buffers, camera, base, prev, next, 0.42f * thin, c, glow * 1.1f);
-                    streak(pose, buffers, camera, base, prev, next, 0.13f * thin, 0xFFFFFF, glow);
-                }
-                prev = next;
-            }
+    private static void motes(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3[] at, float half, int rgb, float alpha, float roll) {
+        if (alpha <= 0.01f) return;
+        for (Vec3 q : at) dot(pose, buffers, camera, (float) q.x, (float) q.y, (float) q.z, half * 2.6f, rgb, alpha * 0.55f);
+        for (int i = 0; i < at.length; i++) {
+            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.ORB), at[i], half, rgb, Math.min(1f, alpha), roll + i * 37);
         }
+        for (int i = 0; i < at.length; i++) {
+            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), at[i], half * 0.8f, 0xFFFFFF, Math.min(1f, alpha * 0.7f), -roll - i * 23);
+        }
+    }
+
+    /** A feather along its length (k 0 at its root): broad soon after the root, tapering to a point at its tip. */
+    private static float feather(float k) {
+        return (float) Math.pow(Math.max(0, Mth.sin(Mth.PI * (0.12f + 0.88f * k))), 0.6);
+    }
+
+    /** A claw's rake along its length: pointed where it starts, widest past its middle, pointed where it ends. */
+    private static float rake(float k) {
+        return (float) Math.pow(Math.max(0, Mth.sin(k * Mth.PI)), 0.6) * (0.6f + 0.4f * k);
+    }
+
+    /** A point {@code k} (0..1) of the way along a chain from {@code from} to {@code to}, hanging {@code sag} in the middle. */
+    private static Vec3 chainAt(Vec3 from, Vec3 to, double k, double sag) {
+        return from.lerp(to, k).add(0, -Math.sin(k * Math.PI) * sag, 0);
+    }
+
+    /**
+     * A link of a chain at {@code g}: an oval hoop of light {@code length} long along {@code along} and {@code width}
+     * wide along {@code across}, its band {@code thick}.
+     */
+    private static void link(PoseStack pose, MultiBufferSource buffers, Vec3 g, Vec3 along, Vec3 across, float length, float width, float thick,
+                             int rgb, float alpha) {
+        if (alpha <= 0.01f) return;
+        int n = 16;
+        Vec3[] in = new Vec3[n + 1], out = new Vec3[n + 1];
+        float[] u = new float[n + 1], al = new float[n + 1];
+        for (int i = 0; i <= n; i++) {
+            double th = Math.PI * 2 * i / n;
+            double cs = Math.cos(th), sn = Math.sin(th);
+            in[i] = g.add(along.scale(cs * (length - thick) / 2)).add(across.scale(sn * Math.max(0.01, width - thick) / 2));
+            out[i] = g.add(along.scale(cs * (length + thick) / 2)).add(across.scale(sn * (width + thick) / 2));
+            u[i] = i / (float) n;
+            al[i] = alpha;
+        }
+        Skins.strip(pose, buffers, ModRenderTypes.energy(Skins.BEAM), in, out, u, al, rgb);
     }
 
     /**
@@ -2278,7 +2716,8 @@ public final class SkillWorldFx {
         Vec3 side = dir.cross(view);
         if (side.lengthSqr() < 1.0e-6) side = dir.cross(new Vec3(0, 1, 0));
         side = side.normalize().scale(width / 2);
-        VertexConsumer out = buffers.getBuffer(ModRenderTypes.lightTexture(STREAK));
+        // a line of energy with a hot core: its colour as a body, so it reads against a bright sky too
+        VertexConsumer out = buffers.getBuffer(ModRenderTypes.energy(Skins.BEAM));
         Matrix4f m = pose.last().pose();
         int al = Mth.clamp(Math.round(Math.min(1f, alpha) * 255), 0, 255);
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, bl = rgb & 0xFF;
@@ -2286,19 +2725,6 @@ public final class SkillWorldFx {
         out.addVertex(m, (float) (b.x - side.x), (float) (b.y - side.y), (float) (b.z - side.z)).setUv(1, 1).setColor(r, g, bl, al);
         out.addVertex(m, (float) (b.x + side.x), (float) (b.y + side.y), (float) (b.z + side.z)).setUv(1, 0).setColor(r, g, bl, al);
         out.addVertex(m, (float) (a.x + side.x), (float) (a.y + side.y), (float) (a.z + side.z)).setUv(0, 0).setColor(r, g, bl, al);
-    }
-
-    /** A jagged bolt: the line broken into segments that jump sideways, re-rolled every couple of ticks. */
-    private static void zigzag(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 a, Vec3 b, long seed, float width, int rgb, float alpha) {
-        RandomSource r = RandomSource.create(seed);
-        int n = Math.max(3, (int) (b.subtract(a).length() / 1.6));
-        Vec3 prev = a;
-        for (int i = 1; i <= n; i++) {
-            Vec3 next = a.lerp(b, i / (double) n);
-            if (i < n) next = next.add((r.nextDouble() - 0.5) * 0.6, (r.nextDouble() - 0.5) * 0.6, (r.nextDouble() - 0.5) * 0.6);
-            streak(pose, buffers, camera, origin, prev, next, width, rgb, alpha);
-            prev = next;
-        }
     }
 
     /**
@@ -2322,8 +2748,13 @@ public final class SkillWorldFx {
         if (flat.lengthSqr() < 1.0e-6) flat = new Vec3(1, 0, 0);
         flat = flat.normalize();
         int pale = mix(rgb, 0xFFFFFF, 0.55f);
+        // a shaft of light with a white-hot core, a leaf-shaped head, swept vanes and a glint on its point
+        Skins.line(pose, buffers, camera, origin, ModRenderTypes.lightTexture(STREAK), tail, head, 4, 0.55f * scale, k -> 0.4f + 0.6f * k, alpha * 0.45f,
+                Skins.FLAT, rgb, 0, 0);
         streak(pose, buffers, camera, origin, tail, head, 0.2f * scale, rgb, alpha * 0.9f);
         streak(pose, buffers, camera, origin, tail, head, 0.07f * scale, 0xFFFFFF, alpha);
+        Skins.line(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.BEAM), head.subtract(dir.scale(0.4 * scale)), head, 4, 0.36f * scale,
+                k -> k < 0.4f ? 0.35f + 0.65f * k / 0.4f : (1 - k) / 0.6f, alpha, Skins.FLAT, pale, 0, 0);
         for (int s = -1; s <= 1; s += 2) {
             streak(pose, buffers, camera, origin, head.subtract(dir.scale(0.3 * scale)).add(flat.scale(0.13 * scale * s)), head, 0.09f * scale, pale, alpha);
             for (int i = 0; i < 2; i++) {
@@ -2332,6 +2763,7 @@ public final class SkillWorldFx {
             }
         }
         dot(pose, buffers, camera, (float) head.x, (float) head.y, (float) head.z, 0.22f * scale, pale, alpha * 0.8f);
+        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), head, 0.22f * scale, pale, alpha * 0.9f, 45);
     }
 
     /** What a hunter's gaze rests on: the first block or creature along it. */
