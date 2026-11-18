@@ -125,7 +125,8 @@ public final class AwakeningService {
      */
     public static void enteringGate(ServerPlayer player, GateInstance g) {
         if (!Config.AWAKENING_TRIAL.get() || g.isTrial() || g.rank().tier() < 1 || g.built() || GateService.isBuilding(g.id())) return;
-        if (SystemAPI.hasSystem(player) || player.isSpectator() || stage(player) != Stage.DORMANT) return;
+        // someone the door is still waiting for: the player, or a party member of theirs right there with them
+        if (!waitsForDoor(player) && !partyWaitsForDoor(player)) return;
         GateDepths depths = g.depths();
         if (!depths.enabled() || depths.hidden(g) == HiddenKind.SEALED) return;
         // the door hides behind the boss: a dungeon with no room for it there is laid out as caverns instead
@@ -135,6 +136,18 @@ public final class AwakeningService {
         depths.setHidden(HiddenKind.SEALED);
         g.replan();
         GateData.get(player.server).setDirty();
+    }
+
+    private static boolean waitsForDoor(ServerPlayer p) {
+        return !SystemAPI.hasSystem(p) && !p.isSpectator() && stage(p) == Stage.DORMANT;
+    }
+
+    /** A party member of theirs within 48 blocks who still waits for their door (they will go in together). */
+    private static boolean partyWaitsForDoor(ServerPlayer player) {
+        for (ServerPlayer m : com.beyondsolo.party.Parties.mates(player)) {
+            if (m.level() == player.level() && m.distanceToSqr(player) <= 48 * 48 && waitsForDoor(m)) return true;
+        }
+        return false;
     }
 
     /** True if the sealed door is hidden in this cave. */
@@ -175,17 +188,30 @@ public final class AwakeningService {
     public static void revealDoors(ServerLevel level, GateInstance cave, List<ServerPlayer> called) {
         if (called.isEmpty() || !holdsTheDoor(cave) || !cave.built()) return;
         if (!cave.depths().hiddenOpen()) HiddenRooms.open(level, cave, null, null);
-        int index = 0;
+        // one door for each party called here (they go through the trial together), one for each hunter on their own
+        Map<UUID, List<ServerPlayer>> groups = new java.util.LinkedHashMap<>();
         for (ServerPlayer p : called) {
             if (SystemAPI.hasSystem(p) || stage(p) != Stage.CALLED) continue;
-            openDoor(level, cave, p, index++);
+            com.beyondsolo.party.Party party = com.beyondsolo.party.Parties.of(p);
+            groups.computeIfAbsent(party == null ? p.getUUID() : party.id(), k -> new ArrayList<>()).add(p);
         }
+        int index = 0;
+        for (List<ServerPlayer> group : groups.values()) openDoor(level, cave, group, index++);
     }
 
-    /** One player's door, side by side with any others in the chamber, facing the way in. */
-    private static void openDoor(ServerLevel level, GateInstance cave, ServerPlayer player, int index) {
-        AwakeningData d = data(player);
-        closeSealedGate(player.server, d);
+    /**
+     * One door, side by side with any others in the chamber, facing the way in: a player's own, or one for a party,
+     * opened for its leader if they are among them (else whoever came first) and letting the others through as well.
+     */
+    private static void openDoor(ServerLevel level, GateInstance cave, List<ServerPlayer> group, int index) {
+        ServerPlayer player = group.get(0);
+        com.beyondsolo.party.Party party = com.beyondsolo.party.Parties.of(player);
+        if (party != null) for (ServerPlayer p : group) if (party.isLeader(p.getUUID())) player = p;
+        // their old doors close (unless someone else, outside this group, is still bound to one)
+        for (ServerPlayer p : group) {
+            AwakeningData old = data(p);
+            if (!sharedDoor(p, old, group)) closeSealedGate(p.server, old);
+        }
         DepthsBuild.Door spot = DepthsBuild.sealedDoor(level, cave, index);
         BlockPos at = spot.pos();
         Direction side = spot.facing().getClockWise();
@@ -201,8 +227,73 @@ public final class AwakeningService {
         // when it is over they wake where they first went in: in front of this cave's gate
         if (trial != null) trial.setTrialHome(GateService.home(player.server, cave, player.getYRot()));
         GateData.get(player.server).setDirty();
-        d.setSealedGate(door.gateId(), level.dimension(), at);
-        PacketDistributor.sendToPlayer(player, new AwakeningPayload(AwakeningPayload.CALLED, 0, at.getX() + 0.5, at.getY() + GateBlockEntity.CENTER_Y, at.getZ() + 0.5));
+        for (ServerPlayer p : group) {
+            data(p).setSealedGate(door.gateId(), level.dimension(), at);
+            PacketDistributor.sendToPlayer(p, new AwakeningPayload(AwakeningPayload.CALLED, 0, at.getX() + 0.5, at.getY() + GateBlockEntity.CENTER_Y, at.getZ() + 0.5));
+        }
+    }
+
+    /**
+     * True if a player may go through a sealed gate: it opened for them, or for the party they were called with (they
+     * are bound to it and have not gone through yet, or are in the trial already).
+     */
+    public static boolean mayEnter(ServerPlayer player, GateInstance g) {
+        if (!g.isTrial() || player.getUUID().equals(g.owner())) return true;
+        AwakeningData d = data(player);
+        return g.id().equals(d.trial()) && (d.stage() == Stage.CALLED || d.stage() == Stage.TRIAL);
+    }
+
+    /** True if someone else on the server is still bound to this player's door (a party called together). */
+    private static boolean sharedDoor(ServerPlayer player, AwakeningData d) {
+        return sharedDoor(player, d, List.of());
+    }
+
+    private static boolean sharedDoor(ServerPlayer player, AwakeningData d, List<ServerPlayer> besides) {
+        if (d.trial() == null) return false;
+        for (ServerPlayer p : com.beyondsolo.util.OnlinePlayers.all(player.server)) {
+            if (p == player || besides.contains(p)) continue;
+            AwakeningData o = data(p);
+            if (d.trial().equals(o.trial()) && (o.stage() == Stage.CALLED || o.stage() == Stage.TRIAL || o.stage() == Stage.AWAKENING)) return true;
+        }
+        return false;
+    }
+
+    /** Those still in the cave a door opened for who have not gone through it yet (not {@code except}). */
+    private static List<ServerPlayer> stillToCome(MinecraftServer server, GateInstance trial, @Nullable ServerPlayer except) {
+        List<ServerPlayer> out = new ArrayList<>();
+        for (ServerPlayer p : com.beyondsolo.util.OnlinePlayers.all(server)) {
+            if (p == except || !p.isAlive()) continue;
+            AwakeningData o = data(p);
+            if (!trial.id().equals(o.trial()) || o.stage() != Stage.CALLED || o.sealedPos() == null) continue;
+            if (!GateService.isDungeon(p.level()) || GateData.slotAt(p.blockPosition()) != GateData.slotAt(o.sealedPos())) continue;
+            out.add(p);
+        }
+        return out;
+    }
+
+    /**
+     * The players in a trial (alive, there in person) who are still facing the Arbiter: bound to it, without the
+     * System, not already falling into their awakening. Not {@code except}.
+     */
+    static List<ServerPlayer> challengers(MinecraftServer server, GateInstance trial, @Nullable ServerPlayer except) {
+        List<ServerPlayer> out = new ArrayList<>();
+        int slot = GateData.slotAt(trial.entrance());
+        for (ServerPlayer p : com.beyondsolo.util.OnlinePlayers.all(server)) {
+            if (p == except || !p.isAlive() || p.isSpectator() || inSequence(p) || SystemAPI.hasSystem(p)) continue;
+            if (!GateService.isDungeon(p.level()) || GateData.slotAt(p.blockPosition()) != slot) continue;
+            if (!trial.id().equals(data(p).trial()) && !p.getUUID().equals(trial.owner())) continue;
+            out.add(p);
+        }
+        return out;
+    }
+
+    /** Anyone still in a trial's hall or on the way to it, falling or standing (not {@code except}). */
+    private static boolean anyoneLeftIn(MinecraftServer server, GateInstance trial, ServerPlayer except) {
+        int slot = GateData.slotAt(trial.entrance());
+        for (ServerPlayer p : com.beyondsolo.util.OnlinePlayers.all(server)) {
+            if (p != except && GateService.isDungeon(p.level()) && GateData.slotAt(p.blockPosition()) == slot) return true;
+        }
+        return false;
     }
 
     /**
@@ -226,7 +317,7 @@ public final class AwakeningService {
 
     /** The call fades: their door, if it still stands, closes; their next gate of rank D or higher hides it again. */
     private static void lapse(ServerPlayer player, AwakeningData d) {
-        closeSealedGate(player.server, d);
+        if (!sharedDoor(player, d)) closeSealedGate(player.server, d);
         d.setStage(Stage.DORMANT);
         d.setSealedGate(null, null, null);
     }
@@ -342,13 +433,16 @@ public final class AwakeningService {
 
     // ------------------------------------------------------------------ the trial
 
-    /** The owner stepped through the sealed gate. A door found in a cave closes behind them: the way back is gone. */
+    /**
+     * Someone it opened for stepped through the sealed gate. A door found in a cave closes behind the last of them (a
+     * party called together goes through one by one): the way back is gone.
+     */
     public static void arrived(ServerPlayer player, GateInstance g) {
-        if (!player.getUUID().equals(g.owner())) return;
+        if (!mayEnter(player, g)) return;
         AwakeningData d = data(player);
         if (d.stage() == Stage.DORMANT || d.stage() == Stage.CALLED) d.setStage(Stage.TRIAL);
         if (d.trial() == null) d.setSealedGate(g.id(), g.gateDimension(), g.gatePos());
-        if (g.trialHome() != null) shutDoor(player.server, d);
+        if (g.trialHome() != null && stillToCome(player.server, g, player).isEmpty()) shutDoor(player.server, d);
         PacketDistributor.sendToPlayer(player, AwakeningPayload.of(AwakeningPayload.TRIAL_ARRIVE));
     }
 
@@ -475,8 +569,9 @@ public final class AwakeningService {
         player.setHealth(Math.max(1f, player.getHealth()));
         player.setDeltaMovement(Vec3.ZERO);
         if (!slain) {
+            // it stands over the fallen only once nobody is left to face it (a party falls one by one)
             ArbiterEntity arbiter = arbiter(level, g);
-            if (arbiter != null) arbiter.passVerdict();
+            if (arbiter != null && challengers(player.server, g, player).isEmpty()) arbiter.passVerdict();
         }
         level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 2f, 0.6f);
         PacketDistributor.sendToPlayer(player, AwakeningPayload.of(AwakeningPayload.AWAKEN, slain ? 1 : 0));
@@ -514,7 +609,7 @@ public final class AwakeningService {
         MinecraftServer server = player.server;
         collectLegendary(player);
         GateInstance g = d.trial() == null ? null : GateData.get(server).get(d.trial());
-        if (g != null && g.state() == GateInstance.State.OPEN) {
+        if (g != null && g.state() == GateInstance.State.OPEN && !anyoneLeftIn(server, g, player)) {
             g.setState(GateInstance.State.CLEARED);
             g.setClearedAt(player.level().getGameTime());
             GateData.get(server).setDirty();
@@ -582,31 +677,38 @@ public final class AwakeningService {
         if (g == null || g.bossDefeated()) return;
         g.setBossDefeated(true);
         gates.setDirty();
-        ServerPlayer owner = g.owner() == null ? null : level.getServer().getPlayerList().getPlayer(g.owner());
         for (ServerPlayer p : GateService.playersIn(level, g)) {
             PacketDistributor.sendToPlayer(p, AwakeningPayload.of(AwakeningPayload.SLAIN));
         }
-        if (owner != null) {
-            data(owner).setArbiterSlain(true);
-            SHIELDED.put(owner.getUUID(), level.getGameTime() + ArbiterEntity.DEATH_TICKS + 20 * 30);
+        // everyone still standing against it earns the hidden way (a party that brings it down: a cache each)
+        List<UUID> victors = new ArrayList<>();
+        for (ServerPlayer p : challengers(level.getServer(), g, null)) victors.add(p.getUUID());
+        if (victors.isEmpty() && g.owner() != null) victors.add(g.owner());
+        for (UUID id : victors) {
+            ServerPlayer p = com.beyondsolo.util.OnlinePlayers.get(level.getServer(), id);
+            if (p == null) continue;
+            data(p).setArbiterSlain(true);
+            SHIELDED.put(p.getUUID(), level.getGameTime() + ArbiterEntity.DEATH_TICKS + 20 * 30);
         }
         BlockPos center = arbiter.blockPosition();
-        UUID ownerId = g.owner();
-        // once it has crumbled, its cache comes down where it stood
+        // once it has crumbled, its caches come down where it stood, side by side
         ServerScheduler.schedule(ArbiterEntity.DEATH_TICKS + 10, () -> {
-            BlockPos at = center;
-            for (int i = 0; i < 6 && !level.getBlockState(at).isAir(); i++) at = at.above();
-            for (int i = 0; i < 8 && level.getBlockState(at.below()).isAir(); i++) at = at.below();
-            ServerPlayer p = ownerId == null ? null : level.getServer().getPlayerList().getPlayer(ownerId);
-            Direction facing = p == null ? Direction.NORTH : Direction.getNearest(p.getX() - at.getX(), 0, p.getZ() - at.getZ());
-            if (facing.getAxis().isVertical()) facing = Direction.NORTH;
-            level.setBlock(at, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
-            if (level.getBlockEntity(at) instanceof RewardCacheBlockEntity cache) cache.setupLegendary(ownerId, level.getGameTime());
-            BlockPos cachePos = at;
-            // it opens by itself if nobody dares touch it
-            ServerScheduler.schedule(20 * 5, () -> {
-                if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache && !cache.isOpen()) cache.open(null);
-            });
+            for (int i = 0; i < victors.size(); i++) {
+                UUID ownerId = victors.get(i);
+                BlockPos at = center.offset((int) Math.round((i - (victors.size() - 1) / 2.0) * 2), 0, 0);
+                for (int k = 0; k < 6 && !level.getBlockState(at).isAir(); k++) at = at.above();
+                for (int k = 0; k < 8 && level.getBlockState(at.below()).isAir(); k++) at = at.below();
+                ServerPlayer p = com.beyondsolo.util.OnlinePlayers.get(level.getServer(), ownerId);
+                Direction facing = p == null ? Direction.NORTH : Direction.getNearest(p.getX() - at.getX(), 0, p.getZ() - at.getZ());
+                if (facing.getAxis().isVertical()) facing = Direction.NORTH;
+                level.setBlock(at, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
+                if (level.getBlockEntity(at) instanceof RewardCacheBlockEntity cache) cache.setupLegendary(ownerId, level.getGameTime());
+                BlockPos cachePos = at;
+                // it opens by itself if nobody dares touch it
+                ServerScheduler.schedule(20 * 5, () -> {
+                    if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache && !cache.isOpen()) cache.open(null);
+                });
+            }
         });
     }
 
@@ -617,7 +719,7 @@ public final class AwakeningService {
         item.setTarget(ownerId);
         item.setUnlimitedLifetime();
         ServerScheduler.schedule(90, () -> {
-            ServerPlayer p = level.getServer().getPlayerList().getPlayer(ownerId);
+            ServerPlayer p = com.beyondsolo.util.OnlinePlayers.get(level.getServer(), ownerId);
             if (p == null) return;
             GateInstance g = trialAt(p);
             if (g != null) begin(p, g, true);
@@ -702,9 +804,10 @@ public final class AwakeningService {
     /** Back to the very start (commands, tests): no System, not called. */
     public static void reset(ServerPlayer player) {
         AwakeningData d = data(player);
-        closeSealedGate(player.server, d);
-        // the trial behind it goes too, built or not, so the next call starts a new one
-        GateInstance old = d.trial() == null ? null : GateData.get(player.server).get(d.trial());
+        boolean shared = sharedDoor(player, d);
+        if (!shared) closeSealedGate(player.server, d);
+        // the trial behind it goes too, built or not, so the next call starts a new one (unless others still share it)
+        GateInstance old = d.trial() == null || shared ? null : GateData.get(player.server).get(d.trial());
         if (old != null && old.state() == GateInstance.State.OPEN) {
             old.setState(GateInstance.State.CLOSED);
             GateData.get(player.server).setDirty();
