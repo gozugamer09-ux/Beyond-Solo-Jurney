@@ -1,5 +1,7 @@
 package com.beyondsolo.worldboss;
 
+import com.beyondsolo.system.Balance;
+import com.beyondsolo.system.PlayerRank;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /** World boss and monarch settings (config/beyondsolo-worldbosses.toml). Numbers are first guesses for the balancing pass. */
@@ -11,8 +13,9 @@ public final class WorldBossConfig {
                     "Off: they only come when called (commands, a Monarch's Seal).")
             .define("worldbosses.enabled", true);
     public static final ModConfigSpec.IntValue MIN_LEVEL = B
-            .comment("No world boss rises until an awakened hunter in the overworld is at least this level.")
-            .defineInRange("worldbosses.minLevel", 20, 1, 1000);
+            .comment("No world boss rises until an awakened hunter in the overworld is at least this level",
+                    "(by default a C-rank gate's home level on the power curve).")
+            .defineInRange("worldbosses.minLevel", Balance.homeLevel(PlayerRank.C), 1, 1000);
     public static final ModConfigSpec.IntValue FIRST_MINUTES = B
             .comment("Minutes after the first hunter reaches that level before the first world boss rises.")
             .defineInRange("worldbosses.firstMinutes", 30, 1, 10000);
@@ -24,8 +27,9 @@ public final class WorldBossConfig {
             .comment("Once monarchs can come: the chance that the next great threat is a monarch instead of a world boss.")
             .defineInRange("worldbosses.monarchChance", 0.3, 0.0, 1.0);
     public static final ModConfigSpec.IntValue MONARCH_MIN_LEVEL = B
-            .comment("Monarchs only come once an awakened hunter in the overworld is at least this level...")
-            .defineInRange("worldbosses.monarchMinLevel", 40, 1, 1000);
+            .comment("Monarchs only come once an awakened hunter in the overworld is at least this level",
+                    "(by default an A-rank gate's home level)...")
+            .defineInRange("worldbosses.monarchMinLevel", Balance.homeLevel(PlayerRank.A), 1, 1000);
     public static final ModConfigSpec.IntValue MONARCH_AFTER_KILLS = B
             .comment("...and once this many world bosses have been slain in this world.")
             .defineInRange("worldbosses.monarchAfterKills", 2, 0, 1000);

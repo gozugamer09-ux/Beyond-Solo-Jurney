@@ -42,8 +42,8 @@ public class BehemothBoss extends GiantBoss {
 
     public static AttributeSupplier.Builder attributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, WorldBossKind.BEHEMOTH.health)
-                .add(Attributes.ATTACK_DAMAGE, WorldBossKind.BEHEMOTH.damage)
+                .add(Attributes.MAX_HEALTH, WorldBossKind.BEHEMOTH.health())
+                .add(Attributes.ATTACK_DAMAGE, WorldBossKind.BEHEMOTH.damage())
                 .add(Attributes.ARMOR, 12)
                 .add(Attributes.ARMOR_TOUGHNESS, 4)
                 .add(Attributes.MOVEMENT_SPEED, 0.3)

@@ -239,8 +239,8 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     /** Sets its health and damage from its kind (call before adding it to the world). */
     public void setupStats() {
         WorldBossKind k = kind();
-        getAttribute(Attributes.MAX_HEALTH).setBaseValue(k.health);
-        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(k.damage);
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(k.health());
+        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(k.damage());
         setHealth(getMaxHealth());
         setCustomName(k.fullName());
         setCustomNameVisible(false);

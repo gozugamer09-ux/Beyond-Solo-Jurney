@@ -1343,13 +1343,13 @@ and how many have been slain.
   over hills, never into deep water; they roam `ROAM` blocks round where they rose and give up a chase past `LEASH`):
   Ghorrath, the Walking Mountain (`TitanBoss`, flame) and Thurvok, the Horned Calamity (`BehemothBoss`, blood). Three
   monarchs (`MonarchBoss`: they walk, leap and blink): Veyrith of Stillness (`StillnessMonarch`, frost), Khorvane of
-  Hunger (`HungerMonarch`, blood) and Thyrax of Storms (`StormMonarch`, storm). Each kind has its health, damage,
-  colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
+  Hunger (`HungerMonarch`, blood) and Thyrax of Storms (`StormMonarch`, storm). Each kind has its health and damage (multiples of an S-rank gate
+  boss's, `Balance.bossHealth`/`bossDamage`, so they move with the power curve: about 85,000 to 105,000 health), colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
   phase by phase.
-- **When they come** (`WorldBosses`): once an awakened hunter in the overworld reaches `minLevel` (20), the first
+- **When they come** (`WorldBosses`): once an awakened hunter in the overworld reaches `minLevel` (26, a C-rank gate's home level), the first
   world boss rises `firstMinutes` (30) later, about 80 to 130 blocks from a hunter (`minDistance`, `maxDistance`),
   and the next comes `intervalMinutes` (75) after the last one left. Once `monarchAfterKills` (2) world bosses have
-  fallen and a hunter is `monarchMinLevel` (40), the next is a monarch by `monarchChance` (0.3). A Monarch's Seal
+  fallen and a hunter is `monarchMinLevel` (56, an A-rank gate's), the next is a monarch by `monarchChance` (0.3). A Monarch's Seal
   (`MonarchSealItem`, the best hunter's chance gift from a world boss, `sealChance`) calls one down at once when
   broken in the overworld. The System calls every hunter in the overworld (a pop-up, a banner, a quest from
   `world_boss/hunt`, its mark on screen), and the status goes out every two seconds (`WorldBossPayload`). If no hunter
@@ -1365,12 +1365,12 @@ and how many have been slain.
 - **Monarchs** (`MonarchBoss`): a gate tears open in the sky (`GATE_HEIGHT` up), and `descentSeconds` (60) later the
   monarch comes down through it and lands with a blow. Its domain (`DOMAIN` blocks round it) is its own rule:
   Stillness slows and freezes, Hunger starves and bleeds, Storms calls lightning down (drawn on the ground first).
-  Hunters below `PRESSURE_LEVEL` within `PRESSURE_RANGE` are weighed down. Its army (`MonarchArmy`, tagged `ARMY_TAG`)
+  Hunters below `PRESSURE_LEVEL` (74, an S-rank gate's home level) within `PRESSURE_RANGE` are weighed down. Its army (`MonarchArmy`, tagged `ARMY_TAG`)
   is S-rank gate creatures of its affinity, called up as it lands and again as it angers; they crumble when it falls
   or leaves (soldiers in unloaded land as soon as it loads). Its authority, in the last phase, is named on every
   hunter's screen with the time left to get clear.
 - **The kill** (`slain`, `pay`): every hunter with at least `MIN_SHARE` of the damage is paid by their share (in full
-  from half of it up, so a pair both get everything): System XP, gold, greater mana stones, a supreme healing elixir,
+  from half of it up, so a pair both get everything): System XP (a quarter of its health, seven tenths for a monarch), gold, greater mana stones, a supreme healing elixir,
   S-rank weapons, an Elixir of Rebirth from a monarch, a quest step for `SLAY_KEY`, and a line on their record.
 - **The chronicle** (`WorldBossJournal`): each kind has a journal page among the bosses (`boss:<asset name>`,
   `JournalService.pageOf` maps the entity, `JournalArt` draws it), a kill counts as a boss for the boss titles and

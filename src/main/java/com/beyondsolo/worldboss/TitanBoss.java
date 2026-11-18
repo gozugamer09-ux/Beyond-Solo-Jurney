@@ -38,8 +38,8 @@ public class TitanBoss extends GiantBoss {
 
     public static AttributeSupplier.Builder attributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, WorldBossKind.TITAN.health)
-                .add(Attributes.ATTACK_DAMAGE, WorldBossKind.TITAN.damage)
+                .add(Attributes.MAX_HEALTH, WorldBossKind.TITAN.health())
+                .add(Attributes.ATTACK_DAMAGE, WorldBossKind.TITAN.damage())
                 .add(Attributes.ARMOR, 14)
                 .add(Attributes.ARMOR_TOUGHNESS, 6)
                 .add(Attributes.MOVEMENT_SPEED, 0.2)

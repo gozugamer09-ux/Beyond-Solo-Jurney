@@ -2,6 +2,8 @@ package com.beyondsolo.worldboss;
 
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.enemy.Affinity;
+import com.beyondsolo.system.Balance;
+import com.beyondsolo.system.PlayerRank;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,15 +23,15 @@ import java.util.Locale;
  */
 public enum WorldBossKind {
     /** Ghorrath, the Walking Mountain: a giant of basalt and magma carrying a mountain ridge on its back. */
-    TITAN("titan", Tier.WORLD, Affinity.FLAME, DamageElement.FIRE, 0xFF8A3A, 4200f, 34f, 0.66f, 0.33f),
+    TITAN("titan", Tier.WORLD, Affinity.FLAME, DamageElement.FIRE, 0xFF8A3A, 6.4f, 1.4f, 0.66f, 0.33f),
     /** Thurvok, the Horned Calamity: a beast the size of a house with four great horns and a back of bone plates. */
-    BEHEMOTH("behemoth", Tier.WORLD, Affinity.BLOOD, DamageElement.BLOOD, 0xFF3A44, 3400f, 30f, 0.66f, 0.33f),
+    BEHEMOTH("behemoth", Tier.WORLD, Affinity.BLOOD, DamageElement.BLOOD, 0xFF3A44, 5.2f, 1.2f, 0.66f, 0.33f),
     /** Veyrith, Monarch of Stillness: a queen of ice with a crystal spear; where she rules, everything slows. */
-    STILLNESS("stillness", Tier.MONARCH, Affinity.FROST, null, 0x9BE7FF, 3600f, 30f, 0.6f, 0.25f),
+    STILLNESS("stillness", Tier.MONARCH, Affinity.FROST, null, 0x9BE7FF, 5.5f, 1.2f, 0.6f, 0.25f),
     /** Khorvane, Monarch of Hunger: a feral king in a wolf's skull with blades for claws, faster the longer he hunts. */
-    HUNGER("hunger", Tier.MONARCH, Affinity.BLOOD, DamageElement.BLOOD, 0xFF2E46, 3400f, 28f, 0.6f, 0.25f),
+    HUNGER("hunger", Tier.MONARCH, Affinity.BLOOD, DamageElement.BLOOD, 0xFF2E46, 5.2f, 1.15f, 0.6f, 0.25f),
     /** Thyrax, Monarch of Storms: a winged lord in storm-dark plate with a glaive of lightning. */
-    STORMS("storms", Tier.MONARCH, Affinity.STORM, null, 0xB9A6FF, 3400f, 30f, 0.6f, 0.25f);
+    STORMS("storms", Tier.MONARCH, Affinity.STORM, null, 0xB9A6FF, 5.2f, 1.2f, 0.6f, 0.25f);
 
     public enum Tier {
         WORLD(0xFFB347), MONARCH(0xC77DFF);
@@ -52,24 +54,37 @@ public enum WorldBossKind {
     @Nullable public final DamageElement element;
     /** Its light: the beacon, the bar's frame, its warnings on the ground. */
     public final int color;
-    /** Health and damage before the balancing pass (first guesses). */
-    public final float health;
-    public final float damage;
+    /**
+     * Health and damage as multiples of an S-rank gate boss's ({@link Balance#bossHealth}, {@link Balance#bossDamage}),
+     * so they move with the power curve. First guesses for the balancing pass.
+     */
+    public final float healthScale;
+    public final float damageScale;
     /** Health fractions where phase II and phase III begin. */
     public final float phase2;
     public final float phase3;
 
-    WorldBossKind(String id, Tier tier, Affinity affinity, @Nullable DamageElement element, int color, float health, float damage,
+    WorldBossKind(String id, Tier tier, Affinity affinity, @Nullable DamageElement element, int color, float healthScale, float damageScale,
                   float phase2, float phase3) {
         this.id = id;
         this.tier = tier;
         this.affinity = affinity;
         this.element = element;
         this.color = color;
-        this.health = health;
-        this.damage = damage;
+        this.healthScale = healthScale;
+        this.damageScale = damageScale;
         this.phase2 = phase2;
         this.phase3 = phase3;
+    }
+
+    /** Its max health (about 85,000 to 105,000 on today's curve). */
+    public float health() {
+        return Balance.bossHealth(PlayerRank.S) * healthScale;
+    }
+
+    /** The damage of its plain blow (about 560 to 680 on today's curve); each move is a multiple of it. */
+    public float damage() {
+        return Balance.bossDamage(PlayerRank.S) * damageScale;
     }
 
     public boolean monarch() {

@@ -456,7 +456,8 @@ public final class WorldBosses {
         WorldBossKind kind = boss.kind();
         // a full reward from half the damage up: a party of two gets all of it each
         double cut = 0.4 + 0.6 * Math.min(1.0, share * 2.0);
-        long xp = Math.round((kind.monarch() ? 60_000 : 24_000) * cut);
+        // System XP grows with its health, like any kill's (the one who lands the last blow also gets that kill's own)
+        long xp = Math.round(boss.getMaxHealth() * (kind.monarch() ? 0.7 : 0.25) * cut);
         long gold = Math.round((kind.monarch() ? 24_000 : 10_000) * cut);
         boolean system = SystemAPI.hasSystem(p);
         if (system) {

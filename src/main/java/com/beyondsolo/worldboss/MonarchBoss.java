@@ -42,7 +42,8 @@ public abstract class MonarchBoss extends ColossalBoss {
     /** The radius of a monarch's domain. */
     public static final int DOMAIN = 28;
     /** Hunters below this level near a monarch feel its pressure. */
-    public static final int PRESSURE_LEVEL = 50;
+    /** Below an S-rank gate's home level on the power curve, a monarch's presence weighs a hunter down. */
+    public static final int PRESSURE_LEVEL = com.beyondsolo.system.Balance.homeLevel(com.beyondsolo.system.PlayerRank.S);
     /** How far its presence weighs on the weak. */
     public static final double PRESSURE_RANGE = 18;
     /** How high above its landing its gate opens. */
@@ -56,8 +57,9 @@ public abstract class MonarchBoss extends ColossalBoss {
 
     public static AttributeSupplier.Builder attributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 3400)
-                .add(Attributes.ATTACK_DAMAGE, 30)
+                // each monarch's own numbers are set from its kind as it is made (setupStats)
+                .add(Attributes.MAX_HEALTH, WorldBossKind.HUNGER.health())
+                .add(Attributes.ATTACK_DAMAGE, WorldBossKind.HUNGER.damage())
                 .add(Attributes.ARMOR, 16)
                 .add(Attributes.ARMOR_TOUGHNESS, 8)
                 .add(Attributes.MOVEMENT_SPEED, 0.32)

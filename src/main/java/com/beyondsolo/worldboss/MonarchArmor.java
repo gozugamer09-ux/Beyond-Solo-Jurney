@@ -244,7 +244,7 @@ public final class MonarchArmor {
         if (dead.level().isClientSide || !(event.getSource().getEntity() instanceof LivingEntity killer) || killer == dead) return;
         ArmorSets.Set set = ArmorSets.fullSet(killer);
         if (set == null || !"monarch_hunger".equals(set.perk) || !(dead.level() instanceof ServerLevel level)) return;
-        killer.heal(killer.getMaxHealth() * HUNGER_HEAL);
+        com.beyondsolo.system.Balance.healRaw(killer, killer.getMaxHealth() * HUNGER_HEAL);
         MobEffectInstance had = killer.getEffect(MobEffects.DAMAGE_BOOST);
         int stacks = had == null ? 1 : Math.min(HUNGER_MAX, had.getAmplifier() + 2);
         killer.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, HUNGER_TICKS, stacks - 1, false, true));
