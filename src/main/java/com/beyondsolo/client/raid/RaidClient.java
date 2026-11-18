@@ -85,7 +85,7 @@ public final class RaidClient {
                 bannerText = p.text();
                 bannerColor = p.data().contains("color") ? p.data().getInt("color") : 0xFFC247;
                 bannerIcon = p.data().getString("icon");
-                // it comes in once the middle of the screen is free (see banner())
+                // it comes in once the middle of the screen is free (see bannerUp())
                 bannerAt = -10;
                 bannerWaiting = true;
                 bannerQueuedAt = Anim.now();
