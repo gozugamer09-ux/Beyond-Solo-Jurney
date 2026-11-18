@@ -656,7 +656,7 @@ public final class WorldBossWorldFx {
     }
 
     /**
-     * A ruler's sanctum: a golden ring on the land round it with a tall soft wall of light at its edge and its seals
+     * A ruler's sanctum: a golden ring on the land round it with a soft curtain of light at its edge and its seals
      * turning slowly on the ring; the ground inside glows faintly. Inside, the light stands between hunters who are not
      * its foes and a monarch's dread.
      */
@@ -668,7 +668,7 @@ public final class WorldBossWorldFx {
         annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.8f, r + 0.8f, 0, Mth.TWO_PI, 0.05f, c, 0.6f * pulse * in);
         annulus(buf(buffers, BAND), land, at.x, at.z, r * 0.94f - 0.25f, r * 0.94f + 0.25f, 0, Mth.TWO_PI, 0.05f, white, 0.35f * in);
         annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.03f, c, 0.07f * in * pulse);
-        wall(buf(buffers, BEAM), land, at.x, at.z, r, 5.5f, c, 0.16f * in);
+        wall(buf(buffers, BEAM), land, at.x, at.z, r, 3.5f, c, 0.13f * in);
         float turn = -(time % 7200) * 0.0025f;
         for (int i = 0; i < 6; i++) {
             float ang = turn + i * Mth.TWO_PI / 6;

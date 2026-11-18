@@ -1678,7 +1678,8 @@ Config: `beyondsolo-rulers.toml` (`rulers.enabled` true, `rulers.warChance` 0.4,
 `rulers.sentences` true, `rulers.firstSentenceMinutes` 30, `rulers.sentenceMinutes` 120, `rulers.abandonMinutes` 8,
 `rulers.blessingMinutes` 20, `rulers.blessingMight` 0.15); every number is a first guess for the final balancing pass.
 Operators: `/solo ruler call [ruler]`, `war [ruler]`, `sentence [ruler] on [player]`, `land`, `stop`, `status`,
-`next <minutes>`, `bless [players]`, `mote [count]`, `record [player]` (`SoloRulers`).
+`phase <1-3>`, `move <move>` (aimed at the sender, whose side it still respects), `kill`, `next <minutes>`,
+`bless [players]`, `mote [count]`, `record [player]` (`SoloRulers`).
 
 Testing: `RulerGameTests` (a ruler can die, the foes it chooses, a first blow stayed and a second one landing, the
 sanctum's shelter, a sentence overturned, a war's blessing, the mote, the commands); `WorldBossGameTests` covers every
@@ -1754,7 +1755,7 @@ has added to `/system` by then).
 | items | `give item <item> [count] [grade]`, `give armor <set> [grade]`, `give key/rune/tome/license` | `SoloGive` |
 | guilds | `guild create <player> <tag> <name>`, `guild level/gold <n>`, `guild hunter <rank> [class]`, `guild heal hunters`, `guild disband`, `raid open <rank>`, `raid make`, `raid start now`, `raid phase barrier/cataclysm` | `SoloGuilds` |
 | monarchs | `monarch crown <crown>`, `monarch uncrown`, `monarch call`, `monarch reset`, `monarch jump 1/2/arbiter/throne/<crown>`, `monarch power domain/dread/crown/authority` | `SoloMonarch` |
-| rulers | `ruler call [verdict/wings/hand/random]`, `ruler war [ruler]`, `ruler sentence [ruler] on [player]`, `ruler land`, `ruler stop`, `ruler status`, `ruler next <minutes>`, `ruler bless [players]`, `ruler mote [count]`, `ruler record [player]` | `SoloRulers` |
+| rulers | `ruler call [verdict/wings/hand/random]`, `ruler war [ruler]`, `ruler sentence [ruler] on [player]`, `ruler land`, `ruler stop`, `ruler status`, `ruler phase <1-3>`, `ruler move <move>`, `ruler kill`, `ruler next <minutes>`, `ruler bless [players]`, `ruler mote [count]`, `ruler record [player]` | `SoloRulers` |
 
 - **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):
   left out, the sender; named, a name or a selector. With several players, one failing is said under their name and

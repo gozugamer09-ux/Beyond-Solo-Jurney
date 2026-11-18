@@ -305,6 +305,7 @@ public final class RulerGameTests {
             WorldBossData.Event ev = data.ruler();
             helper.assertTrue(ev != null && ev.kind == WorldBossKind.VERDICT && ev.reason() == Rulers.CALLED && ev.descending(), "Aurenthe is called down");
             error(helper, p, "solo ruler call wings", "ruler_abroad");
+            error(helper, p, "solo ruler move cleave", "no_ruler_landed");
             helper.assertTrue(run(p, "solo ruler status") == 1, "the status while it comes down");
             run(p, "solo ruler land");
             helper.assertTrue(ev.landAt() == level.getGameTime(), "it lands now");

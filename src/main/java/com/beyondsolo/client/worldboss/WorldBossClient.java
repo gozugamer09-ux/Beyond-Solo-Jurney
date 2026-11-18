@@ -190,6 +190,8 @@ public final class WorldBossClient {
                     setLand(t, p.b());
                     t.anchor = p.pos();
                 }
+                // landed at war: the war banner says what the plain "descended" one would, so that one goes
+                if (p.b() <= 0) drop(BannerKind.APPEAR, kind);
                 push(new Banner(BannerKind.WAR, kind, 1, p.a(), p.b(), p.pos(), p.b() > 0 ? 6.4f : 5.2f, 0), p.b() <= 0);
                 sound(SoundEvents.BEACON_ACTIVATE, 0.6f, 0.55f);
                 sound(SoundEvents.BELL_RESONATE, 0.5f, 0.5f);
@@ -201,6 +203,7 @@ public final class WorldBossClient {
                     setLand(t, p.a());
                     t.anchor = p.pos();
                 }
+                if (p.a() <= 0) drop(BannerKind.APPEAR, kind);
                 push(new Banner(BannerKind.SENTENCE, kind, 1, p.a(), p.b(), p.pos(), t.judgesMe ? 6.8f : 5.6f, 0), t.judgesMe);
                 sound(SoundEvents.BELL_BLOCK, 0.7f, 0.5f);
                 if (t.judgesMe) sound(SoundEvents.WARDEN_SONIC_CHARGE, 0.5f, 1.2f);
@@ -293,6 +296,12 @@ public final class WorldBossClient {
     private static void drop(BannerKind kind) {
         BANNERS.removeIf(b -> b.kind == kind);
         if (current != null && current.kind == kind) current = null;
+    }
+
+    /** Drops one boss's banners of a kind, queued or on screen. */
+    private static void drop(BannerKind kind, WorldBossKind boss) {
+        BANNERS.removeIf(b -> b.kind == kind && b.boss == boss);
+        if (current != null && current.kind == kind && current.boss == boss) current = null;
     }
 
     /** The banner on screen now, or null. {@code free} is false while another moment holds the middle of the screen. */

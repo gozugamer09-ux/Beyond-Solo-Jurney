@@ -17,11 +17,13 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -34,7 +36,8 @@ import java.util.List;
 /**
  * The rulers of light: /solo ruler call (one comes down where you look), war (one comes to make war on the monarch
  * abroad), sentence (one comes to judge a hunter), land (the one coming down lands now), stop, status, next (the next
- * Sentence of Light in that many minutes), bless (the Blessing of Light now), mote (Motes of Radiance) and record.
+ * Sentence of Light in that many minutes), bless (the Blessing of Light now), mote (Motes of Radiance), record, and for
+ * the ruler that has landed: phase (its phase now), move (one of its moves, aimed at the sender) and kill.
  */
 final class SoloRulers {
     /** The rulers, by name ("verdict"), and "random". */
@@ -69,6 +72,36 @@ final class SoloRulers {
                     return 1;
                 }))
                 .then(Commands.literal("status").executes(SoloRulers::status))
+                .then(Commands.literal("phase").then(Commands.argument("n", IntegerArgumentType.integer(1, 3)).executes(ctx -> {
+                    RulerBoss boss = landed(ctx);
+                    int n = IntegerArgumentType.getInteger(ctx, "n");
+                    boss.forcePhase((ServerLevel) boss.level(), n);
+                    ctx.getSource().sendSuccess(() -> Solo.t("ruler.phase", boss.kind().fullName(), n), true);
+                    return 1;
+                })))
+                .then(Commands.literal("move").then(Commands.argument("move", StringArgumentType.word())
+                        .suggests((c, b) -> {
+                            RulerBoss boss = Rulers.current(c.getSource().getServer().overworld());
+                            return SharedSuggestionProvider.suggest(boss == null ? List.of() : boss.moveNames(), b);
+                        })
+                        .executes(ctx -> {
+                            RulerBoss boss = landed(ctx);
+                            String name = StringArgumentType.getString(ctx, "move");
+                            ColossalBoss.Move m = boss.moveNamed(Solo.lower(name));
+                            if (m == null) throw Solo.error("unknown_ruler_move", name, String.join(", ", boss.moveNames()));
+                            // aimed at whoever sent it: its blows still land only on its foes
+                            LivingEntity at = ctx.getSource().getEntity() instanceof LivingEntity e ? e : boss.getTarget();
+                            if (at != null) boss.setTarget(at);
+                            boss.start(m, at);
+                            ctx.getSource().sendSuccess(() -> Solo.t("ruler.move", boss.kind().fullName(), m.anim()), false);
+                            return 1;
+                        })))
+                .then(Commands.literal("kill").executes(ctx -> {
+                    RulerBoss boss = landed(ctx);
+                    boss.kill();
+                    ctx.getSource().sendSuccess(() -> Solo.t("ruler.killed", boss.kind().fullName()), true);
+                    return 1;
+                }))
                 .then(Commands.literal("next").then(Commands.argument("minutes", IntegerArgumentType.integer(0, 100000)).executes(ctx -> {
                     ServerLevel level = ctx.getSource().getServer().overworld();
                     int minutes = IntegerArgumentType.getInteger(ctx, "minutes");
@@ -93,6 +126,13 @@ final class SoloRulers {
         WorldBossKind k = WorldBossKind.byId(n);
         if (k == null || !k.ruler()) throw Solo.error("unknown_ruler", name);
         return k;
+    }
+
+    /** The ruler abroad, landed and alive (for phase, move and kill). */
+    private static RulerBoss landed(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        RulerBoss boss = Rulers.current(ctx.getSource().getServer().overworld());
+        if (boss == null || !boss.isAlive() || !boss.landed()) throw Solo.error("no_ruler_landed");
+        return boss;
     }
 
     private static WorldBossKind orRandom(@Nullable WorldBossKind kind, ServerLevel level) {
