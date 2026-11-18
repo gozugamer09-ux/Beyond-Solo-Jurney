@@ -936,6 +936,25 @@ public final class PenaltyZone {
         return true;
     }
 
+    /** Commands: sentences the player for {@code reason} and pulls them in at once. False if a sentence is already running. */
+    public static boolean sendNow(ServerPlayer player, Component reason) {
+        if (SESSIONS.containsKey(player.getUUID())) return false;
+        data(player).sentence(reason);
+        return begin(player, true);
+    }
+
+    /** Commands: lets the player off: out of the zone if they are in it, and no sentence left waiting for them. */
+    public static void pardon(ServerPlayer player) {
+        cancel(player);
+        data(player).clearSentence();
+    }
+
+    /** Commands: ends any sentence and forgets everything the zone knows about the player (served, failed, pending). */
+    public static void reset(ServerPlayer player) {
+        cancel(player);
+        data(player).reset();
+    }
+
     /** Commands and tests: ends a running sentence at once and sends the player home, without any outcome. */
     public static void cancel(ServerPlayer player) {
         Session s = SESSIONS.remove(player.getUUID());

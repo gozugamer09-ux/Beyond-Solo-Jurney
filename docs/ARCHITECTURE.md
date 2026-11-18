@@ -23,7 +23,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
-| `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command` | `/system` testing commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command.solo` | `/solo`, the operator commands: one tree with help, tab completion and English and Spanish feedback (see "Operator commands: /solo") |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
@@ -46,7 +47,10 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 ## Rules for new modules
 
 1. **Read and change player progress only through `SystemAPI`.** It keeps the client in sync and fires events.
-2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`.
+2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`. Register
+   it in the `beyondsolo` namespace and `/solo wipe` resets it with no change there. State kept anywhere else (a
+   running session, a map in memory, a mark in the player's persistent data) needs its own cancel in
+   `SoloWipe.progress`.
 3. **Listen to `SystemEvent`s** on `NeoForge.EVENT_BUS` instead of patching core code:
    `Awakened`, `XpGain` (cancel or change the amount), `LevelUp`, `RankChanged`, `StatAllocated`,
    `Collapsed`, `ObjectiveChanged`.
@@ -1257,6 +1261,44 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## Operator commands: /solo
+
+`/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
+place for an operator to change the game: wipe a player, set their numbers, spawn things, give items, move through
+gates. `/solo` alone shows the groups as buttons and `/solo help <group>` lists that group's commands, each line
+clickable to start typing it. The older `/system ...` commands stay for the mod's own tests and are reachable as
+`/solo dev ...` (a redirect to the `/system` node; `SoloCommand` registers at `EventPriority.LOWEST` so every module
+has added to `/system` by then).
+
+| Group | Commands | Class |
+|---|---|---|
+| player | `info`, `awaken [rank] [class]`, `evaluate [rank] [class]`, `bind`, `set level/rank/class/subclass/stat/points/gold/exhaustion`, `add xp/levels/points/gold/stat`, `heal`, `reset <part>`, `wipe system/all` | `SoloProgress`, `SoloWipe` |
+| skills | `skill learn/forget <skill>/all [level]`, `skill max`, `quest list/start/complete/fail`, `shadow give <creature> [rank]` | `SoloSkills` |
+| world | `spawn creature/boss/gate/cache/crystal`, `gate list/close [all]/break` | `SoloWorld` |
+| dungeons | `dungeon enter/boss/clear/leave/info`, `trial awakening/job/penalty`, `tower climb [floor]/rush <tier>/endless` | `SoloWorld` |
+| items | `give item <item> [count] [grade]`, `give armor <set> [grade]`, `give key/rune/tome/license` | `SoloGive` |
+
+- **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):
+  left out, the sender; named, a name or a selector. With several players, one failing is said under their name and
+  the rest go ahead (`Solo.each`).
+- **Arguments that could be a name:** Brigadier tries a node's arguments in the order they were added and keeps the
+  first that parses, and a player's name parses as almost anything. So a number before the players is added before
+  them (`SoloGive.counted`, the skill level, the tower floor), and words with a fixed set of values that come before
+  the players are literals, not word arguments (ranks and classes in `awaken`/`evaluate`, grades in `give`, shadow
+  ranks). `SoloCommandGameTests.aNumberIsALevelNotAName` guards it.
+- **Ids:** items, quests and creatures take a resource id; one typed without a namespace is looked for in the mod's
+  own after Minecraft's (`Solo.lookup`), and suggestions match by path too ("rune" offers `beyondsolo:rune_stone`).
+- **Wipe:** `system` cancels whatever is running for the player (Citadel run, Penalty Zone, job change trial, red
+  gate, shadows, the awakening, exhaustion), removes every data attachment in the `beyondsolo` namespace but the
+  System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
+  every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
+  ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
+  then start over like a new player: the presystem hint with the awakening trial on, the System at once with it off.
+- **Text:** every message is `command.beyondsolo.solo.*` in `assets/beyondsolo_commands/lang` (English and Spanish).
+  Command words, ids and the help's usage lines stay as typed.
+- Tests: `test/SoloCommandGameTests` (the tree and op-only, awaken/set/add/reset, a number read as a level, give,
+  quests, spawning creatures, a boss and a gate, both wipes).
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1283,7 +1325,7 @@ The System ships in English (`en_us.json`) and Spanish (`es_es.json`) in every a
   each player reads it in their own language. Don't call `getString()` on the server and send the result: on a
   dedicated server that is always English. Shadow names are stored as data, not text (`ShadowNames`: an invented name
   plus an epithet id, `"Vhalgrim|unbroken"`), and the client turns them into words.
-- Left in English on purpose: operator `/system ...` command feedback, config comments, the dev UI gallery, and
+- Left in English on purpose: the `/system ...` testing commands' feedback (`/solo` is translated), config comments, the dev UI gallery, and
   invented proper names (shadow names, roman numerals).
 
 ## Checking the UI without a screen
