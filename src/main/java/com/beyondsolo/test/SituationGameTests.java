@@ -8,6 +8,7 @@ import com.beyondsolo.party.Parties;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
+import com.beyondsolo.quest.QuestEvent;
 import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.QuestTestAccess;
 import com.beyondsolo.quest.situation.CatchBreath;
@@ -23,19 +24,24 @@ import com.beyondsolo.quest.situation.SituationTestAccess;
 import com.beyondsolo.quest.situation.Situations;
 import com.beyondsolo.quest.situation.Streaks;
 import com.beyondsolo.quest.situation.Watch;
+import com.beyondsolo.registry.ModEntities;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.Progression;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.util.OnlinePlayers;
+import com.beyondsolo.worldboss.WorldBossModule;
+import com.beyondsolo.worldboss.WorldBosses;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Zombie;
@@ -148,6 +154,46 @@ public final class SituationGameTests {
         helper.assertTrue(annihilate.objectives().stream().filter(o -> o.display() == QuestObjective.Display.HEALTH).allMatch(o -> o.progress() == 0),
                 "its health row reads empty in the completed quest");
         helper.assertTrue(xp(p) - before > plain, "annihilating it is paid (" + (xp(p) - before) + " vs " + plain + " for a plain kill)");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void bossesNeverComeBackAsANemesis(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        for (EntityType<?> type : List.of(ModEntities.GATE_BOSS.get(), WorldBossModule.TITAN.get(), WorldBossModule.STORMS.get())) {
+            Entity e = type.create(level);
+            helper.assertTrue(e instanceof LivingEntity && Foes.isBoss(e), type.getDescriptionId() + " is a boss to the situations");
+            helper.assertTrue(SituationTestAccess.snapshot((LivingEntity) e) == null, type.getDescriptionId() + " never comes back as a nemesis");
+            e.discard();
+        }
+        Zombie z = zombie(helper, 3, 3);
+        helper.assertTrue(SituationTestAccess.snapshot(z) != null, "an ordinary creature can come back");
+        z.getPersistentData().putUUID(WorldBosses.ARMY_TAG, UUID.randomUUID());
+        helper.assertTrue(SituationTestAccess.snapshot(z) == null, "a monarch's soldier can't");
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void aCreatureRecoversOncePerFuryHoweverManyHuntIt(GameTestHelper helper) {
+        ServerPlayer a = player(helper, PlayerRank.E);
+        ServerPlayer b = player(helper, PlayerRank.E);
+        Zombie foe = zombie(helper, 3, 3);
+        List<Quest> hunts = new ArrayList<>();
+        for (ServerPlayer p : List.of(a, b)) {
+            Quest survive = Situations.FOE.survive(p, foe, 3.0);
+            helper.assertTrue(SituationTestAccess.begin(p, Situations.FOE, survive), "the survive quest starts");
+            foe.setHealth(foe.getMaxHealth() * 0.3f);
+            Situations.FOE.update(p, survive, Run.of(survive));
+            Quest annihilate = Situations.running(p, Situations.FOE);
+            helper.assertTrue(OverwhelmingFoe.ANNIHILATE.equals(stage(annihilate)), "the quest turns into Annihilate, got " + stage(annihilate));
+            hunts.add(annihilate);
+        }
+        float before = foe.getHealth();
+        helper.assertTrue(Situations.FOE.expiring(a, hunts.get(0), Run.of(hunts.get(0)), QuestEvent.FailReason.TIME), "left standing, it fights back");
+        helper.assertTrue(Situations.FOE.expiring(b, hunts.get(1), Run.of(hunts.get(1)), QuestEvent.FailReason.TIME), "for both hunters");
+        float healed = foe.getHealth() - before;
+        float once = foe.getMaxHealth() * OverwhelmingFoe.RECOVER;
+        helper.assertTrue(Math.abs(healed - once) < 0.01f * foe.getMaxHealth(), "it recovers once, not once per hunter: " + healed + " vs " + once);
         helper.succeed();
     }
 

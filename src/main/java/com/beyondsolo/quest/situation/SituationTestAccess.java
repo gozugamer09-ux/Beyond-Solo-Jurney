@@ -2,7 +2,10 @@ package com.beyondsolo.quest.situation;
 
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestEngine;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import org.jetbrains.annotations.Nullable;
 
 /** Hooks for game tests that need to reach past the normal flow (a situation started on cue, follow-ups run now). Not for gameplay code. */
 public final class SituationTestAccess {
@@ -19,6 +22,12 @@ public final class SituationTestAccess {
     /** Runs whatever follow-ups are due, as the once-a-second tick would. */
     public static void runFollowUps(ServerPlayer player) {
         FollowUps.tick(player, QuestEngine.gameTime(player));
+    }
+
+    /** What a creature would come back as later, or null if it can't come back (a boss, a summon...). */
+    @Nullable
+    public static CompoundTag snapshot(LivingEntity e) {
+        return OverwhelmingFoe.snapshot(e);
     }
 
     private SituationTestAccess() {}
