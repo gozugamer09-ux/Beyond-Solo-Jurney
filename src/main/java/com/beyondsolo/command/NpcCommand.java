@@ -21,7 +21,6 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
@@ -80,7 +79,7 @@ public final class NpcCommand {
                             for (Quest q : QuestEngine.data(p).active()) {
                                 if (q.template().equals(NpcQuestKind.CLEAR.template()) && q.area() != null) {
                                     q.extra().putBoolean("spawned", true);
-                                    NpcService.spawnNest((ServerLevel) p.level(), q.area().center(), q.rankTier(), q.extra().getInt("nest"));
+                                    NpcService.spawnNest(p, q);
                                 }
                             }
                             return 1;

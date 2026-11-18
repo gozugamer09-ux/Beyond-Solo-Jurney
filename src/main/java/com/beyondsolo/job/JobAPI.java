@@ -143,7 +143,8 @@ public final class JobAPI {
         if (failed) data.setRetryAt(player.level().getServer().overworld().getGameTime() + JobConfig.RETRY_MINUTES.get() * 1200L);
     }
 
-    static void setRetryAt(ServerPlayer player, long at) {
+    /** When the player may try the trial again (game time; 0 = now). */
+    public static void setRetryAt(ServerPlayer player, long at) {
         get(player).setRetryAt(at);
     }
 

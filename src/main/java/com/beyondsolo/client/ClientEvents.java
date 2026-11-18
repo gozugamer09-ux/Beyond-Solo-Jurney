@@ -137,6 +137,7 @@ public final class ClientEvents {
         if (QuestOverlay.skip()) return;
         if (com.beyondsolo.client.skill.SkillOverlay.skip()) return;
         if (com.beyondsolo.client.gate.GateOverlay.skip()) return;
+        if (com.beyondsolo.client.chronicle.TitleOverlay.skip()) return;
         NotificationManager.toggleHidden();
     }
 

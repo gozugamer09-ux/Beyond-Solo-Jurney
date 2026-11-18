@@ -55,17 +55,36 @@ public enum Affinity {
         return 1f;
     }
 
+    /**
+     * True while a storm spark is landing. The spark is a hit of its own, and everything that answers a creature's
+     * hit (its affinity mark above all) must leave it alone: a spark that set off another spark used to chain without
+     * end and kill whatever it touched in one blow, whatever its health (playtest 0.1.6).
+     */
+    private static int sparkDepth;
+
+    public static boolean inSpark() {
+        return sparkDepth > 0;
+    }
+
     /** What this creature's hit leaves on its target, on top of the hit itself. {@code power} scales the buildup. */
     public void onHit(LivingEntity attacker, LivingEntity target, float power) {
+        if (!target.isAlive()) return;
         switch (this) {
             case FROST -> {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 50, power > 20 ? 1 : 0), attacker);
                 target.setTicksFrozen(Math.min(target.getTicksRequiredToFreeze() + 40, target.getTicksFrozen() + 40));
             }
             case STORM -> {
-                target.invulnerableTime = 0;
-                target.hurt(attacker.damageSources().indirectMagic(attacker, attacker), 1f + power * 0.06f);
-                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 12, 3), attacker);
+                // one spark per hit, never a spark off a spark
+                if (inSpark()) return;
+                sparkDepth++;
+                try {
+                    target.invulnerableTime = 0;
+                    target.hurt(attacker.damageSources().indirectMagic(attacker, attacker), 1f + power * 0.06f);
+                } finally {
+                    sparkDepth--;
+                }
+                if (target.isAlive()) target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 12, 3), attacker);
             }
             case NONE -> {
             }

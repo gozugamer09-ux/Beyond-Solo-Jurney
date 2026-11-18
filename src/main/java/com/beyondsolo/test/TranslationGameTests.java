@@ -42,9 +42,9 @@ public final class TranslationGameTests {
     static final String SPANISH = "es_es";
     static final List<String> SPANISH_COPIES = List.of("es_ar", "es_cl", "es_ec", "es_mx", "es_uy", "es_ve", "esan");
     /** Namespaces with their own language files. New ones are found on their own when the assets folder can be listed. */
-    private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_breaks", "beyondsolo_crafting", "beyondsolo_depths",
+    private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_breaks", "beyondsolo_commands", "beyondsolo_crafting", "beyondsolo_depths",
             "beyondsolo_economy", "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty",
-            "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_tower");
+            "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_tower", "beyondsolo_chronicle");
     /** Minecraft's own pattern for a translation argument ({@code TranslatableContents}). */
     private static final Pattern ARG = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 
@@ -147,7 +147,7 @@ public final class TranslationGameTests {
         return new Args(used, bad);
     }
 
-    private static List<String> namespaces() {
+    static List<String> namespaces() {
         Set<String> out = new TreeSet<>(KNOWN);
         try {
             URL url = BeyondSolo.class.getResource("/assets/" + BeyondSolo.MOD_ID + "/lang/en_us.json");
@@ -164,7 +164,7 @@ public final class TranslationGameTests {
         return List.copyOf(out);
     }
 
-    private static @Nullable JsonObject read(String ns, String locale) {
+    static @Nullable JsonObject read(String ns, String locale) {
         try (InputStream in = BeyondSolo.class.getResourceAsStream("/assets/" + ns + "/lang/" + locale + ".json")) {
             if (in == null) return null;
             try (Reader r = new InputStreamReader(in, StandardCharsets.UTF_8)) {

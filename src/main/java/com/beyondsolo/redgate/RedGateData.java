@@ -65,11 +65,13 @@ public final class RedGateData extends SavedData {
         if (changed) setDirty();
     }
 
-    boolean forced(UUID gate) {
+    /** Whether the gate is set to turn red when the first awakened hunter goes through. */
+    public boolean forced(UUID gate) {
         return forced.contains(gate);
     }
 
-    void force(UUID gate, boolean on) {
+    /** Makes a gate red (it turns when an awakened hunter is the first through it), or takes that back. */
+    public void force(UUID gate, boolean on) {
         if (on ? forced.add(gate) : forced.remove(gate)) setDirty();
         if (on) defused.remove(gate);
     }

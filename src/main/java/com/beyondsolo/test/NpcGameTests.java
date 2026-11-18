@@ -25,7 +25,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerData;
@@ -162,7 +161,13 @@ public final class NpcGameTests {
         for (NpcQuestKind kind : new NpcQuestKind[]{NpcQuestKind.GATHER, NpcQuestKind.HUNT, NpcQuestKind.CLEAR}) {
             Quest qe = NpcQuests.build(e, v, new NpcQuests.Plan(kind, 99), false);
             Quest qs = NpcQuests.build(s, v, new NpcQuests.Plan(kind, 99), false);
-            helper.assertTrue(qs.objectives().get(0).required() > qe.objectives().get(0).required(), kind + ": S-rank has more to do");
+            if (kind == NpcQuestKind.CLEAR) {
+                // a nest is always ten: its creatures grow with the hunter instead
+                helper.assertTrue(qs.objectives().get(0).required() == NpcQuests.NEST_SIZE && qe.objectives().get(0).required() == NpcQuests.NEST_SIZE,
+                        "a nest is ten creatures at any rank");
+            } else {
+                helper.assertTrue(qs.objectives().get(0).required() > qe.objectives().get(0).required(), kind + ": S-rank has more to do");
+            }
             helper.assertTrue(qs.rewards().xp() > qe.rewards().xp(), kind + ": S-rank earns more XP");
             helper.assertTrue(qs.rewards().items().get(0).getCount() > qe.rewards().items().get(0).getCount(), kind + ": more emeralds");
         }
@@ -295,17 +300,43 @@ public final class NpcGameTests {
         helper.succeed();
     }
 
+    /**
+     * A clearing request is a nest of ten of the gate's own creatures, as strong as its hunter. Each one that dies
+     * counts, whoever or whatever killed it and wherever it wandered; a death called for twice counts once; and
+     * deaths while the hunter is away are kept for them.
+     */
     @GameTest(template = ARENA)
-    public static void nestSpawnsArmouredMonsters(GameTestHelper helper) {
+    public static void nestCreaturesCountHoweverTheyDie(GameTestHelper helper) {
+        ServerPlayer p = player(helper, PlayerRank.D);
+        Villager v = villager(helper, VillagerProfession.FARMER, 2);
+        Quest q = give(p, v, NpcQuestKind.CLEAR, 7);
+        QuestObjective o = q.objectives().get(0);
+        helper.assertTrue(o.type() == ObjectiveType.CUSTOM && o.required() == NpcQuests.NEST_SIZE && !o.areaOnly(),
+                "ten to clear, wherever they fall: " + o.type() + " " + o.required() + " " + o.areaOnly());
+        helper.assertTrue(NpcService.nestRank(p) == PlayerRank.E, "a fresh hunter's nest is an even match: " + NpcService.nestRank(p));
+
         BlockPos center = helper.absolutePos(new BlockPos(4, 2, 4));
-        NpcService.spawnNest(helper.getLevel(), center, 2, 4);
-        List<Mob> mobs = helper.getLevel().getEntitiesOfClass(Mob.class, new AABB(center).inflate(12), m -> m.getTags().contains("beyondsolo_nest"));
-        helper.assertTrue(mobs.size() == 4, "four monsters, got " + mobs.size());
-        for (Mob m : mobs) {
-            helper.assertTrue(!m.getItemBySlot(EquipmentSlot.HEAD).isEmpty(), "helmet against the sun");
-            helper.assertTrue(m.isPersistenceRequired(), "the nest doesn't despawn");
-            m.discard();
+        List<Mob> nest = NpcService.spawnNest(helper.getLevel(), center, NpcService.nestRank(p), NpcQuests.NEST_SIZE, q.extra().getString("token"), p.getUUID());
+        helper.assertTrue(nest.size() == NpcQuests.NEST_SIZE, "ten creatures, got " + nest.size());
+        for (Mob m : nest) {
+            helper.assertTrue(com.beyondsolo.enemy.EnemyRoster.kindOf(m.getType()) != null, "the gate's own creatures: " + EntityType.getKey(m.getType()));
+            helper.assertTrue(m.isPersistenceRequired() && m.getTags().contains("beyondsolo_nest"), "marked, and they don't despawn");
         }
+
+        // a fall, counted once even if the death is called for twice
+        var fall = helper.getLevel().damageSources().fall();
+        NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(nest.get(0), fall));
+        NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(nest.get(0), fall));
+        // one that wandered far off, killed by nobody in particular
+        Mob far = nest.get(1);
+        far.teleportTo(far.getX() + 40, far.getY(), far.getZ());
+        far.kill();
+        NpcService.tickPlayer(p);
+        helper.assertTrue(o.progress() == 2, "both count, once each: " + o.progress());
+        for (int i = 2; i < nest.size(); i++) nest.get(i).kill();
+        NpcService.tickPlayer(p);
+        helper.assertTrue(o.progress() == NpcQuests.NEST_SIZE && q.status() == Quest.Status.READY, "the nest is cleared: report back");
+        for (Mob m : nest) m.discard();
         helper.succeed();
     }
 }

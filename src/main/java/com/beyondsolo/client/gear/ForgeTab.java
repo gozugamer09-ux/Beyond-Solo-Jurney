@@ -76,6 +76,8 @@ public class ForgeTab implements SystemTab {
     public void onOpened() {
         seenResult = GearClient.lastAt();
         modeAt = Anim.now();
+        // materials in System storage count too: get the server's copy of it
+        com.beyondsolo.client.crafting.CraftClient.requestStock();
     }
 
     // ------------------------------------------------------------------ drawing
@@ -326,8 +328,8 @@ public class ForgeTab implements SystemTab {
         ItemGrade grade = ItemGrade.of(stack);
         long gold = Enhancement.gold(grade == null ? ItemGrade.COMMON : grade, level);
         int stones = Enhancement.stones(level);
-        int haveStones = ForgeService.count(inv, GearModule.REFINING_STONE.get());
-        int haveSeals = ForgeService.count(inv, GearModule.WARD_SEAL.get());
+        int haveStones = ForgeService.have(inv, com.beyondsolo.client.crafting.CraftClient.storage(), GearModule.REFINING_STONE.get());
+        int haveSeals = ForgeService.have(inv, com.beyondsolo.client.crafting.CraftClient.storage(), GearModule.WARD_SEAL.get());
         boolean creative = inv.player.getAbilities().instabuild;
         float ry = y + 14;
         float costX = x + 12;
@@ -381,7 +383,7 @@ public class ForgeTab implements SystemTab {
         for (int i = 1; i < els.length; i++) {
             SkillElement e = els[i];
             int c = Gfx.opaque(e.color());
-            int have = ForgeService.count(inv, GearModule.CRYSTALS.get(e).get());
+            int have = ForgeService.have(inv, com.beyondsolo.client.crafting.CraftClient.storage(), GearModule.CRYSTALS.get(e).get());
             boolean on = e == element;
             boolean hover = Ui.inside(mouseX, mouseY, gx, y, gw, gw + 6);
             float bob = on ? (float) Math.sin(Anim.loop(1.6f) * Math.PI * 2) * 0.8f : 0;
@@ -405,7 +407,7 @@ public class ForgeTab implements SystemTab {
         goldChip(g, cx - cw / 2f, y + gw + 19, gold, creative || EconomyClient.gold() >= gold);
 
         String why = null;
-        int have = ForgeService.count(inv, GearModule.CRYSTALS.get(element).get());
+        int have = ForgeService.have(inv, com.beyondsolo.client.crafting.CraftClient.storage(), GearModule.CRYSTALS.get(element).get());
         if (element == current) why = Component.translatable("forge.beyondsolo.same_element").getString();
         else if (!creative && have <= 0) why = Component.translatable("forge.beyondsolo.no_crystal").getString();
         else if (!creative && EconomyClient.gold() < gold) why = Component.translatable("forge.beyondsolo.no_gold").getString();

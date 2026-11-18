@@ -23,7 +23,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
-| `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command` | `/system` testing commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command.solo` | `/solo`, the operator commands: one tree with help, tab completion and English and Spanish feedback (see "Operator commands: /solo") |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
@@ -46,7 +47,10 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 ## Rules for new modules
 
 1. **Read and change player progress only through `SystemAPI`.** It keeps the client in sync and fires events.
-2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`.
+2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`. Register
+   it in the `beyondsolo` namespace and `/solo wipe` resets it with no change there. State kept anywhere else (a
+   running session, a map in memory, a mark in the player's persistent data) needs its own cancel in
+   `SoloWipe.progress`.
 3. **Listen to `SystemEvent`s** on `NeoForge.EVENT_BUS` instead of patching core code:
    `Awakened`, `XpGain` (cancel or change the amount), `LevelUp`, `RankChanged`, `StatAllocated`,
    `Collapsed`, `ObjectiveChanged`.
@@ -84,6 +88,29 @@ textures). To add an icon, drop its Phosphor SVG into `tools/icons-src`, add a l
 it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
+
+### The System HUD
+
+While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):
+
+- `VitalsHud` (layer `beyondsolo:vitals`, right above vanilla's hotbar layer): the hotbar as glass tiles with a
+  gliding highlight and a glow under graded gear (the off-hand slot and the "hotbar" attack indicator where vanilla
+  puts them), the experience strip with the level gem (the System level once awakened, vanilla's level before that;
+  vanilla's level is then the small green number at the strip's end), and leaning bars with their numbers: health
+  (armour chip, absorption in gold, poison/wither/frozen tints) and mana on the left, hunger (saturation line, what
+  the food in hand would give), fatigue, a mount's health and air on the right, each only while it matters. Bars
+  glide, leave a pale trail when hit, flash when they rise and pulse when low. Numbers of five digits and more are
+  shortened (12.3k). It raises `Gui.leftHeight`/`rightHeight`, so the item name and the action bar stay above it.
+- `EffectsHud` (layer `beyondsolo:effects`, above vanilla's effects layer): status effects in vanilla's corner and
+  rows as discs with a ring that runs down, the time left and the level. It leaves out burn, venom and the crimson
+  brand, which have their meters on the combat rail. `bottom()` and `left()` say where the icons end (vanilla's too
+  while the System HUD is off): the pop-ups and the gold capsule start under them, and the icons go under the unread
+  badge of hidden pop-ups.
+- `HudClientEvents` cancels the vanilla layers it replaces (hotbar, jump meter, experience bar and level, health,
+  armour, food, mount health, air, effects) and AppleSkin's layers. Spectators keep vanilla's HUD.
+- `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
+  follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
+  for pieces that sit beside it (the shadow army counter).
 
 ## The evaluation
 
@@ -614,7 +641,7 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
   scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
   the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
-- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (under the effect icons, `EffectsHud.bottom()`):
   the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
 - **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
@@ -1234,6 +1261,93 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## The chronicle: titles, rankings and the journal
+
+Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
+`ChronicleModule.init` registers the hunter's chronicle (`ChronicleData`, attachment `beyondsolo:chronicle`, kept
+through death: titles earned with the game time, the chronicle's own counters, journal pages, what is not looked at
+yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle plus how far
+along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
+`ChronicleActionPayload` the page's buttons: wear, take off, read, ask for the boards).
+
+- **Titles** (`title/Titles`, 52 of them in five categories: hunt, gates, citadel, system, mastery; five tiers from
+  common to mythic). A title with a `Feat` is earned when that number reaches its goal: the chronicle counts kills,
+  bosses, ascended bosses, clutch kills (a boss falling while the hunter is under 15% health), kills of far stronger
+  creatures, deaths, kills by creature family (`journal/CreatureFamily`), dungeon breaks held, hidden and trap rooms,
+  dailies, surprise quests, reactions and the longest combo itself; everything else is read from the record its own
+  feature keeps (gates cleared, red gates, keys, weaknesses, the Citadel and the rush, quests, the penalty zone, level,
+  gold earned, the shadow army, journal pages). `TitleService.check` runs every 2 s. A title without a feat is given by
+  its feature: `SystemAPI.setTitle(player, key)` fires `SystemEvent.TitleGranted` (cancellable) and the chronicle keeps
+  it. A new title is worn when nothing is worn or when the System picked the worn one and the new one is rarer; one the
+  hunter picked on the page stays on. Some titles are secret (shown as "???" until earned). Titles worn before the
+  chronicle existed are taken in quietly at login.
+- **Perks** (`TitlePerk`, only the worn title's): attribute ones as transient modifiers `beyondsolo:title_<perk>`
+  (attack, health, speed, armor, luck, elemental and spell power, mana efficiency, skill haste, exhaustion
+  resistance) put back on login, respawn and every change; event ones in `TitleService` (System XP on `XpGain`, gold
+  in `Economy.add` for kills, quests, gates and the Citadel, more damage to creatures, bosses, a family or far stronger
+  foes, less damage taken capped at 50%, and both below 30% health). Every number waits for the balancing pass.
+- **Rankings** (`ranking/`): the hunters' board by power (ten times `HiddenLevel.hunterLevel`), the Citadel (highest
+  floor, then the spire), the boss rush per tier (best time) and gates cleared. Players' standings are kept in the
+  saved data `beyondsolo_rankings` (taken at login, every minute and at logout); a fixed roster of 16 rival hunters
+  (`Rivals`, own names, guilds, ranks E to S) stands in for the national rankings and grows a little with the days of
+  the world. Climbing past someone on the hunters' board is announced with the next one to pass.
+- **The journal** (`journal/Journal`, about 107 pages: every gate creature by family, every boss and the Arbiter and
+  the lord, every realm plus the red gates' world, the Citadel and the Wastes, every graded weapon). `JournalService`
+  fills pages in from what the hunter sees within 24 blocks (every second), where they stand (a gate's realm or a
+  place) and what they carry (every 2 s); kills count on the page and a boss remembers each rank it was met at and
+  its ascended form. Another feature adds its pages with `Journal.register`. Lore lines are
+  `chronicle.beyondsolo.lore.<category>.<name>` (a weapon's own `.lore` line comes first).
+- **Client**: the CHRONICLE page (`ChronicleTab`, order 108) with three sections: `TitlesPage` (filters, every title
+  with its progress, the picked one's crest, goal, perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
+  hunter's place and who is next, the rush tiers) and `JournalPage` (a grid per section: creatures and bosses drawn
+  as themselves, weapons as their icons, realms as pictures, all dark shapes until known; the page with the creature
+  turning, its lore once one is slain, kills, the first day it was met and a boss's forms). `TitleOverlay` plays
+  TITLE ACQUIRED (the world dims to the tier's colour, the crest bursts in, the name types out on a band of light,
+  perks, worn or how to wear it; titles earned together share one moment) and a small card for each new page; both
+  wait while another System moment has the screen, and the hide key skips them. The worn title in the STATUS page
+  takes its tier's colour and opens the titles when clicked. Realm pictures (256x144) and icons come from
+  `tools/gen_chronicle_assets.py`.
+- **Commands** (`/system chronicle ...`, level 2): title grant|revoke|equip <id|all>, title check, count <feat>
+  <value>, journal reveal <all|section|page>, journal clear, rankings, info, reset.
+
+## Operator commands: /solo
+
+`/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
+place for an operator to change the game: wipe a player, set their numbers, spawn things, give items, move through
+gates. `/solo` alone shows the groups as buttons and `/solo help <group>` lists that group's commands, each line
+clickable to start typing it. The older `/system ...` commands stay for the mod's own tests and are reachable as
+`/solo dev ...` (a redirect to the `/system` node; `SoloCommand` registers at `EventPriority.LOWEST` so every module
+has added to `/system` by then).
+
+| Group | Commands | Class |
+|---|---|---|
+| player | `info`, `awaken [rank] [class]`, `evaluate [rank] [class]`, `bind`, `set level/rank/class/subclass/stat/points/gold/exhaustion`, `add xp/levels/points/gold/stat`, `heal`, `reset <part>`, `wipe system/all` | `SoloProgress`, `SoloWipe` |
+| skills | `skill learn/forget <skill>/all [level]`, `skill max`, `quest list/start/complete/fail`, `shadow give <creature> [rank]` | `SoloSkills` |
+| world | `spawn creature/boss/gate/cache/crystal`, `gate list/close [all]/break` | `SoloWorld` |
+| dungeons | `dungeon enter/boss/clear/leave/info`, `trial awakening/job/penalty`, `tower climb [floor]/rush <tier>/endless` | `SoloWorld` |
+| items | `give item <item> [count] [grade]`, `give armor <set> [grade]`, `give key/rune/tome/license` | `SoloGive` |
+
+- **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):
+  left out, the sender; named, a name or a selector. With several players, one failing is said under their name and
+  the rest go ahead (`Solo.each`).
+- **Arguments that could be a name:** Brigadier tries a node's arguments in the order they were added and keeps the
+  first that parses, and a player's name parses as almost anything. So a number before the players is added before
+  them (`SoloGive.counted`, the skill level, the tower floor), and words with a fixed set of values that come before
+  the players are literals, not word arguments (ranks and classes in `awaken`/`evaluate`, grades in `give`, shadow
+  ranks). `SoloCommandGameTests.aNumberIsALevelNotAName` guards it.
+- **Ids:** items, quests and creatures take a resource id; one typed without a namespace is looked for in the mod's
+  own after Minecraft's (`Solo.lookup`), and suggestions match by path too ("rune" offers `beyondsolo:rune_stone`).
+- **Wipe:** `system` cancels whatever is running for the player (Citadel run, Penalty Zone, job change trial, red
+  gate, shadows, the awakening, exhaustion), removes every data attachment in the `beyondsolo` namespace but the
+  System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
+  every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
+  ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
+  then start over like a new player: the presystem hint with the awakening trial on, the System at once with it off.
+- **Text:** every message is `command.beyondsolo.solo.*` in `assets/beyondsolo_commands/lang` (English and Spanish).
+  Command words, ids and the help's usage lines stay as typed.
+- Tests: `test/SoloCommandGameTests` (the tree and op-only, awaken/set/add/reset, a number read as a level, give,
+  quests, spawning creatures, a boss and a gate, both wipes).
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1260,7 +1374,7 @@ The System ships in English (`en_us.json`) and Spanish (`es_es.json`) in every a
   each player reads it in their own language. Don't call `getString()` on the server and send the result: on a
   dedicated server that is always English. Shadow names are stored as data, not text (`ShadowNames`: an invented name
   plus an epithet id, `"Vhalgrim|unbroken"`), and the client turns them into words.
-- Left in English on purpose: operator `/system ...` command feedback, config comments, the dev UI gallery, and
+- Left in English on purpose: the `/system ...` testing commands' feedback (`/solo` is translated), config comments, the dev UI gallery, and
   invented proper names (shadow names, roman numerals).
 
 ## Checking the UI without a screen
@@ -1316,4 +1430,10 @@ checks use zombies.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/ChronicleGameTests` covers: titles a feature gives being kept and worn (a rarer one replacing one the System
+picked, one the hunter picked staying on, taking it off), feats giving their titles at the goal, the title table
+(categories, goals, perks), perks following the worn title (attributes on and off, damage to a family, System XP,
+gold, damage taken), the journal filling in from kills (counted by family) and a boss's forms, every creature and
+boss having a page, the rankings holding every rival and the player with every board sent, and every title, perk,
+family, guild and page having its English line.
 `test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.

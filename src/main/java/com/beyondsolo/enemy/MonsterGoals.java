@@ -67,6 +67,16 @@ final class MonsterGoals {
         return f.lengthSqr() < 1e-6 ? Vec3.ZERO : f.normalize();
     }
 
+    /**
+     * Turns a shooter's whole body toward its target, quickly but not in one snap: what it draws, casts or looses
+     * at is always in front of it.
+     */
+    static void turnTo(Mob m, LivingEntity t) {
+        m.lookAt(t, 40f, 30f);
+        m.yBodyRot = m.getYRot();
+        m.yHeadRot = m.getYRot();
+    }
+
     static void face(LivingEntity m, Vec3 dir) {
         if (dir.horizontalDistanceSqr() < 1e-6) return;
         float yaw = (float) (Mth.atan2(dir.z, dir.x) * Mth.RAD_TO_DEG) - 90f;
@@ -202,6 +212,7 @@ final class MonsterGoals {
             boolean sees = m.getSensing().hasLineOfSight(t);
             if (windup >= 0) {
                 m.getNavigation().stop();
+                turnTo(m, t);
                 if (--windup <= 0) {
                     windup = -1;
                     next = m.tickCount + 45 + m.getRandom().nextInt(30);
@@ -216,9 +227,14 @@ final class MonsterGoals {
             }
             if (!sees || d > 12) m.getNavigation().moveTo(t, 1.0);
             else if (d < 6) {
-                Vec3 away = flat(m.position().subtract(t.position())).scale(4);
-                m.getNavigation().moveTo(m.getX() + away.x, m.getY(), m.getZ() + away.z, 1.1);
-            } else m.getNavigation().stop();
+                // backs off facing its target, never turning its back to it
+                m.getNavigation().stop();
+                m.getMoveControl().strafe(-0.55f, 0f);
+                turnTo(m, t);
+            } else {
+                m.getNavigation().stop();
+                turnTo(m, t);
+            }
             if (m.tickCount >= next && sees && d < 16) {
                 windup = 11;
                 m.triggerAnim("attack", "attack");
@@ -529,6 +545,8 @@ final class MonsterGoals {
             boolean sees = m.getSensing().hasLineOfSight(t);
             if (windup >= 0) {
                 m.getNavigation().stop();
+                // draws and looses facing what it shoots at
+                turnTo(m, t);
                 if (--windup <= 0) {
                     windup = -1;
                     loose(t);
@@ -537,16 +555,16 @@ final class MonsterGoals {
                 return;
             }
             if (!sees || d > 15) m.getNavigation().moveTo(t, 1.0);
-            else if (d < 6) {
-                Vec3 away = flat(m.position().subtract(t.position())).scale(5);
-                m.getNavigation().moveTo(m.getX() + away.x, m.getY(), m.getZ() + away.z, 1.15);
-            } else {
+            else {
+                // too close: steps back; in range: sidesteps. Either way facing its target, the way a skeleton
+                // kites (walking off with its back turned, it used to shoot over its shoulder)
                 m.getNavigation().stop();
                 if (++strafeTicks > 30 && m.getRandom().nextFloat() < 0.06f) {
                     left = !left;
                     strafeTicks = 0;
                 }
-                m.getMoveControl().strafe(0, left ? 0.45f : -0.45f);
+                m.getMoveControl().strafe(d < 6 ? -0.6f : 0f, left ? 0.45f : -0.45f);
+                turnTo(m, t);
             }
             if (m.tickCount >= next && sees && d < 20) {
                 windup = 13;
