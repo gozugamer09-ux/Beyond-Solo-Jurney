@@ -1081,7 +1081,7 @@ public final class MagePath {
             if (attacker != null && attacker.isAlive() && attacker != p) {
                 later(p, 1, () -> {
                     if (!attacker.isAlive()) return;
-                    attacker.hurt(p.damageSources().indirectMagic(p, p), 3 + aegis);
+                    attacker.hurt(p.damageSources().indirectMagic(p, p), com.beyondsolo.system.Balance.flatDamage(p, 3 + aegis));
                     fx(p, Kind.BOLT, ASTRAL_AEGIS.color(), mid(attacker), 0.3f, 0);
                 });
             }

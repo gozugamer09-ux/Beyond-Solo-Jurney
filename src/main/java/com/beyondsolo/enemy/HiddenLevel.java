@@ -3,7 +3,7 @@ package com.beyondsolo.enemy;
 import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
-import com.beyondsolo.system.Stat;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
 import net.minecraft.nbt.CompoundTag;
@@ -23,10 +23,10 @@ import net.minecraft.world.entity.player.Player;
  * <p>The level comes from what the creature really is once everything is on it (its kind, gate rank, variant, size,
  * affixes, a red gate's fury, a boss's kind and ascension): its staying power (health, stretched by its armour) times
  * the weight of its blows, the product an even fight between two sides comes down to ({@link #power}). {@link #powerAt}
- * is the same measure for a hunter of each level, set so that a gate's typical plain creature is the level where its
- * rank's armour can first be worn (E 1, D 10, C 20, B 30, A 40, S 50) and growing as a hunter's stats do past that. A
- * hunter's own side of the comparison counts every stat point they have, rank bonus, rewards and unspent points
- * included, {@link #POINTS_PER_LEVEL} to a level ({@link #hunterLevel}).</p>
+ * is the same measure for a hunter of each level, from the power curve in {@link Balance}: a gate's typical plain
+ * creature is the level of its rank's home level (E 3, D 13, C 26, B 41, A 56, S 74), and the curve goes on past S to
+ * the level cap. A hunter's own side of the comparison counts every stat point they have, rank bonus, rewards and
+ * unspent points included, {@link #POINTS_PER_LEVEL} to a level ({@link #hunterLevel}).</p>
  *
  * <p>A creature's level is worked out the first time it is needed (when a player first sees it) and kept in its
  * persistent data; code that makes a creature stronger or weaker after it appeared calls {@link #refresh}. All numbers
@@ -35,15 +35,18 @@ import net.minecraft.world.entity.player.Player;
 public final class HiddenLevel {
     /** Persistent-data key of a creature's hidden level. */
     public static final String KEY = "beyondsolo_level";
-    /** Stat points one level is worth on the hunter curve (the default {@code progression.statPointsPerLevel}). */
-    public static final float POINTS_PER_LEVEL = 3f;
+    /** Stat points one level is worth on the hunter curve (3 a level plus what rewards add). */
+    public static final float POINTS_PER_LEVEL = Balance.POINTS_PER_LEVEL;
     public static final int MAX = 9999;
 
-    /** The hunter curve: power at these levels, straight lines in between. */
-    private static final float[] LEVELS = {1, 10, 20, 50};
-    private static final float[] POWERS = {7, 12, 20, 50};
-    /** Past the last point a hunter only grows by their stats: this much power a level. */
-    private static final float TAIL = 0.6f;
+    /**
+     * The hunter curve: power at these levels, straight lines in between. It is the power of a typical plain creature
+     * made for each level ({@link Balance#healthAt}, {@link Balance#damageAt}): 14 at E's home level.
+     */
+    private static final float[] LEVELS = {1, 3, 13, 26, 41, 56, 74, 80, 90, 100};
+    private static final float[] POWERS = {9.5f, 14f, 50.1f, 124.4f, 275.9f, 488f, 867.1f, 994.1f, 1226.4f, 1484.7f};
+    /** Past the last point: this much power a level. */
+    private static final float TAIL = 25.8f;
 
     /** How a creature stands against the hunter looking at it, and the colour its name is shown in. */
     public enum Threat {
@@ -100,6 +103,11 @@ public final class HiddenLevel {
         int level = compute(e);
         if (!e.level().isClientSide) data.putInt(KEY, level);
         return level;
+    }
+
+    /** Drops a creature's kept level, so it is worked out again the next time it is needed (before anyone has seen it). */
+    public static void forget(LivingEntity e) {
+        e.getPersistentData().remove(KEY);
     }
 
     /** Works the level out again (after something made the creature stronger or weaker) and tells everyone who sees it. */
@@ -169,9 +177,7 @@ public final class HiddenLevel {
      * they are strength the hunter has, just not placed yet. Works on both sides (the client has its own System data).
      */
     public static float hunterLevel(SystemData d) {
-        int points = d.statPoints();
-        for (Stat s : Stat.values()) points += d.stat(s) - Stat.BASE;
-        return Math.max(1f, 1f + points / POINTS_PER_LEVEL);
+        return Balance.powerLevel(d);
     }
 
     public static Threat threat(LivingEntity creature, Player hunter) {

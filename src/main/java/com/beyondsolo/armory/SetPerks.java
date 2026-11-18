@@ -376,7 +376,7 @@ public final class SetPerks {
             }
             case "moonlit_hunt" -> {
                 if (arrow != null && target.isAlive() && bump(attacker, "moonfang") % MOON_FANG_EVERY == 0) {
-                    ArsenalHits.magicHit(attacker, target, 8f);
+                    ArsenalHits.magicHit(attacker, target, com.beyondsolo.system.Balance.flatDamage(attacker, 8f));
                     if (target.isAlive()) Statuses.apply(target, DamageElement.BLOOD, 20f, attacker);
                     burst(target, ParticleTypes.SCULK_SOUL, 10, 0.4);
                     sound(target, SoundEvents.WOLF_GROWL, 0.9f, 0.7f);
@@ -387,7 +387,7 @@ public final class SetPerks {
                     if (target.isAlive()) Statuses.apply(target, DamageElement.FIRE, 15f * power, attacker);
                     if (arrow.isCritArrow()) {
                         for (LivingEntity e : ArsenalHits.foesAround(attacker, target.position(), 2.5)) {
-                            ArsenalHits.proc(() -> CombatDamage.deal(e, DamageElement.FIRE, 4f, attacker));
+                            ArsenalHits.proc(() -> CombatDamage.deal(e, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(attacker, 4f), attacker));
                         }
                         burst(target, ParticleTypes.FLAME, 16, 0.6);
                         sound(target, SoundEvents.FIRECHARGE_USE, 0.7f, 1.2f);
@@ -417,7 +417,7 @@ public final class SetPerks {
             case "dragons_blood" -> {
                 if (melee) {
                     if (target.isAlive()) Statuses.apply(target, DamageElement.FIRE, 12f * power, attacker);
-                    if (attacker.getHealth() < attacker.getMaxHealth() * 0.5f) attacker.heal(dealt * DRAGONS_BLOOD_HEAL);
+                    if (attacker.getHealth() < attacker.getMaxHealth() * 0.5f) com.beyondsolo.system.Balance.healRaw(attacker, dealt * DRAGONS_BLOOD_HEAL);
                 }
             }
             case "phantom_blade" -> {
@@ -475,7 +475,7 @@ public final class SetPerks {
             case "pyre_burst" -> {
                 for (LivingEntity e : ArsenalHits.foesAround(killer, dead.position(), 3)) {
                     if (e == dead) continue;
-                    ArsenalHits.proc(() -> CombatDamage.deal(e, DamageElement.FIRE, 6f, killer));
+                    ArsenalHits.proc(() -> CombatDamage.deal(e, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(killer, 6f), killer));
                     if (e.isAlive()) Statuses.apply(e, DamageElement.FIRE, 20f * ElementalHits.power(killer), killer);
                 }
                 burst(dead, ParticleTypes.FLAME, 24, 0.8);
@@ -553,7 +553,7 @@ public final class SetPerks {
                 int n = addStack(p, "cascade", CASCADE_MAX, 6 * 20);
                 if (n >= CASCADE_MAX) {
                     clear(p, "cascade");
-                    for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 4)) ArsenalHits.magicHit(p, e, 8f);
+                    for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 4)) ArsenalHits.magicHit(p, e, com.beyondsolo.system.Balance.flatDamage(p, 8f));
                     CombatFx.play(p, CombatFxPayload.Kind.NOVA, ArsenalHits.packNova(0x9B7BFF, 4));
                     sound(p, SoundEvents.ILLUSIONER_CAST_SPELL, 1f, 1.2f);
                 }
@@ -562,7 +562,7 @@ public final class SetPerks {
                 int n = addStack(p, "overflow", 4, 20 * 20);
                 if (n >= 4) {
                     clear(p, "overflow");
-                    for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 6)) ArsenalHits.magicHit(p, e, 10f);
+                    for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 6)) ArsenalHits.magicHit(p, e, com.beyondsolo.system.Balance.flatDamage(p, 10f));
                     CombatFx.play(p, CombatFxPayload.Kind.NOVA, ArsenalHits.packNova(0xFFF3C0, 6));
                     burst(p, ParticleTypes.END_ROD, 30, 2.5);
                     sound(p, SoundEvents.BEACON_ACTIVATE, 1f, 1.8f);
@@ -596,7 +596,7 @@ public final class SetPerks {
                 Player hurt = allies(p, 12).stream().filter(a -> a.getHealth() < a.getMaxHealth() * 0.35f)
                         .min(Comparator.comparingDouble(a -> a.getHealth() / a.getMaxHealth())).orElse(null);
                 if (hurt == null || !ready(p, "saints_grace", 45 * 20)) return;
-                hurt.heal(hurt.getMaxHealth() * 0.3f);
+                com.beyondsolo.system.Balance.healRaw(hurt, hurt.getMaxHealth() * 0.3f);
                 hurt.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 80, 0));
                 CombatFx.play(hurt, CombatFxPayload.Kind.NOVA, ArsenalHits.packNova(0xFFF0B0, 2));
                 burst(hurt, ParticleTypes.END_ROD, 16, 0.6);
@@ -624,12 +624,18 @@ public final class SetPerks {
         if (s != null) s.until.remove("cd." + key);
     }
 
-    /** Heals; whatever would spill over full health becomes a shield (up to 6). */
+    /**
+     * Heals; whatever would spill over full health becomes a shield (up to 6). Both grow with the hunter's health pool
+     * ({@link com.beyondsolo.system.Balance#legacyScale}), so they keep their share of it.
+     */
     public static void graceHeal(LivingEntity e, float amount) {
+        float scale = (float) com.beyondsolo.system.Balance.legacyScale(e);
+        amount *= scale;
+        float cap = GRACE_SHIELD * scale;
         float missing = e.getMaxHealth() - e.getHealth();
-        e.heal(amount);
+        com.beyondsolo.system.Balance.healRaw(e, amount);
         float spill = amount - missing;
-        if (spill > 0 && e.getAbsorptionAmount() < GRACE_SHIELD) e.setAbsorptionAmount(Math.min(GRACE_SHIELD, e.getAbsorptionAmount() + spill));
+        if (spill > 0 && e.getAbsorptionAmount() < cap) e.setAbsorptionAmount(Math.min(cap, e.getAbsorptionAmount() + spill));
         if (e.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.HAPPY_VILLAGER, e.getX(), e.getY(1.0), e.getZ(), 4, 0.3, 0.4, 0.3, 0);
         }

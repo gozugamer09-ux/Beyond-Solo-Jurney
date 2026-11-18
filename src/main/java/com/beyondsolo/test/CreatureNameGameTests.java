@@ -198,7 +198,7 @@ public final class CreatureNameGameTests {
         helper.assertTrue(HiddenLevel.threat(far, p) == Threat.FAR_STRONGER, "an A gate's creature is red to a fresh hunter");
 
         ServerPlayer veteran = hunter(helper, PlayerRank.E);
-        SystemAPI.addStatPoints(veteran, 3 * 59);
+        SystemAPI.addStatPoints(veteran, Math.round(HiddenLevel.POINTS_PER_LEVEL * 59));
         helper.assertTrue(HiddenLevel.threat(champion, veteran) == Threat.WEAKER, "an E gate's champion is white to a level 60");
         helper.assertTrue(HiddenLevel.threat(far, veteran) != Threat.FAR_STRONGER, "an A gate's plain creature is no red to a level 60");
         champion.discard();

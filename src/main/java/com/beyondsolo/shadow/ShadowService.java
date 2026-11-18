@@ -2,6 +2,7 @@ package com.beyondsolo.shadow;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.Config;
+import com.beyondsolo.enemy.Enemies;
 import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.job.JobAPI;
 import com.beyondsolo.job.Subclass;
@@ -9,6 +10,8 @@ import com.beyondsolo.network.ShadowFxPayload;
 import com.beyondsolo.network.ShadowSyncPayload;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
+import com.beyondsolo.system.Balance;
+import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.Stat;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
@@ -160,6 +163,40 @@ public final class ShadowService {
         return Math.max(1, r.baseDamage() * r.rank().power() * (1 + 0.05f * (r.level() - 1)) * intMult(intellect));
     }
 
+    /**
+     * A shadow's health beside its master: what its record gives ({@link #maxHealth(ShadowRecord, int)}), grown so it
+     * keeps pace with the creatures of its master's level ({@link Balance#summonHealth}). Works on both sides.
+     */
+    public static float maxHealth(ShadowRecord r, SystemData master) {
+        return (float) (maxHealth(r, master.stat(Stat.INT)) * Balance.summonHealth(master));
+    }
+
+    /** A shadow's blows beside its master ({@link Balance#summonDamage}). Works on both sides. */
+    public static float damage(ShadowRecord r, SystemData master) {
+        return (float) (damage(r, master.stat(Stat.INT)) * Balance.summonDamage(master));
+    }
+
+    /**
+     * The health and blows a creature leaves its soul with, in the sizes shadows are built on (the numbers before the
+     * System's power curve): the growth its rank gave it is taken back off and the old, gentler growth put back on
+     * (+40% health a rank; a gate boss its old 120 + 108 health and 7 + 3.5 damage a rank). The shadow grows with its
+     * master instead. Public for the game tests.
+     */
+    public static float[] soulSize(LivingEntity victim) {
+        float hp = victim.getMaxHealth();
+        float dmg = victim.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)
+                ? (float) victim.getAttributeBaseValue(Attributes.ATTACK_DAMAGE) : 2 + hp * 0.08f;
+        if (victim instanceof DungeonBoss boss) {
+            PlayerRank rank = boss.rank();
+            hp = hp / Balance.bossHealth(rank) * 120f * (1 + 0.9f * rank.tier());
+            dmg = dmg / Balance.bossDamage(rank) * (7f + 3.5f * rank.tier());
+        } else if (victim instanceof Mob mob) {
+            PlayerRank rank = Enemies.rankOf(mob);
+            hp = (float) (hp / Enemies.healthGrowth(mob)) * (rank == null ? 1f : 1f + 0.4f * rank.tier());
+        }
+        return new float[]{hp, dmg};
+    }
+
     public static float speed(ShadowRecord r) {
         if (r.isMount()) return 0.3f + 0.012f * r.rank().ordinal();
         return Mth.clamp(r.baseSpeed(), 0.25f, 0.36f) * (1 + 0.02f * r.rank().ordinal());
@@ -201,9 +238,9 @@ public final class ShadowService {
         if (type.is(ShadowModule.NO_SOUL)) return null;
         boolean boss = victim instanceof DungeonBoss || type.is(ShadowModule.BOSSES);
         int bossRank = victim instanceof DungeonBoss db ? db.rank().ordinal() : boss ? 3 : -1;
-        float hp = victim.getMaxHealth();
-        float dmg = victim.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)
-                ? (float) victim.getAttributeBaseValue(Attributes.ATTACK_DAMAGE) : 2 + hp * 0.08f;
+        float[] size = soulSize(victim);
+        float hp = size[0];
+        float dmg = size[1];
         float speed = victim.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)
                 ? (float) victim.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) : 0.25f;
         return addSoul(owner, (ServerLevel) victim.level(), victim.position(), type, hp, dmg, speed, boss, bossRank);
@@ -563,7 +600,8 @@ public final class ShadowService {
         if (owner == null || !canRaise(owner)) return;
         if (victim instanceof ShadowEntity) return;
         leaveSoul(owner, victim);
-        int xp = Math.max(1, Math.round(victim.getMaxHealth()));
+        // shadows learn by their own sizes, not by what the System grew the creature to
+        int xp = Math.max(1, Math.round(soulSize(victim)[0]));
         ShadowData army = army(owner);
         if (byShadow != null && byShadow.recordId() != null) {
             ShadowRecord r = army.get(byShadow.recordId());
@@ -792,8 +830,9 @@ public final class ShadowService {
             if (le.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)) dmg = (float) le.getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
             if (le.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)) speed = (float) le.getAttributeBaseValue(Attributes.MOVEMENT_SPEED);
             if (probe instanceof com.beyondsolo.gate.GateBossEntity) {
-                hp = com.beyondsolo.gate.GateTheme.of(com.beyondsolo.system.PlayerRank.C).bossHealth();
-                dmg = com.beyondsolo.gate.GateTheme.of(com.beyondsolo.system.PlayerRank.C).bossDamage();
+                // an old C-rank boss's numbers (see soulSize)
+                hp = 120f * (1 + 0.9f * PlayerRank.C.tier());
+                dmg = 7f + 3.5f * PlayerRank.C.tier();
             }
         }
         if (probe != null) probe.discard();

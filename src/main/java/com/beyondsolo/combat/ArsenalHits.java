@@ -227,15 +227,15 @@ public final class ArsenalHits {
         // arrows carry their bow's element
         if (!hit.melee() && w.buildup() > 0) Statuses.apply(target, w.element(), w.buildup() * ElementalHits.power(attacker), attacker);
 
-        if (w.has(Trait.Kind.LIFESTEAL)) attacker.heal(dealt * w.trait(Trait.Kind.LIFESTEAL));
+        if (w.has(Trait.Kind.LIFESTEAL)) com.beyondsolo.system.Balance.healRaw(attacker, dealt * w.trait(Trait.Kind.LIFESTEAL));
         if (w.has(Trait.Kind.MENDING)) mend(attacker, Math.max(1f, dealt * w.trait(Trait.Kind.MENDING)));
         if (w.has(Trait.Kind.FROSTBITE) && target.isAlive()) frostbite(target, attacker, w.trait(Trait.Kind.FROSTBITE));
         if (w.has(Trait.Kind.THUNDERCLAP) && attacker.getRandom().nextFloat() < w.trait(Trait.Kind.THUNDERCLAP)) {
-            chainLightning(attacker, target, 2f + dealt * 0.35f);
+            chainLightning(attacker, target, com.beyondsolo.system.Balance.flatDamage(attacker, 2f) + dealt * 0.35f);
         }
         if (attacker.hasEffect(ModEffects.INFERNAL_REND) && hit.melee()) {
             Statuses.apply(target, DamageElement.FIRE, 40, attacker);
-            proc(() -> CombatDamage.deal(target, DamageElement.FIRE, 4f, attacker));
+            proc(() -> CombatDamage.deal(target, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(attacker, 4f), attacker));
         }
         if (!refused && w.signature() == Signature.STARFALL && hit.arrow() != null && hit.arrow().isCritArrow()) {
             starfall(attacker, target);
@@ -243,10 +243,10 @@ public final class ArsenalHits {
     }
 
     private static void mend(LivingEntity healer, float amount) {
-        healer.heal(amount);
+        com.beyondsolo.system.Balance.healRaw(healer, amount);
         if (healer instanceof Player) {
             for (Player ally : healer.level().getEntitiesOfClass(Player.class, healer.getBoundingBox().inflate(6), p -> p != healer && p.isAlive())) {
-                ally.heal(amount);
+                com.beyondsolo.system.Balance.healRaw(ally, amount);
             }
         }
         if (healer.level() instanceof ServerLevel level) {
@@ -298,7 +298,7 @@ public final class ArsenalHits {
     /** Starfall: a crit arrow brings down a bolt of starlight that hurts everything around the target. */
     static void starfall(LivingEntity attacker, LivingEntity target) {
         if (!(target.level() instanceof ServerLevel level)) return;
-        for (LivingEntity e : foesAround(attacker, target.position(), 3)) magicHit(attacker, e, 6f);
+        for (LivingEntity e : foesAround(attacker, target.position(), 3)) magicHit(attacker, e, com.beyondsolo.system.Balance.flatDamage(attacker, 6f));
         Vec3 at = target.position();
         level.playSound(null, at.x, at.y, at.z, SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 1.2f, 1.5f);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 1.4f, 0.7f);

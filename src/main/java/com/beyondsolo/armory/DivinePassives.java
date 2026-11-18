@@ -138,7 +138,7 @@ public final class DivinePassives {
             return;
         }
         RUIN.remove(target);
-        float blast = 6f + dealt * 0.4f;
+        float blast = com.beyondsolo.system.Balance.flatDamage(attacker, 6f) + dealt * 0.4f;
         for (LivingEntity e : ArsenalHits.foesAround(attacker, target.position(), 3)) {
             ArsenalHits.proc(() -> CombatDamage.deal(e, DamageElement.FIRE, blast, attacker));
             if (e.isAlive()) Statuses.apply(e, DamageElement.FIRE, 25f * ElementalHits.power(attacker), attacker);
@@ -226,7 +226,7 @@ public final class DivinePassives {
         if (held(p) != Passive.ROOTBOUND_LIFE) return;
         for (Player ally : SetPerks.allies(p, 10)) {
             if (ally.getHealth() >= ally.getMaxHealth() * ROOTBOUND_AT || !SetPerks.ready(ally, "rootbound", ROOTBOUND_COOLDOWN)) continue;
-            ally.heal(ally.getMaxHealth() * 0.25f);
+            com.beyondsolo.system.Balance.healRaw(ally, ally.getMaxHealth() * 0.25f);
             ally.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 0));
             if (ally != p) SetPerks.line(p, ally, ParticleTypes.HAPPY_VILLAGER);
             SetPerks.burst(ally, ParticleTypes.SPORE_BLOSSOM_AIR, 20, 0.6);
@@ -256,7 +256,7 @@ public final class DivinePassives {
     private static void starBurst(LivingEntity attacker, LivingEntity target) {
         if (!(target.level() instanceof ServerLevel)) return;
         for (LivingEntity e : ArsenalHits.foesAround(attacker, target.position(), 4)) {
-            if (e != target) ArsenalHits.magicHit(attacker, e, 6f);
+            if (e != target) ArsenalHits.magicHit(attacker, e, com.beyondsolo.system.Balance.flatDamage(attacker, 6f));
         }
         CombatFx.play(target, CombatFxPayload.Kind.NOVA, ArsenalHits.packNova(Passive.ASTRAL_QUIVER.color, 4));
         SetPerks.burst(target, ParticleTypes.END_ROD, 24, 0.8);

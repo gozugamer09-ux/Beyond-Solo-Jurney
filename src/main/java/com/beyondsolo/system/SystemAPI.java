@@ -127,6 +127,8 @@ public final class SystemAPI {
         if (level != oldLevel) {
             data.setLevel(level);
             data.setStatPoints(data.statPoints() + (level - oldLevel) * Config.STAT_POINTS_PER_LEVEL.get());
+            // every level adds max health and damage
+            StatEffects.apply(player);
             // Like the stories: a level up fully restores you.
             player.setHealth(player.getMaxHealth());
             data.setMana(data.maxMana());

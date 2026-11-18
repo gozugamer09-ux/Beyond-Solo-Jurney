@@ -288,7 +288,7 @@ public final class JobTrial {
                 if (s.tick % 10 == 0) waveBanner(s);
                 if (s.defeated >= s.goal) {
                     setPhase(s, Phase.WAVE_BREAK);
-                    p.heal(p.getMaxHealth() * 0.25f);
+                    com.beyondsolo.system.Balance.healRaw(p, p.getMaxHealth() * 0.25f);
                     sound(s.level, p.position(), SoundEvents.PLAYER_LEVELUP, 0.5f, 1.6f);
                     banner(s, JobTrialPayload.WAVE, Component.translatable("job.beyondsolo.trial.wave_clear", s.wave, WAVES),
                             Component.translatable(s.wave >= WAVES ? "job.beyondsolo.trial.boss_near" : "job.beyondsolo.trial.wave_next"), s.goal, s.goal);
@@ -362,7 +362,10 @@ public final class JobTrial {
         List<EntityType<? extends Mob>> roster = roster(wave);
         s.goal = roster.size();
         SystemData sys = SystemAPI.get(s.player);
-        float scale = 1f + 0.3f * sys.rank().tier() + sys.level() / 30f;
+        // as strong as creatures made for the hunter's level, and then some: it is a trial
+        float hunter = com.beyondsolo.enemy.HiddenLevel.hunterLevel(sys);
+        double health = 1.5 * com.beyondsolo.system.Balance.healthAt(hunter);
+        double damage = com.beyondsolo.system.Balance.damageAt(hunter);
         for (int i = 0; i < roster.size(); i++) {
             Vec3 at = feet.get((i * 3 + wave) % feet.size());
             Mob mob = roster.get(i).create(level);
@@ -372,7 +375,7 @@ public final class JobTrial {
             }
             mob.moveTo(at.x, at.y, at.z, level.random.nextFloat() * 360, 0);
             mob.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(at)), MobSpawnType.MOB_SUMMONED, null);
-            dressEcho(mob, wave, scale);
+            dressEcho(mob, wave, health, damage);
             level.addFreshEntity(mob);
             mob.setTarget(s.player);
             s.foes.add(mob.getUUID());
@@ -398,16 +401,16 @@ public final class JobTrial {
         return out;
     }
 
-    /** Echoes: the System's copies of hunters who failed this trial. Tougher with the player's rank and level. */
-    private static void dressEcho(Mob mob, int wave, float scale) {
+    /** Echoes: the System's copies of hunters who failed this trial. Tougher with the player's level. */
+    private static void dressEcho(Mob mob, int wave, double health, double damage) {
         mob.addTag(ECHO_TAG);
         mob.setPersistenceRequired();
         mob.setCustomName(Component.translatable("entity.beyondsolo.echo").withStyle(ChatFormatting.LIGHT_PURPLE));
         mob.setCustomNameVisible(false);
         AttributeInstance hp = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (hp != null) hp.setBaseValue(hp.getBaseValue() * scale * (1 + 0.15f * wave));
+        if (hp != null) hp.setBaseValue(hp.getBaseValue() * health * (1 + 0.15f * wave));
         AttributeInstance dmg = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (dmg != null) dmg.setBaseValue(dmg.getBaseValue() * (0.8f + 0.25f * scale));
+        if (dmg != null) dmg.setBaseValue(dmg.getBaseValue() * damage);
         AttributeInstance follow = mob.getAttribute(Attributes.FOLLOW_RANGE);
         if (follow != null) follow.setBaseValue(64);
         mob.setHealth(mob.getMaxHealth());
@@ -467,9 +470,10 @@ public final class JobTrial {
         boss.configure(shape);
         boss.moveTo(at.x, at.y, at.z, 0f, 0f);
         boss.setYHeadRot(0f);
-        float hp = 160 + 70 * sys.rank().tier() + 4 * sys.level();
-        boss.getAttribute(Attributes.MAX_HEALTH).setBaseValue(hp);
-        boss.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(7 + 2.5 * sys.rank().tier() + sys.level() / 8.0);
+        // a boss made for the hunter's level, a little above a gate boss of it
+        float hunter = com.beyondsolo.enemy.HiddenLevel.hunterLevel(sys);
+        boss.getAttribute(Attributes.MAX_HEALTH).setBaseValue(1.2 * com.beyondsolo.system.Balance.BOSS_HEALTH * com.beyondsolo.system.Balance.healthAt(hunter));
+        boss.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(1.1 * com.beyondsolo.system.Balance.BOSS_DAMAGE * com.beyondsolo.system.Balance.damageAt(hunter));
         boss.setHealth(boss.getMaxHealth());
         boss.setCustomName(Component.translatable("job.beyondsolo.trial.arbiter"));
         boss.addTag(ECHO_TAG);

@@ -1,6 +1,7 @@
 package com.beyondsolo.enemy;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.BlockPos;
@@ -59,12 +60,14 @@ public final class Enemies {
         return mob;
     }
 
-    /** Gives a creature its rank's strength and its traits (attributes, affinity, effects) and remembers them. */
+    /**
+     * Gives a creature its rank's strength and its traits (attributes, affinity, effects) and remembers them. Its health
+     * and damage grow by the rank's {@link Balance#health} and {@link Balance#damage} (E x1, S x55 and x70): a rank's
+     * plain creature is an even match for a hunter at the rank's home level.
+     */
     public static void apply(Mob mob, PlayerRank rank, EnemyTraits traits) {
-        int t = rank.tier();
         Variant v = traits.variant();
-        mod(mob, Attributes.MAX_HEALTH, "gate_health", 0.4 * t, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
-        mod(mob, Attributes.ATTACK_DAMAGE, "gate_damage", 0.25 * t, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        strength(mob, Balance.health(rank), Balance.damage(rank));
         mod(mob, Attributes.MAX_HEALTH, "variant_health", v.health - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.ATTACK_DAMAGE, "variant_damage", v.damage - 1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
         mod(mob, Attributes.SCALE, "variant_scale", v.scale - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
@@ -86,6 +89,54 @@ public final class Enemies {
         if (traits.affinity() == Affinity.FLAME) mob.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false));
         mob.getPersistentData().putInt(RANK_KEY, rank.ordinal());
         traits.save(mob);
+    }
+
+    /**
+     * Sets how much stronger than its kind a creature is: its health and damage multipliers (what its rank or level
+     * gives, before its variant and size). Keeps its share of health.
+     */
+    public static void strength(Mob mob, double health, double damage) {
+        float share = mob.getMaxHealth() <= 0 ? 1f : mob.getHealth() / mob.getMaxHealth();
+        mod(mob, Attributes.MAX_HEALTH, "gate_health", health - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        mod(mob, Attributes.ATTACK_DAMAGE, "gate_damage", damage - 1, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        mob.setHealth(Math.max(1f, mob.getMaxHealth() * Math.min(1f, share)));
+        HiddenLevel.forget(mob);
+    }
+
+    /** Gives {@code to} the same strength multipliers {@code from} has (when it has any). */
+    public static void copyStrength(Mob from, Mob to) {
+        double health = multiplier(from, Attributes.MAX_HEALTH, "gate_health");
+        double damage = multiplier(from, Attributes.ATTACK_DAMAGE, "gate_damage");
+        if (health > 0 || damage > 0) strength(to, health > 0 ? health : 1, damage > 0 ? damage : 1);
+    }
+
+    /** How many times its kind's health the System's strength gave a creature (its rank or level; 1 for none). */
+    public static double healthGrowth(Mob mob) {
+        double m = multiplier(mob, Attributes.MAX_HEALTH, "gate_health");
+        return m > 0 ? m : 1;
+    }
+
+    /** A strength multiplier a creature carries, or 0 when it carries none. */
+    private static double multiplier(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr, String id) {
+        AttributeInstance inst = mob.getAttribute(attr);
+        var m = inst == null ? null : inst.getModifier(BeyondSolo.id(id));
+        return m == null ? 0 : 1 + m.amount();
+    }
+
+    /**
+     * Makes a creature as strong as content for a hunter of {@code level} is (job trials, the penalty zone, nests):
+     * {@link Balance#healthAt} and {@link Balance#damageAt} instead of its rank's numbers.
+     */
+    public static void strengthForLevel(Mob mob, double level) {
+        strength(mob, Balance.healthAt(level), Balance.damageAt(level));
+    }
+
+    /**
+     * The creatures of the cave that hides a sealed door are fought before the System: whatever the gate's rank, they
+     * stay at an old D-rank gate's strength ({@link Balance#DOOR_HEALTH}).
+     */
+    public static void doorStrength(Mob mob) {
+        strength(mob, Balance.DOOR_HEALTH, Balance.DOOR_DAMAGE);
     }
 
     /**

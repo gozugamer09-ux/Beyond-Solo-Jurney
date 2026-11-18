@@ -584,7 +584,7 @@ public final class RangerPath {
         sound(p, SoundEvents.WOLF_HOWL, 1.2f, 0.7f);
         for (TamableAnimal beast : beasts(p, 24)) {
             beast.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 200, 1));
-            beast.heal(10);
+            beast.heal(10 * (float) com.beyondsolo.system.Balance.summonHealth(SystemAPI.get(p)));
         }
         for (int w = 0; w < 10; w++) {
             int wave = w;
@@ -1422,7 +1422,8 @@ public final class RangerPath {
         int heart = data.level(WILD_HEART.path());
         if (heart > 0) {
             if (p.getHealth() < p.getMaxHealth()) p.heal(heartRegen(heart));
-            for (TamableAnimal beast : beasts(p, 24)) if (beast.getHealth() < beast.getMaxHealth()) beast.heal(heartBeasts(heart));
+            float beastHeal = heartBeasts(heart) * (float) com.beyondsolo.system.Balance.summonHealth(SystemAPI.get(p));
+            for (TamableAnimal beast : beasts(p, 24)) if (beast.getHealth() < beast.getMaxHealth()) beast.heal(beastHeal);
         }
         // the wind lets go when its time is up, whatever became of the skill that called it
         AttributeInstance gravity = p.getAttribute(Attributes.GRAVITY);

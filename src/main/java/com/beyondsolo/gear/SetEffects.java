@@ -98,7 +98,7 @@ public final class SetEffects {
         }
         if (ArmorSets.hasPerk(attacker, "crimson_dominion") && meleeHit) {
             Statuses.apply(target, DamageElement.CRIMSON, 18f * ElementalHits.power(attacker), attacker);
-            attacker.heal(dealt * DOMINION_HEAL);
+            com.beyondsolo.system.Balance.healRaw(attacker, dealt * DOMINION_HEAL);
         }
         // sets that carry an element strike with it, unless the weapon has its own infusion
         if (meleeHit && attacker instanceof ServerPlayer p && Infusions.of(p.getMainHandItem()) == null) {
