@@ -635,6 +635,24 @@ public final class JobTrial {
         if (e != null) e.discard();
     }
 
+    /**
+     * Commands: ends a running trial at once with no outcome. The player goes back where they came from, nothing
+     * changes and they may try again whenever they like. Returns false if they were not in one.
+     */
+    public static boolean cancel(ServerPlayer player) {
+        Session s = SESSIONS.remove(player.getUUID());
+        boolean inside = JobAPI.get(player).inTrial();
+        if (s == null && !inside) return false;
+        if (s != null) {
+            send(player, CutscenePayload.stop());
+            banner(s, JobTrialPayload.NONE, Component.empty(), Component.empty(), 0, 0);
+            cleanup(s);
+        }
+        freeze(player, false);
+        if (inside) returnHome(player, false);
+        return true;
+    }
+
     /** Sends a player back where they came from. */
     static void returnHome(ServerPlayer p, boolean failed) {
         JobData data = JobAPI.get(p);

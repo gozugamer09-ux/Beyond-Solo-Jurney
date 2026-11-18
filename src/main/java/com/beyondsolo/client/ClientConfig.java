@@ -19,8 +19,11 @@ public final class ClientConfig {
             .comment("How System pop-ups are shown. Cycle in game with the notification key (default N).")
             .defineEnum("notificationMode", NotificationMode.FLOATING);
     public static final ModConfigSpec.BooleanValue SHOW_HUD = B
-            .comment("Show the small status HUD (level, mana, fatigue, objective) in the top-left corner.")
+            .comment("Show the small status HUD in the top-left corner: rank, class and objective (and level, mana and fatigue while systemHud is off).")
             .define("showHud", true);
+    public static final ModConfigSpec.BooleanValue SYSTEM_HUD = B
+            .comment("Replace Minecraft's hotbar, hearts, hunger, armour, air, mount health, experience bar and effect icons with the System's own HUD.")
+            .define("systemHud", true);
     public static final ModConfigSpec.BooleanValue NOTIFICATION_SOUNDS = B
             .define("notificationSounds", true);
     public static final ModConfigSpec.BooleanValue KEEP_POPUPS = B

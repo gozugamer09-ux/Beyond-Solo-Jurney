@@ -23,7 +23,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
-| `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command` | `/system` testing commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command.solo` | `/solo`, the operator commands: one tree with help, tab completion and English and Spanish feedback (see "Operator commands: /solo") |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
@@ -46,7 +47,10 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 ## Rules for new modules
 
 1. **Read and change player progress only through `SystemAPI`.** It keeps the client in sync and fires events.
-2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`.
+2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`. Register
+   it in the `beyondsolo` namespace and `/solo wipe` resets it with no change there. State kept anywhere else (a
+   running session, a map in memory, a mark in the player's persistent data) needs its own cancel in
+   `SoloWipe.progress`.
 3. **Listen to `SystemEvent`s** on `NeoForge.EVENT_BUS` instead of patching core code:
    `Awakened`, `XpGain` (cancel or change the amount), `LevelUp`, `RankChanged`, `StatAllocated`,
    `Collapsed`, `ObjectiveChanged`.
@@ -84,6 +88,29 @@ textures). To add an icon, drop its Phosphor SVG into `tools/icons-src`, add a l
 it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
+
+### The System HUD
+
+While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):
+
+- `VitalsHud` (layer `beyondsolo:vitals`, right above vanilla's hotbar layer): the hotbar as glass tiles with a
+  gliding highlight and a glow under graded gear (the off-hand slot and the "hotbar" attack indicator where vanilla
+  puts them), the experience strip with the level gem (the System level once awakened, vanilla's level before that;
+  vanilla's level is then the small green number at the strip's end), and leaning bars with their numbers: health
+  (armour chip, absorption in gold, poison/wither/frozen tints) and mana on the left, hunger (saturation line, what
+  the food in hand would give), fatigue, a mount's health and air on the right, each only while it matters. Bars
+  glide, leave a pale trail when hit, flash when they rise and pulse when low. Numbers of five digits and more are
+  shortened (12.3k). It raises `Gui.leftHeight`/`rightHeight`, so the item name and the action bar stay above it.
+- `EffectsHud` (layer `beyondsolo:effects`, above vanilla's effects layer): status effects in vanilla's corner and
+  rows as discs with a ring that runs down, the time left and the level. It leaves out burn, venom and the crimson
+  brand, which have their meters on the combat rail. `bottom()` and `left()` say where the icons end (vanilla's too
+  while the System HUD is off): the pop-ups and the gold capsule start under them, and the icons go under the unread
+  badge of hidden pop-ups.
+- `HudClientEvents` cancels the vanilla layers it replaces (hotbar, jump meter, experience bar and level, health,
+  armour, food, mount health, air, effects) and AppleSkin's layers. Spectators keep vanilla's HUD.
+- `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
+  follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
+  for pieces that sit beside it (the shadow army counter).
 
 ## The evaluation
 
@@ -614,7 +641,7 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
   scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
   the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
-- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (under the effect icons, `EffectsHud.bottom()`):
   the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
 - **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
@@ -1283,6 +1310,44 @@ along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPa
 - **Commands** (`/system chronicle ...`, level 2): title grant|revoke|equip <id|all>, title check, count <feat>
   <value>, journal reveal <all|section|page>, journal clear, rankings, info, reset.
 
+## Operator commands: /solo
+
+`/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
+place for an operator to change the game: wipe a player, set their numbers, spawn things, give items, move through
+gates. `/solo` alone shows the groups as buttons and `/solo help <group>` lists that group's commands, each line
+clickable to start typing it. The older `/system ...` commands stay for the mod's own tests and are reachable as
+`/solo dev ...` (a redirect to the `/system` node; `SoloCommand` registers at `EventPriority.LOWEST` so every module
+has added to `/system` by then).
+
+| Group | Commands | Class |
+|---|---|---|
+| player | `info`, `awaken [rank] [class]`, `evaluate [rank] [class]`, `bind`, `set level/rank/class/subclass/stat/points/gold/exhaustion`, `add xp/levels/points/gold/stat`, `heal`, `reset <part>`, `wipe system/all` | `SoloProgress`, `SoloWipe` |
+| skills | `skill learn/forget <skill>/all [level]`, `skill max`, `quest list/start/complete/fail`, `shadow give <creature> [rank]` | `SoloSkills` |
+| world | `spawn creature/boss/gate/cache/crystal`, `gate list/close [all]/break` | `SoloWorld` |
+| dungeons | `dungeon enter/boss/clear/leave/info`, `trial awakening/job/penalty`, `tower climb [floor]/rush <tier>/endless` | `SoloWorld` |
+| items | `give item <item> [count] [grade]`, `give armor <set> [grade]`, `give key/rune/tome/license` | `SoloGive` |
+
+- **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):
+  left out, the sender; named, a name or a selector. With several players, one failing is said under their name and
+  the rest go ahead (`Solo.each`).
+- **Arguments that could be a name:** Brigadier tries a node's arguments in the order they were added and keeps the
+  first that parses, and a player's name parses as almost anything. So a number before the players is added before
+  them (`SoloGive.counted`, the skill level, the tower floor), and words with a fixed set of values that come before
+  the players are literals, not word arguments (ranks and classes in `awaken`/`evaluate`, grades in `give`, shadow
+  ranks). `SoloCommandGameTests.aNumberIsALevelNotAName` guards it.
+- **Ids:** items, quests and creatures take a resource id; one typed without a namespace is looked for in the mod's
+  own after Minecraft's (`Solo.lookup`), and suggestions match by path too ("rune" offers `beyondsolo:rune_stone`).
+- **Wipe:** `system` cancels whatever is running for the player (Citadel run, Penalty Zone, job change trial, red
+  gate, shadows, the awakening, exhaustion), removes every data attachment in the `beyondsolo` namespace but the
+  System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
+  every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
+  ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
+  then start over like a new player: the presystem hint with the awakening trial on, the System at once with it off.
+- **Text:** every message is `command.beyondsolo.solo.*` in `assets/beyondsolo_commands/lang` (English and Spanish).
+  Command words, ids and the help's usage lines stay as typed.
+- Tests: `test/SoloCommandGameTests` (the tree and op-only, awaken/set/add/reset, a number read as a level, give,
+  quests, spawning creatures, a boss and a gate, both wipes).
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1309,7 +1374,7 @@ The System ships in English (`en_us.json`) and Spanish (`es_es.json`) in every a
   each player reads it in their own language. Don't call `getString()` on the server and send the result: on a
   dedicated server that is always English. Shadow names are stored as data, not text (`ShadowNames`: an invented name
   plus an epithet id, `"Vhalgrim|unbroken"`), and the client turns them into words.
-- Left in English on purpose: operator `/system ...` command feedback, config comments, the dev UI gallery, and
+- Left in English on purpose: the `/system ...` testing commands' feedback (`/solo` is translated), config comments, the dev UI gallery, and
   invented proper names (shadow names, roman numerals).
 
 ## Checking the UI without a screen
