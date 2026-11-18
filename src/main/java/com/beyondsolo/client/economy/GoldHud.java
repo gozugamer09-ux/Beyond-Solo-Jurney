@@ -7,12 +7,12 @@ import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
+import com.beyondsolo.client.hud.EffectsHud;
 import com.beyondsolo.economy.Economy;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.effect.MobEffectInstance;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +89,7 @@ public final class GoldHud {
 
         float sw = g.guiWidth();
         // on the right edge, below the corner that toasts and status-effect icons share
-        float y = Math.max(8 + effectRows(mc) * 26, g.guiHeight() * 0.3f);
+        float y = Math.max(EffectsHud.bottom() + 9, g.guiHeight() * 0.3f);
         float h = 18;
         String amount = EconomyClient.format(Math.round(shown));
         float tw = SysFont.width(amount, 8.5f, true);
@@ -150,15 +150,6 @@ public final class GoldHud {
     }
 
     /** Rows of status-effect icons vanilla draws in the top right corner. */
-    private static int effectRows(Minecraft mc) {
-        boolean good = false, bad = false;
-        for (MobEffectInstance e : mc.player.getActiveEffects()) {
-            if (!e.showIcon()) continue;
-            if (e.getEffect().value().isBeneficial()) good = true;
-            else bad = true;
-        }
-        return (good ? 1 : 0) + (bad ? 1 : 0);
-    }
 
     private GoldHud() {}
 }

@@ -161,7 +161,7 @@ public final class ShadowHud {
         String text = out + "/" + ShadowClient.limit();
         float w = SysFont.width(text, 7f, true) + 22;
         float h = 14;
-        float x = g.guiWidth() / 2f - 91 - 6 - w;
+        float x = com.beyondsolo.client.hud.VitalsHud.hotbarLeft(g.guiWidth()) - 6 - w;
         float y = g.guiHeight() - h - 4;
         int c = 0xFF9B7BE0;
         Shapes.pill(x, y, w, h).fill(0xB00A0614).border(0.75f, Gfx.alpha(c, out > 0 ? 0.8f : 0.35f)).glow(out > 0 ? 4 : 0, Gfx.alpha(c, 0.3f)).draw(g);

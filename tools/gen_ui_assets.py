@@ -153,6 +153,11 @@ ICONS = {
     "id_card": "identification-card",
     "deposit": "arrow-fat-lines-down",
     "villagers": "users-three",
+    # the System HUD that replaces Minecraft's hearts, hunger, air and mount bars
+    "food": "fork-knife",
+    "bubbles": "circles-three",
+    "horse": "horse",
+    "fatigue": "lightning-slash",
 }
 
 RANKS = "EDCBAS"
