@@ -39,6 +39,8 @@ Gradle sets the game up.
 - **Filming the player from outside.** `ui.sh "camera <x> <y> <z> <yaw> <pitch>"` films from a fixed point, like a
   camera on a tripod, so what the player casts is seen from the side instead of hiding behind their back. The
   numbers are the ones `look.py` prints. `camera off` goes back to the player's own eyes.
+- **Another language.** `ui.sh "lang es_es"` switches the game to Spanish (and `lang en_us` back) without a
+  restart, as the options screen does.
 - **Keep the chat clean for pictures.** Commands answer in the chat, which ends up in screenshots and videos.
   `rcon.py "gamerule sendCommandFeedback false" "gamerule logAdminCommands false"` turns that off.
 - **A stage for the evaluation.** `/system evaluate [rank] [class]` plays the whole show on the nearest crystal

@@ -61,6 +61,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     private boolean sealed;
     /** A gate opened with a dungeon key: a lock of light at its heart, and no beam (see key.DungeonKeys). */
     private boolean keyed;
+    /** A raid gate (see raid.Raids). */
+    private boolean raid;
     /** Its dungeon break as clients see it: {@link #HOLDING}, {@link #UNSTABLE}, {@link #IMMINENT} or {@link #BROKEN}. */
     private int breakPhase;
     /** Game time it started to come apart and when it breaks (-1 while it holds), and when it broke (-1 until it has). */
@@ -89,6 +91,8 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
     public boolean isClosing() { return closingAt >= 0; }
     public boolean isSealed() { return sealed; }
     public boolean isKeyed() { return keyed; }
+    /** A raid gate: crowned with a second rim, a wide sigil on the ground and a taller beam ({@code raid.Raids}). */
+    public boolean isRaid() { return raid; }
     public int breakPhase() { return breakPhase; }
     /** Coming apart, its collapse timer running. */
     public boolean isUnstable() { return breakPhase == UNSTABLE || breakPhase == IMMINENT; }
@@ -153,6 +157,11 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
 
     public void setKeyed(boolean keyed) {
         this.keyed = keyed;
+        changed();
+    }
+
+    public void setRaid(boolean raid) {
+        this.raid = raid;
         changed();
     }
 
@@ -294,6 +303,7 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         tag.putLong("closingAt", closingAt);
         tag.putBoolean("sealed", sealed);
         tag.putBoolean("keyed", keyed);
+        tag.putBoolean("raid", raid);
         tag.putInt("breakPhase", breakPhase);
         tag.putLong("unstableAt", unstableAt);
         tag.putLong("breakAt", breakAt);
@@ -313,6 +323,7 @@ public class GateBlockEntity extends BlockEntity implements GeoBlockEntity {
         closingAt = tag.contains("closingAt") ? tag.getLong("closingAt") : -1;
         sealed = tag.getBoolean("sealed");
         keyed = tag.getBoolean("keyed");
+        raid = tag.getBoolean("raid");
         breakPhase = tag.getInt("breakPhase");
         unstableAt = tag.contains("unstableAt") ? tag.getLong("unstableAt") : -1;
         breakAt = tag.contains("breakAt") ? tag.getLong("breakAt") : -1;

@@ -71,6 +71,8 @@ public final class GateInstance {
     private com.beyondsolo.depths.GateDepths depths = com.beyondsolo.depths.GateDepths.fresh();
     /** Its clock towards a dungeon break, and the break once it has come ({@code breaks} package). */
     private com.beyondsolo.breaks.BreakState breakState = com.beyondsolo.breaks.BreakState.fresh();
+    /** Set for a raid gate: its muster, roster and how far the raid has got ({@code raid} package). Null for a gate. */
+    @Nullable private com.beyondsolo.raid.RaidState raid;
 
     private transient DungeonLayout layout;
 
@@ -180,6 +182,10 @@ public final class GateInstance {
     public void setSlotFreed(boolean freed) { this.slotFreed = freed; }
     public com.beyondsolo.depths.GateDepths depths() { return depths; }
     public com.beyondsolo.breaks.BreakState breakState() { return breakState; }
+    /** True for a raid gate ({@code raid.Raids}). */
+    public boolean isRaid() { return raid != null; }
+    @Nullable public com.beyondsolo.raid.RaidState raid() { return raid; }
+    public void setRaid(@Nullable com.beyondsolo.raid.RaidState raid) { this.raid = raid; }
 
     /** The boss's name as the System says it. */
     public net.minecraft.network.chat.Component bossName() {
@@ -279,6 +285,7 @@ public final class GateInstance {
         if (legacy) tag.putBoolean("legacy", true);
         tag.put("depths", depths.save());
         tag.put("break", breakState.save());
+        if (raid != null) tag.put("raid", raid.save());
         return tag;
     }
 
@@ -321,6 +328,7 @@ public final class GateInstance {
         g.depths = tag.contains("depths") ? com.beyondsolo.depths.GateDepths.load(tag.getCompound("depths")) : com.beyondsolo.depths.GateDepths.legacy();
         // a gate saved before breaks existed starts its clock the next time it is looked at
         g.breakState = tag.contains("break") ? com.beyondsolo.breaks.BreakState.load(tag.getCompound("break")) : com.beyondsolo.breaks.BreakState.fresh();
+        if (tag.contains("raid")) g.raid = com.beyondsolo.raid.RaidState.load(tag.getCompound("raid"));
         return g;
     }
 

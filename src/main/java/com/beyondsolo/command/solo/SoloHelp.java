@@ -70,6 +70,17 @@ final class SoloHelp {
                 new Line("give rune <skill>|sealed <rank> [count] [players]", "give.rune"),
                 new Line("give tome <skill> [count] [players]", "give.tome"),
                 new Line("give license [players]", "give.license")));
+        TOPICS.put("guilds", List.of(
+                new Line("guild create <player> <tag> <name>", "guild.create"),
+                new Line("guild level <level> [players]", "guild.level"),
+                new Line("guild gold <gold> [players]", "guild.gold"),
+                new Line("guild hunter <rank> [class] [players]", "guild.hunter"),
+                new Line("guild heal hunters [players]", "guild.heal"),
+                new Line("guild disband [players]", "guild.disband"),
+                new Line("raid open <rank>", "raid.open"),
+                new Line("raid make", "raid.make"),
+                new Line("raid start now [player]", "raid.start"),
+                new Line("raid phase barrier|cataclysm [player]", "raid.phase")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

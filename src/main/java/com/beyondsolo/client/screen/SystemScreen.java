@@ -289,6 +289,8 @@ public class SystemScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // the page first: a field being typed in keeps every key, the System key and Tab too
+        if (!closing() && !tabs.isEmpty() && tabs.get(selected).keyPressed(keyCode, scanCode, modifiers)) return true;
         if (ClientEvents.OPEN_SYSTEM.matches(keyCode, scanCode)) {
             onClose();
             return true;
@@ -299,6 +301,12 @@ public class SystemScreen extends Screen {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char c, int modifiers) {
+        if (!closing() && !tabs.isEmpty() && tabs.get(selected).charTyped(c, modifiers)) return true;
+        return super.charTyped(c, modifiers);
     }
 
     @Override
