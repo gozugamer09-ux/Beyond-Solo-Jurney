@@ -129,7 +129,10 @@ public final class KeyedRuns {
                 if (k.waited >= DungeonKeys.UNUSED_TICKS || doorGone(server, g)) giveUp(server, g, owner);
                 continue;
             }
-            if (!k.doorClosed && now - k.firstEntryAt >= DungeonKeys.SEAL_TICKS) seal(server, g);
+            // the door shuts behind the party, a little later while one of them is still on the way to it
+            if (!k.doorClosed && now - k.firstEntryAt >= DungeonKeys.SEAL_TICKS
+                    && !com.beyondsolo.party.Parties.holdFor(server, g.id(), g.gateDimension(), g.gatePos(), k.inside,
+                    now - k.firstEntryAt - DungeonKeys.SEAL_TICKS)) seal(server, g);
             if (k.doorClosed && g.state() == GateInstance.State.OPEN && k.inside.isEmpty() && !GateService.inTransitTo(g.id())) {
                 // everyone who went in has fallen: the run is over, and the cave goes back to the rock
                 g.setState(GateInstance.State.CLOSED);

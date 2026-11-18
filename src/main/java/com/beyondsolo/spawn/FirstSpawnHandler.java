@@ -25,10 +25,12 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * First join: drop the player somewhere random and give them the "find a village" objective.
- * Then watch for them entering a village and point them to the Evaluation Zone.
+ * First join: drop the player somewhere random (everyone after the first beside where the first one landed, with
+ * {@code spawn.together}) and give them the "find a village" objective. Then watch for them entering a village and
+ * point them to the Evaluation Zone.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class FirstSpawnHandler {
@@ -44,9 +46,9 @@ public final class FirstSpawnHandler {
 
         boolean newPlayer = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) < NEW_PLAYER_MAX_TICKS;
         if (Config.RANDOM_SPAWN.get() && newPlayer && player.level().dimension() == Level.OVERWORLD) {
-            BlockPos spot = findRandomSpawn(player.serverLevel(), player.getRandom());
+            ServerLevel level = player.serverLevel();
+            BlockPos spot = newPlayerSpot(level, player.getRandom());
             if (spot != null) {
-                ServerLevel level = player.serverLevel();
                 player.teleportTo(level, spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), player.getXRot());
                 player.setRespawnPosition(level.dimension(), spot, 0f, true, false);
             }
@@ -71,12 +73,13 @@ public final class FirstSpawnHandler {
     }
 
     /**
-     * A fresh start (the wipe command): the player is put down where a new player would be, at a new random spot in
-     * the overworld that becomes their respawn point (or at world spawn when random spawns are off or none was found).
+     * A fresh start (the wipe command): the player is put down where a new player would be ({@link #newPlayerSpot}:
+     * beside the world's first landing with {@code spawn.together}, else a new random spot in the overworld), which
+     * becomes their respawn point (or at world spawn when random spawns are off or none was found).
      */
     public static void startOver(ServerPlayer player) {
         ServerLevel world = player.server.overworld();
-        BlockPos spot = Config.RANDOM_SPAWN.get() ? findRandomSpawn(world, player.getRandom()) : null;
+        BlockPos spot = Config.RANDOM_SPAWN.get() ? newPlayerSpot(world, player.getRandom()) : null;
         if (spot != null) {
             player.setRespawnPosition(world.dimension(), spot, 0f, true, false);
         } else {
@@ -92,6 +95,22 @@ public final class FirstSpawnHandler {
         player.fallDistance = 0;
         player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         SystemAPI.markFirstJoinHandled(player);
+    }
+
+    /**
+     * Where a new player lands in the overworld: friends start together, so with {@code spawn.together} it is beside
+     * the world's first landing (see {@link LandingData}; the first new player's random spot becomes it), else a random
+     * spot. Null if none was found.
+     */
+    @Nullable
+    static BlockPos newPlayerSpot(ServerLevel level, RandomSource random) {
+        LandingData landing = LandingData.get(level.getServer());
+        BlockPos spot = Config.SPAWN_TOGETHER.get() ? landing.near(level, random) : null;
+        if (spot == null) {
+            spot = findRandomSpawn(level, random);
+            if (spot != null && landing.landing() == null) landing.set(spot);
+        }
+        return spot;
     }
 
     /** Picks a random dry surface spot between the configured min and max distance from world spawn. */
@@ -116,6 +135,7 @@ public final class FirstSpawnHandler {
             if (y <= level.getMinBuildHeight() + 1) continue;
             if (!level.getFluidState(pos.below()).isEmpty() || !level.getFluidState(pos).isEmpty()) continue;
             if (!level.getBlockState(pos.below()).isSolid()) continue;
+            if (!LandingData.roomToStand(level, pos)) continue;
             return pos;
         }
         BeyondSolo.LOGGER.warn("Could not find a random spawn spot, using world spawn");

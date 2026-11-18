@@ -17,8 +17,8 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
 - **The hidden way.** The Arbiter can be killed. Whoever manages it still receives the System, with a title, and
   its cache holds one of four **legendary weapons** (Sunderveil, Ashen Oath, Nightglass Fang, Thorn Requiem),
   unbreakable and far beyond anything else in the game.
-- **Random first spawn.** New players wake up 800-3000 blocks from world spawn. Once the System is theirs it gives
-  them one objective: find a village.
+- **Random first spawn.** New players wake up 800-3000 blocks from world spawn; friends who join after the first
+  player land right beside them. Once the System is theirs it gives them one objective: find a village.
 - **Evaluation Zone.** Villages (plains, desert, savanna, snowy, taiga) can generate a small stone pavilion with an
   Evaluation Crystal: a shard of light floating over a magic circle. Touch it and stay close while it scans you
   (5 seconds), then the reveal plays on your screen: the **rank (E to S)** is rolled and stamped in, then the
@@ -84,6 +84,11 @@ A Minecraft 1.21.1 NeoForge mod and modpack: an RPG "System" with ranks, stats, 
   labyrinth with dead ends, a gauntlet of great halls through gatehouses, a spire climbed by winding stairs, a
   descent down a deep shaft, islands joined by bridges over a chasm, one vast hollow with camps and a lake, or a hive
   of round cells. The gate's seed picks both.
+- **Parties for playing together.** `/party invite <name>` or the PARTY page of the System window: up to six hunters
+  who see each other's health and whereabouts on the HUD and in the world, share the kills they make side by side
+  (quest progress, part of the XP and gold), can't hurt each other, and can **regroup** at each other's side from
+  anywhere in the world. Keyed and red gates hold their door for a party member still on the way, and friends without
+  the System who are called in the same cave go through one sealed door and face the Arbiter together.
 
 ## Building and running
 

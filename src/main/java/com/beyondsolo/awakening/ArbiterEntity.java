@@ -127,7 +127,9 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
     protected void registerGoals() {
         goalSelector.addGoal(1, new FightGoal());
         targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
+        // a challenger already falling into their awakening is past judging: it turns to the next (a party's trial)
+        targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
+                e -> !(e instanceof Player p && AwakeningService.inSequence(p))));
     }
 
     // ------------------------------------------------------------------ state
@@ -268,6 +270,7 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
 
     @Override
     public void aiStep() {
+        if (!level().isClientSide && getTarget() instanceof Player p && AwakeningService.inSequence(p)) setTarget(null);
         if (!isAwake() || introTicks() > 0 || isVerdict()) {
             setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
             getNavigation().stop();

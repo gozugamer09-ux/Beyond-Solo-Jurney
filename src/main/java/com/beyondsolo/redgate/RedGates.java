@@ -511,6 +511,12 @@ public final class RedGates {
         if (server.getTickCount() % 6000 == 0) data.forgetGone(id -> GateData.get(server).get(id) == null);
     }
 
+    /** A red gate about to seal holds a little longer while a party member of someone inside is still on the way. */
+    private static boolean holdsForParty(MinecraftServer server, RedGate run, long now) {
+        GateInstance g = GateData.get(server).get(run.gate);
+        return g != null && com.beyondsolo.party.Parties.holdFor(server, run.gate, g.gateDimension(), g.gatePos(), run.insideNow, now - run.sealAt);
+    }
+
     private static void tickRun(MinecraftServer server, ServerLevel level, RedGateData data, RedGate run, long now) {
         RedWorldBuilder b = BUILDERS.get(run.gate);
         if (b == null && !run.built) BUILDERS.put(run.gate, b = new RedWorldBuilder(run));
@@ -520,7 +526,7 @@ public final class RedGates {
         }
 
         List<ServerPlayer> inside = insidePlayers(server, level, run);
-        if (run.state == RedGate.State.OPEN && now >= run.sealAt) {
+        if (run.state == RedGate.State.OPEN && now >= run.sealAt && !holdsForParty(server, run, now)) {
             if (run.insideNow.isEmpty() && !transitTo(run.gate)) {
                 fizzle(server, run);
                 return;
