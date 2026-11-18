@@ -292,9 +292,14 @@ public final class RaidGameTests {
                     for (Vec3 v : lights) {
                         helper.assertTrue(Math.hypot(v.x - c.getX(), v.z - c.getZ()) <= g.layout().boss().reach() + 1, "each in the chamber");
                     }
+                    // b's quest missed a lieutenant (b was elsewhere): the boss's fall makes up for it
+                    Quest bq = raidQuest(b, g);
+                    helper.assertTrue(bq != null, "b holds the raid's quest");
+                    QuestEngine.setProgress(b, bq, bq.objectives().indexOf(objective(bq, Raids.LIEUTENANT_KEY)), count - 1);
                     // and it falls
                     boss.hurt(d.damageSources().playerAttack(a), boss.getMaxHealth() * 10f);
                     helper.assertTrue(g.bossDefeated() && s.phase == RaidState.Phase.CLEARED, "the raid is cleared");
+                    helper.assertTrue(objective(bq, Raids.LIEUTENANT_KEY).progress() == count, "b's quest counts every lieutenant now");
                     helper.assertTrue(ChronicleModule.data(a).hasTitle(Raids.BREAKER_TITLE) && ChronicleModule.data(b).hasTitle(Raids.BREAKER_TITLE),
                             "both raiders earn the raid's title");
                     helper.assertTrue(!ChronicleModule.data(a).hasTitle(Raids.MVP_TITLE), "a raid of two singles nobody out");
