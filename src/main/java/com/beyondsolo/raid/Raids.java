@@ -707,13 +707,33 @@ public final class Raids {
 
     /** Standing room on the floor at or near {@code p}. */
     private static BlockPos floor(ServerLevel level, BlockPos p) {
+        BlockPos q = standable(level, p);
+        return q == null ? p : q;
+    }
+
+    /** Where someone can stand in this column, a few blocks up or down from {@code p} (null: nowhere). */
+    @Nullable
+    private static BlockPos standable(ServerLevel level, BlockPos p) {
         for (int dy = 3; dy >= -4; dy--) {
             BlockPos q = p.offset(0, dy, 0);
             BlockState below = level.getBlockState(q.below());
             if (level.getBlockState(q).getCollisionShape(level, q).isEmpty() && level.getBlockState(q.above()).getCollisionShape(level, q.above()).isEmpty()
                     && below.isFaceSturdy(level, q.below(), Direction.UP)) return q;
         }
-        return p;
+        return null;
+    }
+
+    /**
+     * A spot 2.5 blocks from a raider, as near the way asked ({@code angle}, radians on their yaw's scale) as the cave
+     * allows: the ways either side of it are tried in turn, and their own feet are the last resort.
+     */
+    private static BlockPos spotNear(ServerLevel level, ServerPlayer p, float angle) {
+        for (int attempt = 0; attempt < 9; attempt++) {
+            float a = angle + (attempt % 2 == 0 ? 1 : -1) * ((attempt + 1) / 2) * 0.6f;
+            BlockPos at = standable(level, BlockPos.containing(p.getX() - Mth.sin(a) * 2.5, p.getY(), p.getZ() + Mth.cos(a) * 2.5));
+            if (at != null && Math.abs(at.getY() - p.getY()) <= 3) return at;
+        }
+        return p.blockPosition();
     }
 
     /** A raid's packs are bigger ({@code raid.packScale}). */
@@ -879,16 +899,18 @@ public final class Raids {
         for (ServerPlayer p : inside) if (p.getUUID().equals(s.leader)) near = p;
         if (near == null) near = inside.get(0);
         Guild guild = null;
-        int i = 0;
+        int i = 0, n = 0;
+        for (RaidState.Hired h : s.hunters) if (!h.fallen) n++;
         for (RaidState.Hired h : s.hunters) {
             if (h.fallen) continue;
+            // behind the raider, fanned out to either side: none of them blocks the way on or stands in front of their eyes
+            float a = near.getYRot() * Mth.DEG_TO_RAD + Mth.PI + (i++ - (n - 1) / 2f) * 0.85f;
             if (h.entity != null && dungeon.getEntity(h.entity) instanceof GuildHunterEntity e && e.isAlive()) continue;
             GuildHunterEntity e = GuildModule.HUNTER.get().create(dungeon);
             if (e == null) continue;
             if (guild == null || !guild.id().equals(h.guild)) guild = Guilds.data(dungeon.getServer()).get(h.guild);
             e.configure(h, g.id(), guild == null ? 0x4FA8FF : GuildColors.color(guild.color()), guild == null ? "?" : guild.tag());
-            float a = (i++ * 1.9f) + near.getYRot() * Mth.DEG_TO_RAD;
-            BlockPos at = floor(dungeon, BlockPos.containing(near.getX() - Mth.sin(a) * 2.5, near.getY(), near.getZ() + Mth.cos(a) * 2.5));
+            BlockPos at = spotNear(dungeon, near, a);
             e.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, near.getYRot(), 0f);
             e.setYHeadRot(near.getYRot());
             dungeon.addFreshEntity(e);
@@ -933,15 +955,12 @@ public final class Raids {
     /** A hunter left far behind steps out of the air beside their raider. */
     public static void slipTo(GuildHunterEntity e, ServerPlayer p) {
         if (!(e.level() instanceof ServerLevel level)) return;
-        for (int attempt = 0; attempt < 8; attempt++) {
-            float a = level.random.nextFloat() * Mth.TWO_PI;
-            BlockPos at = floor(level, BlockPos.containing(p.getX() + Mth.cos(a) * 2.5, p.getY(), p.getZ() + Mth.sin(a) * 2.5));
-            if (Math.abs(at.getY() - p.getY()) > 3) continue;
-            SkillFx.play(e, SkillFxPayload.Kind.BLINK, 0xFFE9B0, e.position(), 1f, 1);
-            e.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, e.getYRot(), 0f);
-            e.getNavigation().stop();
-            return;
-        }
+        // at their back, a little to one side, as on arrival
+        float a = p.getYRot() * Mth.DEG_TO_RAD + Mth.PI + (level.random.nextFloat() - 0.5f) * 1.7f;
+        BlockPos at = spotNear(level, p, a);
+        SkillFx.play(e, SkillFxPayload.Kind.BLINK, 0xFFE9B0, e.position(), 1f, 1);
+        e.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, p.getYRot(), 0f);
+        e.getNavigation().stop();
     }
 
     /** Creatures standing idle near a hunter go for them. */
