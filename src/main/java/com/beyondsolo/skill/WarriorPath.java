@@ -62,7 +62,7 @@ public final class WarriorPath {
             WarriorPath::crimsonCleave, (l, t) -> a(f(9 * m(l, t))));
     public static final Skill GORE_RUSH = active("gore_rush", BR, A, 24, 0xF05050, 14, 200, 120,
             WarriorPath::goreRush, (l, t) -> a(f(7 * m(l, t))));
-    public static final Skill THICK_BLOOD = passive("thick_blood", BR, A, 26, 0xC02838, (l, t) -> a(f(l), f(0.25f * l)));
+    public static final Skill THICK_BLOOD = passive("thick_blood", BR, A, 26, 0xC02838, (l, t) -> a(f(2.5f * l), f(0.25f * l)));
     public static final Skill BLOOD_GEYSER = active("blood_geyser", BR, A, 29, 0xD01828, 18, 220, 130,
             WarriorPath::bloodGeyser, (l, t) -> a(f(10 * m(l, t))));
     public static final Skill HEMORRHAGE = active("hemorrhage", BR, A, 32, 0xB01030, 16, 240, 140,
@@ -100,7 +100,7 @@ public final class WarriorPath {
         fx(p, Kind.DASH, s.color(), start, 1.2f, 10);
         dash(p, facing(p), 7, 8, 2.0, e -> {
             hit(p, s, e, 7 * m(l, tier(p)) + stat(p, Stat.STR, 0.15f));
-            p.heal(p.getMaxHealth() * 0.03f);
+            com.beyondsolo.system.Balance.healRaw(p, p.getMaxHealth() * 0.03f);
             fxAt(level, Kind.GEYSER, s.color(), e.position(), 2.4f, 0);
             sound(e, SoundEvents.PLAYER_ATTACK_CRIT, 0.8f, 0.8f);
         }, () -> fx(p, Kind.SLASH, s.color(), p.position(), 3.2f, 0));
@@ -863,7 +863,7 @@ public final class WarriorPath {
     // ================================================================ passives
 
     static {
-        bonus(THICK_BLOOD, Attributes.MAX_HEALTH, 1f, ADD, "health");
+        bonus(THICK_BLOOD, Attributes.MAX_HEALTH, 0.025f, TOTAL, "health");
         bonus(THICK_BLOOD, Attributes.ATTACK_DAMAGE, 0.25f, ADD, "attack");
         bonus(IRON_DISCIPLINE, Attributes.ARMOR, 0.5f, ADD, "armor");
         bonus(IRON_DISCIPLINE, Attributes.KNOCKBACK_RESISTANCE, 0.03f, ADD, "knockback");
@@ -905,7 +905,7 @@ public final class WarriorPath {
         splashing = true;
         try {
             for (LivingEntity e : foes(p, target.position(), 2.8)) {
-                if (e != target) e.hurt(p.damageSources().indirectMagic(p, p), aftershockDamage(shock));
+                if (e != target) e.hurt(p.damageSources().indirectMagic(p, p), com.beyondsolo.system.Balance.flatDamage(p, aftershockDamage(shock)));
             }
         } finally {
             splashing = false;
@@ -920,7 +920,7 @@ public final class WarriorPath {
     static float whenStruck(ServerPlayer p, SkillData data, LivingEntity attacker, boolean melee, float amount) {
         int riposte = data.level(RIPOSTE.path());
         if (riposte > 0 && melee && attacker != null && attacker.isAlive() && p.getRandom().nextFloat() * 100 < riposteChance(riposte)) {
-            attacker.hurt(p.damageSources().playerAttack(p), 3 + riposte);
+            attacker.hurt(p.damageSources().playerAttack(p), com.beyondsolo.system.Balance.flatDamage(p, 3 + riposte));
             sound(p, SoundEvents.ANVIL_PLACE, 0.5f, 1.9f);
             fx(p, Kind.SLASH, RIPOSTE.color(), p.position(), 2.6f, 1);
             return -1;

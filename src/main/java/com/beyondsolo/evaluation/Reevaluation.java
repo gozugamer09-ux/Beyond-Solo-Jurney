@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * Hidden rank thresholds and re-evaluation.
  *
- * <p>Every rank above E has a hidden threshold on the total of the five stats ({@code reevaluation.rankThresholds}).
+ * <p>Every rank above E has a hidden threshold on the total of the five stats ({@code reevaluation.rankStatTotals}).
  * A player whose total crosses one is, in truth, that rank, but nothing shows it: the System window, the HUD and
  * the license keep the rank of their last evaluation. Only an Evaluation Crystal can read the true rank, and it does
  * that once per level milestone ({@code reevaluation.milestoneLevels}, every 10 levels by default). A re-evaluation

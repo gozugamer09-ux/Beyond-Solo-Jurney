@@ -202,7 +202,7 @@ public final class GuardianPath {
     static boolean layOnHands(ServerPlayer p, Skill s, int l) {
         LivingEntity seen = aim(p, 10, x -> x instanceof Player && x != p && x.isAlive());
         Player ally = seen instanceof Player other ? other : p;
-        ally.heal(ally.getMaxHealth() * handsHeal(l) / 100f);
+        com.beyondsolo.system.Balance.healRaw(ally, ally.getMaxHealth() * handsHeal(l) / 100f);
         SubclassActions.cleanse(ally);
         sound(ally, SoundEvents.ZOMBIE_VILLAGER_CURE, 0.5f, 1.8f);
         fx(ally, Kind.HEAL, s.color(), ally.position(), 1.4f, 0);
@@ -240,7 +240,7 @@ public final class GuardianPath {
                 push(e, at, 1.1, 0.5);
             }
             for (Player ally : level.getEntitiesOfClass(Player.class, new net.minecraft.world.phys.AABB(at, at).inflate(10), Player::isAlive)) {
-                ally.heal(ally.getMaxHealth() * 0.3f);
+                com.beyondsolo.system.Balance.healRaw(ally, ally.getMaxHealth() * 0.3f);
                 fx(ally, Kind.HEAL, s.color(), ally.position(), 1, 0);
             }
             sound(level, at, SoundEvents.ANVIL_LAND, 1.2f, 0.5f);
@@ -652,7 +652,9 @@ public final class GuardianPath {
         fx(p, Kind.SHIELD, s.color(), p.position(), 1.3f, 100);
         later(p, 100, () -> {
             float[] kept = SWALLOWED.remove(p.getUUID());
-            float stored = kept == null ? 0 : Math.min(60, kept[0] * 1.5f);
+            // what was swallowed is already in today's sizes (its cap grows with the hunter's health pool)
+            float stored = kept == null ? 0 : com.beyondsolo.system.Balance.keepSize(p,
+                    Math.min(60 * (float) com.beyondsolo.system.Balance.legacyScale(p), kept[0] * 1.5f));
             Vec3 at = p.position();
             for (LivingEntity e : foes(p, at, 6)) {
                 hit(p, s, e, 8 * m(l, tier(p)) + vit(p, 0.2f) + stored);
@@ -731,7 +733,7 @@ public final class GuardianPath {
             GuardianPath::stoneFist, (l, t) -> a(f(12 * m(l, t))));
     public static final Skill BEDROCK_SKIN = active("bedrock_skin", EC, S, 24, 0xB09060, 18, 500, 320,
             GuardianPath::bedrockSkin, (l, t) -> a(f(4 + 4 * (1 + l / 3))));
-    public static final Skill TITANIC_FRAME = passive("titanic_frame", EC, S, 26, 0xE0C080, (l, t) -> a(f(2 * l), f(10 * l)));
+    public static final Skill TITANIC_FRAME = passive("titanic_frame", EC, S, 26, 0xE0C080, (l, t) -> a(f(5 * l), f(10 * l)));
     public static final Skill LANDSLIDE = active("landslide", EC, S, 29, 0xC09850, 18, 280, 170,
             GuardianPath::landslide, (l, t) -> a(f(12 * m(l, t))));
     public static final Skill MONOLITH = active("monolith", EC, S, 32, 0xD8B870, 20, 420, 260,
@@ -884,7 +886,7 @@ public final class GuardianPath {
         bonus(HEAVY_PLATING, Attributes.ARMOR, 0.8f, ADD, "armor");
         bonus(HEAVY_PLATING, Attributes.KNOCKBACK_RESISTANCE, 0.05f, ADD, "knockback");
         bonus(ASHEN_HIDE, Attributes.ARMOR, 0.4f, ADD, "armor");
-        bonus(TITANIC_FRAME, Attributes.MAX_HEALTH, 2f, ADD, "health");
+        bonus(TITANIC_FRAME, Attributes.MAX_HEALTH, 0.05f, TOTAL, "health");
         bonus(TITANIC_FRAME, Attributes.KNOCKBACK_RESISTANCE, 0.1f, ADD, "knockback");
     }
 
@@ -924,7 +926,7 @@ public final class GuardianPath {
             later(p, 1, () -> {
                 for (LivingEntity e : foes(p, at, 2.5)) {
                     if (e == target) continue;
-                    e.hurt(p.damageSources().onFire(), 3 * m(wrath, tier(p)));
+                    e.hurt(p.damageSources().onFire(), com.beyondsolo.system.Balance.flatDamage(p, 3 * m(wrath, tier(p))));
                     e.igniteForSeconds(3);
                 }
                 level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.8, at.z, 10, 0.8, 0.4, 0.8, 0.03);
@@ -951,7 +953,7 @@ public final class GuardianPath {
         if (runic > 0 && attacker != null) SystemAPI.restoreMana(p, runicMana(runic));
         int spikes = data.level(SPIKED_BULWARK.path());
         if (spikes > 0 && melee && attacker != null && attacker.isAlive()) {
-            float back = thorns(spikes);
+            float back = com.beyondsolo.system.Balance.flatDamage(p, thorns(spikes));
             later(p, 1, () -> {
                 if (attacker.isAlive()) attacker.hurt(p.damageSources().thorns(p), back);
             });
@@ -965,7 +967,7 @@ public final class GuardianPath {
                 Vec3 from = p.position();
                 later(p, 1, () -> {
                     if (!attacker.isAlive()) return;
-                    attacker.hurt(p.damageSources().thorns(p), 5 * m(brace, tier(p)));
+                    attacker.hurt(p.damageSources().thorns(p), com.beyondsolo.system.Balance.flatDamage(p, 5 * m(brace, tier(p))));
                     push(attacker, from, 1.1, 0.35);
                 });
                 sound(p, SoundEvents.SHIELD_BLOCK, 1f, 0.7f);
@@ -977,7 +979,7 @@ public final class GuardianPath {
                 int ward = Math.max(1, data.level(MIRROR_WARD.path()));
                 later(p, 1, () -> {
                     if (!attacker.isAlive()) return;
-                    attacker.hurt(p.damageSources().indirectMagic(p, p), 6 * m(ward, tier(p)));
+                    attacker.hurt(p.damageSources().indirectMagic(p, p), com.beyondsolo.system.Balance.flatDamage(p, 6 * m(ward, tier(p))));
                     fx(p, Kind.BOLT, MIRROR_WARD.color(), mid(attacker), 0.3f, 0);
                 });
             }

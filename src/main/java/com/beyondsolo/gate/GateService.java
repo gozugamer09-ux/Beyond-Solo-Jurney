@@ -612,8 +612,17 @@ public final class GateService {
         if (mob != null) {
             mob.getPersistentData().putUUID(GateWiper.GATE_ID_TAG, g.id());
             mob.getPersistentData().putString(ELEMENT_TAG, g.element().id().toString());
+            // the cave that hides a sealed door is fought before the System: an old D-rank gate's strength, whatever the rank
+            if (com.beyondsolo.awakening.AwakeningService.holdsTheDoor(g)) com.beyondsolo.enemy.Enemies.doorStrength(mob);
         }
         return mob;
+    }
+
+    /** A creature a boss called in: as strong as the rest of the boss's gate (see {@link #belongs}). */
+    public static void likeItsGate(GateBossEntity boss, @Nullable Mob mob) {
+        if (mob == null || boss.gateId() == null || !(boss.level() instanceof ServerLevel level)) return;
+        GateInstance g = GateData.get(level.getServer()).get(boss.gateId());
+        if (g != null && com.beyondsolo.awakening.AwakeningService.holdsTheDoor(g)) com.beyondsolo.enemy.Enemies.doorStrength(mob);
     }
 
     /** The element a gate creature's hits carry: its realm's if it was told one, else its rank's. */

@@ -141,7 +141,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         entityData.set(LEVEL, r.level());
         entityData.set(ROLE, r.role().ordinal());
         entityData.set(BOSS_RANK, r.boss() ? r.bossRank() : -1);
-        applyStats(r, ShadowService.intellect(owner));
+        applyStats(r, com.beyondsolo.system.SystemAPI.get(owner));
         setHealth(getMaxHealth());
         if (r.named()) {
             setCustomName(r.displayName());
@@ -155,14 +155,14 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         float share = getHealth() / Math.max(1, getMaxHealth());
         entityData.set(RANK, r.rank().ordinal());
         entityData.set(LEVEL, r.level());
-        applyStats(r, ShadowService.intellect(owner));
+        applyStats(r, com.beyondsolo.system.SystemAPI.get(owner));
         setHealth(Math.max(1, getMaxHealth() * share));
         refreshDimensions();
     }
 
-    private void applyStats(ShadowRecord r, int intellect) {
-        getAttribute(Attributes.MAX_HEALTH).setBaseValue(ShadowService.maxHealth(r, intellect));
-        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(ShadowService.damage(r, intellect));
+    private void applyStats(ShadowRecord r, com.beyondsolo.system.SystemData master) {
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(ShadowService.maxHealth(r, master));
+        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(ShadowService.damage(r, master));
         getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(ShadowService.speed(r));
         getAttribute(Attributes.ARMOR).setBaseValue(2 * r.rank().ordinal() + (r.boss() ? 4 : 0));
         getAttribute(Attributes.KNOCKBACK_RESISTANCE).setBaseValue(r.boss() ? 0.8 : 0.1 * r.rank().ordinal());

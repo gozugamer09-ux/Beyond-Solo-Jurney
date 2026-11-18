@@ -66,7 +66,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     void setHasSystem(boolean has) { this.hasSystem = has; }
     void setRank(PlayerRank rank) { this.rank = rank; }
     void setPlayerClass(PlayerClass playerClass) { this.playerClass = playerClass; }
-    void setLevel(int level) { this.level = Math.max(1, level); }
+    void setLevel(int level) { this.level = Math.max(1, Math.min(Progression.MAX_LEVEL, level)); }
     void setXp(long xp) { this.xp = Math.max(0, xp); }
     void setStatPoints(int points) { this.statPoints = Math.max(0, points); }
     void setStat(Stat stat, int value) { stats[stat.ordinal()] = Math.max(Stat.BASE, value); }
@@ -124,7 +124,8 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
         rank = r == null ? PlayerRank.E : r;
         PlayerClass c = PlayerClass.byName(tag.getString("class"));
         playerClass = c == null ? PlayerClass.WARRIOR : c;
-        level = Math.max(1, tag.getInt("level"));
+        // saves from before the level cap came down to 100 keep the cap
+        level = Math.max(1, Math.min(Progression.MAX_LEVEL, tag.getInt("level")));
         xp = tag.getLong("xp");
         statPoints = tag.getInt("statPoints");
         CompoundTag statTag = tag.getCompound("stats");

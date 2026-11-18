@@ -28,8 +28,8 @@ public enum BonusStat {
     DRAW_SPEED(Target.BOW, () -> ALObjects.Attributes.DRAW_SPEED, Operation.ADD_VALUE, 0.04f, 0.08f, true),
     ELEMENTAL_POWER(Target.WEAPON, () -> ModAttributes.ELEMENTAL_POWER, Operation.ADD_VALUE, 0.04f, 0.08f, true),
     SPELL_POWER(Target.WEAPON, () -> ModAttributes.SPELL_POWER, Operation.ADD_VALUE, 0.03f, 0.06f, true),
-    // armor
-    MAX_HEALTH(Target.ARMOR, () -> Attributes.MAX_HEALTH, Operation.ADD_VALUE, 1f, 2f, false),
+    // armor (max health multiplies the whole pool, so it keeps its share of it at every level)
+    MAX_HEALTH(Target.ARMOR, () -> Attributes.MAX_HEALTH, Operation.ADD_MULTIPLIED_TOTAL, 0.02f, 0.04f, true),
     ARMOR(Target.ARMOR, () -> Attributes.ARMOR, Operation.ADD_VALUE, 0.5f, 1f, false),
     TOUGHNESS(Target.ARMOR, () -> Attributes.ARMOR_TOUGHNESS, Operation.ADD_VALUE, 0.3f, 0.7f, false),
     MOVE_SPEED(Target.ARMOR, () -> Attributes.MOVEMENT_SPEED, Operation.ADD_MULTIPLIED_BASE, 0.01f, 0.02f, true),
@@ -82,8 +82,17 @@ public enum BonusStat {
         return null;
     }
 
-    /** "+4.5% Crit chance" / "+1.5 Max health". */
+    /**
+     * What a stored roll really gives. Max health used to roll flat points (1 to 2 a piece, before grades): gear from
+     * then keeps its roll as 2% of max health a point.
+     */
+    public float amount(float stored) {
+        return this == MAX_HEALTH && stored >= 0.5f ? stored * 0.02f : stored;
+    }
+
+    /** "+4.5% Crit chance" / "+0.5 Armor". */
     public Component describe(float value) {
+        value = amount(value);
         String num = percent ? fmt(value * 100) + "%" : fmt(value);
         return Component.translatable("gear.beyondsolo.stat_line", "+" + num, Component.translatable("gear.beyondsolo.stat." + id()));
     }
