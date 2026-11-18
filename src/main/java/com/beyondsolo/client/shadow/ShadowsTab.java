@@ -16,7 +16,6 @@ import com.beyondsolo.shadow.ShadowModule;
 import com.beyondsolo.shadow.ShadowRecord;
 import com.beyondsolo.shadow.ShadowService;
 import com.beyondsolo.skill.SkillActions;
-import com.beyondsolo.system.Stat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -224,10 +223,10 @@ public class ShadowsTab implements SystemTab {
         SysFont.draw(g, xp, tx + tw, cy + 0.5f, 6.2f, SystemTheme.TEXT_SOFT, false, 1f);
         Ui.bar(g, tx, cy + 10, tw, 2.6f, max ? 1 : r.xp() / (float) r.xpToNext(), Gfx.mix(c, 0xFF000000, 0.2f), c);
         cy += 17;
-        int intel = ClientSystemData.get().stat(Stat.INT);
+        var master = ClientSystemData.get();
         float sx = tx;
-        sx += stat(g, sx, cy, Icons.HEART, SkillActions.f(ShadowService.maxHealth(r, intel)), SystemTheme.HP_B) + 4;
-        sx += stat(g, sx, cy, Icons.FLAME, SkillActions.f(ShadowService.damage(r, intel)), 0xFFFFB070) + 4;
+        sx += stat(g, sx, cy, Icons.HEART, SkillActions.f(ShadowService.maxHealth(r, master)), SystemTheme.HP_B) + 4;
+        sx += stat(g, sx, cy, Icons.FLAME, SkillActions.f(ShadowService.damage(r, master)), 0xFFFFB070) + 4;
         stat(g, sx, cy, Icons.MEDAL, Component.translatable("shadows.beyondsolo.kills", r.kills()).getString(), SystemTheme.GOLD);
         cy += 15;
 

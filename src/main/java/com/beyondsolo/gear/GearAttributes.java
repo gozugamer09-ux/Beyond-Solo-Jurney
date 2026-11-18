@@ -32,7 +32,7 @@ public final class GearAttributes {
             int i = 0;
             for (BonusStats.Roll r : stats.rolls()) {
                 event.addModifier(r.stat().attribute(), new AttributeModifier(
-                        BeyondSolo.id("gear.bonus." + r.stat().id() + "." + i++ + "." + where), r.value(), r.stat().operation), slot);
+                        BeyondSolo.id("gear.bonus." + r.stat().id() + "." + i++ + "." + where), r.stat().amount(r.value()), r.stat().operation), slot);
             }
         }
 

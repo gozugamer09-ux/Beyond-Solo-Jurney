@@ -21,7 +21,7 @@ public final class SubclassSkills {
 
     public static final Skill BANNER_OF_CONQUEST = active("banner_of_conquest", Subclass.WARLORD, PlayerRank.A, 24, 900, 600,
             SubclassActions::bannerOfConquest, (l, t) -> a(f(bannerSeconds(l))));
-    public static final Skill COMMANDING_PRESENCE = passive("commanding_presence", Subclass.WARLORD, PlayerRank.A, (l, t) -> a(f(l), f(0.3f * l)));
+    public static final Skill COMMANDING_PRESENCE = passive("commanding_presence", Subclass.WARLORD, PlayerRank.A, (l, t) -> a(f(2.5f * l), f(0.3f * l)));
 
     public static final Skill THOUSAND_CUTS = active("thousand_cuts", Subclass.BLADEMASTER, PlayerRank.A, 20, 240, 120,
             SubclassActions::thousandCuts, (l, t) -> a(f(cutDamage(l, t))));
@@ -29,13 +29,13 @@ public final class SubclassSkills {
 
     public static final Skill UNSTOPPABLE_CHARGE = active("unstoppable_charge", Subclass.JUGGERNAUT, PlayerRank.A, 18, 280, 160,
             SubclassActions::unstoppableCharge, (l, t) -> a(f(chargeDistance(l)), f(chargeDamage(l, t))));
-    public static final Skill IRON_HIDE = passive("iron_hide", Subclass.JUGGERNAUT, PlayerRank.A, (l, t) -> a(f(0.8f * l), f(4 * l)));
+    public static final Skill IRON_HIDE = passive("iron_hide", Subclass.JUGGERNAUT, PlayerRank.A, (l, t) -> a(f(2 * l), f(4 * l)));
 
     public static final Skill CATACLYSM_FIST = active("cataclysm_fist", Subclass.WORLDBREAKER, PlayerRank.S, 45, 500, 300,
             SubclassActions::cataclysmFist, (l, t) -> a(f(cataclysmDamage(l, t))));
     public static final Skill FAULT_LINE = active("fault_line", Subclass.WORLDBREAKER, PlayerRank.S, 35, 300, 180,
             SubclassActions::faultLine, (l, t) -> a(f(faultDamage(l, t))));
-    public static final Skill TITAN_BLOOD = passive("titan_blood", Subclass.WORLDBREAKER, PlayerRank.S, (l, t) -> a(f(titanBonus(l)), f(1.5f * l)));
+    public static final Skill TITAN_BLOOD = passive("titan_blood", Subclass.WORLDBREAKER, PlayerRank.S, (l, t) -> a(f(titanBonus(l)), f(3.75f * l)));
 
     // ================================================================ assassin
     public static final Skill UMBRAL_EXECUTION = active("umbral_execution", Subclass.NIGHTBLADE, PlayerRank.A, 20, 240, 140,
@@ -101,10 +101,10 @@ public final class SubclassSkills {
     public static final Skill BURNING_SPITE = passive("burning_spite", Subclass.VENGEANCE_KNIGHT, PlayerRank.A, (l, t) -> a(f(spite(l))));
 
     public static final Skill COLOSSUS_FORM = active("colossus_form", Subclass.EVERLASTING_COLOSSUS, PlayerRank.S, 50, 1800, 1200,
-            SubclassActions::colossusForm, (l, t) -> a(f(colossusSeconds(l)), f(20 + 2 * l)));
+            SubclassActions::colossusForm, (l, t) -> a(f(colossusSeconds(l)), f(colossusHealth(l))));
     public static final Skill EARTHEN_DOMAIN = active("earthen_domain", Subclass.EVERLASTING_COLOSSUS, PlayerRank.S, 40, 600, 360,
             SubclassActions::earthenDomain, (l, t) -> a(f(domainDamage(l, t))));
-    public static final Skill UNDYING = passive("undying", Subclass.EVERLASTING_COLOSSUS, PlayerRank.S, (l, t) -> a(f(undyingCooldown(l)), f(2 * l)));
+    public static final Skill UNDYING = passive("undying", Subclass.EVERLASTING_COLOSSUS, PlayerRank.S, (l, t) -> a(f(undyingCooldown(l)), f(5 * l)));
 
     // ================================================================ healer
     public static final Skill RADIANT_BURST = active("radiant_burst", Subclass.LIGHTBINDER, PlayerRank.A, 24, 240, 140,
@@ -121,7 +121,7 @@ public final class SubclassSkills {
 
     public static final Skill BLOOD_SIPHON = active("blood_siphon", Subclass.HEMOMANCER, PlayerRank.A, 18, 160, 90,
             SubclassActions::bloodSiphon, (l, t) -> a(f(siphonDamage(l, t))));
-    public static final Skill CRIMSON_VIGOR = passive("crimson_vigor", Subclass.HEMOMANCER, PlayerRank.A, (l, t) -> a(f(l), f(vigorBlood(l))));
+    public static final Skill CRIMSON_VIGOR = passive("crimson_vigor", Subclass.HEMOMANCER, PlayerRank.A, (l, t) -> a(f(2.5f * l), f(vigorBlood(l))));
 
     public static final Skill MIRACLE_OF_DAWN = active("miracle_of_dawn", Subclass.DAWN_SAINT, PlayerRank.S, 60, 2400, 1600,
             SubclassActions::miracleOfDawn, (l, t) -> a(f(dawnDamage(l, t))));

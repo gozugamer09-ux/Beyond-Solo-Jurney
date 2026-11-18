@@ -28,7 +28,7 @@ import java.util.UUID;
 /**
  * The rankings: the world's hunters (players and the rival roster) by power, by how high they have climbed the
  * Crimson Citadel, by boss rush time per tier, and by gates cleared. A hunter's power is ten times where they stand on
- * the hunter scale ({@code HiddenLevel.hunterLevel}: their level and every stat point they have). Climbing past a rival
+ * the hunter scale ({@code HiddenLevel.hunterLevel}: their level and every stat point beyond what it gave). Climbing past a rival
  * on the hunters' board is announced.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)

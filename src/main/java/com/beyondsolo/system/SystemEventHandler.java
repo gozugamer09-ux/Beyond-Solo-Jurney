@@ -92,7 +92,7 @@ public final class SystemEventHandler {
         LivingEntity victim = event.getEntity();
         if (victim instanceof Player || victim.level().isClientSide) return;
         if (event.getSource().getEntity() instanceof ServerPlayer killer) {
-            long xp = Math.max(1, Math.round(victim.getMaxHealth() * Config.KILL_XP_MULTIPLIER.get()));
+            long xp = Math.max(1, Math.round(com.beyondsolo.enemy.Enemies.killWorth(victim) * Config.KILL_XP_MULTIPLIER.get()));
             if (SystemAPI.isAwakened(killer)) SystemAPI.grantXp(killer, xp, SystemAPI.XP_SOURCE_KILL);
             // the party members fighting alongside get a part of it
             long shared = com.beyondsolo.party.Parties.share(xp);

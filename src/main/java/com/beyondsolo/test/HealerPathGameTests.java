@@ -192,7 +192,7 @@ public final class HealerPathGameTests {
         float health = g.getMaxHealth();
         SkillAPI.learn(g, HealerPath.BARKSKIN, 5, OTHER);
         helper.assertTrue(Math.abs(g.getAttributeValue(Attributes.ARMOR) - armor - 3) < 0.01, "Barkskin 5 adds 3 armour");
-        helper.assertTrue(Math.abs(g.getMaxHealth() - health - 4) < 0.01f, "Barkskin 5 adds 4 health: " + (g.getMaxHealth() - health));
+        helper.assertTrue(Math.abs(g.getMaxHealth() - health * 1.1f) < 0.01f, "Barkskin 5 adds 10% health: " + (g.getMaxHealth() - health));
         ServerPlayer d = healer(helper, Subclass.DAWN_SAINT);
         mana = SystemAPI.get(d).maxMana();
         SkillAPI.learn(d, HealerPath.RADIANT_SOUL, 5, OTHER);

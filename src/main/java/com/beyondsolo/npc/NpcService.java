@@ -373,14 +373,19 @@ public final class NpcService {
     public static List<Mob> spawnNest(ServerPlayer p, Quest q) {
         int count = NpcQuests.NEST_SIZE;
         for (com.beyondsolo.quest.QuestObjective o : q.objectives()) count = Math.max(count, o.required() - o.progress());
-        return spawnNest((ServerLevel) p.level(), q.area().center(), nestRank(p), count, q.extra().getString("token"), p.getUUID());
+        List<Mob> nest = spawnNest((ServerLevel) p.level(), q.area().center(), nestRank(p), count, q.extra().getString("token"), p.getUUID());
+        // as strong as creatures made for the hunter's own level, not their rank's home level
+        float level = com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(p));
+        for (Mob mob : nest) {
+            com.beyondsolo.enemy.Enemies.strengthForLevel(mob, level);
+            mob.setHealth(mob.getMaxHealth());
+        }
+        return nest;
     }
 
-    /** The rank of a hunter's nest: the gate rank whose plain creatures are an even match for them. */
+    /** The rank of a hunter's nest: the gate rank made for a hunter of their level ({@link com.beyondsolo.system.Balance#rankFor}). */
     public static com.beyondsolo.system.PlayerRank nestRank(ServerPlayer p) {
-        float level = com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(p));
-        com.beyondsolo.system.PlayerRank[] ranks = com.beyondsolo.system.PlayerRank.values();
-        return ranks[Math.max(0, Math.min(ranks.length - 1, (int) (level / 10f)))];
+        return com.beyondsolo.system.Balance.rankFor(com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(p)));
     }
 
     public static List<Mob> spawnNest(ServerLevel level, BlockPos center, com.beyondsolo.system.PlayerRank rank, int count, String token, @Nullable UUID owner) {

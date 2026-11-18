@@ -3,13 +3,12 @@ package com.beyondsolo.enemy;
 import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
-import com.beyondsolo.system.Stat;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -23,10 +22,12 @@ import net.minecraft.world.entity.player.Player;
  * <p>The level comes from what the creature really is once everything is on it (its kind, gate rank, variant, size,
  * affixes, a red gate's fury, a boss's kind and ascension): its staying power (health, stretched by its armour) times
  * the weight of its blows, the product an even fight between two sides comes down to ({@link #power}). {@link #powerAt}
- * is the same measure for a hunter of each level, set so that a gate's typical plain creature is the level where its
- * rank's armour can first be worn (E 1, D 10, C 20, B 30, A 40, S 50) and growing as a hunter's stats do past that. A
- * hunter's own side of the comparison counts every stat point they have, rank bonus, rewards and unspent points
- * included, {@link #POINTS_PER_LEVEL} to a level ({@link #hunterLevel}).</p>
+ * is the same measure for a hunter of each level: an E gate's typical creature ({@link EnemyRoster#basePower}) grown
+ * along the power curve in {@link Balance} ({@link Balance#strengthAt}). A gate's typical plain creature stands at its
+ * rank's home level (E 3, D 13, C 26, B 41, A 56, S 74; each rank's pool is evened out to that, see
+ * {@link Enemies#poolScale}), and the curve goes on past S and the level cap. A hunter's own side of the comparison is
+ * their level plus every stat point they have beyond what their levels gave, {@link #POINTS_PER_LEVEL} to a level
+ * ({@link #hunterLevel}).</p>
  *
  * <p>A creature's level is worked out the first time it is needed (when a player first sees it) and kept in its
  * persistent data; code that makes a creature stronger or weaker after it appeared calls {@link #refresh}. All numbers
@@ -35,15 +36,9 @@ import net.minecraft.world.entity.player.Player;
 public final class HiddenLevel {
     /** Persistent-data key of a creature's hidden level. */
     public static final String KEY = "beyondsolo_level";
-    /** Stat points one level is worth on the hunter curve (the default {@code progression.statPointsPerLevel}). */
-    public static final float POINTS_PER_LEVEL = 3f;
+    /** Stat points beyond what a hunter's levels gave them that count as one more level ({@link Balance#POINTS_PER_LEVEL}). */
+    public static final float POINTS_PER_LEVEL = Balance.POINTS_PER_LEVEL;
     public static final int MAX = 9999;
-
-    /** The hunter curve: power at these levels, straight lines in between. */
-    private static final float[] LEVELS = {1, 10, 20, 50};
-    private static final float[] POWERS = {7, 12, 20, 50};
-    /** Past the last point a hunter only grows by their stats: this much power a level. */
-    private static final float TAIL = 0.6f;
 
     /** How a creature stands against the hunter looking at it, and the colour its name is shown in. */
     public enum Threat {
@@ -54,8 +49,8 @@ public final class HiddenLevel {
         /** Far stronger than you: a red name. */
         FAR_STRONGER(0xFF4242);
 
-        /** Below this share of the hunter's power a creature is weaker. */
-        public static final float WEAKER_BELOW = 0.9f;
+        /** Below this share of the hunter's power a creature is weaker (two or three levels below, in the middle levels). */
+        public static final float WEAKER_BELOW = 0.85f;
         /** From this many times the hunter's power a creature is far stronger. */
         public static final float FAR_FROM = 1.5f;
 
@@ -102,6 +97,11 @@ public final class HiddenLevel {
         return level;
     }
 
+    /** Drops a creature's kept level, so it is worked out again the next time it is needed (before anyone has seen it). */
+    public static void forget(LivingEntity e) {
+        e.getPersistentData().remove(KEY);
+    }
+
     /** Works the level out again (after something made the creature stronger or weaker) and tells everyone who sees it. */
     public static int refresh(LivingEntity e) {
         int level = compute(e);
@@ -132,46 +132,28 @@ public final class HiddenLevel {
 
     /** The power of a hunter of this level (fractions allowed): the even match for a creature of it. */
     public static double powerAt(double level) {
-        if (level <= LEVELS[0]) return POWERS[0];
-        for (int i = 1; i < LEVELS.length; i++) {
-            if (level <= LEVELS[i]) {
-                double t = (level - LEVELS[i - 1]) / (LEVELS[i] - LEVELS[i - 1]);
-                return POWERS[i - 1] + t * (POWERS[i] - POWERS[i - 1]);
-            }
-        }
-        return POWERS[POWERS.length - 1] + TAIL * (level - LEVELS[LEVELS.length - 1]);
+        return typical() * Balance.strengthAt(level);
     }
 
     /** The level whose hunter has this power (at least 1). */
     public static int levelFor(double power) {
-        int last = LEVELS.length - 1;
-        double level;
-        if (power <= POWERS[0]) {
-            level = LEVELS[0];
-        } else if (power > POWERS[last]) {
-            level = LEVELS[last] + (power - POWERS[last]) / TAIL;
-        } else {
-            level = LEVELS[last];
-            for (int i = 1; i <= last; i++) {
-                if (power <= POWERS[i]) {
-                    double t = (power - POWERS[i - 1]) / (POWERS[i] - POWERS[i - 1]);
-                    level = LEVELS[i - 1] + t * (LEVELS[i] - LEVELS[i - 1]);
-                    break;
-                }
-            }
-        }
-        return Mth.clamp((int) Math.round(level), 1, MAX);
+        double level = Balance.levelForStrength(power / typical());
+        return (int) Math.max(1, Math.min(MAX, Math.round(level)));
+    }
+
+    /** The power of an E gate's typical creature: the even match for a hunter at E's home level. */
+    private static double typical() {
+        return Math.max(0.01, EnemyRoster.basePower(com.beyondsolo.system.PlayerRank.E));
     }
 
     /**
      * Where a hunter stands on the same scale: their level, plus whatever stat points they have beyond what their
-     * levels gave (rank bonus, rewards, the job change), {@link #POINTS_PER_LEVEL} to a level. Unspent points count:
-     * they are strength the hunter has, just not placed yet. Works on both sides (the client has its own System data).
+     * levels gave (rank bonus, rewards, the job change), {@link #POINTS_PER_LEVEL} to a level, and never below E's
+     * home level ({@link Balance#powerLevel}). Unspent points count: they are strength the hunter has, just not placed
+     * yet. Works on both sides (the client has its own System data).
      */
     public static float hunterLevel(SystemData d) {
-        int points = d.statPoints();
-        for (Stat s : Stat.values()) points += d.stat(s) - Stat.BASE;
-        return Math.max(1f, 1f + points / POINTS_PER_LEVEL);
+        return Balance.powerLevel(d);
     }
 
     public static Threat threat(LivingEntity creature, Player hunter) {
