@@ -86,6 +86,29 @@ it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
 
+### The System HUD
+
+While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):
+
+- `VitalsHud` (layer `beyondsolo:vitals`, right above vanilla's hotbar layer): the hotbar as glass tiles with a
+  gliding highlight and a glow under graded gear (the off-hand slot and the "hotbar" attack indicator where vanilla
+  puts them), the experience strip with the level gem (the System level once awakened, vanilla's level before that;
+  vanilla's level is then the small green number at the strip's end), and leaning bars with their numbers: health
+  (armour chip, absorption in gold, poison/wither/frozen tints) and mana on the left, hunger (saturation line, what
+  the food in hand would give), fatigue, a mount's health and air on the right, each only while it matters. Bars
+  glide, leave a pale trail when hit, flash when they rise and pulse when low. Numbers of five digits and more are
+  shortened (12.3k). It raises `Gui.leftHeight`/`rightHeight`, so the item name and the action bar stay above it.
+- `EffectsHud` (layer `beyondsolo:effects`, above vanilla's effects layer): status effects in vanilla's corner and
+  rows as discs with a ring that runs down, the time left and the level. It leaves out burn, venom and the crimson
+  brand, which have their meters on the combat rail. `bottom()` and `left()` say where the icons end (vanilla's too
+  while the System HUD is off): the pop-ups and the gold capsule start under them, and the icons go under the unread
+  badge of hidden pop-ups.
+- `HudClientEvents` cancels the vanilla layers it replaces (hotbar, jump meter, experience bar and level, health,
+  armour, food, mount health, air, effects) and AppleSkin's layers. Spectators keep vanilla's HUD.
+- `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
+  follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
+  for pieces that sit beside it (the shadow army counter).
+
 ## The evaluation
 
 One evaluation runs on three parts that share the moments in `evaluation/EvaluationTimeline` (in ticks):
@@ -615,7 +638,7 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
   scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
   the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
-- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (under the effect icons, `EffectsHud.bottom()`):
   the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
 - **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
