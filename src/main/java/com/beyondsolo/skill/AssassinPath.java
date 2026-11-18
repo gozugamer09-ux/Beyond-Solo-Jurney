@@ -276,8 +276,8 @@ public final class AssassinPath {
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 1));
         }
         sound(p, SoundEvents.PUFFER_FISH_BLOW_UP, 1.2f, 0.7f);
-        level.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, 80, 2.5, 0.8, 2.5, 0.02);
-        level.sendParticles(ParticleTypes.SNEEZE, at.x, at.y + 0.8, at.z, 40, 2, 0.5, 2, 0.05);
+        SkillParticles.send(level, ParticleTypes.SPORE_BLOSSOM_AIR, at.x, at.y + 1, at.z, 80, 2.5, 0.8, 2.5, 0.02);
+        SkillParticles.send(level, ParticleTypes.SNEEZE, at.x, at.y + 0.8, at.z, 40, 2, 0.5, 2, 0.05);
         fx(p, Kind.BLOSSOM, s.color(), at, 5, 0);
         fx(p, Kind.PULSE, s.color(), at, 5, 0);
         return true;
@@ -303,7 +303,7 @@ public final class AssassinPath {
         repeat(p, 100, 10, () -> {
             Vec3 at = p.position();
             fxAt(level, Kind.ZONE, s.color(), at, 2.5f, 60);
-            level.sendParticles(ParticleTypes.SNEEZE, at.x, at.y + 0.3, at.z, 8, 1, 0.2, 1, 0.01);
+            SkillParticles.send(level, ParticleTypes.SNEEZE, at.x, at.y + 0.3, at.z, 8, 1, 0.2, 1, 0.01);
             for (int t = 0; t < 60; t += 20) {
                 later(p, t, () -> {
                     for (LivingEntity e : foes(p, at, 2.5)) {
@@ -353,7 +353,7 @@ public final class AssassinPath {
                 Statuses.addVenomStack(e, p);
                 e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0));
             }
-            level.sendParticles(ParticleTypes.SNEEZE, at.x, at.y + 0.6, at.z, 60, 4.5, 0.5, 4.5, 0.01);
+            SkillParticles.send(level, ParticleTypes.SNEEZE, at.x, at.y + 0.6, at.z, 60, 4.5, 0.5, 4.5, 0.01);
             double ang = p.getRandom().nextDouble() * Math.PI * 2;
             double rad = p.getRandom().nextDouble() * 7;
             fxAt(level, Kind.GEYSER, s.color(), ground(level, at.add(Math.cos(ang) * rad, 0, Math.sin(ang) * rad)), 4, 0);

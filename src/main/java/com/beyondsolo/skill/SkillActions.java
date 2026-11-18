@@ -210,7 +210,7 @@ public final class SkillActions {
                     hit(p, s, e, dmg, false);
                     e.setDeltaMovement(look.x * 0.9, 0.42, look.z * 0.9);
                     e.hurtMarked = true;
-                    p.serverLevel().sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + 1, e.getZ(), 10, 0.3, 0.3, 0.3, 0.4);
+                    SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, e.getX(), e.getY() + 1, e.getZ(), 10, 0.3, 0.3, 0.3, 0.4);
                     sound(p, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1f, 0.7f);
                 }
             });
@@ -307,7 +307,7 @@ public final class SkillActions {
                 }
                 sound(p, SoundEvents.GENERIC_EXPLODE.value(), 0.7f, 0.8f);
                 sound(p, SoundEvents.ANVIL_LAND, 0.5f, 0.5f);
-                p.serverLevel().sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.3, at.z, 3, 1.2, 0.1, 1.2, 0);
+                SkillParticles.send(p.serverLevel(), ParticleTypes.EXPLOSION, at.x, at.y + 0.3, at.z, 3, 1.2, 0.1, 1.2, 0);
                 SkillFx.play(p, SkillFxPayload.Kind.SLAM, s.color(), at, 5, 0);
                 return;
             }
@@ -384,7 +384,7 @@ public final class SkillActions {
         if (target != null) {
             end = target.position().add(0, target.getBbHeight() * 0.55, 0);
             hit(p, s, target, 7 * mult(p, l) + statBonus(p, Stat.INT, 0.25f), true);
-            p.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK, end.x, end.y, end.z, 14, 0.25, 0.25, 0.25, 0.25);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.ELECTRIC_SPARK, end.x, end.y, end.z, 14, 0.25, 0.25, 0.25, 0.25);
         } else {
             end = aimPoint(p, 28);
         }
@@ -429,8 +429,8 @@ public final class SkillActions {
                     hit(p, s, e, dmg, true);
                     Statuses.apply(e, DamageElement.FIRE, 20, p);
                 }
-                level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.4, at.z, 1, 0, 0, 0, 0);
-                level.sendParticles(ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 8, 0.6, 0.2, 0.6, 0);
+                SkillParticles.send(level, ParticleTypes.EXPLOSION, at.x, at.y + 0.4, at.z, 1, 0, 0, 0, 0);
+                SkillParticles.send(level, ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 8, 0.6, 0.2, 0.6, 0);
                 level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.6f, 1.1f);
             });
         }
@@ -554,7 +554,7 @@ public final class SkillActions {
             hit(p, s, e, dmg, false);
             Vec3 dir = end.subtract(eye).normalize();
             e.knockback(0.3, -dir.x, -dir.z);
-            p.serverLevel().sendParticles(ParticleTypes.CRIT, hitAt.get().x, hitAt.get().y, hitAt.get().z, 8, 0.1, 0.1, 0.1, 0.3);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, hitAt.get().x, hitAt.get().y, hitAt.get().z, 8, 0.1, 0.1, 0.1, 0.3);
         }
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.7f);
         sound(p, SoundEvents.ARROW_SHOOT, 0.8f, 1.6f);
@@ -612,7 +612,7 @@ public final class SkillActions {
         for (LivingEntity e : inCone(p, look, 9, 0.64)) {
             if (!p.hasLineOfSight(e)) continue;
             hit(p, s, e, dmg, false);
-            p.serverLevel().sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 6, 0.2, 0.2, 0.2, 0.3);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 6, 0.2, 0.2, 0.2, 0.3);
         }
         sound(p, SoundEvents.TRIDENT_THROW.value(), 0.9f, 1.6f);
         sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 0.7f, 1.5f);
@@ -656,8 +656,8 @@ public final class SkillActions {
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 0));
             e.clearFire();
         }
-        p.serverLevel().sendParticles(ParticleTypes.SPLASH, at.x, at.y, at.z, 60, 1.4, 0.6, 1.4, 0.3);
-        p.serverLevel().sendParticles(ParticleTypes.BUBBLE_POP, at.x, at.y, at.z, 20, 1.2, 0.6, 1.2, 0.05);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.SPLASH, at.x, at.y, at.z, 60, 1.4, 0.6, 1.4, 0.3);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.BUBBLE_POP, at.x, at.y, at.z, 20, 1.2, 0.6, 1.2, 0.05);
         sound(p, SoundEvents.BUCKET_EMPTY, 0.8f, 1.4f);
         p.level().playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_SPLASH, SoundSource.PLAYERS, 1f, 0.8f);
         SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 3.2f, 0);
@@ -677,7 +677,7 @@ public final class SkillActions {
             Vec3 mid = next.position().add(0, next.getBbHeight() * 0.55, 0);
             SkillFx.play(from, SkillFxPayload.Kind.BOLT, s.color(), mid, 0.3f, 0);
             hit(p, s, next, dmg, true);
-            p.serverLevel().sendParticles(ParticleTypes.ELECTRIC_SPARK, mid.x, mid.y, mid.z, 10, 0.25, 0.25, 0.25, 0.25);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.ELECTRIC_SPARK, mid.x, mid.y, mid.z, 10, 0.25, 0.25, 0.25, 0.25);
             dmg *= 0.8f;
             from = next;
             LivingEntity last = next;
@@ -724,7 +724,7 @@ public final class SkillActions {
         target.knockback(1.0, -look.x, -look.z);
         SkillCombat.stun(target, Math.round(bashSeconds(l) * 20));
         Vec3 at = target.position().add(0, target.getBbHeight() * 0.5, 0);
-        p.serverLevel().sendParticles(ParticleTypes.CRIT, at.x, at.y, at.z, 16, 0.3, 0.3, 0.3, 0.5);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, at.x, at.y, at.z, 16, 0.3, 0.3, 0.3, 0.5);
         sound(p, SoundEvents.SHIELD_BLOCK, 1f, 0.7f);
         sound(p, SoundEvents.ANVIL_LAND, 0.4f, 1.2f);
         SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 1.6f, 1);
@@ -759,7 +759,7 @@ public final class SkillActions {
             float dmg = 9 * mult(p, l) + statBonus(p, Stat.VIT, 0.2f);
             for (LivingEntity e : around(p, center, 3, x -> canHit(p, x))) hit(p, s, e, undead(e) ? dmg * 1.3f : dmg, true);
             for (Player ally : level.getEntitiesOfClass(Player.class, new AABB(center, center).inflate(3), Player::isAlive)) ally.heal(healing(p, 3));
-            level.sendParticles(ParticleTypes.END_ROD, center.x, center.y + 1, center.z, 40, 1.2, 1.5, 1.2, 0.1);
+            SkillParticles.send(level, ParticleTypes.END_ROD, center.x, center.y + 1, center.z, 40, 1.2, 1.5, 1.2, 0.1);
             level.playSound(null, center.x, center.y, center.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1f, 0.7f);
             level.playSound(null, center.x, center.y, center.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.4f, 1.6f);
         });
@@ -775,7 +775,7 @@ public final class SkillActions {
             Optional<Vec3> hitAt = e.getBoundingBox().inflate(0.4).clip(eye, end);
             if (hitAt.isEmpty()) continue;
             hit(p, s, e, undead(e) ? dmg * 1.5f : dmg, true);
-            p.serverLevel().sendParticles(ParticleTypes.END_ROD, hitAt.get().x, hitAt.get().y, hitAt.get().z, 8, 0.1, 0.1, 0.1, 0.08);
+            SkillParticles.send(p.serverLevel(), ParticleTypes.END_ROD, hitAt.get().x, hitAt.get().y, hitAt.get().z, 8, 0.1, 0.1, 0.1, 0.08);
         }
         sound(p, SoundEvents.AMETHYST_BLOCK_CHIME, 1f, 1.9f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.5f, 2f);
@@ -836,8 +836,8 @@ public final class SkillActions {
             Statuses.apply(e, DamageElement.FIRE, 20 + 3 * l, p);
             e.igniteForSeconds(3);
         }
-        p.serverLevel().sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, 50, 0.9, 0.6, 0.9, 0.08);
-        p.serverLevel().sendParticles(ParticleTypes.EXPLOSION, at.x, at.y, at.z, 1, 0, 0, 0, 0);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.FLAME, at.x, at.y, at.z, 50, 0.9, 0.6, 0.9, 0.08);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.EXPLOSION, at.x, at.y, at.z, 1, 0, 0, 0, 0);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.9f);
         p.level().playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.6f, 1.3f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), at, 0.4f, 0);
@@ -885,7 +885,7 @@ public final class SkillActions {
                     hit(p, s, e, dmg, true);
                 }
                 SkillFx.play(p, SkillFxPayload.Kind.PILLAR, s.color(), at, 1.2f, 0);
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 1, at.z, 20, 0.3, 0.8, 0.3, 0.3);
+                SkillParticles.send(level, ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 1, at.z, 20, 0.3, 0.8, 0.3, 0.3);
                 level.playSound(null, at.x, at.y, at.z, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.PLAYERS, 0.6f, 1.5f);
             });
         }

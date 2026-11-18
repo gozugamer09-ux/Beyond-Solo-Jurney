@@ -452,14 +452,6 @@
     }
    },
    {
-    "tick": 9,
-    "easing": "EASEINCUBIC",
-    "turn": 0,
-    "torso": {
-     "y": 1.5
-    }
-   },
-   {
     "tick": 14,
     "easing": "EASEINOUTQUAD",
     "turn": 0,
@@ -468,31 +460,7 @@
     }
    },
    {
-    "tick": 14,
-    "easing": "EASEINOUTQUAD",
-    "turn": 0,
-    "torso": {
-     "y": 1.5
-    }
-   },
-   {
     "tick": 20,
-    "easing": "EASEINOUTQUAD",
-    "turn": 0,
-    "torso": {
-     "pitch": -0.0698
-    }
-   },
-   {
-    "tick": 20,
-    "easing": "EASEINOUTQUAD",
-    "turn": 0,
-    "torso": {
-     "y": 0
-    }
-   },
-   {
-    "tick": 24,
     "easing": "EASEINOUTQUAD",
     "turn": 0,
     "torso": {
@@ -504,7 +472,7 @@
     "easing": "EASEINOUTQUAD",
     "turn": 0,
     "torso": {
-     "y": 0
+     "pitch": -0.0698
     }
    },
    {

@@ -67,7 +67,9 @@ public final class SkillClientEvents {
         @SubscribeEvent
         static void renderLevel(RenderLevelStageEvent event) {
             if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
-            SkillWorldFx.render(event.getPoseStack(), event.getCamera(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+            float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            SkillWorldFx.render(event.getPoseStack(), event.getCamera(), partial);
+            FxParticles.render(event.getPoseStack(), event.getCamera(), partial);
         }
 
         @SubscribeEvent
@@ -75,6 +77,7 @@ public final class SkillClientEvents {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             SkillWorldFx.tick();
+            FxParticles.tick();
             for (int i = 0; i < SLOT_KEYS.length; i++) {
                 while (SLOT_KEYS[i].consumeClick()) {
                     if (mc.screen == null) pressSlot(i);
@@ -87,6 +90,8 @@ public final class SkillClientEvents {
             ClientSkills.clear();
             SkillOverlay.reset();
             SkillWorldFx.clear();
+            FxParticles.clear();
+            SkillShake.clear();
             SkillBar.reset();
             ComboHud.reset();
         }

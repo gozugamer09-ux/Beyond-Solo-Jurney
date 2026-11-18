@@ -244,7 +244,7 @@ public final class WarriorPath {
             hit(p, s, e, 10 * m(l, tier(p)) + stat(p, Stat.STR, 0.2f));
             e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100, 0));
             e.addEffect(new MobEffectInstance(MobEffects.GLOWING, 100, 0, false, false));
-            level.sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 12, 0.2, 0.2, 0.2, 0.3);
+            SkillParticles.send(level, ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 12, 0.2, 0.2, 0.2, 0.3);
         }
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.8f);
         sound(level, to, SoundEvents.TRIDENT_HIT_GROUND, 1f, 0.8f);
@@ -283,7 +283,7 @@ public final class WarriorPath {
                 SkillActions.hit(p, s, e, 2.5f * m(l, tier(p)) + stat(p, Stat.STR, 0.05f), true);
                 Statuses.apply(e, DamageElement.FIRE, 8 + l, p);
             }
-            level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.2, at.z, 30, 3, 0.1, 3, 0.02);
+            SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y + 0.2, at.z, 30, 3, 0.1, 3, 0.02);
         });
         return true;
     }
@@ -401,7 +401,7 @@ public final class WarriorPath {
                     e.knockback(0.5, -dir.x, -dir.z);
                     fxAt(level, Kind.SPLASH, s.color(), e.position().add(0, 1, 0), 1.3f, 1);
                 }
-                level.sendParticles(ParticleTypes.SWEEP_ATTACK, b.x, b.y, b.z, 2, 0.6, 0.1, 0.6, 0);
+                SkillParticles.send(level, ParticleTypes.SWEEP_ATTACK, b.x, b.y, b.z, 2, 0.6, 0.1, 0.6, 0);
             });
         }
         return true;
@@ -646,7 +646,7 @@ public final class WarriorPath {
             }
             sound(p, SoundEvents.GENERIC_EXPLODE.value(), 1.2f, 0.5f);
             sound(p, SoundEvents.ANVIL_LAND, 0.8f, 0.5f);
-            level.sendParticles(ParticleTypes.EXPLOSION, land.x, land.y + 0.3, land.z, 5, 2.5, 0.3, 2.5, 0);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION, land.x, land.y + 0.3, land.z, 5, 2.5, 0.3, 2.5, 0);
             fx(p, Kind.SLAM, s.color(), land, 7, 0);
             fxAt(level, Kind.CRACK, s.color(), land, 7.5f, 0);
             fxAt(level, Kind.QUAKE, s.color(), land, 7, 80);
@@ -716,7 +716,7 @@ public final class WarriorPath {
                 push(e, at, 0.9, 0.6);
             }
             sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 1.4f, 0.6f);
-            level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION_EMITTER, at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
             fxAt(level, Kind.SLAM, s.color(), at, 5.5f, 0);
             fxAt(level, Kind.NOVA, s.color(), at, 5.5f, 0);
             fxAt(level, Kind.CRACK, s.color(), at, 6.5f, 0);
@@ -783,7 +783,7 @@ public final class WarriorPath {
                 Vec3 at = ground(level, start.add(dir.scale(i * 2.0)));
                 later(p, i * 2, () -> {
                     fxAt(level, Kind.CRACK, s.color(), at, 2.4f, 0);
-                    level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.3, at.z, 1, 0, 0, 0, 0);
+                    SkillParticles.send(level, ParticleTypes.EXPLOSION, at.x, at.y + 0.3, at.z, 1, 0, 0, 0, 0);
                     sound(level, at, SoundEvents.DRIPSTONE_BLOCK_BREAK, 1.2f, 0.5f);
                     for (LivingEntity e : foes(p, at, 2.4)) {
                         if (!struck.add(e.getId())) continue;
@@ -846,7 +846,7 @@ public final class WarriorPath {
             sound(level, center, SoundEvents.GENERIC_EXPLODE.value(), 1.6f, 0.4f);
             sound(level, center, SoundEvents.WARDEN_SONIC_BOOM, 1f, 0.5f);
             sound(level, center, SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 0.6f);
-            level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 0.5, center.z, 10, 5, 0.5, 5, 0);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION, center.x, center.y + 0.5, center.z, 10, 5, 0.5, 5, 0);
             fxAt(level, Kind.SLAM, s.color(), center, 12, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 12, 0);
             fxAt(level, Kind.GEYSER, s.color(), center, 12, 0);

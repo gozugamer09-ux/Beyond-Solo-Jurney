@@ -177,7 +177,7 @@ public final class HealerPath {
         p.setHealth(p.getHealth() - paid);
         SkillData data = SkillAPI.get(p);
         if (data.level(COAGULATE.path()) > 0) data.setBuff(BUFF_COAGULATE, now(p) + 100);
-        p.serverLevel().sendParticles(ParticleTypes.DAMAGE_INDICATOR, p.getX(), p.getY() + 1.1, p.getZ(), 2, 0.25, 0.25, 0.25, 0.05);
+        SkillParticles.send(p.serverLevel(), ParticleTypes.DAMAGE_INDICATOR, p.getX(), p.getY() + 1.1, p.getZ(), 2, 0.25, 0.25, 0.25, 0.05);
         return paid;
     }
 
@@ -390,7 +390,7 @@ public final class HealerPath {
             HealerPath::elderwood, (l, t) -> a(f(20 * m(l, t)), f(elderHeal(l)), f(4 * m(l, t))));
 
     private static void leaves(ServerLevel level, Vec3 at, int count, double spread) {
-        level.sendParticles(LEAF, at.x, at.y, at.z, count, spread, 0.3, spread, 0.05);
+        SkillParticles.send(level, LEAF, at.x, at.y, at.z, count, spread, 0.3, spread, 0.05);
     }
 
     static boolean thornVolley(ServerPlayer p, Skill s, int l) {
@@ -414,7 +414,7 @@ public final class HealerPath {
         sound(level, at, SoundEvents.BONE_MEAL_USE, 1f, 1f);
         // a marker stands four seconds, so the sprout is set three times over its ten
         repeat(p, 180, 60, () -> marker(level, SAPLING, at));
-        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, at.x, at.y + 0.5, at.z, 6, 0.3, 0.3, 0.3, 0);
+        SkillParticles.send(level, ParticleTypes.HAPPY_VILLAGER, at.x, at.y + 0.5, at.z, 6, 0.3, 0.3, 0.3, 0);
         repeat(p, 200, 20, () -> {
             Player hurt = mostWounded(near(level, at, 7));
             if (hurt != null && hurt.getHealth() < hurt.getMaxHealth()) {
@@ -458,7 +458,7 @@ public final class HealerPath {
                 BlockState flower = FLOWERS[Math.floorMod(i + ally.getId(), FLOWERS.length)];
                 later(p, i * 2, () -> marker(level, flower, at));
             }
-            level.sendParticles(ParticleTypes.HAPPY_VILLAGER, c.x, c.y + 0.4, c.z, 8, 1.2, 0.2, 1.2, 0);
+            SkillParticles.send(level, ParticleTypes.HAPPY_VILLAGER, c.x, c.y + 0.4, c.z, 8, 1.2, 0.2, 1.2, 0);
         }
         sound(p, SoundEvents.BONE_MEAL_USE, 1f, 0.8f);
         sound(p, SoundEvents.FLOWERING_AZALEA_PLACE, 1f, 1.2f);
@@ -480,8 +480,8 @@ public final class HealerPath {
         // the cloud itself, in the yellow green of the spores
         fxAt(level, Kind.MIST, 0x9DB83A, at, 4, 120);
         repeat(p, 120, 10, () -> {
-            level.sendParticles(SPORE, at.x, at.y + 0.8, at.z, 8, 1.9, 0.5, 1.9, 0);
-            level.sendParticles(ParticleTypes.MYCELIUM, at.x, at.y + 1, at.z, 8, 2, 0.6, 2, 0);
+            SkillParticles.send(level, SPORE, at.x, at.y + 0.8, at.z, 8, 1.9, 0.5, 1.9, 0);
+            SkillParticles.send(level, ParticleTypes.MYCELIUM, at.x, at.y + 1, at.z, 8, 2, 0.6, 2, 0);
             for (LivingEntity e : foes(p, at, 4)) {
                 magic(p, s, e, 1.5f * m(l, tier(p)) + wit(p, 0.04f));
                 Statuses.apply(e, DamageElement.POISON, 4 + l * 0.5f, p);
@@ -669,7 +669,7 @@ public final class HealerPath {
         sound(p, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.8f, 1.2f);
         fxAt(level, Kind.MIST, s.color(), center, 5, 120);
         // dew: now and then a drop of it catches the light
-        repeat(p, 120, 8, () -> level.sendParticles(ParticleTypes.GLOW, center.x, center.y + 0.7, center.z, 2, 2.4, 0.4, 2.4, 0));
+        repeat(p, 120, 8, () -> SkillParticles.send(level, ParticleTypes.GLOW, center.x, center.y + 0.7, center.z, 2, 2.4, 0.4, 2.4, 0));
         repeat(p, 120, 10, () -> {
             long until = level.getGameTime() + 15;
             for (Player ally : near(level, center, 5)) gift(ally, GIFT_MIST, until, mistDodge(l));
@@ -752,7 +752,7 @@ public final class HealerPath {
             HealerPath::bloodTempest, (l, t) -> a(f(4 * m(l, t)), f(25 * m(l, t))));
 
     private static void bleed(ServerLevel level, LivingEntity e, int drops) {
-        level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), drops, 0.2, 0.3, 0.2, 0.05);
+        SkillParticles.send(level, ParticleTypes.DAMAGE_INDICATOR, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), drops, 0.2, 0.3, 0.2, 0.05);
     }
 
     static boolean crimsonLance(ServerPlayer p, Skill s, int l) {
@@ -887,7 +887,7 @@ public final class HealerPath {
             sound(level, center, SoundEvents.GENERIC_EXPLODE.value(), 0.8f, 0.6f);
             fxAt(level, Kind.ROAR, s.color(), center, 10, 0);
             fxAt(level, Kind.SPLASH, s.color(), center.add(0, 1, 0), 6, 1);
-            level.sendParticles(GORE, center.x, center.y + 1, center.z, 40, 3, 0.6, 3, 0.2);
+            SkillParticles.send(level, GORE, center.x, center.y + 1, center.z, 40, 3, 0.6, 3, 0.2);
         });
         return true;
     }
@@ -1125,7 +1125,7 @@ public final class HealerPath {
                     int left = (int) drops[0];
                     p.heal((float) drops[2]);
                     fx(p, Kind.ORBIT, PREMONITION.color(), p.position(), left, (int) Math.max(1, drops[1] - now));
-                    p.serverLevel().sendParticles(ParticleTypes.SPLASH, p.getX(), p.getY() + 1, p.getZ(), 12, 0.3, 0.3, 0.3, 0.1);
+                    SkillParticles.send(p.serverLevel(), ParticleTypes.SPLASH, p.getX(), p.getY() + 1, p.getZ(), 12, 0.3, 0.3, 0.3, 0.1);
                     sound(p, SoundEvents.BUBBLE_COLUMN_BUBBLE_POP, 1f, 1.2f);
                     if (left < 1) DROPLETS.remove(id);
                     return -1;
@@ -1206,8 +1206,8 @@ public final class HealerPath {
             mend(p, p, 3 + 0.5f * l);
             sound(level, at, SoundEvents.SLIME_BLOCK_BREAK, 1.2f, 0.5f);
             fxAt(level, Kind.SPLASH, OPEN_WOUNDS.color(), at.add(0, 0.8, 0), 3.5f, 1);
-            level.sendParticles(GORE, at.x, at.y + 0.8, at.z, 24, 0.6, 0.5, 0.6, 0.2);
-            level.sendParticles(BLOOD, at.x, at.y + 0.8, at.z, 10, 0.8, 0.5, 0.8, 0);
+            SkillParticles.send(level, GORE, at.x, at.y + 0.8, at.z, 24, 0.6, 0.5, 0.6, 0.2);
+            SkillParticles.send(level, BLOOD, at.x, at.y + 0.8, at.z, 10, 0.8, 0.5, 0.8, 0);
         });
     }
 
