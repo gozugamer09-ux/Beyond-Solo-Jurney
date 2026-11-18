@@ -633,25 +633,18 @@ public final class Raids {
     public static void caveBuilt(ServerLevel dungeon, GateInstance g) {
         RaidState s = state(g);
         if (s == null) return;
-        if (!s.bossScaled && g.boss() != null && dungeon.getEntity(g.boss()) instanceof GateBossEntity boss) {
-            float hp = (float) (boss.getMaxHealth() * (RaidConfig.BOSS_HEALTH.get() + RaidConfig.BOSS_HEALTH_PER_RAIDER.get() * s.weight));
-            boss.getAttribute(Attributes.MAX_HEALTH).setBaseValue(boss.getAttribute(Attributes.MAX_HEALTH).getBaseValue() * hp / boss.getMaxHealth());
-            boss.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(boss.getAttribute(Attributes.ATTACK_DAMAGE).getBaseValue() * RaidConfig.BOSS_DAMAGE.get());
-            boss.setHealth(boss.getMaxHealth());
-            s.bossScaled = true;
-            CONTROLLED.add(boss.getUUID());
-        }
+        if (g.boss() != null && dungeon.getEntity(g.boss()) instanceof GateBossEntity boss) grow(dungeon, s, boss);
         if (s.lieutenantsTotal == 0) {
-            List<DungeonLayout.Room> rooms = lieutenantRooms(g);
-            int n = lieutenantCount(g);
             RandomSource r = RandomSource.create(g.seed() ^ 0x11E07L);
             List<BossKind> kinds = new ArrayList<>();
             for (BossKind k : BossKind.values()) if (k.livesAt(g.rank()) && k != g.bossKind()) kinds.add(k);
             if (kinds.isEmpty()) kinds.add(g.bossKind());
-            for (int i = 0; i < n; i++) {
-                DungeonLayout.Room room = rooms.get(Math.min(rooms.size() - 1, (i + 1) * rooms.size() / (n + 1)));
-                BossKind kind = kinds.get(r.nextInt(kinds.size()));
-                GateBossEntity lt = spawnLieutenant(dungeon, g, s, room, kind);
+            List<BossKind> left = new ArrayList<>(kinds);
+            for (BlockPos post : lieutenantPosts(g)) {
+                // a different one in each cavern while the rank has kinds enough
+                if (left.isEmpty()) left.addAll(kinds);
+                BossKind kind = left.remove(r.nextInt(left.size()));
+                GateBossEntity lt = spawnLieutenant(dungeon, g, post, kind, s);
                 if (lt != null) s.lieutenants.add(lt.getUUID());
             }
             s.lieutenantsTotal = s.lieutenants.size();
@@ -659,12 +652,41 @@ public final class Raids {
         dirty(dungeon.getServer());
     }
 
+    /**
+     * Grows the raid's boss for its raiders, once (when the cave is built, or the first time the raid finds it loaded
+     * if its chamber wasn't then).
+     */
+    private static void grow(ServerLevel dungeon, RaidState s, GateBossEntity boss) {
+        CONTROLLED.add(boss.getUUID());
+        if (s.bossScaled) return;
+        float hp = (float) (boss.getMaxHealth() * (RaidConfig.BOSS_HEALTH.get() + RaidConfig.BOSS_HEALTH_PER_RAIDER.get() * s.weight));
+        boss.getAttribute(Attributes.MAX_HEALTH).setBaseValue(boss.getAttribute(Attributes.MAX_HEALTH).getBaseValue() * hp / boss.getMaxHealth());
+        boss.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(boss.getAttribute(Attributes.ATTACK_DAMAGE).getBaseValue() * RaidConfig.BOSS_DAMAGE.get());
+        boss.setHealth(boss.getMaxHealth());
+        s.bossScaled = true;
+        dirty(dungeon.getServer());
+    }
+
+    /**
+     * Where a raid's lieutenants stand guard (in the world): the middle of the floor of their caverns, spread along
+     * the way to the boss.
+     */
+    public static List<BlockPos> lieutenantPosts(GateInstance g) {
+        List<DungeonLayout.Room> rooms = lieutenantRooms(g);
+        int n = lieutenantCount(g);
+        List<BlockPos> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            DungeonLayout.Room room = rooms.get(Math.min(rooms.size() - 1, (i + 1) * rooms.size() / (n + 1)));
+            out.add(g.world(new BlockPos(room.center().getX(), room.floorY(), room.center().getZ())));
+        }
+        return out;
+    }
+
     @Nullable
-    private static GateBossEntity spawnLieutenant(ServerLevel dungeon, GateInstance g, RaidState s, DungeonLayout.Room room, BossKind kind) {
+    private static GateBossEntity spawnLieutenant(ServerLevel dungeon, GateInstance g, BlockPos post, BossKind kind, RaidState s) {
         GateBossEntity lt = ModEntities.GATE_BOSS.get().create(dungeon);
         if (lt == null) return null;
-        BlockPos c = g.world(new BlockPos(room.center().getX(), room.floorY(), room.center().getZ()));
-        BlockPos at = floor(dungeon, c);
+        BlockPos at = floor(dungeon, post);
         lt.configure(g.rank(), kind, false);
         double hp = RaidConfig.LIEUTENANT_HEALTH.get() + RaidConfig.LIEUTENANT_HEALTH_PER_RAIDER.get() * s.weight;
         lt.getAttribute(Attributes.MAX_HEALTH).setBaseValue(lt.getAttribute(Attributes.MAX_HEALTH).getBaseValue() * hp);
@@ -812,10 +834,12 @@ public final class Raids {
         supportPulse(dungeon, s, run, inside, hunters, now);
         // the bosses: who each minds, and the phases of the raid boss
         for (UUID id : List.copyOf(s.lieutenants)) {
-            if (dungeon.getEntity(id) instanceof GateBossEntity lt && lt.isAlive() && lt.isAwake()) control(lt, run, s, inside, hunters);
+            if (!(dungeon.getEntity(id) instanceof GateBossEntity lt) || !lt.isAlive()) continue;
+            CONTROLLED.add(id);
+            if (lt.isAwake()) control(lt, run, s, inside, hunters);
         }
+        if (g.boss() != null && dungeon.getEntity(g.boss()) instanceof GateBossEntity boss && boss.isAlive()) grow(dungeon, s, boss);
         if (g.boss() != null && dungeon.getEntity(g.boss()) instanceof GateBossEntity boss && boss.isAlive() && g.bossAwake()) {
-            CONTROLLED.add(boss.getUUID());
             control(boss, run, s, inside, hunters);
             phases(server, dungeon, g, s, run, boss, inside, hunters, now);
         }
@@ -1176,6 +1200,8 @@ public final class Raids {
         EnemyFx.burst(dungeon, boss.position().add(0, boss.getBbHeight() * 0.5, 0), DOOM, room.reach());
         SkillFx.play(boss, SkillFxPayload.Kind.NOVA, DOOM, boss.position(), room.reach() + 2, 4);
         for (Vec3 v : run.refuges) EnemyFx.pillar(dungeon, v, GOLD, 2f, 10f);
+        // it has landed: the hunters leave the lights and fight on
+        for (GuildHunterEntity h : hunters) h.seekRefuge(null, 0);
         GateService.shake(dungeon, boss, 1.4f, room.reach() + 20);
         dungeon.playSound(null, boss.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 3f, 0.5f);
         dungeon.playSound(null, boss.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 2.5f, 0.5f);

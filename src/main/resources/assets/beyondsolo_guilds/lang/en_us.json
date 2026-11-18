@@ -162,7 +162,7 @@
   "raid.beyondsolo.countdown.stopped": "The leader left: the countdown has stopped.",
   "raid.beyondsolo.bring.on": "The guild's hunters will come along.",
   "raid.beyondsolo.bring.off": "The guild's hunters will stay behind.",
-  "raid.beyondsolo.no_boss": "The raid's boss isn't awake yet.",
+  "raid.beyondsolo.no_boss": "The raid's boss isn't there (the raid must be underway and its boss's chamber loaded).",
   "raid.beyondsolo.permit.where": "A %s-Rank raid gate opened on the guild's permit, led by %s. Join them at the gate.",
   "raid.beyondsolo.banner.countdown": "THE RAID BEGINS",
   "raid.beyondsolo.banner.countdown.sub": "Into the gate in %s seconds.",

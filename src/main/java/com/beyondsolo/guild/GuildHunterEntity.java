@@ -232,8 +232,8 @@ public class GuildHunterEntity extends PathfinderMob {
         return power;
     }
 
-    /** Sends it to stand somewhere until a time (the light during a cataclysm). */
-    public void seekRefuge(Vec3 at, long until) {
+    /** Sends it to stand somewhere until a time (the light during a cataclysm); null lets it go back to the fight. */
+    public void seekRefuge(@Nullable Vec3 at, long until) {
         refuge = at;
         refugeUntil = until;
     }

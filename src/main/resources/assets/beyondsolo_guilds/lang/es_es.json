@@ -162,7 +162,7 @@
   "raid.beyondsolo.countdown.stopped": "El líder se fue: la cuenta atrás se detuvo.",
   "raid.beyondsolo.bring.on": "Los cazadores del gremio vendrán también.",
   "raid.beyondsolo.bring.off": "Los cazadores del gremio se quedarán atrás.",
-  "raid.beyondsolo.no_boss": "El jefe del asalto aún no ha despertado.",
+  "raid.beyondsolo.no_boss": "El jefe del asalto no está (el asalto debe estar en marcha y la cámara de su jefe, cargada).",
   "raid.beyondsolo.permit.where": "Se abrió un portal de asalto de rango %s con el permiso del gremio, liderado por %s. Únete en el portal.",
   "raid.beyondsolo.banner.countdown": "EMPIEZA EL ASALTO",
   "raid.beyondsolo.banner.countdown.sub": "Al portal en %s segundos.",
