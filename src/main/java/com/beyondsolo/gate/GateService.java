@@ -900,6 +900,8 @@ public final class GateService {
         Entity src = event.getSource().getEntity();
         if (!(src instanceof LivingEntity attacker) || src instanceof GateBossEntity) return;
         if (!attacker.getPersistentData().contains(MOB_TAG) || event.getNewDamage() <= 0) return;
+        // a status's own tick or burst, or a storm spark, is not a fresh hit: no buildup off it
+        if (com.beyondsolo.combat.ElementalHits.isProc(event.getSource()) || com.beyondsolo.enemy.Affinity.inSpark()) return;
         GateTheme theme = GateTheme.byIndex(attacker.getPersistentData().getInt(MOB_TAG));
         Statuses.apply(event.getEntity(), elementOf(attacker), theme.mobBuildup(), attacker);
     }
