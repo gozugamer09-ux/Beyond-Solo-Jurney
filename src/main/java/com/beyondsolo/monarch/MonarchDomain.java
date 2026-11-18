@@ -238,7 +238,7 @@ public final class MonarchDomain {
                 if (p == null) continue;
                 if (!p.isAlive() || p.level().getGameTime() >= en.getValue().until || !MonarchAPI.crowned(p)) over.add(p);
                 else if (p.tickCount % 10 == 0) {
-                    p.serverLevel().sendParticles(com.beyondsolo.monarch.ThroneTrial.dust(en.getValue().dominion.color(), 1.0f),
+                    com.beyondsolo.skill.SkillParticles.send(p.serverLevel(), com.beyondsolo.monarch.ThroneTrial.dust(en.getValue().dominion.color(), 1.0f),
                             p.getX(), p.getY() + p.getBbHeight() + 0.4, p.getZ(), 2, 0.25, 0.1, 0.25, 0);
                 }
             }
@@ -294,7 +294,7 @@ public final class MonarchDomain {
         int c = r.dominion.color();
         for (int i = 0; i < 3; i++) {
             double a = rnd.nextDouble() * Math.PI * 2;
-            r.level.sendParticles(ThroneTrial.dust(c, 1.2f), p.getX() + Math.cos(a) * r.radius, p.getY() + 0.3 + rnd.nextDouble() * 1.5,
+            com.beyondsolo.skill.SkillParticles.send(r.level, ThroneTrial.dust(c, 1.2f), p.getX() + Math.cos(a) * r.radius, p.getY() + 0.3 + rnd.nextDouble() * 1.5,
                     p.getZ() + Math.sin(a) * r.radius, 1, 0, 0.05, 0, 0);
         }
         ParticleOptions weather = switch (r.dominion) {
@@ -304,7 +304,7 @@ public final class MonarchDomain {
             case THUNDER -> ParticleTypes.ELECTRIC_SPARK;
         };
         double spread = r.radius * 0.45;
-        r.level.sendParticles(weather, p.getX(), p.getY() + 1.5, p.getZ(), 4, spread, 1.2, spread, 0.01);
+        com.beyondsolo.skill.SkillParticles.send(r.level, weather, p.getX(), p.getY() + 1.5, p.getZ(), 4, spread, 1.2, spread, 0.01);
     }
 
     /** A creature the domain wears down: one that is hostile, or already fighting a hunter or a shadow. */

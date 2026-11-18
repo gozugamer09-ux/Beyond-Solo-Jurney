@@ -246,7 +246,7 @@ public final class MonarchPowers {
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, DREAD_TICKS, 0), p);
             MonarchDomain.dread(e, until, (boss ? 0.5f : 1f) * dreadBonus(l));
             SkillFx.play(e, Kind.MARK, c, e.position(), e.getBbHeight(), Math.max(stun, 40));
-            level.sendParticles(ParticleTypes.SCULK_SOUL, e.getX(), e.getY() + e.getBbHeight() * 0.7, e.getZ(), 3, 0.2, 0.2, 0.2, 0.02);
+            SkillParticles.send(level, ParticleTypes.SCULK_SOUL, e.getX(), e.getY() + e.getBbHeight() * 0.7, e.getZ(), 3, 0.2, 0.2, 0.2, 0.02);
         }
         WorldBossFx.wave(level, at, radius, 2.5f, 12, c);
         SkillFx.play(p, Kind.ROAR, c, at, radius, 0);
@@ -266,7 +266,7 @@ public final class MonarchPowers {
         SkillFx.play(p, Kind.PILLAR, c, at, 2.2f, 0);
         WorldBossFx.burst(level, at.add(0, 1, 0), 4f, c);
         SkillFx.play(p, Kind.NOVA, c, at, 6, nova(d));
-        level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 1, at.z, 40, 0.4, 0.9, 0.4, 0.15);
+        SkillParticles.send(level, ParticleTypes.END_ROD, at.x, at.y + 1, at.z, 40, 0.4, 0.9, 0.4, 0.15);
         SubclassKit.sound(p, SoundEvents.BEACON_POWER_SELECT, 1.4f, 0.6f);
         SubclassKit.sound(p, SoundEvents.END_PORTAL_FRAME_FILL, 1.2f, 0.6f);
         SubclassKit.sound(p, SoundEvents.WITHER_AMBIENT, 0.5f, 0.6f);
@@ -293,7 +293,7 @@ public final class MonarchPowers {
             SubclassKit.later(p, 10 + i * 20, () -> {
                 for (LivingEntity e : foes(p, at, ECLIPSE_RADIUS)) {
                     strike(p, s, s.element(), e, eclipseHit(l, t));
-                    level.sendParticles(ParticleTypes.SCULK_SOUL, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 4, 0.3, 0.4, 0.3, 0.02);
+                    SkillParticles.send(level, ParticleTypes.SCULK_SOUL, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 4, 0.3, 0.4, 0.3, 0.02);
                 }
                 SubclassKit.fxAt(level, Kind.NOVA, c, at, ECLIPSE_RADIUS, 4);
                 SubclassKit.sound(level, at, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 0.5f + 0.1f * k);
@@ -330,7 +330,7 @@ public final class MonarchPowers {
                     e.setTicksFrozen(e.getTicksRequiredToFreeze() + 60);
                     e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 4), p);
                 }
-                level.sendParticles(ParticleTypes.SNOWFLAKE, at.x, at.y + 5, at.z, 160, WINTER_RADIUS * 0.5, 2.5, WINTER_RADIUS * 0.5, 0.03);
+                SkillParticles.send(level, ParticleTypes.SNOWFLAKE, at.x, at.y + 5, at.z, 160, WINTER_RADIUS * 0.5, 2.5, WINTER_RADIUS * 0.5, 0.03);
                 SubclassKit.fxAt(level, Kind.PULSE, c, at, WINTER_RADIUS, 1);
                 SubclassKit.sound(level, at, SoundEvents.GLASS_BREAK, 0.4f, 0.5f);
             });
@@ -340,7 +340,7 @@ public final class MonarchPowers {
             for (LivingEntity e : foes(p, at, WINTER_RADIUS)) {
                 strike(p, s, s.element(), e, winterShatter(l, t));
                 SubclassKit.fxAt(level, Kind.SPLASH, c, e.position().add(0, e.getBbHeight() * 0.5, 0), 2f, 1);
-                level.sendParticles(ParticleTypes.ITEM_SNOWBALL, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 16, 0.4, 0.5, 0.4, 0.2);
+                SkillParticles.send(level, ParticleTypes.ITEM_SNOWBALL, e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 16, 0.4, 0.5, 0.4, 0.2);
             }
             WorldBossFx.burst(level, at.add(0, 1, 0), 6f, c);
             WorldBossFx.quake(level, at, WINTER_RADIUS, c);
@@ -372,8 +372,8 @@ public final class MonarchPowers {
             WorldBossFx.quake(level, target, 13f, c);
             SubclassKit.fxAt(level, Kind.NOVA, c, target, HEAVEN_RADIUS + 3, 0);
             SubclassKit.fxAt(level, Kind.GEYSER, c, target, 9, 0);
-            level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, target.x, target.y + 1, target.z, 1, 0, 0, 0, 0);
-            level.sendParticles(ParticleTypes.LAVA, target.x, target.y + 0.5, target.z, 40, 3, 0.5, 3, 0.1);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION_EMITTER, target.x, target.y + 1, target.z, 1, 0, 0, 0, 0);
+            SkillParticles.send(level, ParticleTypes.LAVA, target.x, target.y + 0.5, target.z, 40, 3, 0.5, 3, 0.1);
             SubclassKit.sound(level, target, SoundEvents.GENERIC_EXPLODE.value(), 3f, 0.5f);
             SubclassKit.sound(level, target, SoundEvents.DRAGON_FIREBALL_EXPLODE, 2f, 0.6f);
             // the land keeps burning
@@ -383,8 +383,8 @@ public final class MonarchPowers {
                     strike(p, s, s.element(), e, heavenBurn(l, t));
                     Statuses.apply(e, DamageElement.FIRE, 10, p);
                 }
-                level.sendParticles(ParticleTypes.FLAME, target.x, target.y + 0.3, target.z, 30, HEAVEN_RADIUS * 0.35, 0.2, HEAVEN_RADIUS * 0.35, 0.02);
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, target.x, target.y + 0.6, target.z, 8, HEAVEN_RADIUS * 0.3, 0.3, HEAVEN_RADIUS * 0.3, 0.02);
+                SkillParticles.send(level, ParticleTypes.FLAME, target.x, target.y + 0.3, target.z, 30, HEAVEN_RADIUS * 0.35, 0.2, HEAVEN_RADIUS * 0.35, 0.02);
+                SkillParticles.send(level, ParticleTypes.LARGE_SMOKE, target.x, target.y + 0.6, target.z, 8, HEAVEN_RADIUS * 0.3, 0.3, HEAVEN_RADIUS * 0.3, 0.02);
             });
         });
         return true;
