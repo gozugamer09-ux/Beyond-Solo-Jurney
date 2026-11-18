@@ -25,8 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * TITLES: every title on the left (lit when earned, with how far along the rest are; a secret one shows only as
- * "???"), the one picked on the right (what earns it, its perks while worn, and WEAR / TAKE OFF).
+ * TITLES: every title on the left (lit when earned; one not earned yet shows only its name and rarity as a guide, a
+ * secret one only "???"), the one picked on the right (once earned: what earned it, its perks while worn, and WEAR /
+ * TAKE OFF). What earns a title, how far along it is and its perks stay hidden until the System grants it.
  */
 final class TitlesPage implements ChronicleTab.Page {
     private static final float LIST_W = 194;
@@ -207,7 +208,7 @@ final class TitlesPage implements ChronicleTab.Page {
         Shapes.icon(secret ? Icons.QUESTION : ChronicleIcons.of(d.category()), cx, cy, 7)
                 .fill(earned ? Gfx.mix(tc, 0xFFFFFFFF, 0.55f) : SystemTheme.TEXT_DIM).draw(g);
 
-        // the right side: WORN, NEW, or how far along
+        // the right side: WORN or NEW (how far along a title is stays hidden)
         float right = x + w - 3;
         if (wearing) {
             String s = Component.translatable("chronicle.beyondsolo.worn").getString();
@@ -220,11 +221,6 @@ final class TitlesPage implements ChronicleTab.Page {
             float cw = SysFont.width(s, 4.4f, true) + 5;
             ChronicleUi.fresh(g, right - cw, cy - 3.5f);
             right -= cw + 3;
-        } else if (!earned && !secret && d.feat() != null && d.goal() > 0) {
-            float f = ChronicleClient.progress(d) / (float) d.goal();
-            String s = Math.min(99, (int) Math.floor(f * 100)) + "%";
-            SysFont.draw(g, s, right, SysFont.centerY(y, h, 5.4f), 5.4f, f > 0 ? SystemTheme.TEXT_SOFT : SystemTheme.TEXT_DIM, true, 1f);
-            right -= SysFont.width("100%", 5.4f, true) + 3;
         }
 
         float nx = x + 19;
@@ -237,18 +233,20 @@ final class TitlesPage implements ChronicleTab.Page {
             SysFont.draw(g, SysFont.fit(tier, 4.6f, true, room), nx, sy, 4.6f, Gfx.alpha(tc, 0.85f), true, 0f);
         } else if (secret) {
             SysFont.draw(g, SysFont.fit(Component.translatable("chronicle.beyondsolo.secret.row").getString(), 4.6f, false, room), nx, sy, 4.6f, SystemTheme.TEXT_DIM, false, 0f);
-        } else if (d.feat() != null && d.goal() > 0) {
-            long have = ChronicleClient.progress(d);
-            float bw = Math.min(46, room * 0.45f);
-            Ui.bar(g, nx, sy + 0.6f, bw, 2.4f, have / (float) d.goal(), Gfx.alpha(tc, 0.6f), tc);
-            String s = num(have) + " / " + num(d.goal());
-            SysFont.draw(g, SysFont.fit(s, 4.6f, false, room - bw - 4), nx + bw + 4, sy, 4.6f, SystemTheme.TEXT_DIM, false, 0f);
         } else {
-            SysFont.draw(g, SysFont.fit(Component.translatable("chronicle.beyondsolo.deed").getString(), 4.6f, false, room), nx, sy, 4.6f, SystemTheme.TEXT_DIM, false, 0f);
+            // not earned yet: its rarity as a guide, and nothing of how it is earned
+            String tier = SysFont.fit(d.tier().displayName().getString(), 4.6f, true, room);
+            SysFont.draw(g, tier, nx, sy, 4.6f, Gfx.alpha(tc, 0.5f), true, 0f);
+            float ux = nx + SysFont.width(tier, 4.6f, true) + 3;
+            float left = nx + room - ux;
+            if (left > 12) {
+                String unknown = "· " + Component.translatable("chronicle.beyondsolo.unknown.row").getString();
+                SysFont.draw(g, SysFont.fit(unknown, 4.6f, false, left), ux, sy, 4.6f, SystemTheme.TEXT_DIM, false, 0f);
+            }
         }
     }
 
-    /** The title picked: its crest, what earns it, its perks, and WEAR / TAKE OFF. */
+    /** The title picked: its crest, name and rarity; once earned, what earned it, its perks, and WEAR / TAKE OFF. */
     private void detail(GuiGraphics g, @Nullable TitleDef d, float x, float y, float w, float h, int mouseX, int mouseY) {
         if (d == null) {
             Ui.card(g, x, y, w, h, 8);
@@ -298,15 +296,17 @@ final class TitlesPage implements ChronicleTab.Page {
         Ui.chip(g, chipX + tw + 3, ty, chipH, cat, chipSize, SystemTheme.ACCENT, false);
         ty += chipH + 5;
 
-        // under it, top down: what earns it, how far along (or when it was earned), its perks; the button at the bottom
+        // under it, top down: what earned it and when, its perks (all of it hidden until it is earned); the button at the bottom
         float by = y + h - 19;
-        List<PerkLine> perks = secret ? List.of() : d.perks();
-        float perkH = perks.isEmpty() ? 0 : 8 + perks.size() * 8.2f;
-        float progH = earned || secret ? 9 : d.feat() != null && d.goal() > 0 ? 13 : 0;
+        List<PerkLine> perks = earned ? d.perks() : List.of();
+        boolean hiddenPerks = !earned && !d.perks().isEmpty();
+        float perkH = !perks.isEmpty() ? 8 + perks.size() * 8.2f : hiddenPerks ? 8 + 8.2f : 0;
+        float progH = earned || secret ? 9 : 0;
         float bottomTop = by - 4 - perkH - progH;
 
-        // what earns it
+        // what earned it, once it is theirs
         Component desc = secret ? Component.translatable("chronicle.beyondsolo.secret.hint")
+                : !earned ? Component.translatable("chronicle.beyondsolo.unknown.hint")
                 : I18n.exists(d.key() + ".desc") ? d.description() : Component.translatable("chronicle.beyondsolo.given");
         float ls = 5.6f;
         int fits = Math.max(1, (int) ((bottomTop - ty - 2) / (ls * SysFont.LINE)));
@@ -325,23 +325,23 @@ final class TitlesPage implements ChronicleTab.Page {
         } else if (secret) {
             SysFont.draw(g, SysFont.fit(Component.translatable("chronicle.beyondsolo.secret.row").getString(), 5f, false, w - 14), cx, py + 1, 5f,
                     SystemTheme.TEXT_DIM, false, 0.5f);
-        } else if (d.feat() != null && d.goal() > 0) {
-            long have = ChronicleClient.progress(d);
-            Ui.bar(g, x + 10, py + 1, w - 20, 3.2f, have / (float) d.goal(), Gfx.alpha(tc, 0.55f), tc);
-            String s = num(have) + " / " + num(d.goal());
-            SysFont.draw(g, s, cx, py + 6, 4.8f, SystemTheme.TEXT_SOFT, true, 0.5f);
         }
 
-        if (!perks.isEmpty()) {
-            float ky = py + progH + 4;
+        float ky = py + progH + 4;
+        if (!perks.isEmpty() || hiddenPerks) {
             SysFont.spaced(g, Component.translatable("chronicle.beyondsolo.perks").getString(), x + 9, ky, 4.6f, SystemTheme.TEXT_DIM, true, 1.1f, 0f);
             ky += 8;
-            for (PerkLine p : perks) {
-                int pc = earned ? SystemTheme.GOOD : SystemTheme.TEXT_SOFT;
-                Shapes.icon(ChronicleIcons.of(p.perk()), x + 13, ky + 2.6f, 6.4f).fill(earned ? Gfx.mix(pc, 0xFFFFFFFF, 0.2f) : SystemTheme.TEXT_DIM).draw(g);
-                SysFont.draw(g, SysFont.fit(p.describe().getString(), 5.2f, false, w - 30), x + 20, ky, 5.2f, pc, false, 0f);
-                ky += 8.2f;
-            }
+        }
+        for (PerkLine p : perks) {
+            Shapes.icon(ChronicleIcons.of(p.perk()), x + 13, ky + 2.6f, 6.4f).fill(Gfx.mix(SystemTheme.GOOD, 0xFFFFFFFF, 0.2f)).draw(g);
+            SysFont.draw(g, SysFont.fit(p.describe().getString(), 5.2f, false, w - 30), x + 20, ky, 5.2f, SystemTheme.GOOD, false, 0f);
+            ky += 8.2f;
+        }
+        if (hiddenPerks) {
+            // what it grants stays the System's secret too
+            Shapes.icon(Icons.QUESTION, x + 13, ky + 2.6f, 6.4f).fill(SystemTheme.TEXT_DIM).draw(g);
+            String s = Component.translatable("chronicle.beyondsolo.unknown.perks").getString();
+            SysFont.draw(g, SysFont.fit(s, 5.2f, false, w - 30), x + 20, ky, 5.2f, SystemTheme.TEXT_DIM, false, 0f);
         }
 
         // WEAR / TAKE OFF
