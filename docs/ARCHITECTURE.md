@@ -1499,7 +1499,9 @@ shared only when friends are called in the same cave. Config: `beyondsolo-party.
 `party.inviteSeconds` 60, `party.shareRange` 48, `party.killShare` 0.5, `party.friendlyFire` false,
 `party.followSeconds` 45, `party.regroupCooldownMinutes` 10, `party.regroupMinDistance` 64) and `spawn.together` in the
 main config. Game tests stand fake players in for real ones; `util/OnlinePlayers` lets them be found by id
-(`addTestPlayer`), since fake players are never in the server's player list.
+(`addTestPlayer(helper, player)`), since fake players are never in the server's player list, and only while that test
+runs: NeoForge keeps fake players for the whole run, and one a finished test left in a cave would otherwise count as
+still standing in that cave slot when another test's gate reuses it.
 
 Landing together (`spawn.LandingData`): the world's first player lands on the usual random first spawn and it is kept;
 everyone after lands 3 to 8 blocks from it. Both pick only spots with room to stand (`roomToStand`: nothing solid at the
