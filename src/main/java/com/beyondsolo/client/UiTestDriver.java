@@ -31,7 +31,10 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|chronicle|gallery  open a System page (or the drawing test page)
+ * chronicle titles [id|category|all]   what the CHRONICLE page shows: a title, or the list filtered by category
+ * chronicle rankings [hunters|citadel|rush|gates] [tier]   ... a leaderboard (tier: e..s or sovereign for the rush)
+ * chronicle journal [creatures|bosses|realms|arsenal] [page]   ... a journal section and page (page id or bare name)
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory

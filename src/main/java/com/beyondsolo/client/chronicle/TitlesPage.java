@@ -4,6 +4,7 @@ import com.beyondsolo.chronicle.ChronicleData;
 import com.beyondsolo.chronicle.title.PerkLine;
 import com.beyondsolo.chronicle.title.TitleCategory;
 import com.beyondsolo.chronicle.title.TitleDef;
+import com.beyondsolo.chronicle.title.TitleTier;
 import com.beyondsolo.chronicle.title.Titles;
 import com.beyondsolo.client.ClientSystemData;
 import com.beyondsolo.client.SystemTheme;
@@ -15,6 +16,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.screen.SystemScreen;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.Nullable;
@@ -40,9 +42,9 @@ final class TitlesPage implements ChronicleTab.Page {
 
     @Override
     public void opened() {
-        if (selected == null || Titles.byKey(selected) == null) {
+        if (lookup(selected) == null) {
             String worn = ClientSystemData.get().title();
-            selected = Titles.byKey(worn) != null ? worn : null;
+            selected = lookup(worn) != null ? worn : null;
         }
         reveal = true;
     }
@@ -50,7 +52,21 @@ final class TitlesPage implements ChronicleTab.Page {
     private static List<TitleDef> shown() {
         List<TitleDef> out = new ArrayList<>();
         for (TitleDef d : Titles.all()) if (filter == null || d.category() == filter) out.add(d);
+        // titles another feature gave without registering them: kept and wearable, listed last
+        for (String key : ChronicleClient.data().titles().keySet()) {
+            if (Titles.byKey(key) != null) continue;
+            TitleDef d = lookup(key);
+            if (d != null && (filter == null || d.category() == filter)) out.add(d);
+        }
         return out;
+    }
+
+    /** A registered title, or an earned one that has no entry (a System title with no perks). */
+    private static @Nullable TitleDef lookup(@Nullable String key) {
+        if (key == null || key.isEmpty()) return null;
+        TitleDef d = Titles.byKey(key);
+        if (d != null || !key.startsWith(TitleDef.PREFIX) || !ChronicleClient.data().hasTitle(key)) return d;
+        return new TitleDef(key.substring(TitleDef.PREFIX.length()), TitleCategory.SYSTEM, TitleTier.RARE, null, 0, List.of(), false);
     }
 
     /** Driver: {@code chronicle titles <id|category>}. */
@@ -80,8 +96,8 @@ final class TitlesPage implements ChronicleTab.Page {
     public void render(GuiGraphics g, float x, float y, float w, float h, int mouseX, int mouseY) {
         hits.clear();
         List<TitleDef> list = shown();
-        if (selected == null || Titles.byKey(selected) == null || !contains(list, selected)) selected = list.isEmpty() ? null : list.get(0).key();
-        TitleDef pick = selected == null ? null : Titles.byKey(selected);
+        if (lookup(selected) == null || !contains(list, selected)) selected = list.isEmpty() ? null : list.get(0).key();
+        TitleDef pick = lookup(selected);
         if (pick != null && ChronicleClient.data().hasTitle(pick.key())) ChronicleClient.read(pick.key());
 
         Ui.card(g, x, y, LIST_W, h, 8);
@@ -290,7 +306,8 @@ final class TitlesPage implements ChronicleTab.Page {
         float bottomTop = by - 4 - perkH - progH;
 
         // what earns it
-        Component desc = secret ? Component.translatable("chronicle.beyondsolo.secret.hint") : d.description();
+        Component desc = secret ? Component.translatable("chronicle.beyondsolo.secret.hint")
+                : I18n.exists(d.key() + ".desc") ? d.description() : Component.translatable("chronicle.beyondsolo.given");
         float ls = 5.6f;
         int fits = Math.max(1, (int) ((bottomTop - ty - 2) / (ls * SysFont.LINE)));
         List<SysFont.Line> lines = SysFont.wrap(desc, ls, false, w - 16);

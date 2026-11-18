@@ -52,7 +52,7 @@ public final class Titles {
         feat("ascended_bane", HUNT, EPIC, Feat.ASCENDED, 5, p(TitlePerk.BOSS_DAMAGE, 0.08f), p(TitlePerk.VITALITY, 0.04f));
         secret("giant_slayer", HUNT, EPIC, Feat.GIANTS, 1, p(TitlePerk.GIANT_DAMAGE, 0.10f));
         secret("one_who_endured", HUNT, LEGENDARY, Feat.CLUTCH, 1, p(TitlePerk.LAST_STAND, 0.15f));
-        feat("unbroken", HUNT, COMMON, Feat.DEATHS, 10, p(TitlePerk.VITALITY, 0.04f));
+        feat("rises_again", HUNT, COMMON, Feat.DEATHS, 10, p(TitlePerk.VITALITY, 0.04f));
 
         // ---- gates
         feat("gate_walker", GATES, COMMON, Feat.GATES, 1, p(TitlePerk.GOLD, 0.03f));
