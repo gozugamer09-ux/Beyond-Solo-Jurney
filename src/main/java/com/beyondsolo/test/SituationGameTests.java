@@ -1,6 +1,9 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.chronicle.title.TitleDef;
+import com.beyondsolo.chronicle.title.TitleService;
+import com.beyondsolo.chronicle.title.Titles;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestData;
 import com.beyondsolo.quest.QuestEngine;
@@ -350,10 +353,13 @@ public final class SituationGameTests {
         helper.assertTrue(Secrets.reveal(p, Secrets.GIANT_SLAYER), "a secret is revealed the first time");
         helper.assertTrue(Secrets.found(p, Secrets.GIANT_SLAYER), "and kept");
         helper.assertTrue(xp(p) > before, "it is paid");
-        helper.assertTrue(Secrets.title(Secrets.GIANT_SLAYER).equals(SystemAPI.get(p).title()), "a hunter without a title gets one");
+        helper.assertTrue(Secrets.title(Secrets.GIANT_SLAYER).equals(SystemAPI.get(p).title()), "a hunter without a title wears the one it gives");
         helper.assertTrue(!Secrets.reveal(p, Secrets.GIANT_SLAYER), "but only once");
         Secrets.reveal(p, Secrets.VALOR);
-        helper.assertTrue(Secrets.title(Secrets.GIANT_SLAYER).equals(SystemAPI.get(p).title()), "a second secret never replaces the title they carry");
+        helper.assertTrue(TitleService.data(p).hasTitle(Secrets.title(Secrets.VALOR)), "a second secret's title is kept too, with another one worn");
+        helper.assertTrue(Secrets.title(Secrets.GIANT_SLAYER).equals(SystemAPI.get(p).title()), "and the worn one changes only for a rarer title");
+        TitleDef valor = Titles.byKey(Secrets.title(Secrets.VALOR));
+        helper.assertTrue(valor != null && valor.secret() && valor.feat() == null, "the secrets' titles are on the TITLES page, hidden until earned");
         helper.assertTrue(FollowUps.data(p).secretsFound() == 2, "the System counts them");
         QuestData data = QuestEngine.data(p);
         helper.assertTrue(data.active().isEmpty(), "secrets never sit in the quest list");
