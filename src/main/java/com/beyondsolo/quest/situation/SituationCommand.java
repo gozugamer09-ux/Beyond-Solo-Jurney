@@ -187,7 +187,8 @@ public final class SituationCommand {
         long now = QuestEngine.gameTime(p);
         SituationData data = FollowUps.data(p);
         ctx.getSource().sendSuccess(() -> Component.literal("clean kills " + w.cleanKills + ", kills in 15s " + w.killsWithin(now, 300)
-                + ", last hurt " + Math.max(0, (now - w.lastHurt) / 20) + "s ago, gate " + w.gate + (w.hurtInGate ? " (hurt in it)" : "")), false);
+                + ", last hurt " + (w.lastHurt < 0 ? "never" : Math.max(0, (now - w.lastHurt) / 20) + "s ago") + ", gate " + w.gate
+                + (w.hurtInGate ? " (hurt in it)" : "")), false);
         for (SituationData.FollowUp f : data.followUps()) {
             long in = Math.max(0, f.due() - now) / 20;
             ctx.getSource().sendSuccess(() -> Component.literal("waiting: " + f.kind() + " in " + in + "s"), false);
