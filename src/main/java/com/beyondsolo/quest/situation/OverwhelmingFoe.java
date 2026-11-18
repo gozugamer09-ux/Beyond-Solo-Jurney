@@ -21,6 +21,7 @@ import com.beyondsolo.quest.trigger.QuestTriggers;
 import com.beyondsolo.rune.Runes;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.SystemAPI;
+import com.beyondsolo.tower.TowerAPI;
 import com.beyondsolo.util.ParticleGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -364,8 +365,9 @@ public final class OverwhelmingFoe extends Situation {
         if (!player.isAlive() || !SystemAPI.isAwakened(player) || QuestTriggers.quiet(player)) return false;
         QuestData quests = QuestEngine.data(player);
         if (!quests.started() || QuestTriggers.inEmergency(quests) || quests.has(template(NEMESIS))) return false;
-        // it can't follow them into a gate: it waits until they are out
-        if (!(player.level() instanceof ServerLevel level) || BeyondRank.gateOf(player) != null) return false;
+        // it can't follow them into a gate or the Citadel: it waits until they are out
+        if (!(player.level() instanceof ServerLevel level) || BeyondRank.gateOf(player) != null || GateService.inTransit(player)
+                || TowerAPI.inCitadel(player)) return false;
         // out of sight at first if it can be, closer if the ground allows nothing else
         BlockPos at = Foes.spotAround(level, player.blockPosition(), 14, 22);
         if (at == null) at = Foes.spotAround(level, player.blockPosition(), 7, 13);

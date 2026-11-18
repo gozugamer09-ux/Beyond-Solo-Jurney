@@ -35,6 +35,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
 | `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
 | `breaks`, `client.breaks` | Dungeon breaks: the collapse timer on every uncleared gate, the break itself (waves, the boss coming through, suppression), and gate sensing in Pulse Scan; the break's banners, timer chip, gate compass and world effects (see "Dungeon breaks and gate sensing") |
+| `tower`, `client.tower` | The Crimson Citadel: the castle's hundred floors (`TowerFloors`), its halls (`CitadelHalls`), runs of the climb, the Endless Spire and the boss rush (`TowerRun`), the lord (`CitadelLordEntity`), the key and the Sigil of Dominion, the hunter's records (`TowerData`, read through `TowerAPI`); the CITADEL page, the HUD, the light in the halls and the citadel's sky (see "The Crimson Citadel") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -84,6 +85,29 @@ textures). To add an icon, drop its Phosphor SVG into `tools/icons-src`, add a l
 it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
+
+### The System HUD
+
+While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):
+
+- `VitalsHud` (layer `beyondsolo:vitals`, right above vanilla's hotbar layer): the hotbar as glass tiles with a
+  gliding highlight and a glow under graded gear (the off-hand slot and the "hotbar" attack indicator where vanilla
+  puts them), the experience strip with the level gem (the System level once awakened, vanilla's level before that;
+  vanilla's level is then the small green number at the strip's end), and leaning bars with their numbers: health
+  (armour chip, absorption in gold, poison/wither/frozen tints) and mana on the left, hunger (saturation line, what
+  the food in hand would give), fatigue, a mount's health and air on the right, each only while it matters. Bars
+  glide, leave a pale trail when hit, flash when they rise and pulse when low. Numbers of five digits and more are
+  shortened (12.3k). It raises `Gui.leftHeight`/`rightHeight`, so the item name and the action bar stay above it.
+- `EffectsHud` (layer `beyondsolo:effects`, above vanilla's effects layer): status effects in vanilla's corner and
+  rows as discs with a ring that runs down, the time left and the level. It leaves out burn, venom and the crimson
+  brand, which have their meters on the combat rail. `bottom()` and `left()` say where the icons end (vanilla's too
+  while the System HUD is off): the pop-ups and the gold capsule start under them, and the icons go under the unread
+  badge of hidden pop-ups.
+- `HudClientEvents` cancels the vanilla layers it replaces (hotbar, jump meter, experience bar and level, health,
+  armour, food, mount health, air, effects) and AppleSkin's layers. Spectators keep vanilla's HUD.
+- `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
+  follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
+  for pieces that sit beside it (the shadow army counter).
 
 ## The evaluation
 
@@ -259,8 +283,17 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
     at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
     poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
     on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
-  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling. Gauntlets are
-    worn: the fist sits on the outside of the hand, knuckles along the arm, so they lead the punch.
+  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling.
+  - Gauntlets (the `fist` kind) are worn, not held. `tools/gen_gauntlets.py` builds each as a few boxes in the arm's
+    own space (cuff, vambrace, plated hand, knuckle guard, claws or spikes), painted with the armor art kit at four
+    texels a pixel, and writes them as an item model (`models/item/worn/<name>.json`) whose hand transform undoes
+    what the game does to a held item, so the gauntlet lands on the arm and follows every animation. The weapon's
+    item model shows it for both hands and on the ground (a raised fist); the icon and item frames keep the sprite.
+    A second fit (`<name>_armored`, picked by the item property `beyondsolo:armored`) clears a chestplate's arm.
+    `client/combat/WornGauntlets` does the rest: a layer puts the pair's second gauntlet on the arm of the empty
+    hand, the arm keeps the empty-hand stance, and in first person the bare arms are drawn wearing them (the game
+    only draws an arm for an empty hand). `python3 tools/gauntlet_preview.py <name>` shows a design on a mannequin
+    without starting the game.
   - Better Combat reads `weapon_attributes` only when the server starts: after changing one, restart the server
     (`tools/uitest/stop.sh` and `start.sh`); `/reload` and a client restart are not enough.
 - **High-detail textures:** weapon, armor, refining stone and ward seal textures are 64x64 (worn armor layers are
@@ -329,9 +362,11 @@ waypoint), so a run survives logging out. Every quest can end with an **outcome*
 | `Revenge` | a creature at least your match killed you (offered after respawning) | Unfinished Business: it waits where you fell, marked until it is dead |
 
 Rules (`Situations`): one emergency at a time; one calmer situation at a time and a gap after one ends
-(`situations.minGapSeconds`); a cooldown per situation; nothing in the Penalty Zone, a job trial or a red gate
-(`QuestTriggers.quiet`). **Follow-ups** (`FollowUps`, saved in `SituationData`, attachment `SITUATIONS`) are what
-comes back later: a nemesis, a revenge offer. A handler that can't happen yet is asked again a minute later.
+(`situations.minGapSeconds`); a cooldown per situation; nothing in the Penalty Zone, a job trial, a red gate or a
+Crimson Citadel run (`QuestTriggers.quiet`). **Follow-ups** (`FollowUps`, saved in `SituationData`, attachment
+`SITUATIONS`) are what comes back later: a nemesis, a revenge offer. A handler that can't happen yet is asked again a
+minute later (a nemesis waits while the hunter is in a gate or the Citadel). When the creature a quest watches dies,
+its health row drops to 0 before the quest ends.
 **Secret quests** (`Secrets`, category `SECRET`) are never announced: brave or unusual deeds (a far stronger kill, a
 whole raid, an untouched gate, a lone clear above your rank, a nemesis, a finished streak, a silent city plundered)
 reveal them already complete, paid once, with a title for a hunter who has none. Settings live in
@@ -420,8 +455,9 @@ thousand turns behind, and a creature added to a chunk not yet handed over can't
 needs chunks ready (the boss a dungeon was just built with, a wave that just rose) waits for them by the clock with
 `test/TestChunks`, not over turns.
 
-`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|info|cache [rank]|list` for testing: `spawn`
-opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `info` names the
+`/system gate spawn [rank] [realm|any] [shape]|near|enter|boss|wake|kill|exit|info|cache [rank]|list` for testing: `spawn`
+opens a gate into a realm and shape of your choice, `boss` takes you to the door of the boss's room, `exit` takes you
+out through the way out once it is open (its moment and all, as stepping into it does), `info` names the
 dungeon you are in (realm, shape, rooms, boss, element, seed).
 
 ## The awakening
@@ -645,7 +681,7 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
   scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
   the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
-- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (under the effect icons, `EffectsHud.bottom()`):
   the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
 - **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
@@ -1051,7 +1087,12 @@ it. `DepthsHooks` runs it all every half second for each cave with a party in it
   creatures hit 15% harder and heal 10% of what they deal), devouring dark (sight a few blocks, creatures 15% faster)
   and tremors (quakes, rocks on marked spots). On screen (`WeatherFx`): fog colour and distance laid over the cave's
   own (low priority, so the gate's fog runs first), the air itself drawn as light (motes, sparks, snow, spores, ash,
-  wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock.
+  wisps), storm flashes with a far rumble, and the condition's banner and chip under the run clock. None of it leaves
+  the cave: going through to another dimension (the exit, a command) or coming back from a fall tells the screen at
+  once (`DepthsHooks.leftCave`, `DepthsPayload.STATE` -1; the next beat would no longer see a cave to leave), the
+  client lets go of the weather, a trap, the banners and the world moments by itself as soon as it is out of the gate
+  dimension (`DepthsClient.tick`), and the frost a gale left thaws on the way out. Until 0.1.3 the way out forgot to
+  say so and the condition's chip stayed on screen in the world.
 - **Hidden chambers** (`HiddenKind`, `HiddenRooms`, `DepthsBuild`): 30% of E caves up to 55% of S ones hide a
   chamber off one of their later caverns, at the end of a tunnel nothing else comes near (`DungeonPlanner.placeHidden`,
   appended after the rest of the plan with its own random so the cave is otherwise unchanged). Classic caves place it
@@ -1203,6 +1244,63 @@ world), keyed by its gate's id.
   dawn, day n, time n, raid, blizzard [s], calm, seal, release, clear, chill n, or to the breach, keep, a camp, its
   master), `leave`, `end`, `status`. All numbers are first guesses for the balancing pass.
 
+## The Crimson Citadel: the tower, the Endless Spire and the boss rush
+
+Code in `tower/` (server) and `client/tower/` (client); lang in `assets/beyondsolo_tower/lang`. `TowerModule.init`
+registers the hunter's records (`TowerData`, attachment `beyondsolo:citadel`, kept through death), the key, the Sigil,
+the lord and the payloads (`TowerPayload` for the run, `TowerSyncPayload` for the records, `TowerActionPayload` for the
+page's buttons). The citadel is its own dimension (`data/beyondsolo/dimension/crimson_citadel.json`, an empty void with
+the `citadel_sky` biome); the game-test server has no datapack dimensions, so there the halls go up in the overworld.
+
+- **The key** (`CitadelKeyItem`): sold in the System shop's special shelf from D rank (`TowerAPI.KEY_RANK`, 12000
+  gold, `ShopCatalog` entry `citadel_key`). Used, it binds to an awakened hunter for good (`TowerAPI.bind`) and is
+  used up; the CITADEL page opens. The System tells a hunter once where it is sold when they reach D rank.
+- **The castle** (`TowerFloors`, worked out from the floor number alone): floors 1 to 100 in ten wings of ten
+  (Outer Gate, Barracks, Ossuary, Forge, Archive, Cloister, Garden, Court, Ramparts, Throne), each wing its own
+  stone and light. Ordinary floors are two to four waves; elite floors (the fives) a champion and its elites; siege
+  floors (the sevens) a hall to hold for 40 s while it keeps sending more; every tenth floor a gatekeeper (a named gate
+  boss, ascended from the 60th, in a round hall); the 100th is the lord's throne hall. Creatures come from the
+  creature roster at the floor's rank (`EnemyRoster`, `Enemies.spawn`), never vanilla mobs. A beaten gatekeeper is a
+  checkpoint: the next climb starts above it (`TowerData.startFloor`).
+- **A run** (`TowerRun`, one `Session` per hunter, each in its own slot 1024 blocks apart along x): `PULL` (a crimson
+  ring and pillar, the screen closes in red) while the first hall is raised a slice at a time (`CitadelHalls.Job`,
+  `BUDGET` blocks a tick), `ARRIVING` (the title card; its clock waits until the hunter's screen shows the hall, which
+  the client says with `TowerActionPayload.ARRIVED`, at most 10 s, so the card is never lost behind "Loading terrain"
+  and the floor never begins there), `FIGHT`, `CLEARED` (the seal comes off the stair door, the exit
+  sigil lights, the floor's rewards; the next hall is already going up on the other pad), `CLIMBING` (the stair leads
+  straight into it). A gatekeeper's floor drops a reward cache; the stair waits until it is opened. Standing on the
+  exit sigil for 2 s lets them out (`LEAVING`). A blow that would kill ends the run instead (`FALLEN`): no death, nothing
+  dropped, home weakened for a minute, the floors above the checkpoint lost. Logging out ends it too. No harm comes
+  to them while they are pulled, arriving, climbing or leaving.
+- **The lord** (`CitadelLordEntity`, GeckoLib model from `tools/gen_tower_assets.py`): Vharos, the Crimson King,
+  dormant before his throne until woken (or until 5 s pass), then a roar intro; untouchable only while dormant and
+  rising. His moves are announced on the floor: cleave (a wide sweep), lance (spears of light along a line, three
+  lines enraged), decree (lightning on marked ground under everyone he fights), leap (onto his challenger). Under half
+  health he is enraged; under 30% he calls the blood moon (the sky turns red, two champions of his court come out of the
+  light, blood lightning keeps falling). No regeneration, no second life. His fall conquers the Citadel
+  (`TowerAPI.conquered`, title `citadel_conqueror`) and may drop the **Sigil of Dominion** (`DominionSigilItem`): one
+  kill in four, never more than four without it (`SIGIL_CHANCE`, `SIGIL_PITY`). `TowerAPI.hasSigil` stays true once
+  held: it opens the Sovereign rush and is what the monarch path will ask for.
+- **The Endless Spire**: past the throne the stair climbs on (or the page's button starts at floor 101). The wings
+  come round again, every floor 5% more health and 3% more damage on its creatures than the last, a gatekeeper (always
+  ascended) every ten floors. The best floor cleared is the record (`TowerData.spireBest`).
+- **The boss rush** (`RushTier`): in the colosseum, every gate boss of the roster once in a random order at the tier's
+  rank, the last one ascended, with a 12 s breather between bouts (30% health and mana back). Tiers E to S open up to
+  one rank above the hunter's own; the Sovereign rush (the Sigil) brings all six ascended at S rank and then the lord
+  (title `rush_sovereign`). The clock runs from the first boss waking to the last one falling; the best time and the
+  clears are kept per tier.
+- **Client**: `CitadelTab` (the CITADEL page: the castle's floors lit to the checkpoint, CLIMB, the spire and its record,
+  the rush tiers with their times; the sealed gate until the key is bound), `TowerHud` (the pull, title cards, the
+  floor plaque under the boss bar, banners, the climb, the ends, the exit hold), `TowerWorldFx` (the seal curtain on
+  the stair door, the exit sigil, the moon and the red haze in the sky), `CitadelLordRenderer` (his glowing seams,
+  the glare of his eyes, the blood moon's heat, the light that takes him as he dies), `TowerClientEvents`. While the
+  Citadel has the screen (`TowerClient.holdsScreen`: pulled in, a title card, the climb, an end card) the System's
+  pop-ups and quest windows wait; they ask every frame instead of sharing `NotificationManager`'s held flag. A run's
+  creatures saved with the world when it stopped mid-run are turned away as their chunk loads (`TowerRun.onJoin`).
+- **Commands** (`/system tower ...`, level 2): bind, climb, enter <floor>, lord, endless, rush <tier>,
+  jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
+  sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1292,3 +1390,4 @@ and being retried.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.

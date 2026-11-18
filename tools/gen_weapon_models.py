@@ -43,7 +43,8 @@ PULL_FRAMES = 3
 # the profile. "hand": size in the hand compared with a vanilla sword (third person); "fp": the same in first
 # person; "ground": size of the dropped item compared with vanilla; "thick": slab depth in model units (vanilla 1).
 # "grip": how far along the weapon (from the pommel end, in model units) the hand holds it, compared with vanilla.
-# Gauntlets ("fist") are worn rather than held: their "hand" is the size of the plate on the outside of the hand.
+# Gauntlets ("fist") are worn rather than held: in the hand and on the ground they are the 3D gauntlets of
+# tools/gen_gauntlets.py, and the slab is only what an item frame shows.
 
 PROFILES = {
     "dagger":      dict(hand=1.30, fp=1.00, ground=1.45, thick=0.75, grip=0.0),
@@ -70,7 +71,6 @@ HANDHELD_1P = dict(rotation=[0, -90, 25], translation=[1.13, 3.2, 1.13], scale=0
 BOW_3P = dict(rotation=[-80, 260, -40], translation=[-1, -2, 2.5], scale=0.9)
 BOW_1P = HANDHELD_1P
 BOW_GRIP = (6.75, 9.25, 8.0)           # model pixels: the middle of our bows' grip wrap
-FIST_GRIP = (8.0, 9.7, 8.0)            # model pixels: the middle of a gauntlet's fist, just above the knuckle plates
 GROUND_SCALE = 0.5
 
 
@@ -134,15 +134,6 @@ def displays(cat, drawn=False):
         third = ws.held_transform(ws.body(0.08, 0.92, 0.38), ws.body(0, 0, 1), BOW_GRIP, BOW_3P["scale"] * p["hand"])
         third_l = mirrored(third)
         first = scaled(BOW_1P, p["fp"])
-    elif cat == "fist":
-        # A gauntlet is worn, not held: the fist picture sits on the outside of the hand with its knuckles along the
-        # arm (down at rest, leading the punch) and its thumb to the front, just clear of the arm's outer face.
-        ws = weapon_stances
-        s = HANDHELD_3P["scale"] * p["hand"]
-        out = 2.0 + p["thick"] * s / 2 + 0.1
-        third = ws.held_transform(ws.body(0, -1, -1), ws.body(0, -1, 1), FIST_GRIP, s, offset=(-out, 0.0, 0.0))
-        third_l = mirrored(third)
-        first = scaled(HANDHELD_1P, p["fp"], p["grip"])
     elif cat == "bow":
         third = scaled(BOW_3P, p["hand"])
         third_l = {"rotation": [-80, -280, 40], "translation": third["translation"], "scale": third["scale"]}
@@ -458,14 +449,24 @@ def held_model(name, cat, thick, drawn=False):
     }
 
 
-def item_model(name, cat, overrides=None):
+def item_model(name, cat, overrides=None, sprite=None, worn=None):
+    """`sprite`: the item whose picture this model shows (default: itself). `worn`: for a gauntlet, the 3D model
+    (tools/gen_gauntlets.py) its two third-person hands show; first person and the ground always show the snug fit
+    (client/combat/WornGauntlets.java draws the first-person arm bare)."""
+    sprite = sprite or name
     model = {
         "loader": "neoforge:separate_transforms",
         "gui_light": "front",
-        "textures": {"particle": tex_id(name)},
-        "base": held_model(name, cat, PROFILES[cat]["thick"], "_pulling_" in name),
-        "perspectives": {"gui": {"parent": "minecraft:item/generated", "textures": {"layer0": tex_id(name)}}},
+        "textures": {"particle": tex_id(sprite)},
+        "base": held_model(sprite, cat, PROFILES[cat]["thick"], "_pulling_" in name),
+        "perspectives": {"gui": {"parent": "minecraft:item/generated", "textures": {"layer0": tex_id(sprite)}}},
     }
+    if worn:
+        snug = gen_gauntlets.model_id(sprite)
+        for hand in ("righthand", "lefthand"):
+            model["perspectives"]["thirdperson_" + hand] = {"parent": worn}
+            model["perspectives"]["firstperson_" + hand] = {"parent": snug}
+        model["perspectives"]["ground"] = {"parent": snug}
     if overrides:
         model["overrides"] = overrides
     return model
@@ -495,6 +496,15 @@ def build(names=None):
             for i in range(PULL_FRAMES):
                 write(f"{name}_pulling_{i}", item_model(f"{name}_pulling_{i}", cat))
                 count += 1
+        elif cat == "fist":
+            # worn: the snug gauntlet, and the wider one when the wearer's chestplate covers the arm
+            gen_gauntlets.write(name)
+            fits = [f for f in gen_gauntlets.FITS if f]
+            overrides = [{"predicate": {"beyondsolo:" + f.strip("_"): 1}, "model": f"beyondsolo:item/{name}{f}"} for f in fits]
+            write(name, item_model(name, cat, overrides, worn=gen_gauntlets.model_id(name)))
+            for f in fits:
+                write(name + f, item_model(name + f, cat, sprite=name, worn=gen_gauntlets.model_id(name, f)))
+            set_pose(name, weapon_stances.pose_for(cat))
         else:
             write(name, item_model(name, cat))
             set_pose(name, weapon_stances.pose_for(cat))
@@ -522,6 +532,7 @@ def set_pose(name, pose):
         f.write("\n")
 
 
+import gen_gauntlets  # noqa: E402
 import weapon_stances  # noqa: E402  (imports this module back for the held transforms)
 
 if __name__ == "__main__":

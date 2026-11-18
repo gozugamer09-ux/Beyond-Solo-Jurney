@@ -221,6 +221,30 @@ public final class GearGameTests {
         helper.succeed();
     }
 
+    /** Refining stones, ward seals and crystals in System storage count as if carried (playtest 0.1.6). */
+    @GameTest(template = ARENA)
+    public static void theForgeUsesSystemStorage(GameTestHelper helper) {
+        ServerPlayer p = hunter(helper);
+        p.getInventory().setItem(0, new ItemStack(Arsenal.KNIGHTSBANE.get()));
+        p.getInventory().setItem(1, new ItemStack(GearModule.REFINING_STONE.get(), 1));
+        var storage = Economy.data(p).storage();
+        storage.set(0, new ItemStack(GearModule.REFINING_STONE.get(), 5));
+        storage.set(1, new ItemStack(GearModule.CRYSTALS.get(SkillElement.FIRE).get()));
+        Economy.add(p, 100_000, Economy.Reason.COMMAND);
+        helper.assertTrue(ForgeService.have(p, GearModule.REFINING_STONE.get()) == 6, "carried and stored stones count together");
+        // each try for +1 (a sure thing) takes one stone: the carried one first, then one from storage
+        helper.assertTrue(ForgeService.refine(p, 0, false) == Enhancement.Outcome.SUCCESS, "+1");
+        helper.assertTrue(ForgeService.count(p.getInventory(), GearModule.REFINING_STONE.get()) == 0, "the carried stone went first");
+        Enhancement.set(p.getInventory().getItem(0), 0);
+        helper.assertTrue(ForgeService.refine(p, 0, false) == Enhancement.Outcome.SUCCESS, "+1 again, with a stone from storage");
+        helper.assertTrue(storage.get(0).getCount() == 4, "one stone taken from storage: " + storage.get(0).getCount());
+        // the crystal only sits in storage
+        helper.assertTrue(ForgeService.infuse(p, 0, SkillElement.FIRE.ordinal()), "infused from storage");
+        helper.assertTrue(storage.get(1).isEmpty(), "the stored crystal was used");
+        helper.assertTrue(!ForgeService.infuse(p, 0, SkillElement.WATER.ordinal()), "no water crystal anywhere: refused");
+        helper.succeed();
+    }
+
     @GameTest(template = ARENA)
     public static void infusedHitsSetOffReactions(GameTestHelper helper) {
         ServerPlayer p = hunter(helper);

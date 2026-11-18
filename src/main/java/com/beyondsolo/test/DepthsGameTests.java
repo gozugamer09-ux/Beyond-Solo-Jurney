@@ -28,6 +28,7 @@ import com.beyondsolo.gate.GateService;
 import com.beyondsolo.gate.GateTheme;
 import com.beyondsolo.gate.GateWiper;
 import com.beyondsolo.gate.RewardCacheBlockEntity;
+import com.beyondsolo.network.DepthsPayload;
 import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestTestAccess;
 import com.beyondsolo.skill.SkillCombat;
@@ -41,6 +42,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
@@ -49,6 +51,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -241,6 +244,76 @@ public final class DepthsGameTests {
         helper.assertTrue(!GateDepths.legacy().enabled() && GateDepths.legacy().hidden(g) == null && GateDepths.legacy().traps(g).isEmpty(),
                 "an old cave keeps its rock: weather only");
         helper.succeed();
+    }
+
+    /**
+     * Playtest 0.1.3: out of a dungeon, the crimson haze's chip stayed at the top of the screen. The way out is a change
+     * of dimension, and the screen was never told the cave was behind it (the next beat no longer saw a cave to leave).
+     */
+    @GameTest(template = ARENA, timeoutTicks = 200)
+    public static void aCavesWeatherStaysInTheCave(GameTestHelper helper) {
+        ServerPlayer p = hunter(helper, "Hazed");
+        List<DepthsPayload> told = new ArrayList<>();
+        DepthsTestAccess.listen(p, told::add);
+        try {
+            GateInstance g = gate(helper, "crimson", "none", "none");
+            int haze = GateWeather.CRIMSON.ordinal();
+            helper.assertTrue(GateService.arrive(p, g), "through the gate");
+            DepthsTestAccess.beat(p);
+            helper.assertTrue(told.size() == 1 && isState(told.get(0), haze) && told.get(0).b() == PlayerRank.C.ordinal(),
+                    "the screen is told of the haze on the way in: " + said(told));
+            DepthsTestAccess.beat(p);
+            helper.assertTrue(told.size() == 1, "once, while the player stays: " + said(told));
+
+            // out through the exit, into the world: told at once
+            p.setTicksFrozen(120);
+            out(p, g);
+            helper.assertTrue(p.level() == helper.getLevel(), "back in the world");
+            helper.assertTrue(told.size() == 2 && isState(told.get(1), -1), "the screen is told the haze is behind it: " + said(told));
+            helper.assertTrue(p.getTicksFrozen() == 0, "the frost a gale left thaws on the way out");
+            helper.assertTrue(WeatherService.weatherAt(p.level(), p.blockPosition()) == GateWeather.CLEAR, "no haze out here");
+            DepthsTestAccess.beat(p);
+            helper.assertTrue(told.size() == 2, "nothing more to say out in the world: " + said(told));
+
+            // back in: the screen let go of the haze, so it is shown again (banner and all)
+            helper.assertTrue(GateService.arrive(p, g), "back through the gate");
+            DepthsTestAccess.beat(p);
+            helper.assertTrue(told.size() == 3 && isState(told.get(2), haze), "the haze again on the way back in: " + said(told));
+
+            // a fall: told the moment the player is back on their feet (a cave they come back in is told on the next beat)
+            DepthsTestAccess.respawned(p);
+            helper.assertTrue(told.size() == 4 && isState(told.get(3), -1), "after a fall the cave is behind the screen: " + said(told));
+            DepthsTestAccess.beat(p);
+            helper.assertTrue(told.size() == 5 && isState(told.get(4), haze), "still standing in it, it is told again: " + said(told));
+            out(p, g);
+            helper.assertTrue(told.size() == 6 && isState(told.get(5), -1), "and let go of on the way out: " + said(told));
+        } finally {
+            DepthsTestAccess.listen(p, null);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Out through a cave's exit. In the game that is a change of dimension; the game test server has no gate dimension
+     * (its caves are carved into the overworld, see {@code GateService.dungeon}), so the change is played by hand.
+     */
+    private static void out(ServerPlayer p, GateInstance g) {
+        ResourceKey<Level> was = p.level().dimension();
+        GateService.leave(p, g);
+        if (p.level().dimension().equals(was)) DepthsTestAccess.changedDimension(p, GateService.DIMENSION);
+    }
+
+    private static boolean isState(DepthsPayload p, int weather) {
+        return p.kind() == DepthsPayload.STATE && p.a() == weather;
+    }
+
+    /** What the screen was told, for a failure message: "state CRIMSON", "state out", ... */
+    private static String said(List<DepthsPayload> told) {
+        List<String> out = new ArrayList<>();
+        for (DepthsPayload t : told) {
+            out.add(t.kind() != DepthsPayload.STATE ? "kind " + t.kind() : t.a() < 0 ? "state out" : "state " + GateWeather.byIndex(t.a()));
+        }
+        return out.toString();
     }
 
     // ------------------------------------------------------------------ hidden chambers

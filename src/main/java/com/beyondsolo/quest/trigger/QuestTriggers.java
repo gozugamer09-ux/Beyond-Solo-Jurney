@@ -43,14 +43,16 @@ public final class QuestTriggers {
 
     /**
      * True while the System should not spring anything new on the player: a spectator, a creative player (unless
-     * {@link #allowCreative}), someone in the job change trial, the Penalty Zone or a red gate.
+     * {@link #allowCreative}), someone in the job change trial, the Penalty Zone, a red gate or a run of the Crimson
+     * Citadel.
      */
     public static boolean quiet(ServerPlayer player) {
         if (player.isSpectator() || player.isCreative() && !allowCreative) return true;
         // no surprise quests in the middle of the job change trial
         if (com.beyondsolo.job.JobTrial.inTrial(player)) return true;
-        // nor in the Penalty Zone, nor in a red gate
-        return com.beyondsolo.penalty.PenaltyZone.busy(player) || com.beyondsolo.redgate.RedGates.occupied(player);
+        // nor in the Penalty Zone, nor in a red gate, nor while climbing the Citadel
+        return com.beyondsolo.penalty.PenaltyZone.busy(player) || com.beyondsolo.redgate.RedGates.occupied(player)
+                || com.beyondsolo.tower.TowerAPI.busy(player);
     }
 
     /** The player is in an emergency already (one at a time). */

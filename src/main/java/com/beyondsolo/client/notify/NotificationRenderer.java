@@ -9,6 +9,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.EffectsHud;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -70,6 +71,8 @@ public final class NotificationRenderer {
 
         float baseX = floating ? guiW - PopupPanel.WIDTH - 16 : (guiW - PopupPanel.WIDTH) / 2f;
         float y = floating ? Math.max(26, guiH * 0.17f) : 12;
+        // under the status effect icons when they would meet (always at the side, on narrow screens at the top)
+        if (floating || baseX + PopupPanel.WIDTH > EffectsHud.left() - 4) y = Math.max(y, EffectsHud.bottom() + 6);
         String key = ClientEvents.DISMISS.getTranslatedKeyMessage().getString();
         if (key.length() > 6) key = null;
         boolean keep = ClientConfig.KEEP_POPUPS.get();
@@ -97,6 +100,11 @@ public final class NotificationRenderer {
             y += (panel.height() + GAP) * (1 - Anim.inOutCubic(p.exit()));
             index++;
         }
+    }
+
+    /** How far down the unread badge reaches (0 while it is hidden), so the effect icons can sit under it. */
+    public static float badgeBottom() {
+        return badge > 0.02f ? 30 * Anim.outCubic(Math.min(1, badge)) : 0;
     }
 
     private static void drawBadge(GuiGraphics g, int guiW) {
