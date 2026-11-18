@@ -1281,6 +1281,9 @@ public final class Raids {
         List<ServerPlayer> raiders = new ArrayList<>();
         for (ServerPlayer p : players) if (s.has(p.getUUID()) && !raiders.contains(p)) raiders.add(p);
         for (ServerPlayer p : inside(level, g)) if (s.has(p.getUUID()) && !raiders.contains(p)) raiders.add(p);
+        // the boss is the clear: lieutenants felled while a raider was elsewhere (or never counted) no longer stand in the
+        // way of their quest, as a gate's leftover creatures don't
+        for (ServerPlayer p : raiders) QuestEngine.progress(p, LIEUTENANT_KEY, Short.MAX_VALUE);
 
         // a cache for each raider (the boss's own is the first), around where it fell
         BlockPos center = boss.blockPosition();

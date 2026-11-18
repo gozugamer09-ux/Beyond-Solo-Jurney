@@ -32,11 +32,23 @@ public final class RaidClient {
     /** Client game time the state came in (the clocks in it count from then). */
     private static long syncedAt;
 
+    /** How long a banner stays across the screen, and the results board up, in seconds. */
+    static final float BANNER_SECONDS = 3.6f;
+    static final float RESULTS_SECONDS = 14f;
+
     /** The banner across the screen. */
     private static Component bannerTitle = Component.empty(), bannerText = Component.empty();
     private static int bannerColor = 0xFFC247;
     private static String bannerIcon = "";
     private static double bannerAt = -10;
+    /** A banner waiting for the middle of the screen (a quest or title moment, or a gate's own card, is up), and since when. */
+    private static boolean bannerWaiting;
+    private static double bannerQueuedAt = -10;
+    /**
+     * When something else last held the middle of the screen (a gate's own card such as the boss DEFEATED or DUNGEON
+     * CLEARED, a quest or title moment already under way): the results board comes in after it.
+     */
+    private static double heldAt = -10;
 
     /** The cataclysm the boss is channelling: since when (Anim time) and how long until it lands. */
     private static double cataclysmAt = -10;
@@ -71,8 +83,10 @@ public final class RaidClient {
                 bannerText = p.text();
                 bannerColor = p.data().contains("color") ? p.data().getInt("color") : 0xFFC247;
                 bannerIcon = p.data().getString("icon");
-                bannerAt = Anim.now();
-                sound(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.6f, 0.9f);
+                // it comes in once the middle of the screen is free (see banner())
+                bannerAt = -10;
+                bannerWaiting = true;
+                bannerQueuedAt = Anim.now();
             }
             case RaidEventPayload.CATACLYSM -> {
                 cataclysmAt = Anim.now();
@@ -82,6 +96,10 @@ public final class RaidClient {
                 bannerColor = 0xFF3348;
                 bannerIcon = "doom";
                 bannerAt = Anim.now();
+                bannerWaiting = false;
+                // no time to wait: a quest or title window in the middle of the screen folds away to make room
+                com.beyondsolo.client.quest.QuestOverlay.skip();
+                com.beyondsolo.client.chronicle.TitleOverlay.skip();
                 sound(SoundEvents.WARDEN_SONIC_CHARGE, 0.6f, 1.0f);
             }
             case RaidEventPayload.RESULTS -> {
@@ -111,6 +129,7 @@ public final class RaidClient {
     public static void reset() {
         state = RaidSyncPayload.none();
         bannerAt = -10;
+        bannerWaiting = false;
         cataclysmAt = -10;
         results = null;
         outcome = Component.empty();
@@ -222,6 +241,32 @@ public final class RaidClient {
         return Anim.since(bannerAt);
     }
 
+    /**
+     * Once a frame, from the HUD: starts the banner waiting for the middle of the screen once no quest or title moment and
+     * no gate card holds it (one that waited too long is dropped: it is old news). True while a banner is on screen.
+     */
+    static boolean bannerUp() {
+        if (bannerWaiting) {
+            if (Anim.since(bannerQueuedAt) > 8f) {
+                bannerWaiting = false;
+            } else if (!com.beyondsolo.client.quest.QuestOverlay.active() && !com.beyondsolo.client.chronicle.TitleOverlay.active()
+                    && !com.beyondsolo.client.gate.GateOverlay.active()) {
+                bannerWaiting = false;
+                bannerAt = Anim.now();
+                sound(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.6f, 0.9f);
+            }
+        }
+        return bannerAt >= 0 && Anim.since(bannerAt) <= BANNER_SECONDS && !bannerTitle.getString().isEmpty();
+    }
+
+    /**
+     * The raid holds the middle of the screen: a banner across it, a cataclysm being channelled, or the results board.
+     * The quest and title moments wait for it, as they do for the tower's cards.
+     */
+    public static boolean holdsScreen() {
+        return bannerAt >= 0 && Anim.since(bannerAt) <= BANNER_SECONDS || cataclysm() >= 0 || results != null;
+    }
+
     /** 0..1 of the cataclysm gathered, or -1 if none is coming. */
     public static float cataclysm() {
         if (cataclysmAt < 0) return -1;
@@ -248,13 +293,27 @@ public final class RaidClient {
         return resultsDungeon;
     }
 
+    /**
+     * How long the results board has been up. It waits for the gate's own end cards (the boss DEFEATED, DUNGEON CLEARED)
+     * and for a quest or title moment already on screen; none starts while it is up ({@link #holdsScreen}).
+     */
     public static float sinceResults() {
-        return Anim.since(resultsAt);
+        if (com.beyondsolo.client.gate.GateOverlay.active() || com.beyondsolo.client.quest.QuestOverlay.active()
+                || com.beyondsolo.client.chronicle.TitleOverlay.active()) heldAt = Anim.now();
+        return (float) Math.min(Anim.since(resultsAt), Anim.since(heldAt));
     }
 
     /** Puts the results board away. */
     public static void closeResults() {
         results = null;
+    }
+
+    /** The hide key: the results board folds away. True if one was up. */
+    public static boolean skipResults() {
+        if (results == null || sinceResults() <= 0.05f) return false;
+        float t = sinceResults(), end = RESULTS_SECONDS - 0.6f;
+        if (t < end) resultsAt -= end - t;
+        return true;
     }
 
     public static Component outcome() {

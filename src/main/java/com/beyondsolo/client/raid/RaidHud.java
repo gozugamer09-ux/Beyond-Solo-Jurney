@@ -1,6 +1,7 @@
 package com.beyondsolo.client.raid;
 
 import com.beyondsolo.client.SystemTheme;
+import com.beyondsolo.client.breaks.BreakHud;
 import com.beyondsolo.client.economy.GoldHud;
 import com.beyondsolo.client.gate.GateOverlay;
 import com.beyondsolo.client.gfx.Anim;
@@ -11,6 +12,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.hud.EffectsHud;
 import com.beyondsolo.client.hud.HudSpace;
+import com.beyondsolo.client.key.RunHud;
 import com.beyondsolo.raid.RaidRole;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
@@ -45,9 +47,9 @@ public final class RaidHud {
     private static final int GOLD = 0xFFFFC247;
     private static final int DOOM = 0xFFFF3348;
     /** Seconds the results board stays up. */
-    private static final float RESULTS_FOR = 14f;
+    private static final float RESULTS_FOR = RaidClient.RESULTS_SECONDS;
 
-    private static float shown, musterShown;
+    private static float shown, musterShown, objectiveIn;
     private static float top = Float.NaN;
     private static final Map<UUID, Float> HEALTH = new HashMap<>();
 
@@ -58,6 +60,7 @@ public final class RaidHud {
         boolean inside = RaidClient.inside() && inCave(mc);
         shown = Anim.approach(shown, inside ? 1 : 0, 6f);
         musterShown = Anim.approach(musterShown, RaidClient.mustering() ? 1 : 0, 6f);
+        objectiveIn = Anim.approach(objectiveIn, inside && RaidClient.phase().equals("RUNNING") ? 1 : 0, 6f);
         if (musterShown > 0.02f) muster(g, w);
         if (shown > 0.02f) {
             float old = Gfx.fade(shown);
@@ -73,6 +76,19 @@ public final class RaidHud {
     /** True while the player is in a gate's cave (the raid HUD is for inside). */
     private static boolean inCave(Minecraft mc) {
         return mc.level != null && mc.level.dimension().equals(com.beyondsolo.gate.GateService.DIMENSION);
+    }
+
+    /**
+     * Where the raid's pieces at the top centre start: under the gate boss's bar, the run clock and the break timer
+     * while they show, as the other pieces there stack.
+     */
+    private static float stackTop() {
+        return 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + BreakHud.shownHeight();
+    }
+
+    /** How far down the raid's objective chip reaches at the top centre: the depths' weather and trap chips sit under it. */
+    public static float objectiveHeight() {
+        return 16 * Anim.outCubic(objectiveIn);
     }
 
     /** True while the raid frames stand where the party frames would (the party HUD keeps out of the way). */
@@ -93,7 +109,7 @@ public final class RaidHud {
                 : Component.translatable("ui.beyondsolo.raid.hud.waiting", t.getString("leaderName")).getString();
         String count = raiders + " / " + t.getInt("maxSize");
         float tw = Math.max(SysFont.spacedWidth(title, 6f, true, 1.2f), SysFont.width(sub, 5f, false)) + SysFont.width(count, 6f, true) + 46;
-        float x = (w - tw) / 2f, y = 6 - 16 * (1 - Anim.outCubic(musterShown));
+        float x = (w - tw) / 2f, y = stackTop() - 16 * (1 - Anim.outCubic(musterShown));
         float old = Gfx.fade(musterShown);
         boolean hot = countdown >= 0;
         float pulse = hot ? Anim.pulse(0.5f) : Anim.pulse(2.4f);
@@ -229,7 +245,7 @@ public final class RaidHud {
         String time = clock(RaidClient.elapsed());
         float tw = SysFont.width(text, 5.4f, true) + SysFont.width(time, 4.6f, false) + 30;
         float x = (w - tw) / 2f;
-        float y = 6 + 30 * GateOverlay.bossBarIn();
+        float y = stackTop();
         Shapes.pill(x, y, tw, 12).fill(Gfx.alpha(0xFF060A14, 0.82f)).border(0.6f, Gfx.alpha(c, 0.7f)).glow(3, Gfx.alpha(c, 0.25f)).draw(g);
         Shapes.icon(icon, x + 8, y + 6, 6.5f).fill(Gfx.mix(c, 0xFFFFFFFF, 0.4f)).draw(g);
         SysFont.draw(g, text, x + 15, SysFont.centerY(y, 12, 5.4f), 5.4f, SystemTheme.TEXT, true, 0f);
@@ -259,9 +275,9 @@ public final class RaidHud {
 
     /** A line across the screen when the fight turns. */
     private static void banner(GuiGraphics g, int w, int h) {
-        float t = RaidClient.sinceBanner();
-        if (t > 3.6f || RaidClient.bannerTitle().getString().isEmpty() || RaidClient.cataclysm() >= 0) return;
-        float k = (1 - Anim.window(t, 3.0f, 3.6f)) * Anim.outCubic(Anim.window(t, 0f, 0.25f));
+        if (!RaidClient.bannerUp() || RaidClient.cataclysm() >= 0) return;
+        float t = RaidClient.sinceBanner(), end = RaidClient.BANNER_SECONDS;
+        float k = (1 - Anim.window(t, end - 0.6f, end)) * Anim.outCubic(Anim.window(t, 0f, 0.25f));
         int c = 0xFF000000 | RaidClient.bannerColor();
         float cy = h * 0.27f;
         float old = Gfx.fade(k);

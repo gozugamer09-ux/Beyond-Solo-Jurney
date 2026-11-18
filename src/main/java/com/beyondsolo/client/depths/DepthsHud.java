@@ -10,6 +10,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.key.RunHud;
+import com.beyondsolo.client.raid.RaidHud;
 import com.beyondsolo.client.quest.QuestOverlay;
 import com.beyondsolo.client.skill.SkillOverlay;
 import com.beyondsolo.depths.GateWeather;
@@ -315,7 +316,7 @@ public final class DepthsHud {
         TrapKind trap = DepthsClient.trap();
         trapIn = Anim.approach(trapIn, trap != null ? 1 : 0, 5f);
         if (stripIn < 0.01f && trapIn < 0.01f) return;
-        float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown();
+        float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + RaidHud.objectiveHeight();
         if (stripIn > 0.01f && weather != null) {
             weatherChip(g, w, y, weather);
             y += 16 * Anim.outCubic(stripIn);
