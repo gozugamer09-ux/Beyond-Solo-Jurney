@@ -6,7 +6,7 @@ Generates the awakening trial's models, animations and textures (no hand-drawn f
   a planted greatsword, a broken halo behind its head (GeckoLib entity model, drawn at three times this size)
 - its animations: dormant, rise, idle, walk, cleave, sunder, judgment, verdict, death
 - the sealed gate's texture (the gate model in pale stone and gold)
-- the four legendary weapons' item textures
+- the four legendary weapons' designs (tools/gen_hd_gear.py paints them with the rest of the arsenal)
 
 Run from the repo root:  python3 tools/gen_awakening_assets.py
 Needs: pillow, numpy.
@@ -426,20 +426,23 @@ def arbiter_animations():
 # --------------------------------------------------------------------------------------------- legendary weapons
 
 def legendary_weapons():
+    """Builders for the four legendary weapons. tools/gen_hd_gear.py renders them with the rest of the arsenal (at
+    64x64, dressed as legendary weapons); run on its own a builder gives the plain 32x32 sprite."""
     hexc, Part, const = gc.hexc, gc.Part, gc.const
     bone = (hexc("fffdf4"), hexc("d8d2c2"), hexc("8f8878"))
     night = (hexc("7a6cc8"), hexc("2c2452"), hexc("0c0a1c"))
     ash = (hexc("8a8690"), hexc("45424c"), hexc("1c1a22"))
+    thorn = (hexc("ff8a8a"), hexc("c0162a"), hexc("2a0a10"))
     out = {}
     # Sunderveil: the Arbiter's greatsword at human size. White stone, a seam of gold light
-    out["sunderveil"] = gc.render_weapon([
+    out["sunderveil"] = lambda: gc.render_weapon([
         gc.pommel(2.4, 2.1, gc.GOLD), gc.grip(2.8, 10.5, ash), gc.guard(11.6, 7.2, gc.GOLD, 1.5),
-        Part(12.6, 14.6, const(4.6), bone),
+        Part(12.6, 14.6, const(4.6), bone, relief="bar"),
         gc.blade(13, 41, 3.7, 7, bone, fuller=False),
         gc.blade(14, 38, 0.9, 5, (hexc("fff6cf"), hexc("f2d58a"), hexc("f2d58a")), fuller=False)],
         glow=(242, 213, 138, 110))
     # Ashen Oath: a burnt-black blade, still burning down the middle
-    out["ashen_oath"] = gc.render_weapon([
+    out["ashen_oath"] = lambda: gc.render_weapon([
         gc.pommel(3.4, 1.9, gc.EMBER), gc.grip(4, 10.5, ash), gc.guard(11.5, 5.6, ash, 1.4),
         Part(10.8, 12.2, const(2.2), gc.EMBER),
         gc.blade(12.5, 39.5, 2.7, 8, ash, fuller=False),
@@ -447,46 +450,18 @@ def legendary_weapons():
                  bend=lambda u: 0.5 * math.sin(u * 0.9))],
         glow=(255, 110, 40, 110))
     # Nightglass Fang: a sliver of dark glass with a venom-green edge
-    out["nightglass_fang"] = gc.render_weapon([
+    out["nightglass_fang"] = lambda: gc.render_weapon([
         gc.pommel(4.6, 1.7, gc.VENOM), gc.grip(5, 12, night), gc.guard(12.8, 3.4, night, 1.0),
         gc.blade(13.5, 32, 2.7, 12, night, bend=lambda u: -0.014 * (u - 13.5) ** 2, fuller=False),
         gc.blade(14, 31, 0.6, 9, (hexc("e4ffb8"), hexc("8cf04a"), hexc("8cf04a")), fuller=False,
                  bend=lambda u: -0.014 * (u - 13.5) ** 2 + 1.6)],
         glow=(140, 240, 74, 110))
     # Thorn Requiem: a scythe whose blade has grown thorns
-    img = Image.new("RGBA", (gc.S, gc.S), (0, 0, 0, 0))
-    px = img.load()
-    shaft = Part(0, 33, const(1.0), ash)
-    wrap = Part(8, 15, const(1.4), gc.BLOOD, kind="grip")
-    collar = Part(26.5, 29.5, const(2.1), gc.GOLD)
-    for y in range(gc.S):
-        for x in range(gc.S):
-            u, v = gc.uv(x, y)
-            c = None
-            for p in (shaft, wrap, collar):
-                c = p.color_at(u, v) or c
-            bu, bv = u - 29.5, v - 0.5
-            if 0 <= bv <= 20:
-                k = bv / 20.0
-                centre = 2.8 - 12 * k * k
-                thorn = 1.5 if int(bv) % 5 == 2 else 0.0
-                half = 3.5 * (1 - k) ** 0.6 + 0.3
-                d = bu - centre
-                if -half <= d <= half + thorn:
-                    t = d / half
-                    c = hexc("fff0f0") if t > 1 else gc.BLOOD[0] if t > 0.4 else hexc("2a0a10") if t < -0.3 else gc.BLOOD[1]
-            if c is not None:
-                px[x, y] = c
-    img = gc.outline(img)
-    a = np.array(img)
-    solid = a[:, :, 3] > 0
-    grown = solid.copy()
-    grown[1:, :] |= solid[:-1, :]
-    grown[:-1, :] |= solid[1:, :]
-    grown[:, 1:] |= solid[:, :-1]
-    grown[:, :-1] |= solid[:, 1:]
-    a[grown & ~solid] = (220, 30, 50, 110)
-    out["thorn_requiem"] = Image.fromarray(a)
+    out["thorn_requiem"] = lambda: gc.render_weapon([
+        Part(0, 29.5, const(1.0), ash), Part(8, 15, const(1.4), gc.BLOOD, kind="grip"),
+        Part(22.5, 25.5, const(2.1), gc.GOLD),
+        gc.Crescent(25.5, 19.5, thorn, lead=2.8, curl=13.0, half=3.5, thorns=(hexc("fff0f0"),))],
+        glow=(220, 30, 50, 110))
     return out
 
 
@@ -499,11 +474,12 @@ def main():
     write_json(os.path.join(GEO, "entity", "arbiter.geo.json"), arbiter_model(uvs, size))
     write_json(os.path.join(ANIM, "entity", "arbiter.animation.json"), arbiter_animations())
     sealed_gate_textures()
-    weapons = legendary_weapons()
-    for name, img in weapons.items():
-        img.save(os.path.join(gc.ITEM_OUT, name + ".png"))
+    # the four legendary weapons: textures, depth and held models, all by the arsenal's high-detail painter
+    import gen_hd_gear
     import gen_weapon_models
-    gen_weapon_models.build(set(weapons))
+    names = set(legendary_weapons())
+    gen_hd_gear.weapons(names)
+    gen_weapon_models.build(names)
     print("awakening assets written")
 
 

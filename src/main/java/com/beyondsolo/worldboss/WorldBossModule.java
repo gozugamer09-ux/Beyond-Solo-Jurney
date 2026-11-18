@@ -172,6 +172,7 @@ public final class WorldBossModule {
         modBus.addListener(WorldBossModule::payloads);
         modBus.addListener(WorldBossModule::attributes);
         modBus.addListener(WorldBossModule::defaultComponents);
+        modBus.addListener((net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent e) -> WorldBossJournal.register());
         container.registerConfig(ModConfig.Type.COMMON, WorldBossConfig.SPEC, "beyondsolo-worldbosses.toml");
     }
 

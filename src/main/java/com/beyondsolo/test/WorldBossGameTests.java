@@ -1,6 +1,14 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.chronicle.ChronicleData;
+import com.beyondsolo.chronicle.ChronicleModule;
+import com.beyondsolo.chronicle.journal.Journal;
+import com.beyondsolo.chronicle.journal.JournalCategory;
+import com.beyondsolo.chronicle.journal.JournalEntry;
+import com.beyondsolo.chronicle.journal.JournalService;
+import com.beyondsolo.chronicle.title.TitleTier;
+import com.beyondsolo.chronicle.title.Titles;
 import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.item.ArmorSets;
 import com.beyondsolo.item.ItemGrade;
@@ -12,6 +20,7 @@ import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.worldboss.ColossalBoss;
 import com.beyondsolo.worldboss.MonarchArmor;
+import com.beyondsolo.worldboss.WorldBossJournal;
 import com.beyondsolo.worldboss.WorldBossKind;
 import com.beyondsolo.worldboss.WorldBossModule;
 import com.google.gson.JsonObject;
@@ -185,6 +194,35 @@ public final class WorldBossGameTests {
             ItemStack got = MonarchArmor.piece(p, MonarchArmor.HUNGER, r);
             helper.assertTrue(got.is(pieces.get(3).get()), "the missing piece is the one given (" + got + ")");
         }
+        helper.succeed();
+    }
+
+    /** Each great threat has its page in the journal, and felling one earns its titles (the top hunter of a monarch one more). */
+    @GameTest(template = ARENA)
+    public static void greatThreatsAreInTheChronicle(GameTestHelper helper) {
+        for (WorldBossKind kind : WorldBossKind.values()) {
+            ColossalBoss boss = spawn(helper, kind);
+            String page = JournalService.pageOf(boss);
+            JournalEntry entry = page == null ? null : Journal.get(page);
+            helper.assertTrue(entry != null, kind + " has a journal page (" + page + ")");
+            helper.assertTrue(entry.category() == JournalCategory.BOSSES && WorldBossJournal.kindOf(entry) == kind, kind + "'s page is its own, among the bosses");
+            boss.discard();
+        }
+        for (String key : List.of(WorldBossJournal.COLOSSUS_BREAKER, WorldBossJournal.CROWNBREAKER, WorldBossJournal.THRONE_TAKER)) {
+            helper.assertTrue(Titles.byKey(key) != null, key + " is in the titles");
+        }
+        helper.assertTrue(Titles.tierOf(WorldBossJournal.CROWNBREAKER) == TitleTier.MYTHIC, "slaying a monarch is a mythic title");
+
+        ServerPlayer p = hunter(helper, PlayerClass.MAGE);
+        ChronicleData c = ChronicleModule.data(p);
+        c.reset();
+        WorldBossJournal.earned(p, WorldBossKind.TITAN, false);
+        helper.assertTrue(c.hasTitle(WorldBossJournal.COLOSSUS_BREAKER) && !c.hasTitle(WorldBossJournal.CROWNBREAKER), "a world boss: Colossus Breaker");
+        WorldBossJournal.earned(p, WorldBossKind.STORMS, false);
+        helper.assertTrue(c.hasTitle(WorldBossJournal.CROWNBREAKER) && !c.hasTitle(WorldBossJournal.THRONE_TAKER), "a monarch: Crownbreaker");
+        WorldBossJournal.earned(p, WorldBossKind.HUNGER, true);
+        helper.assertTrue(c.hasTitle(WorldBossJournal.THRONE_TAKER), "the most damage to a monarch: Throne Taker");
+        helper.assertTrue(SystemAPI.get(p).title().equals(WorldBossJournal.CROWNBREAKER), "the rarest earned is worn (" + SystemAPI.get(p).title() + ")");
         helper.succeed();
     }
 

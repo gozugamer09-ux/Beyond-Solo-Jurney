@@ -1550,7 +1550,7 @@ public final class RedGates {
     }
 
     /** Lets a player out of the red gate they are in at once, nothing paid (commands). */
-    static boolean leaveNow(ServerPlayer p) {
+    public static boolean leaveNow(ServerPlayer p) {
         RedGate run = runOf(p.server, p);
         if (run == null || !run.insideNow.contains(p.getUUID())) return false;
         run.insideNow.remove(p.getUUID());

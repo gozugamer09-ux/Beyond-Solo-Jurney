@@ -70,6 +70,30 @@ public final class FirstSpawnHandler {
         });
     }
 
+    /**
+     * A fresh start (the wipe command): the player is put down where a new player would be, at a new random spot in
+     * the overworld that becomes their respawn point (or at world spawn when random spawns are off or none was found).
+     */
+    public static void startOver(ServerPlayer player) {
+        ServerLevel world = player.server.overworld();
+        BlockPos spot = Config.RANDOM_SPAWN.get() ? findRandomSpawn(world, player.getRandom()) : null;
+        if (spot != null) {
+            player.setRespawnPosition(world.dimension(), spot, 0f, true, false);
+        } else {
+            player.setRespawnPosition(Level.OVERWORLD, null, 0f, false, false);
+            spot = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, world.getSharedSpawnPos());
+        }
+        player.stopRiding();
+        player.teleportTo(world, spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), 0f);
+        // fake players (tests) ignore same-level teleports
+        if (player.distanceToSqr(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5) > 1) {
+            player.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), 0f);
+        }
+        player.fallDistance = 0;
+        player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        SystemAPI.markFirstJoinHandled(player);
+    }
+
     /** Picks a random dry surface spot between the configured min and max distance from world spawn. */
     public static BlockPos findRandomSpawn(ServerLevel level, RandomSource random) {
         BlockPos center = level.getSharedSpawnPos();

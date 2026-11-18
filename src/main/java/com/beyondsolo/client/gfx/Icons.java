@@ -61,6 +61,11 @@ public final class Icons {
     public static final ResourceLocation DEPOSIT = icon("deposit");
     public static final ResourceLocation KEY = icon("key");
     public static final ResourceLocation CHAIN = icon("chain");
+    // the System HUD that replaces Minecraft's hunger, air and mount bars
+    public static final ResourceLocation FOOD = icon("food");
+    public static final ResourceLocation BUBBLES = icon("bubbles");
+    public static final ResourceLocation HORSE = icon("horse");
+    public static final ResourceLocation FATIGUE = icon("fatigue");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

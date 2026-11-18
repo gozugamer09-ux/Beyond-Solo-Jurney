@@ -481,6 +481,7 @@ public final class WorldBosses {
         }
         for (ItemStack s : loot) give(p, s);
         QuestEngine.progress(p, SLAY_KEY, 1);
+        WorldBossJournal.earned(p, kind, top);
         return system ? xp : 0;
     }
 

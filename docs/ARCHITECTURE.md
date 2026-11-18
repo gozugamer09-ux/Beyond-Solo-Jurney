@@ -23,7 +23,8 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `client.quest` | Quest moments overlay, HUD tracker, QUESTS tab |
 | `npc` | Villager requests: per-villager boards, request kinds, travellers, nests, hand-in and gossip (`NpcService`) |
 | `client.npc` | The villager request window, world and HUD markers, the traveller renderer |
-| `command` | `/system` admin commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command` | `/system` testing commands (`/system quest ...` for quests, `/system npc ...` for villager requests) |
+| `command.solo` | `/solo`, the operator commands: one tree with help, tab completion and English and Spanish feedback (see "Operator commands: /solo") |
 | `shadow`, `client.shadow` | The necromancer's shadow army (see "Shadow army") |
 | `economy`, `client.economy` | Gold, the System storage, the System shop and the hunter license (see "Gold, storage, shop and license") |
 | `gear`, `client.gear` | Bonus stat rolls, enhancement, element infusions, boss sets and signature loot, the FORGE tab (see "Gear: rolls, sets, boss loot, enhancement, infusions") |
@@ -47,7 +48,10 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 ## Rules for new modules
 
 1. **Read and change player progress only through `SystemAPI`.** It keeps the client in sync and fires events.
-2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`.
+2. **Keep your own state in your own data attachment** (see `registry/ModAttachments`), not in `SystemData`. Register
+   it in the `beyondsolo` namespace and `/solo wipe` resets it with no change there. State kept anywhere else (a
+   running session, a map in memory, a mark in the player's persistent data) needs its own cancel in
+   `SoloWipe.progress`.
 3. **Listen to `SystemEvent`s** on `NeoForge.EVENT_BUS` instead of patching core code:
    `Awakened`, `XpGain` (cancel or change the amount), `LevelUp`, `RankChanged`, `StatAllocated`,
    `Collapsed`, `ObjectiveChanged`.
@@ -85,6 +89,29 @@ textures). To add an icon, drop its Phosphor SVG into `tools/icons-src`, add a l
 it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
+
+### The System HUD
+
+While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):
+
+- `VitalsHud` (layer `beyondsolo:vitals`, right above vanilla's hotbar layer): the hotbar as glass tiles with a
+  gliding highlight and a glow under graded gear (the off-hand slot and the "hotbar" attack indicator where vanilla
+  puts them), the experience strip with the level gem (the System level once awakened, vanilla's level before that;
+  vanilla's level is then the small green number at the strip's end), and leaning bars with their numbers: health
+  (armour chip, absorption in gold, poison/wither/frozen tints) and mana on the left, hunger (saturation line, what
+  the food in hand would give), fatigue, a mount's health and air on the right, each only while it matters. Bars
+  glide, leave a pale trail when hit, flash when they rise and pulse when low. Numbers of five digits and more are
+  shortened (12.3k). It raises `Gui.leftHeight`/`rightHeight`, so the item name and the action bar stay above it.
+- `EffectsHud` (layer `beyondsolo:effects`, above vanilla's effects layer): status effects in vanilla's corner and
+  rows as discs with a ring that runs down, the time left and the level. It leaves out burn, venom and the crimson
+  brand, which have their meters on the combat rail. `bottom()` and `left()` say where the icons end (vanilla's too
+  while the System HUD is off): the pop-ups and the gold capsule start under them, and the icons go under the unread
+  badge of hidden pop-ups.
+- `HudClientEvents` cancels the vanilla layers it replaces (hotbar, jump meter, experience bar and level, health,
+  armour, food, mount health, air, effects) and AppleSkin's layers. Spectators keep vanilla's HUD.
+- `StatusHud`'s capsule shrinks to rank and class (level, mana and fatigue are at the bottom), and the combat rail
+  follows its edge (`StatusHud.right()`). `VitalsHud.hotbarLeft()` is the hotbar's left edge with the off-hand slot,
+  for pieces that sit beside it (the shadow army counter).
 
 ## The evaluation
 
@@ -252,15 +279,34 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
 - **Held and dropped weapon models** come from `tools/gen_weapon_models.py` (the other generators call it at the end;
-  run it alone after touching a weapon texture). Instead of `item/generated` it builds each weapon as a front and a
-  back face plus side walls coloured from the material just inside the outline (`textures/item/held/<name>_side.png`),
-  walls drawn first and faces after them so the grade glow blends over the edges. `PROFILES` sets each Better Combat
-  kind's size in the hand, in first person and on the ground; the inventory icon stays the flat sprite.
-  - Two-handed kinds (claymores, katana, spears, glaive, halberd, hammers, heavy axe, scythes) hold the weapon forward
-    at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
-    poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
-    on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
-  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling.
+  run it alone after touching a weapon texture). In the hand, on the ground and in item frames a weapon is a solid:
+  the sprite with a depth of its own under every texel. The painters build a weapon from parts along its axis
+  (blade, guard, grip, shaft, head...), and each part knows its shape, so `tools/weapon_relief.py` gives a blade a
+  ridge and a honed edge, a shaft a round bar, a hammer head a bevelled block, an orb a ball. `tools/gen_hd_gear.py`
+  writes that depth per texel to `tools/weapon_relief/<name>.png` (and each weapon's length and grip to
+  `meta.json`), and the model generator turns it into a mesh with smooth normals, a Wavefront OBJ read by NeoForge's
+  loader (`models/item/held/<name>.obj`; rim walls take their colour from `textures/item/held/<name>_side.png`). The
+  grade glow around a weapon is the sprite once more on a see-through plane inside the solid. The inventory icon
+  stays the flat sprite. `python3 tools/weapon_preview.py <name>...` draws a model alone and in first person in a
+  second, without the game.
+  - **Sizes and grips.** `PROFILES` gives each Better Combat kind a length in pixels of the player model and where
+    the hand closes (`LENGTHS` for single weapons); the model's scale follows from the sprite's own length, so a
+    dagger whose picture fills its icon is still a dagger in the hand. Every weapon is held at its grip, at the same
+    place in the fist, in vanilla's hand rotation: Better Combat's swings are made for that rotation, and one idle
+    pose per kind then fits every weapon of the kind. `FP_HOLDS` lays out the first-person view per kind in the
+    view's own space (where the grip is, where the tip points, which way the face looks).
+  - Every melee kind has an idle stance: `tools/weapon_stances.py` fits the arms to it (two hands on claymores,
+    katana, polearms, hammers, heavy axe and scythes) and writes the result as idle poses
+    (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose` on
+    top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
+  - **Bows** (`BOW_SPECS` in `tools/gen_arsenal_assets.py`) are drawn for six draw lengths each: at rest and five
+    pull frames whose limbs bend and shorten as the string comes back (`PULLS`: the seconds of drawing each frame
+    shows from). In the hand the string and the arrow are not the painted texels but real shapes
+    (`bow_extras`: a thin cord, a round shaft, a ridged broadhead, three feathers), so the bow looks right from
+    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). A bow has two
+    holds: at the side at rest, and raised with the arrow under the crosshair while drawn (the game's own bow-use
+    hand movement is undone in the pull frames' transforms). `GradeVisuals` narrows the view while a System bow is
+    drawn, which the game only does for its own bow.
   - Gauntlets (the `fist` kind) are worn, not held. `tools/gen_gauntlets.py` builds each as a few boxes in the arm's
     own space (cuff, vambrace, plated hand, knuckle guard, claws or spikes), painted with the armor art kit at four
     texels a pixel, and writes them as an item model (`models/item/worn/<name>.json`) whose hand transform undoes
@@ -615,7 +661,7 @@ The license sprites and model come from `tools/gen_economy_assets.py`.
   their inventory; other people's cards are never rewritten. Right click shows `LicenseScreen` (flip in, photo
   scan, rank stamp with shockwave, holographic sheen that follows the mouse). The sprite follows the rank through
   the item property `beyondsolo:rank`. A rank change sends a "license renewed" pop-up.
-- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (clear of toasts and effect icons):
+- **Gold on the HUD** (`GoldHud`): only shows when gold changes, on the right edge a third of the way down (under the effect icons, `EffectsHud.bottom()`):
   the balance rolls, coins spark, and "+18 Monster" style lines float under it (same-kind gains close together add up).
 - **Commands** (`/system gold|storage|shop|license ...`, level 2): gold info|add|set, storage open|expand [n]|fill|clear,
   shop buy &lt;entry&gt; [n]|sell &lt;slot&gt;|reset, license give|issue|clear &lt;rank&gt; [n]|reset. UI driver: `screen storage|shop`,
@@ -1277,6 +1323,11 @@ and how many have been slain.
 - **The kill** (`slain`, `pay`): every hunter with at least `MIN_SHARE` of the damage is paid by their share (in full
   from half of it up, so a pair both get everything): System XP, gold, greater mana stones, a supreme healing elixir,
   S-rank weapons, an Elixir of Rebirth from a monarch, a quest step for `SLAY_KEY`, and a line on their record.
+- **The chronicle** (`WorldBossJournal`): each kind has a journal page among the bosses (`boss:<asset name>`,
+  `JournalService.pageOf` maps the entity, `JournalArt` draws it), a kill counts as a boss for the boss titles and
+  the boss-damage perk, and every paid hunter earns Colossus Breaker (legendary, a world boss) or Crownbreaker
+  (mythic, a monarch); the one who did the most to a monarch also earns the secret Throne Taker. The TITLE ACQUIRED
+  moment waits for the kill's banner.
 - **Monarch armor** (`MonarchArmor`): grade `MONARCH`, a tier above the divine sets, level `LEVEL` (60), any class.
   Each monarch leaves its own regalia (`setOf`): Stillness (blows slow, every fifth freezes), Hunger (kills heal and
   stack strength up to three times), Storms (every fourth blow calls lightning that leaps to two more), with 2- and
@@ -1285,9 +1336,16 @@ and how many have been slain.
   lack. A piece takes its wearer's aura when put on (the `monarch_aura` component: their class's colour, the
   monarchs' violet `DEFAULT_AURA` without one). On the client `MonarchAuraLayer` draws its light over the worn plate:
   `<set>_aura_1/2.png` (seams, crest and edges, breathing in the aura's colour) and `monarch_current.png` (a slow
-  current running over the whole of it); the item colour handler tints the icon's `_aura` layer.
+  current running over the whole of it); the item colour handler tints the icon's `_aura` layer. Both use
+  `ModRenderTypes.armorGlow`/`armorCurrent`: vanilla draws armor with a view offset (a hair toward the camera), so a
+  layer laid over it needs the same offset or the plate hides it, and like the enchantment glint they test for equal
+  depth, so they only light the plate itself and never the see-through parts of a wing or a crest. Monarch pieces
+  have no enchantment glint (it would cover the aura's colour). `WorldBossWorldFx.regalia` adds motes and wisps of the
+  aura rising off whoever wears pieces (more for more pieces) and a faint halo for a whole set.
 - **Looks** (`client.worldboss`): `ColossalBossRenderer` and `WorldBossModel` (GeckoLib, glowing parts, the Walking
-  Mountain's molten skin in its last phase, a monarch's sigil underfoot, the pillar of light as one dies),
+  Mountain's molten skin in its last phase, a monarch's sigil underfoot, the pillar of light as one dies; a world
+  boss rising from or sinking into the earth stays on the ground and is drawn sunk by `ColossalBoss.buried`, because
+  the renderer skips an entity whose block is in a chunk section that was never drawn, as buried rock is),
   `BossProjectileRenderer`, `WorldBossWorldFx` (the warnings lying on the land as it is through `Terrain`, waves,
   falling stones, lightning, pillars, cracks of light; a column of light over a far world boss; the gate in the sky; a
   monarch's domain ring), `WorldBossHud` (the bar with phase notches and your share, its name in the threat colours
@@ -1301,6 +1359,93 @@ and how many have been slain.
 - **Commands** (`/system worldboss ...`, level 2): `spawn <kind> [here]`, `land`, `phase <n>`, `move <name>`,
   `hurt <amount>`, `kill`, `withdraw`, `stop`, `status`, `next <minutes>`, `armor <set> [n]`, `seal`, `record`. All
   numbers are first guesses for the balancing pass.
+
+## The chronicle: titles, rankings and the journal
+
+Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
+`ChronicleModule.init` registers the hunter's chronicle (`ChronicleData`, attachment `beyondsolo:chronicle`, kept
+through death: titles earned with the game time, the chronicle's own counters, journal pages, what is not looked at
+yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle plus how far
+along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
+`ChronicleActionPayload` the page's buttons: wear, take off, read, ask for the boards).
+
+- **Titles** (`title/Titles`, 52 of them in five categories: hunt, gates, citadel, system, mastery; five tiers from
+  common to mythic). A title with a `Feat` is earned when that number reaches its goal: the chronicle counts kills,
+  bosses, ascended bosses, clutch kills (a boss falling while the hunter is under 15% health), kills of far stronger
+  creatures, deaths, kills by creature family (`journal/CreatureFamily`), dungeon breaks held, hidden and trap rooms,
+  dailies, surprise quests, reactions and the longest combo itself; everything else is read from the record its own
+  feature keeps (gates cleared, red gates, keys, weaknesses, the Citadel and the rush, quests, the penalty zone, level,
+  gold earned, the shadow army, journal pages). `TitleService.check` runs every 2 s. A title without a feat is given by
+  its feature: `SystemAPI.setTitle(player, key)` fires `SystemEvent.TitleGranted` (cancellable) and the chronicle keeps
+  it. A new title is worn when nothing is worn or when the System picked the worn one and the new one is rarer; one the
+  hunter picked on the page stays on. Some titles are secret (shown as "???" until earned). Titles worn before the
+  chronicle existed are taken in quietly at login.
+- **Perks** (`TitlePerk`, only the worn title's): attribute ones as transient modifiers `beyondsolo:title_<perk>`
+  (attack, health, speed, armor, luck, elemental and spell power, mana efficiency, skill haste, exhaustion
+  resistance) put back on login, respawn and every change; event ones in `TitleService` (System XP on `XpGain`, gold
+  in `Economy.add` for kills, quests, gates and the Citadel, more damage to creatures, bosses, a family or far stronger
+  foes, less damage taken capped at 50%, and both below 30% health). Every number waits for the balancing pass.
+- **Rankings** (`ranking/`): the hunters' board by power (ten times `HiddenLevel.hunterLevel`), the Citadel (highest
+  floor, then the spire), the boss rush per tier (best time) and gates cleared. Players' standings are kept in the
+  saved data `beyondsolo_rankings` (taken at login, every minute and at logout); a fixed roster of 16 rival hunters
+  (`Rivals`, own names, guilds, ranks E to S) stands in for the national rankings and grows a little with the days of
+  the world. Climbing past someone on the hunters' board is announced with the next one to pass.
+- **The journal** (`journal/Journal`, about 107 pages: every gate creature by family, every boss and the Arbiter and
+  the lord, every realm plus the red gates' world, the Citadel and the Wastes, every graded weapon). `JournalService`
+  fills pages in from what the hunter sees within 24 blocks (every second), where they stand (a gate's realm or a
+  place) and what they carry (every 2 s); kills count on the page and a boss remembers each rank it was met at and
+  its ascended form. Another feature adds its pages with `Journal.register`. Lore lines are
+  `chronicle.beyondsolo.lore.<category>.<name>` (a weapon's own `.lore` line comes first).
+- **Client**: the CHRONICLE page (`ChronicleTab`, order 108) with three sections: `TitlesPage` (filters, every title
+  with its progress, the picked one's crest, goal, perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
+  hunter's place and who is next, the rush tiers) and `JournalPage` (a grid per section: creatures and bosses drawn
+  as themselves, weapons as their icons, realms as pictures, all dark shapes until known; the page with the creature
+  turning, its lore once one is slain, kills, the first day it was met and a boss's forms). `TitleOverlay` plays
+  TITLE ACQUIRED (the world dims to the tier's colour, the crest bursts in, the name types out on a band of light,
+  perks, worn or how to wear it; titles earned together share one moment) and a small card for each new page; both
+  wait while another System moment has the screen, and the hide key skips them. The worn title in the STATUS page
+  takes its tier's colour and opens the titles when clicked. Realm pictures (256x144) and icons come from
+  `tools/gen_chronicle_assets.py`.
+- **Commands** (`/system chronicle ...`, level 2): title grant|revoke|equip <id|all>, title check, count <feat>
+  <value>, journal reveal <all|section|page>, journal clear, rankings, info, reset.
+
+## Operator commands: /solo
+
+`/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
+place for an operator to change the game: wipe a player, set their numbers, spawn things, give items, move through
+gates. `/solo` alone shows the groups as buttons and `/solo help <group>` lists that group's commands, each line
+clickable to start typing it. The older `/system ...` commands stay for the mod's own tests and are reachable as
+`/solo dev ...` (a redirect to the `/system` node; `SoloCommand` registers at `EventPriority.LOWEST` so every module
+has added to `/system` by then).
+
+| Group | Commands | Class |
+|---|---|---|
+| player | `info`, `awaken [rank] [class]`, `evaluate [rank] [class]`, `bind`, `set level/rank/class/subclass/stat/points/gold/exhaustion`, `add xp/levels/points/gold/stat`, `heal`, `reset <part>`, `wipe system/all` | `SoloProgress`, `SoloWipe` |
+| skills | `skill learn/forget <skill>/all [level]`, `skill max`, `quest list/start/complete/fail`, `shadow give <creature> [rank]` | `SoloSkills` |
+| world | `spawn creature/boss/gate/cache/crystal`, `gate list/close [all]/break` | `SoloWorld` |
+| dungeons | `dungeon enter/boss/clear/leave/info`, `trial awakening/job/penalty`, `tower climb [floor]/rush <tier>/endless` | `SoloWorld` |
+| items | `give item <item> [count] [grade]`, `give armor <set> [grade]`, `give key/rune/tome/license` | `SoloGive` |
+
+- **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):
+  left out, the sender; named, a name or a selector. With several players, one failing is said under their name and
+  the rest go ahead (`Solo.each`).
+- **Arguments that could be a name:** Brigadier tries a node's arguments in the order they were added and keeps the
+  first that parses, and a player's name parses as almost anything. So a number before the players is added before
+  them (`SoloGive.counted`, the skill level, the tower floor), and words with a fixed set of values that come before
+  the players are literals, not word arguments (ranks and classes in `awaken`/`evaluate`, grades in `give`, shadow
+  ranks). `SoloCommandGameTests.aNumberIsALevelNotAName` guards it.
+- **Ids:** items, quests and creatures take a resource id; one typed without a namespace is looked for in the mod's
+  own after Minecraft's (`Solo.lookup`), and suggestions match by path too ("rune" offers `beyondsolo:rune_stone`).
+- **Wipe:** `system` cancels whatever is running for the player (Citadel run, Penalty Zone, job change trial, red
+  gate, shadows, the awakening, exhaustion), removes every data attachment in the `beyondsolo` namespace but the
+  System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
+  every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
+  ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
+  then start over like a new player: the presystem hint with the awakening trial on, the System at once with it off.
+- **Text:** every message is `command.beyondsolo.solo.*` in `assets/beyondsolo_commands/lang` (English and Spanish).
+  Command words, ids and the help's usage lines stay as typed.
+- Tests: `test/SoloCommandGameTests` (the tree and op-only, awaken/set/add/reset, a number read as a level, give,
+  quests, spawning creatures, a boss and a gate, both wipes).
 
 ## World generation
 
@@ -1328,7 +1473,7 @@ The System ships in English (`en_us.json`) and Spanish (`es_es.json`) in every a
   each player reads it in their own language. Don't call `getString()` on the server and send the result: on a
   dedicated server that is always English. Shadow names are stored as data, not text (`ShadowNames`: an invented name
   plus an epithet id, `"Vhalgrim|unbroken"`), and the client turns them into words.
-- Left in English on purpose: operator `/system ...` command feedback, config comments, the dev UI gallery, and
+- Left in English on purpose: the `/system ...` testing commands' feedback (`/solo` is translated), config comments, the dev UI gallery, and
   invented proper names (shadow names, roman numerals).
 
 ## Checking the UI without a screen
@@ -1384,5 +1529,11 @@ checks use zombies.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/ChronicleGameTests` covers: titles a feature gives being kept and worn (a rarer one replacing one the System
+picked, one the hunter picked staying on, taking it off), feats giving their titles at the goal, the title table
+(categories, goals, perks), perks following the worn title (attributes on and off, damage to a family, System XP,
+gold, damage taken), the journal filling in from kills (counted by family) and a boss's forms, every creature and
+boss having a page, the rankings holding every rival and the player with every board sent, and every title, perk,
+family, guild and page having its English line.
 `test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.
-`test/WorldBossGameTests` covers: every kind's model, skins and each animation its moves play, every name the HUD and pop-ups ask for (names, titles, phases, domains, authorities, regalia), a phase not skipped by one huge blow (it stops at the line, the phase begins, nothing heals it), a monarch dying in its last phase, every kind reading far stronger than a new S-rank hunter, monarch armor taking its wearer's aura (grade, tier, level, the violet when unworn or classless), and each monarch leaving its own regalia (the missing piece first).
+`test/WorldBossGameTests` covers: every kind's model, skins and each animation its moves play, every name the HUD and pop-ups ask for (names, titles, phases, domains, authorities, regalia), a phase not skipped by one huge blow (it stops at the line, the phase begins, nothing heals it), a monarch dying in its last phase, every kind reading far stronger than a new S-rank hunter, monarch armor taking its wearer's aura (grade, tier, level, the violet when unworn or classless), each monarch leaving its own regalia (the missing piece first), and every kind's journal page and kill titles (the rarest worn).

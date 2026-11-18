@@ -110,5 +110,21 @@
   "item.beyondsolo.monarch_storms_leggings": "Thyrax's Greaves",
   "item.beyondsolo.monarch_storms_boots": "Thyrax's Sabatons",
   "perk.beyondsolo.monarch_storms": "Stormcaller",
-  "perk.beyondsolo.monarch_storms.desc": "every fourth blow calls lightning down on your foe, and it leaps to two more"
+  "perk.beyondsolo.monarch_storms.desc": "every fourth blow calls lightning down on your foe, and it leaps to two more",
+  "chronicle.beyondsolo.name.bosses.titan": "Ghorrath, the Walking Mountain",
+  "chronicle.beyondsolo.lore.bosses.titan": "A giant of basalt and magma that carries a mountain ridge on its back. It wakes under the land where hunters grow strong, and the earth splits when it walks. When it is wounded deep enough, its skin runs molten.",
+  "chronicle.beyondsolo.name.bosses.behemoth": "Thurvok, the Horned Calamity",
+  "chronicle.beyondsolo.lore.bosses.behemoth": "A beast the size of a house with four great horns and a back of bone plates. It marks the ground before it charges, and nothing in its path stays standing. Its blood calls a pack to its side.",
+  "chronicle.beyondsolo.name.bosses.monarch_stillness": "Veyrith, Monarch of Stillness",
+  "chronicle.beyondsolo.lore.bosses.monarch_stillness": "A queen of ice with a crystal spear, come down through a tear in the sky. Where she rules, every heartbeat slows and the air itself stops. Her last authority is a cold that ends all motion.",
+  "chronicle.beyondsolo.name.bosses.monarch_hunger": "Khorvane, Monarch of Hunger",
+  "chronicle.beyondsolo.lore.bosses.monarch_hunger": "A feral king in a wolf's skull with blades for claws. He is never full: the longer he hunts, the faster he moves, and within his domain everything starves. His feast leaves nothing behind.",
+  "chronicle.beyondsolo.name.bosses.monarch_storms": "Thyrax, Monarch of Storms",
+  "chronicle.beyondsolo.lore.bosses.monarch_storms": "A winged lord in storm-dark plate with a glaive of lightning. He calls the sky down on whoever stands before him, and passes judgment on the land square by square.",
+  "title.beyondsolo.colossus_breaker": "Colossus Breaker",
+  "title.beyondsolo.colossus_breaker.desc": "Have a share in felling a world boss.",
+  "title.beyondsolo.crownbreaker": "Crownbreaker",
+  "title.beyondsolo.crownbreaker.desc": "Have a share in slaying a monarch.",
+  "title.beyondsolo.throne_taker": "Throne Taker",
+  "title.beyondsolo.throne_taker.desc": "Do the most damage to a monarch that falls."
 }

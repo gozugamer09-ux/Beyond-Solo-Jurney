@@ -110,5 +110,21 @@
   "item.beyondsolo.monarch_storms_leggings": "Grebas de Thyrax",
   "item.beyondsolo.monarch_storms_boots": "Escarpes de Thyrax",
   "perk.beyondsolo.monarch_storms": "Llamatormentas",
-  "perk.beyondsolo.monarch_storms.desc": "uno de cada cuatro golpes hace caer un rayo sobre tu enemigo, que salta a dos más"
+  "perk.beyondsolo.monarch_storms.desc": "uno de cada cuatro golpes hace caer un rayo sobre tu enemigo, que salta a dos más",
+  "chronicle.beyondsolo.name.bosses.titan": "Ghorrath, la Montaña Andante",
+  "chronicle.beyondsolo.lore.bosses.titan": "Un gigante de basalto y magma que carga una cordillera a la espalda. Despierta bajo la tierra donde los cazadores se hacen fuertes, y el suelo se parte cuando camina. Cuando se le hiere lo bastante hondo, su piel se vuelve lava.",
+  "chronicle.beyondsolo.name.bosses.behemoth": "Thurvok, la Calamidad Astada",
+  "chronicle.beyondsolo.lore.bosses.behemoth": "Una bestia del tamaño de una casa, con cuatro grandes cuernos y un lomo de placas de hueso. Marca el suelo antes de embestir, y nada en su camino queda en pie. Su sangre llama a una manada a su lado.",
+  "chronicle.beyondsolo.name.bosses.monarch_stillness": "Veyrith, Monarca de la Quietud",
+  "chronicle.beyondsolo.lore.bosses.monarch_stillness": "Una reina de hielo con una lanza de cristal, bajada por una grieta en el cielo. Donde ella reina, cada latido se ralentiza y hasta el aire se detiene. Su última autoridad es un frío que acaba con todo movimiento.",
+  "chronicle.beyondsolo.name.bosses.monarch_hunger": "Khorvane, Monarca del Hambre",
+  "chronicle.beyondsolo.lore.bosses.monarch_hunger": "Un rey salvaje con un cráneo de lobo y cuchillas por garras. Nunca se sacia: cuanto más caza, más rápido se mueve, y en su dominio todo pasa hambre. Su festín no deja nada atrás.",
+  "chronicle.beyondsolo.name.bosses.monarch_storms": "Thyrax, Monarca de las Tormentas",
+  "chronicle.beyondsolo.lore.bosses.monarch_storms": "Un señor alado con armadura de tormenta y una guja de relámpagos. Hace caer el cielo sobre quien se le planta delante, y juzga la tierra casilla por casilla.",
+  "title.beyondsolo.colossus_breaker": "Rompecolosos",
+  "title.beyondsolo.colossus_breaker.desc": "Toma parte en la caída de un jefe de mundo.",
+  "title.beyondsolo.crownbreaker": "Rompecoronas",
+  "title.beyondsolo.crownbreaker.desc": "Toma parte en la muerte de un monarca.",
+  "title.beyondsolo.throne_taker": "Usurpador del Trono",
+  "title.beyondsolo.throne_taker.desc": "Haz el mayor daño a un monarca que cae."
 }

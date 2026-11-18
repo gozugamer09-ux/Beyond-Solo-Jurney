@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:claw"
+  "parent": "bettercombat:claw",
+  "attributes": {
+    "pose": "beyondsolo:pose_dagger"
+  }
 }
