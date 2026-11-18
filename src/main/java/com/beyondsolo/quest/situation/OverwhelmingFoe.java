@@ -6,7 +6,6 @@ import com.beyondsolo.crafting.MonsterCoreItem;
 import com.beyondsolo.enemy.Affinity;
 import com.beyondsolo.enemy.EnemyTraits;
 import com.beyondsolo.enemy.HiddenLevel;
-import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
@@ -23,6 +22,7 @@ import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.tower.TowerAPI;
 import com.beyondsolo.util.ParticleGuard;
+import com.beyondsolo.worldboss.WorldBosses;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -42,7 +42,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.warden.Warden;
-import net.neoforged.neoforge.common.Tags;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -105,6 +104,8 @@ public final class OverwhelmingFoe extends Situation {
     static final String RATIO = "ratio";
     static final String RETURNS = "returns";
     static final String BODY = "body";
+    /** On the creature: when it last recovered in a fury (game time). */
+    static final String ROUSED = "beyondsolo_roused";
 
     /** The creatures of running fights as they were last seen (their return needs them), by creature. Memory only. */
     private static final Map<UUID, CompoundTag> SEEN = new HashMap<>();
@@ -236,6 +237,18 @@ public final class OverwhelmingFoe extends Situation {
         Situations.branch(player, q, annihilate(player, name, Foes.healthPercent(foe), next, foe), payFrom);
     }
 
+    /**
+     * Whether the creature may recover now: not if it already did for another hunter's quest within one fury, so a
+     * party hunting it together doesn't heal it once each.
+     */
+    private static boolean rouse(LivingEntity foe) {
+        long now = foe.level().getGameTime();
+        long last = foe.getPersistentData().getLong(ROUSED);
+        if (last > 0 && now - last < FURY_SECONDS * 20L) return false;
+        foe.getPersistentData().putLong(ROUSED, now);
+        return true;
+    }
+
     /** The fury is spent: the creature staggers, and the player is told to finish it. Surviving it is paid. */
     private void spent(ServerPlayer player, Quest q, Run run, LivingEntity foe) {
         foe.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 20 * 10, 0));
@@ -256,10 +269,12 @@ public final class OverwhelmingFoe extends Situation {
             QuestEngine.fail(player, q, QuestEvent.FailReason.TIME, outcome("outlasted", name));
             return true;
         }
-        // left standing too long, it recovers, and it is furious
-        foe.heal(foe.getMaxHealth() * RECOVER);
-        foe.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, FURY_SECONDS * 20, 0));
-        foe.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, FURY_SECONDS * 20, 0));
+        // left standing too long, it recovers, and it is furious (once for everyone hunting it; a boss fights by its own rules)
+        if (!Foes.isBoss(foe) && rouse(foe)) {
+            foe.heal(foe.getMaxHealth() * RECOVER);
+            foe.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, FURY_SECONDS * 20, 0));
+            foe.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, FURY_SECONDS * 20, 0));
+        }
         if (foe.level() instanceof ServerLevel level) {
             ParticleGuard.send(level, ParticleTypes.ANGRY_VILLAGER, foe.getX(), foe.getY() + foe.getBbHeight(), foe.getZ(), 8, 0.5, 0.3, 0.5, 0.0);
             level.playSound(null, foe.blockPosition(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 1.2f, 0.8f);
@@ -438,13 +453,13 @@ public final class OverwhelmingFoe extends Situation {
 
     /**
      * The creature as a fresh copy would be made from it: its kind, attributes, traits and level, but not who or where
-     * it is. Null for a creature that can't come back after the player (a gate's boss, a break's creature, a world
-     * boss, someone's summon).
+     * it is. Null for a creature that can't come back after the player (a boss, a break's creature, a monarch's
+     * soldier, someone's summon).
      */
     @Nullable
     static CompoundTag snapshot(LivingEntity e) {
-        if (!(e instanceof Mob) || e instanceof DungeonBoss || e instanceof Warden || DungeonBreaks.fromBreak(e)
-                || e.getType().is(Tags.EntityTypes.BOSSES) || Foes.playerBehind(e) != null) return null;
+        if (!(e instanceof Mob) || Foes.isBoss(e) || e instanceof Warden || DungeonBreaks.fromBreak(e)
+                || e.getPersistentData().hasUUID(WorldBosses.ARMY_TAG) || Foes.playerBehind(e) != null) return null;
         CompoundTag body = e.saveWithoutId(new CompoundTag());
         for (String k : List.of("UUID", "Pos", "Motion", "Rotation", "Passengers", "leash", "Leash", "Brain", "HurtByTimestamp", "DeathTime",
                 "HurtTime", "Fire", "FallDistance", "active_effects", "Health", "AbsorptionAmount", "PortalCooldown", "OnGround", "Air",

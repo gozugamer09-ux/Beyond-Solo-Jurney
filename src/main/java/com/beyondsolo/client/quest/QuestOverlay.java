@@ -104,6 +104,7 @@ public final class QuestOverlay {
         }
         if (current == null && !QUEUE.isEmpty() && !EvaluationOverlay.active() && !com.beyondsolo.client.skill.SkillOverlay.active() && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.npc.NpcBoardScreen.isOpen()
                 && !com.beyondsolo.client.depths.DepthsClient.bannerShowing() && !com.beyondsolo.client.breaks.BreakClient.bannerPending()
+                && !com.beyondsolo.client.worldboss.WorldBossClient.bannerPending()
                 && !com.beyondsolo.client.redgate.RedGateClient.warningUp() && !com.beyondsolo.client.tower.TowerClient.holdsScreen()) {
             current = QUEUE.pollFirst();
             NotificationManager.setHeld(true);

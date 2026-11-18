@@ -92,7 +92,10 @@ public final class ArsenalGameTests {
 
     @GameTest(template = ARENA)
     public static void eachGradeHasWeaponsAndEachClassADivine(GameTestHelper helper) {
-        for (ItemGrade g : ItemGrade.values()) helper.assertTrue(!Arsenal.ofGrade(g).isEmpty(), "no weapons of grade " + g);
+        // the monarch grade is armor only (monarch armor, from slain monarchs)
+        for (ItemGrade g : ItemGrade.values()) {
+            if (g != ItemGrade.MONARCH) helper.assertTrue(!Arsenal.ofGrade(g).isEmpty(), "no weapons of grade " + g);
+        }
         helper.assertTrue(Arsenal.ofGrade(ItemGrade.MYTHIC).size() >= 2, "at least two mythics");
         Set<Object> divines = new HashSet<>();
         for (PlayerClass c : PlayerClass.values()) {

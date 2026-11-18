@@ -9,7 +9,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 
 /**
- * How rare and strong a piece of gear is, from starter gear to the one-of-a-kind divine weapons. Every System item
+ * How rare and strong a piece of gear is, from starter gear to the one-of-a-kind divine weapons, and above them the
+ * monarch armor that only a slain monarch leaves ({@code worldboss.MonarchArmor}). Every System item
  * carries its grade as the {@link ModComponents#GRADE} component, so later steps (enhancement, boss loot) can change
  * it per stack. The client colours the name, the tooltip frame and dropped items by it.
  *
@@ -22,7 +23,9 @@ public enum ItemGrade implements StringRepresentable {
     EPIC(0xB46CFF, 0xE0B8FF),
     LEGENDARY(0xFFB02E, 0xFFE9A0),
     MYTHIC(0xFF3D5A, 0xFF9A5A),
-    DIVINE(0xFFF4C8, 0x7FE8FF);
+    DIVINE(0xFFF4C8, 0x7FE8FF),
+    /** Above divine: armor formed from its wearer's own aura, left only by slain monarchs. No weapon is of this grade. */
+    MONARCH(0xC77DFF, 0xF3E6FF);
 
     public static final com.mojang.serialization.Codec<ItemGrade> CODEC = StringRepresentable.fromEnum(ItemGrade::values);
 
@@ -42,7 +45,7 @@ public enum ItemGrade implements StringRepresentable {
         return accent;
     }
 
-    /** 0 = common ... 5 = divine. */
+    /** 0 = common ... 5 = divine, 6 = monarch. */
     public int tier() {
         return ordinal();
     }

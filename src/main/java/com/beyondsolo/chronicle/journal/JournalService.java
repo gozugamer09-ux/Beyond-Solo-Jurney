@@ -15,6 +15,7 @@ import com.beyondsolo.redgate.RedWorld;
 import com.beyondsolo.shadow.ShadowEntity;
 import com.beyondsolo.tower.CitadelLordEntity;
 import com.beyondsolo.tower.TowerRun;
+import com.beyondsolo.worldboss.ColossalBoss;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -54,6 +55,7 @@ public final class JournalService {
         if (e instanceof GateBossEntity b) return "boss:" + b.kind().id;
         if (e instanceof ArbiterEntity) return "boss:" + Journal.ARBITER;
         if (e instanceof CitadelLordEntity) return "boss:" + Journal.CITADEL_LORD;
+        if (e instanceof ColossalBoss c) return "boss:" + c.kind().asset();
         return null;
     }
 

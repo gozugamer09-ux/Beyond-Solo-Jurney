@@ -6,6 +6,7 @@ import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.gate.DungeonBoss;
 import com.beyondsolo.party.Parties;
 import com.beyondsolo.system.SystemAPI;
+import com.beyondsolo.worldboss.ColossalBoss;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.common.Tags;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -35,6 +37,14 @@ public final class Foes {
     public static double ratio(LivingEntity creature, Player hunter) {
         int level = HiddenLevel.has(creature) ? HiddenLevel.of(creature) : HiddenLevel.compute(creature);
         return HiddenLevel.powerAt(level) / HiddenLevel.powerAt(HiddenLevel.hunterLevel(SystemAPI.get(hunter)));
+    }
+
+    /**
+     * A boss: a gate's, a world boss or monarch, or anything tagged {@code c:bosses}. Its fight has its own rules, so a
+     * situation never heals it, enrages it or brings it back.
+     */
+    public static boolean isBoss(Entity e) {
+        return e instanceof DungeonBoss || e instanceof ColossalBoss || e.getType().is(Tags.EntityTypes.BOSSES);
     }
 
     /** A red name: far stronger than the hunter. */

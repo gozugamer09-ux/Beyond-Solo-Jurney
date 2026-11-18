@@ -9,6 +9,7 @@ import com.beyondsolo.chronicle.journal.JournalService;
 import com.beyondsolo.economy.Economy;
 import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.gate.DungeonBoss;
+import com.beyondsolo.worldboss.ColossalBoss;
 import com.beyondsolo.gate.GateBossEntity;
 import com.beyondsolo.network.ChronicleSyncPayload;
 import com.beyondsolo.network.TitleEarnedPayload;
@@ -204,7 +205,7 @@ public final class TitleService {
         float v = 0;
         if (HiddenLevel.has(victim)) {
             v += bonus(p, TitlePerk.CREATURE_DAMAGE);
-            if (victim instanceof DungeonBoss) v += bonus(p, TitlePerk.BOSS_DAMAGE);
+            if (victim instanceof DungeonBoss || victim instanceof ColossalBoss) v += bonus(p, TitlePerk.BOSS_DAMAGE);
             v += familyBonus(p, CreatureFamily.of(victim));
             float giant = bonus(p, TitlePerk.GIANT_DAMAGE);
             if (giant > 0 && HiddenLevel.threat(victim, p) == HiddenLevel.Threat.FAR_STRONGER) v += giant;
@@ -350,7 +351,7 @@ public final class TitleService {
         c.add(Feat.KILLS.id(), 1);
         CreatureFamily family = CreatureFamily.of(victim);
         if (family != null) c.add(Feat.of(family).id(), 1);
-        if (victim instanceof DungeonBoss) {
+        if (victim instanceof DungeonBoss || victim instanceof ColossalBoss) {
             c.add(Feat.BOSSES.id(), 1);
             if (victim instanceof GateBossEntity b && b.isAscended()) c.add(Feat.ASCENDED.id(), 1);
             if (hunter.isAlive() && hunter.getHealth() < hunter.getMaxHealth() * CLUTCH_BELOW) c.add(Feat.CLUTCH.id(), 1);

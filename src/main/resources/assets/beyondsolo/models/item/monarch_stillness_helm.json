@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "beyondsolo:item/monarch_stillness_helm",
+    "layer1": "beyondsolo:item/monarch_stillness_helm_aura"
+  }
+}

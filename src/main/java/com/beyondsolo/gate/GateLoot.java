@@ -88,7 +88,8 @@ public final class GateLoot {
         for (int i = 0; i < (ascended ? 2 : 1); i++) out.addAll(table.getRandomItems(params));
         if (ascended) {
             ItemGrade g = rollGrade(rank.tier(), level.random);
-            ItemGrade up = ItemGrade.values()[Math.min(ItemGrade.values().length - 1, g.ordinal() + 1)];
+            // a grade up, but never past divine: no weapon is of the monarch grade
+            ItemGrade up = ItemGrade.values()[Math.min(ItemGrade.DIVINE.ordinal(), g.ordinal() + 1)];
             ItemStack w = Arsenal.random(up, level.random);
             if (w != null) out.add(w);
         }

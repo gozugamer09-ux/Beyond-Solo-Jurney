@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "beyondsolo:item/monarch_stillness_boots",
+    "layer1": "beyondsolo:item/monarch_stillness_boots_aura"
+  }
+}

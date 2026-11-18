@@ -152,7 +152,8 @@ ROUND_CAP = 3.2
 BAR_DEPTH = 0.85
 BLOCK_DEPTH, BLOCK_WALL, BLOCK_BEVEL = 0.7, 0.82, 0.7
 GEM_DEPTH, GEM_EDGE = 0.8, 0.15
-LIMB_DEPTH = 0.8
+LIMB_DEPTH = 0.55
+RISER_DEPTH = 0.62
 FLAT_DEPTH = 0.16
 
 
@@ -201,7 +202,12 @@ def part_height(p, u, v, g, kind=None):
     if kind == "gem":
         return GEM_EDGE + GEM_DEPTH * (we - abs(vv))
     if kind == "limb":
-        return LIMB_DEPTH * we * math.sqrt(max(0.0, 1 - (vv / we) ** 2))
+        # a flat strip, the same depth right across (a bow's back and belly are its wide sides): the painted outline
+        # lies flat on the faces, and seen edge on the limb is the wall round it, which shows the wood. On a rounded
+        # limb the outline sat on the slope and showed from the front as two jagged black lines.
+        return LIMB_DEPTH * we
+    if kind == "riser":
+        return RISER_DEPTH * we                      # a bow's handle: a flat strip like the limbs, a little deeper
     if kind == "flat":
         return FLAT_DEPTH
     return min(ROUND_CAP, math.sqrt(max(0.0, we * we - vv * vv)))          # round

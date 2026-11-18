@@ -1,0 +1,256 @@
+{
+ "texture_height": {
+  "1": 64,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "cry0",
+   "part": "head",
+   "origin": [
+    -1,
+    -2.5,
+    -1
+   ],
+   "size": [
+    2,
+    2.5,
+    2
+   ],
+   "uv": [
+    8,
+    52
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -3,
+    -9.5,
+    -1.5
+   ],
+   "rotation": [
+    0,
+    0,
+    -15
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "cry1",
+   "part": "head",
+   "origin": [
+    -1,
+    -3.5,
+    -1
+   ],
+   "size": [
+    2,
+    3.5,
+    2
+   ],
+   "uv": [
+    51,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -10.5,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "cry2",
+   "part": "head",
+   "origin": [
+    -1,
+    -2.5,
+    -1
+   ],
+   "size": [
+    2,
+    2.5,
+    2
+   ],
+   "uv": [
+    16,
+    52
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    3,
+    -9.5,
+    -1.5
+   ],
+   "rotation": [
+    0,
+    0,
+    15
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "pauldron",
+   "part": "right_arm",
+   "origin": [
+    -5.75,
+    -4.25,
+    -4.25
+   ],
+   "size": [
+    7.5,
+    6.5,
+    8.5
+   ],
+   "uv": [
+    19,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -2,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    -10
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "pcry",
+   "part": "right_arm",
+   "origin": [
+    -1,
+    -3.5,
+    -1
+   ],
+   "size": [
+    2,
+    3.5,
+    2
+   ],
+   "uv": [
+    0,
+    52
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -2.5,
+    -3.5,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    20
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "cape",
+   "part": "body",
+   "origin": [
+    -4.5,
+    0,
+    0
+   ],
+   "size": [
+    9,
+    19,
+    0.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    0,
+    3.0
+   ],
+   "rotation": [
+    5,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.4
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.5
+   ],
+   "uv": [
+    24,
+    52
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  },
+  {
+   "name": "skirt",
+   "part": "right_leg",
+   "origin": [
+    -2.75,
+    -0.5,
+    -2.75
+   ],
+   "size": [
+    5.5,
+    8,
+    5.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "legs",
+   "layer": 2
+  }
+ ]
+}

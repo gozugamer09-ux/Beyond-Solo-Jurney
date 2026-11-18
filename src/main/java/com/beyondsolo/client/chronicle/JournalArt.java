@@ -58,6 +58,8 @@ final class JournalArt {
                 made = ModEntities.ARBITER.get().create(mc.level);
             } else if (Journal.CITADEL_LORD.equals(e.name())) {
                 made = TowerModule.CITADEL_LORD.get().create(mc.level);
+            } else if (com.beyondsolo.worldboss.WorldBossJournal.kindOf(e) != null) {
+                made = com.beyondsolo.worldboss.WorldBossModule.type(com.beyondsolo.worldboss.WorldBossJournal.kindOf(e)).create(mc.level);
             }
         } catch (RuntimeException ex) {
             BeyondSolo.LOGGER.debug("Journal could not make the creature of {}", e.id(), ex);

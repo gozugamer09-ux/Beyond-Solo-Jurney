@@ -37,6 +37,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
 | `breaks`, `client.breaks` | Dungeon breaks: the collapse timer on every uncleared gate, the break itself (waves, the boss coming through, suppression), and gate sensing in Pulse Scan; the break's banners, timer chip, gate compass and world effects (see "Dungeon breaks and gate sensing") |
 | `tower`, `client.tower` | The Crimson Citadel: the castle's hundred floors (`TowerFloors`), its halls (`CitadelHalls`), runs of the climb, the Endless Spire and the boss rush (`TowerRun`), the lord (`CitadelLordEntity`), the key and the Sigil of Dominion, the hunter's records (`TowerData`, read through `TowerAPI`); the CITADEL page, the HUD, the light in the halls and the citadel's sky (see "The Crimson Citadel") |
+| `worldboss`, `client.worldboss` | The world's great threats: world bosses and monarchs (the schedule and the call, the fights, rewards, the Monarch's Seal), monarch armor and its aura, the boss HUD and the warnings drawn on the ground (see "World bosses and monarchs") |
 | `party`, `client.party` | Parties for playing together: invitations, the party itself and its saved data, `/party`, shared kills, no friendly fire, gates that wait for the party, regrouping; the PARTY page, the party HUD and the markers in the world (see "Parties") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
@@ -351,7 +352,9 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
     pull frames whose limbs bend and shorten as the string comes back (`PULLS`: the seconds of drawing each frame
     shows from). In the hand the string and the arrow are not the painted texels but real shapes
     (`bow_extras`: a thin cord, a round shaft, a ridged broadhead, three feathers), so the bow looks right from
-    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). A bow has two
+    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). The limbs and
+    the handle are flat strips, the same depth right across (relief kinds `limb` and `riser`): on a rounded limb
+    the painted outline sat on the slope and showed from the front as two jagged black lines. A bow has two
     holds: at the side at rest, and raised with the arrow under the crosshair while drawn (the game's own bow-use
     hand movement is undone in the pull frames' transforms). `GradeVisuals` narrows the view while a System bow is
     drawn, which the game only does for its own bow.
@@ -439,7 +442,10 @@ Crimson Citadel run (`QuestTriggers.quiet`). **Follow-ups** (`FollowUps`, saved 
 minute later (a nemesis waits while the hunter is in a gate or the Citadel). When the creature a quest watches dies,
 its health row drops to 0 before the quest ends. Its death is the hunter's own (`Foes.killedBy`) when they, a summon of
 theirs or a party member beside them (`Parties.sharers`, the rule shared quest kills go by) dealt it; anyone else's
-kill ends the quest with part of the pay. Heals that are a share of health go through `Balance.healRaw`.
+kill ends the quest with part of the pay. Heals that are a share of health go through `Balance.healRaw`. A boss
+(`Foes.isBoss`: a gate's, a world boss or monarch, anything tagged `c:bosses`) can start Survive, but it never recovers
+or rages in It Fights Back and never comes back as a nemesis (nor does a break's creature, a monarch's soldier or a
+summon); any other creature recovers once per fury however many hunters' quests watch it.
 **Secret quests** (`Secrets`, category `SECRET`) are never announced: brave or unusual deeds (a far stronger kill, a
 whole raid, an untouched gate, a lone clear above your rank, a nemesis, a finished streak, a silent city plundered)
 reveal them already complete, paid once, with a title kept in the chronicle (`Secrets.registerTitles` puts the eight
@@ -1378,6 +1384,85 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## World bosses and monarchs
+
+Code in `worldboss/` (server) and `client/worldboss/` (client); lang in `assets/beyondsolo_worldboss/lang`.
+`WorldBossModule` registers the five bosses, `BossProjectile`, the Monarch's Seal, the monarch armor (pieces, the
+`monarch_aura` component), the hunter's record (`WorldBossRecord`, an attachment kept through death: kills by kind,
+times they did the most, the pity count), the payloads and the config (`WorldBossConfig`, `worldbosses.*`). What is
+abroad lives in `WorldBossData` (saved with the overworld): at most one great threat at a time, when the next comes,
+and how many have been slain.
+
+- **The kinds** (`WorldBossKind`): two world bosses that stride over the land as it is (`GiantBoss`: through trees,
+  over hills, never into deep water; they roam `ROAM` blocks round where they rose and give up a chase past `LEASH`):
+  Ghorrath, the Walking Mountain (`TitanBoss`, flame) and Thurvok, the Horned Calamity (`BehemothBoss`, blood). Three
+  monarchs (`MonarchBoss`: they walk, leap and blink): Veyrith of Stillness (`StillnessMonarch`, frost), Khorvane of
+  Hunger (`HungerMonarch`, blood) and Thyrax of Storms (`StormMonarch`, storm). Each kind has its health and damage (multiples of an S-rank gate
+  boss's, `Balance.bossHealth`/`bossDamage`, so they move with the power curve: about 85,000 to 105,000 health), colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
+  phase by phase.
+- **When they come** (`WorldBosses`): once an awakened hunter in the overworld reaches `minLevel` (26, a C-rank gate's home level), the first
+  world boss rises `firstMinutes` (30) later, about 80 to 130 blocks from a hunter (`minDistance`, `maxDistance`),
+  and the next comes `intervalMinutes` (75) after the last one left. Once `monarchAfterKills` (2) world bosses have
+  fallen and a hunter is `monarchMinLevel` (56, an A-rank gate's), the next is a monarch by `monarchChance` (0.3). A Monarch's Seal
+  (`MonarchSealItem`, the best hunter's chance gift from a world boss, `sealChance`) calls one down at once when
+  broken in the overworld. The System calls every hunter in the overworld (a pop-up, a banner, a quest from
+  `world_boss/hunt`, its mark on screen), and the status goes out every two seconds (`WorldBossPayload`). If no hunter
+  comes near it or hurts it for `abandonMinutes` (12), it sinks back into the earth (a monarch rises back into its gate).
+- **The fight** (`ColossalBoss`): three phases. A phase can't be skipped: however hard it is hit, its health stops
+  at the next phase's line (`phaseFloor`) until that phase has begun (a short transition: a roar, the land shaking,
+  the phase's banner). It takes damage all the while: no shield, no immunity, no healing, and no floor in its last
+  phase. Moves (`Move`) are an animation plus a script run on its ticks; every blow is announced on the ground first
+  (`WorldBossFx` sends `WorldBossFxPayload`s: discs, bands, strips, wedges, squares, and waves that run out along the
+  ground to be jumped), and what it throws (`BossProjectile`) flies a set path in a set time so it lands as the warning
+  said. It only ever hits hunters, what they own (shadows, pets), iron golems and whatever it is fighting. The health
+  each hunter takes off it is kept (their shadows and pets count for them).
+- **Monarchs** (`MonarchBoss`): a gate tears open in the sky (`GATE_HEIGHT` up), and `descentSeconds` (60) later the
+  monarch comes down through it and lands with a blow. Its domain (`DOMAIN` blocks round it) is its own rule:
+  Stillness slows and freezes, Hunger starves and bleeds, Storms calls lightning down (drawn on the ground first).
+  Hunters below `PRESSURE_LEVEL` (74, an S-rank gate's home level) within `PRESSURE_RANGE` are weighed down. Its army (`MonarchArmy`, tagged `ARMY_TAG`)
+  is S-rank gate creatures of its affinity, called up as it lands and again as it angers; they crumble when it falls
+  or leaves (soldiers in unloaded land as soon as it loads). Its authority, in the last phase, is named on every
+  hunter's screen with the time left to get clear.
+- **The kill** (`slain`, `pay`): every hunter with at least `MIN_SHARE` of the damage is paid by their share (in full
+  from half of it up, so a pair both get everything): System XP (a quarter of its health, seven tenths for a monarch), gold, greater mana stones, a supreme healing elixir,
+  S-rank weapons, an Elixir of Rebirth from a monarch, a quest step for `SLAY_KEY`, and a line on their record.
+- **The chronicle** (`WorldBossJournal`): each kind has a journal page among the bosses (`boss:<asset name>`,
+  `JournalService.pageOf` maps the entity, `JournalArt` draws it), a kill counts as a boss for the boss titles and
+  the boss-damage perk, and every paid hunter earns Colossus Breaker (legendary, a world boss) or Crownbreaker
+  (mythic, a monarch); the one who did the most to a monarch also earns the secret Throne Taker. The TITLE ACQUIRED
+  moment waits for the kill's banner.
+- **Monarch armor** (`MonarchArmor`): grade `MONARCH`, a tier above the divine sets, level `LEVEL` (60), any class.
+  Each monarch leaves its own regalia (`setOf`): Stillness (blows slow, every fifth freezes), Hunger (kills heal and
+  stack strength up to three times), Storms (every fourth blow calls lightning that leaps to two more), with 2- and
+  4-piece bonuses like any set. Each hunter who did a tenth of a monarch's health gets a piece by
+  `monarchArmorChance` (0.2), or for sure after `monarchArmorPity` (5) monarchs without one; `piece` prefers one they
+  lack. A piece takes its wearer's aura when put on (the `monarch_aura` component: their class's colour, the
+  monarchs' violet `DEFAULT_AURA` without one). On the client `MonarchAuraLayer` draws its light over the worn plate:
+  `<set>_aura_1/2.png` (seams, crest and edges, breathing in the aura's colour) and `monarch_current.png` (a slow
+  current running over the whole of it); the item colour handler tints the icon's `_aura` layer. Both use
+  `ModRenderTypes.armorGlow`/`armorCurrent`: vanilla draws armor with a view offset (a hair toward the camera), so a
+  layer laid over it needs the same offset or the plate hides it, and like the enchantment glint they test for equal
+  depth, so they only light the plate itself and never the see-through parts of a wing or a crest. Monarch pieces
+  have no enchantment glint (it would cover the aura's colour). `WorldBossWorldFx.regalia` adds motes and wisps of the
+  aura rising off whoever wears pieces (more for more pieces) and a faint halo for a whole set.
+- **Looks** (`client.worldboss`): `ColossalBossRenderer` and `WorldBossModel` (GeckoLib, glowing parts, the Walking
+  Mountain's molten skin in its last phase, a monarch's sigil underfoot, the pillar of light as one dies; a world
+  boss rising from or sinking into the earth stays on the ground and is drawn sunk by `ColossalBoss.buried`, because
+  the renderer skips an entity whose block is in a chunk section that was never drawn, as buried rock is),
+  `BossProjectileRenderer`, `WorldBossWorldFx` (the warnings lying on the land as it is through `Terrain`, waves,
+  falling stones, lightning, pillars, cracks of light; a column of light over a far world boss; the gate in the sky; a
+  monarch's domain ring), `WorldBossHud` (the bar with phase notches and your share, its name in the threat colours
+  of `enemy/HiddenLevel` like every System creature's, a marker with distance and arrow when it is far, the domain's
+  edge tint, banners). Ground textures are `textures/effect/wb_*.png`.
+- **Art** is made by scripts: `tools/gen_worldboss_assets.py <titan|behemoth|stillness|hunger|storms|fx>` writes a
+  boss's model, skins (main and glow) and animations, or (`fx`) the warning textures and the armor's current.
+  `tools/gen_monarch_armor.py [set...|seal]` writes the regalia (worn layers, aura masks, worn model parts, item
+  icons) and the seal; `--preview <set> [rrggbb]` and `--icons [rrggbb]` render them in an aura colour into
+  `build/preview/`.
+- **Commands** (`/system worldboss ...`, level 2): `spawn <kind> [here]`, `land`, `phase <n>`, `move <name>`,
+  `hurt <amount>`, `kill`, `withdraw`, `stop`, `status`, `next <minutes>`, `armor <set> [n]`, `seal`, `record`. All
+  numbers are first guesses for the balancing pass.
+
 ## Parties
 
 Friends who join a server should end up in the same place and go through gates together. Three things kept them apart
@@ -1598,3 +1683,4 @@ gold, damage taken), the journal filling in from kills (counted by family) and a
 boss having a page, the rankings holding every rival and the player with every board sent, and every title, perk,
 family, guild and page having its English line.
 `test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.
+`test/WorldBossGameTests` covers: every kind's model, skins and each animation its moves play, every name the HUD and pop-ups ask for (names, titles, phases, domains, authorities, regalia), a phase not skipped by one huge blow (it stops at the line, the phase begins, nothing heals it), a monarch dying in its last phase, every kind reading far stronger than a new S-rank hunter, monarch armor taking its wearer's aura (grade, tier, level, the violet when unworn or classless), each monarch leaving its own regalia (the missing piece first), and every kind's journal page and kill titles (the rarest worn).
