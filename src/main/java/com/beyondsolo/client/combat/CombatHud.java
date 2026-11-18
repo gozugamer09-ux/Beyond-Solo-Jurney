@@ -257,7 +257,7 @@ public final class CombatHud {
         // beside the status capsule, lined up with its middle
         float right = StatusHud.right();
         float x = right > 0 ? right + 8 : 8;
-        float cy = right > 0 ? StatusHud.middle() : 8 + 15;
+        float cy = right > 0 ? StatusHud.middle() : StatusHud.top() + 15;
         RAIL.removeIf(s -> !s.live && s.visible < 0.02f);
         for (Slot s : RAIL) {
             s.visible = Anim.approach(s.visible, s.live ? 1 : 0, s.live ? 9f : 5f);

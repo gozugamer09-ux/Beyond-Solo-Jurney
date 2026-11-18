@@ -6,6 +6,7 @@ import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.client.job.CutsceneCamera;
 import com.beyondsolo.network.PenaltyPayload;
 import com.mojang.math.Axis;
@@ -247,6 +248,8 @@ public final class PenaltyOverlay {
         float pw = 176, ph = 42;
         float x = (w - pw) / 2f, y = 5 - 14 * (1 - in);
         float old = Gfx.fade(Mth.clamp(shownTimer * 1.3f, 0, 1));
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x, y, pw, ph);
         boolean urgent = leftSec <= 10.5f;
         int accent = urgent ? Gfx.mix(RED, 0xFFFFFFFF, 0.25f * heartbeat(Anim.since(PenaltyClient.phaseStart) * 1.6f)) : RED;
         Shapes.box(x, y, pw, ph).radius(10).fillV(GLASS_TOP, GLASS_BOTTOM)

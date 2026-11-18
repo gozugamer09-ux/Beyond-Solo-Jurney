@@ -31,12 +31,19 @@ public final class StatusHud {
     private static float visible = 1;
     /** Where the HUD ended on the last frame, so the quest tracker can sit under it. */
     private static float bottom = 8;
+    /** Where the HUD starts: the corner, or under Xaero's minimap when that sits there. */
+    private static float top = 8;
     /** The capsule's right edge and middle on the last frame (0 right when it isn't there), for the combat rail. */
     private static float right;
     private static float middle = 23;
 
     public static float bottom() {
         return bottom;
+    }
+
+    /** Where the HUD starts on the last frame (under Xaero's minimap when that keeps the corner). */
+    public static float top() {
+        return top;
     }
 
     public static float right() {
@@ -63,14 +70,16 @@ public final class StatusHud {
 
         // the HUD is the System's: it isn't there until the System is (and it slides in when it binds)
         visible = Anim.approach(visible, hidden || !d.hasSystem() ? 0 : 1, d.hasSystem() ? 8f : 100f);
+        // Xaero's minimap keeps the corner when it sits there: the capsule and everything under it start below it
+        top = Math.max(8, HudSpace.topLeft());
         if (!ClientConfig.SHOW_HUD.get() || mc.getDebugOverlay().showDebugScreen() || visible < 0.02f) {
-            bottom = 8;
+            bottom = top;
             right = 0;
             return;
         }
         float old = Gfx.fade(visible);
         float x = 8;
-        float y = 8;
+        float y = top;
         right = 0;
 
         if (d.isAwakened() && VitalsHud.active()) {
@@ -189,6 +198,7 @@ public final class StatusHud {
         lastObjective = "";
         hidden = false;
         visible = 1;
+        top = 8;
     }
 
     private StatusHud() {}

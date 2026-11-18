@@ -7,6 +7,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
@@ -35,6 +36,12 @@ public final class HudClientEvents {
 
     @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
     public static final class GameBus {
+        /** Before any layer draws: the room our pieces took last frame is given back (see {@link HudSpace}). */
+        @SubscribeEvent(receiveCanceled = true)
+        static void frame(RenderGuiEvent.Pre event) {
+            HudSpace.newFrame();
+        }
+
         @SubscribeEvent
         static void hideVanilla(RenderGuiLayerEvent.Pre event) {
             if (!VitalsHud.active()) return;

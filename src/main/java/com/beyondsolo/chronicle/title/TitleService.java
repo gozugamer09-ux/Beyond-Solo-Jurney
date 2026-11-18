@@ -41,7 +41,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,8 +70,6 @@ public final class TitleService {
     /** Damage taken is never cut by more than this, whatever the title. */
     public static final float MAX_GUARD = 0.5f;
 
-    /** The progress last sent to each hunter, so it is only sent again when it moved. */
-    private static final Map<UUID, Integer> SENT = new ConcurrentHashMap<>();
     /** Hunters whose chronicle changed since it was last sent (sent on their next half second). */
     private static final Set<UUID> DIRTY = ConcurrentHashMap.newKeySet();
 
@@ -113,24 +110,18 @@ public final class TitleService {
         return true;
     }
 
-    /** Every title whose feat is done and that the hunter does not have yet. Needs the System. */
+    /**
+     * Every title whose feat is done and that the hunter does not have yet. Needs the System. How far along a title
+     * is never leaves the server: the hunter learns what earns a title only once it is theirs.
+     */
     public static int check(ServerPlayer p) {
         if (!SystemAPI.hasSystem(p)) return 0;
         ChronicleData c = data(p);
         int earned = 0;
-        int progress = 17;
         for (TitleDef d : Titles.all()) {
             if (d.feat() == null || c.hasTitle(d.key())) continue;
-            long value = d.feat().value(p, c);
-            if (value >= d.goal()) {
-                if (grant(p, d.key())) earned++;
-            } else {
-                progress = progress * 31 + Long.hashCode(value);
-            }
+            if (d.feat().value(p, c) >= d.goal() && grant(p, d.key())) earned++;
         }
-        Integer sent = SENT.get(p.getUUID());
-        if (earned == 0 && (sent == null || sent != progress)) sync(p);
-        SENT.put(p.getUUID(), progress);
         return earned;
     }
 
@@ -237,14 +228,6 @@ public final class TitleService {
         if (p instanceof FakePlayer) return;
         ChronicleData c = data(p);
         CompoundTag tag = c.serializeNBT(p.registryAccess());
-        CompoundTag progress = new CompoundTag();
-        if (SystemAPI.hasSystem(p)) {
-            for (TitleDef d : Titles.all()) {
-                if (d.feat() == null || c.hasTitle(d.key())) continue;
-                progress.putLong(d.key(), Math.min(d.goal(), d.feat().value(p, c)));
-            }
-        }
-        tag.put("progress", progress);
         tag.putInt("pages", Journal.size());
         PacketDistributor.sendToPlayer(p, new ChronicleSyncPayload(tag));
     }
@@ -273,14 +256,12 @@ public final class TitleService {
             c.setMigrated();
         }
         applyPerks(p);
-        SENT.remove(p.getUUID());
         check(p);
         sync(p);
     }
 
     @SubscribeEvent
     static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
-        SENT.remove(event.getEntity().getUUID());
         DIRTY.remove(event.getEntity().getUUID());
     }
 

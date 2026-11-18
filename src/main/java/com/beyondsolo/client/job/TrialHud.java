@@ -6,6 +6,7 @@ import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.network.JobTrialPayload;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -101,6 +102,8 @@ public final class TrialHud {
         float in = Anim.outBack(Anim.window(age, 0, 0.45f));
         float pw = 200, ph = 32;
         float x = (w - pw) / 2f, y = 6 - 10 * (1 - in);
+        // our bars at the top centre: an overlay there (Jade's tooltip) goes under them
+        HudSpace.claimTop(x, y, pw, ph);
         Shapes.box(x, y, pw, ph).radius(9).fillV(SystemTheme.GLASS_TOP, SystemTheme.GLASS_BOTTOM)
                 .border(0.75f, Gfx.fade(VIOLET, 0.9f), Gfx.fade(VIOLET, 0.25f)).glow(8, Gfx.alpha(VIOLET_DEEP, 0.3f)).draw(g);
         Shapes.icon(Icons.SKULL, x + 13, y + ph / 2f, 12).fill(VIOLET).glow(3, Gfx.alpha(VIOLET, 0.5f)).draw(g);
@@ -124,6 +127,7 @@ public final class TrialHud {
         if (s.isEmpty()) return;
         float tw = SysFont.width(s, 6.5f, false) + 16;
         float y = 38;
+        HudSpace.claimTop((w - tw) / 2f, y, tw, 11);
         Shapes.pill((w - tw) / 2f, y, tw, 11).fill(0xB00A1222).border(0.6f, Gfx.alpha(VIOLET, 0.7f)).draw(g);
         SysFont.draw(g, s, w / 2f, y + 2.6f, 6.5f, VIOLET, false, 0.5f);
     }
