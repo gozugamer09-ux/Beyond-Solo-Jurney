@@ -18,7 +18,7 @@ import java.util.Map;
  */
 public final class SellPrices {
     /** By grade: common .. divine. */
-    public static final long[] GRADE = {40, 150, 600, 2000, 6000, 20000};
+    public static final long[] GRADE = {40, 150, 600, 2000, 6000, 20000, 60000};
 
     /** Monster cores by rank E..S (boss cores are worth six times as much). */
     public static final long[] CORE = {20, 45, 100, 220, 500, 1200};

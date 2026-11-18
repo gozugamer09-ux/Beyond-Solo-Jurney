@@ -122,9 +122,9 @@ public final class NotificationManager {
             }
         }
         if (suppressed) return;
-        // new pop-ups wait while a quest moment holds the middle of the screen, or while a dungeon break's banner is up
-        // (it runs across the top, where they would cover it)
-        if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending()) return;
+        // new pop-ups wait while a quest moment holds the middle of the screen, or while a dungeon break's or a great
+        // threat's banner is up (they run across the top, where they would cover it)
+        if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending() || com.beyondsolo.client.worldboss.WorldBossClient.bannerPending()) return;
         // With "stay open" on, a full stack makes room by retiring its oldest pop-up.
         if (keep && !WAITING.isEmpty() && shown >= MAX_VISIBLE) {
             for (Popup p : ACTIVE) {

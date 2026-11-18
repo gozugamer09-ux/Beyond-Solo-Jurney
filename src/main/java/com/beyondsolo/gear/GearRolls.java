@@ -15,9 +15,9 @@ import java.util.List;
  */
 public final class GearRolls {
     /** Stats rolled by grade (common may roll none, see {@link #count}). */
-    public static final int[] COUNT = {1, 1, 2, 3, 4, 5};
+    public static final int[] COUNT = {1, 1, 2, 3, 4, 5, 6};
 
-    /** Multiplier on a stat's roll range by grade: common 1x up to divine 2.75x. */
+    /** Multiplier on a stat's roll range by grade: common 1x up to divine 2.75x (monarch 3.1x). */
     public static float gradeScale(ItemGrade grade) {
         return 1f + 0.35f * grade.tier();
     }
