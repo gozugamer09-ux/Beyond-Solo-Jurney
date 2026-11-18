@@ -123,10 +123,10 @@ public final class NotificationManager {
         }
         if (suppressed) return;
         // new pop-ups wait while a quest moment holds the middle of the screen, while a dungeon break's or a great
-        // threat's banner is up (they run across the top, where they would cover it), or while the Citadel has the
-        // screen (its cards)
+        // threat's banner is up (they run across the top, where they would cover it), or while the Citadel or a raid
+        // has the screen (its cards; a raid's banners, cataclysm and results board)
         if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending() || com.beyondsolo.client.worldboss.WorldBossClient.bannerPending()
-                || com.beyondsolo.client.tower.TowerClient.holdsScreen()) return;
+                || com.beyondsolo.client.tower.TowerClient.holdsScreen() || com.beyondsolo.client.raid.RaidClient.holdsScreen()) return;
         // With "stay open" on, a full stack makes room by retiring its oldest pop-up.
         if (keep && !WAITING.isEmpty() && shown >= MAX_VISIBLE) {
             for (Popup p : ACTIVE) {

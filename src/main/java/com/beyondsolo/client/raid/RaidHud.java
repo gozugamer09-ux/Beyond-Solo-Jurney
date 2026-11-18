@@ -303,6 +303,7 @@ public final class RaidHud {
             RaidClient.closeResults();
             return;
         }
+        RaidClient.boardFrame(t);
         boolean ok = r.getBoolean("cleared");
         int c = ok ? GOLD : DOOM;
         float k = (1 - Anim.window(t, RESULTS_FOR - 0.6f, RESULTS_FOR)) * Anim.outCubic(Anim.window(t, 0f, 0.35f));

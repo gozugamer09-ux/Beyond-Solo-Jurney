@@ -49,6 +49,8 @@ public final class RaidClient {
      * CLEARED, a quest or title moment already under way): the results board comes in after it.
      */
     private static double heldAt = -10;
+    /** The results board has come in (the pop-ups showing then made room for it). */
+    private static boolean boardIn;
 
     /** The cataclysm the boss is channelling: since when (Anim time) and how long until it lands. */
     private static double cataclysmAt = -10;
@@ -107,6 +109,7 @@ public final class RaidClient {
                 resultsTitle = p.title();
                 resultsDungeon = p.text();
                 resultsAt = Anim.now();
+                boardIn = false;
                 cataclysmAt = -10;
                 boolean ok = p.data().getBoolean("cleared");
                 sound(ok ? SoundEvents.UI_TOAST_CHALLENGE_COMPLETE : SoundEvents.BEACON_DEACTIVATE, ok ? 1.0f : 0.6f, 0.8f);
@@ -312,8 +315,20 @@ public final class RaidClient {
     public static boolean skipResults() {
         if (results == null || sinceResults() <= 0.05f) return false;
         float t = sinceResults(), end = RESULTS_SECONDS - 0.6f;
-        if (t < end) resultsAt -= end - t;
+        if (t < end) {
+            // both clocks: the board's age is the younger of the two
+            resultsAt -= end - t;
+            heldAt -= end - t;
+        }
         return true;
+    }
+
+    /** Once a frame from the HUD while the board is up: the pop-ups showing make room for it when it comes in. */
+    static void boardFrame(float t) {
+        if (!boardIn && t > 0.05f) {
+            boardIn = true;
+            com.beyondsolo.client.notify.NotificationManager.hideShowing();
+        }
     }
 
     public static Component outcome() {
