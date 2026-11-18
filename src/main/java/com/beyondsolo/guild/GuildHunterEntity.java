@@ -250,6 +250,8 @@ public class GuildHunterEntity extends PathfinderMob {
         if (e instanceof Player || e instanceof GuildHunterEntity || e instanceof ShadowEntity) return false;
         if (e instanceof OwnableEntity o && o.getOwnerUUID() != null) return false;
         if (e instanceof GateBossEntity boss && (!boss.isAwake() || boss.introTicks() > 0)) return false;
+        // hired hunters keep out of the light's war
+        if (com.beyondsolo.ruler.Rulers.light(e)) return false;
         return e instanceof Enemy && !e.isInvulnerable();
     }
 

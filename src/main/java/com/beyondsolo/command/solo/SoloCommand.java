@@ -43,6 +43,7 @@ public final class SoloCommand {
         SoloGive.register(root);
         SoloGuilds.register(root);
         SoloMonarch.register(root);
+        SoloRulers.register(root);
         CommandNode<CommandSourceStack> system = dispatcher.getRoot().getChild("system");
         if (system != null) root.then(Commands.literal("dev").redirect(system));
         dispatcher.register(root);

@@ -32,22 +32,33 @@ import java.util.Locale;
  *   phases begin, this hunter's share of the damage and place, the phase's name.</li>
  *   <li><b>A marker</b> when it is far: its name, how far, an arrow that turns to it, and a monarch's countdown to
  *   landing.</li>
- *   <li><b>A monarch's domain</b>: the edges of the screen in its colour while you stand inside it.</li>
+ *   <li><b>A monarch's domain</b>: the edges of the screen in its colour while you stand inside it (a ruler's sanctum,
+ *   softer).</li>
  *   <li><b>Banners</b>: it has risen, a gate has opened in the sky (with the countdown), each phase, the domain, the
- *   authority (with the time left to get clear), the kill (share, place, XP), and its leaving.</li>
+ *   authority (with the time left to get clear), the kill (share, place, XP), and its leaving; and the light's own: a
+ *   ruler coming to make war on a monarch, a sentence passed on a crowned hunter, a blessing given.</li>
  * </ul>
+ * A ruler abroad beside the great threat gets a bar and a marker of its own, under the great threat's.
  */
 public final class WorldBossHud {
     private static final String[] ROMAN = {"I", "II", "III"};
     private static final int WHITE = 0xFFFFFFFF;
 
-    private static float barIn;
-    private static float markIn;
+    /** One bar and marker's state between frames: the great threat's, and the ruler's beside it. */
+    private static final class Slot {
+        float barIn;
+        float markIn;
+        float shownHealth = 1f;
+        float trailHealth = 1f;
+        long barEvent;
+        WorldBossClient.Tracked last;
+    }
+
+    private static final Slot THREAT = new Slot();
+    private static final Slot LIGHT = new Slot();
     private static float domainIn;
-    private static float shownHealth = 1f;
-    private static float trailHealth = 1f;
-    private static long barEvent;
-    private static WorldBossClient.Tracked lastTracked;
+    private static int domainColor = 0xFFFFFFFF;
+    private static float domainStrength = 0.2f;
     private static WorldBossClient.Banner kicked;
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
@@ -57,13 +68,18 @@ public final class WorldBossHud {
         if (mc.options.hideGui) return;
         int w = g.guiWidth(), h = g.guiHeight();
         float partial = delta.getGameTimeDeltaPartialTick(false);
-        WorldBossClient.Tracked t = WorldBossClient.tracked();
-        if (t != null) lastTracked = t;
-        domain(g, mc, w, h, t);
+        WorldBossClient.Tracked t = WorldBossClient.tracked(), r = WorldBossClient.ruler();
+        if (t != null) THREAT.last = t;
+        if (r != null) LIGHT.last = r;
+        domain(g, mc, w, h, t, r);
         if (b != null) banner(g, mc, w, h, b);
         float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + BreakHud.shownHeight();
-        bar(g, mc, w, y, t);
-        if (ClientSystemData.get().hasSystem()) marker(g, mc, w, y + 38 * Anim.outCubic(barIn), t, partial);
+        y += bar(g, mc, w, y, t, THREAT);
+        y += bar(g, mc, w, y, r, LIGHT);
+        if (ClientSystemData.get().hasSystem()) {
+            y += marker(g, mc, w, y, t, partial, THREAT);
+            marker(g, mc, w, y, r, partial, LIGHT);
+        }
     }
 
     /** The tier's colour with full opacity. */
@@ -82,35 +98,37 @@ public final class WorldBossHud {
     // ================================================================ the bar
 
     /** Whether the boss is near enough, and far enough into its fight, for its bar. */
-    private static boolean barShown(Minecraft mc, WorldBossClient.Tracked t) {
+    private static boolean barShown(Minecraft mc, WorldBossClient.Tracked t, Slot slot) {
         if (t == null) return false;
         ColossalBoss boss = t.boss();
-        if (boss == null) return t.slain && t.endedAt >= 0 && Anim.since(t.endedAt) < 2.5f && barIn > 0.5f;
+        if (boss == null) return t.slain && t.endedAt >= 0 && Anim.since(t.endedAt) < 2.5f && slot.barIn > 0.5f;
         if (boss.distanceTo(mc.player) > 96 || !boss.isAwake()) return false;
         if (boss.isDeadOrDying()) return boss.deathTime < 50;
         return boss.introTicks() <= 0 && !boss.leaving();
     }
 
-    private static void bar(GuiGraphics g, Minecraft mc, int w, float y, WorldBossClient.Tracked live) {
-        boolean show = barShown(mc, live);
-        barIn = Anim.approach(barIn, show ? 1f : 0f, show ? 3.5f : 2.5f);
-        WorldBossClient.Tracked t = live != null ? live : lastTracked;
-        if (barIn <= 0.01f || t == null) return;
-        if (barEvent != t.event) {
-            barEvent = t.event;
-            shownHealth = trailHealth = t.healthNow();
+    /** The bar of one slot's boss; returns the height it takes. */
+    private static float bar(GuiGraphics g, Minecraft mc, int w, float y, WorldBossClient.Tracked live, Slot slot) {
+        boolean show = barShown(mc, live, slot);
+        slot.barIn = Anim.approach(slot.barIn, show ? 1f : 0f, show ? 3.5f : 2.5f);
+        WorldBossClient.Tracked t = live != null ? live : slot.last;
+        if (slot.barIn <= 0.01f || t == null) return 0;
+        if (slot.barEvent != t.event) {
+            slot.barEvent = t.event;
+            slot.shownHealth = slot.trailHealth = t.healthNow();
         }
         WorldBossKind k = t.kind;
         ColossalBoss boss = t.boss();
         float hp = Mth.clamp(t.healthNow(), 0, 1);
-        shownHealth = Anim.approach(shownHealth, hp, 2.5f);
-        if (hp > trailHealth) trailHealth = hp;
-        trailHealth = Anim.approach(trailHealth, shownHealth, 0.4f);
+        slot.shownHealth = Anim.approach(slot.shownHealth, hp, 2.5f);
+        if (hp > slot.trailHealth) slot.trailHealth = hp;
+        slot.trailHealth = Anim.approach(slot.trailHealth, slot.shownHealth, 0.4f);
+        float shownHealth = slot.shownHealth, trailHealth = slot.trailHealth;
         int phase = t.phaseNow();
         boolean shifting = boss != null && boss.shifting();
         int tc = tier(k), kc = color(k);
 
-        float in = Anim.outCubic(barIn);
+        float in = Anim.outCubic(slot.barIn);
         float bw = Math.min(300, w * 0.6f), x = (w - bw) / 2f;
         y -= 22 * (1 - in);
         float old = Gfx.fade(in);
@@ -119,7 +137,7 @@ public final class WorldBossHud {
         float surge = shifting ? 0.5f + 0.5f * Mth.sin((float) Anim.now() * 9f) : 0f;
         Shapes.box(x - 6, y - 3, bw + 12, 36).radius(9).fillV(0xD00A0C18, 0xD0050610)
                 .border(0.9f, Gfx.alpha(tc, 0.75f + 0.25f * surge), Gfx.alpha(tc, 0.25f))
-                .glow(9 + 5 * surge, Gfx.alpha(k.monarch() ? kc : tc, 0.22f + 0.3f * surge)).draw(g);
+                .glow(9 + 5 * surge, Gfx.alpha(k.sovereign() ? kc : tc, 0.22f + 0.3f * surge)).draw(g);
         // the tier tag, then its name and title
         String tag = upper(k.tier.label());
         float tagW = SysFont.spacedWidth(tag, 5f, true, 1.6f) + 10;
@@ -170,17 +188,27 @@ public final class WorldBossHud {
         }
         String phaseText = ROMAN[Mth.clamp(phase, 1, 3) - 1] + "  " + k.phaseName(phase).getString();
         SysFont.draw(g, phaseText, x + bw, ly, 5.6f, Gfx.mix(kc, WHITE, 0.35f), true, 1f);
+        // a ruler at war: whom it fights, in the middle under its bar
+        if (t.against != null && t.share < 0) {
+            String vs = Component.translatable("ruler.beyondsolo.hud.against", t.against.bossName()).getString();
+            SysFont.draw(g, vs, x + bw / 2f, ly, 5.6f, Gfx.mix(color(t.against), WHITE, 0.4f), true, 0.5f);
+        } else if (t.judgesMe) {
+            String judged = Component.translatable("ruler.beyondsolo.hud.judged").getString();
+            SysFont.draw(g, judged, x + bw / 2f, ly, 5.6f, SystemTheme.DANGER, true, 0.5f);
+        }
         Gfx.setAlpha(old);
+        return 38 * in;
     }
 
     // ================================================================ far off
 
-    private static void marker(GuiGraphics g, Minecraft mc, int w, float y, WorldBossClient.Tracked t, float partial) {
-        boolean show = t != null && !t.slain && !t.leaving && !barShown(mc, t);
-        markIn = Anim.approach(markIn, show ? 1 : 0, show ? 4f : 3f);
-        if (markIn < 0.01f || t == null) return;
+    /** The marker of one slot's boss when it is far; returns the height it takes. */
+    private static float marker(GuiGraphics g, Minecraft mc, int w, float y, WorldBossClient.Tracked t, float partial, Slot slot) {
+        boolean show = t != null && !t.slain && !t.leaving && !barShown(mc, t, slot);
+        slot.markIn = Anim.approach(slot.markIn, show ? 1 : 0, show ? 4f : 3f);
+        if (slot.markIn < 0.01f || t == null) return 0;
         WorldBossKind k = t.kind;
-        float in = Anim.outCubic(markIn);
+        float in = Anim.outCubic(slot.markIn);
         ColossalBoss boss = t.boss();
         Vec3 at = boss != null ? boss.getPosition(partial) : Vec3.atBottomCenterOf(t.pos);
         Vec3 me = mc.player.getPosition(partial);
@@ -204,7 +232,8 @@ public final class WorldBossHud {
         float pulse = 0.6f + 0.4f * Anim.pulse(t.descending() ? 1.0f : 2.2f);
         Shapes.pill(x, y, mw, hgt).fillV(0xC00A0C18, 0xC0050610).border(0.8f, Gfx.alpha(tc, 0.8f), Gfx.alpha(tc, 0.3f))
                 .glow(5, Gfx.alpha(kc, 0.25f * pulse)).draw(g);
-        Shapes.icon(k.monarch() ? Icons.CROWN : Icons.SKULL, x + 8, y + hgt / 2f, 8).fill(Gfx.mix(kc, WHITE, 0.3f)).glow(2, Gfx.alpha(kc, 0.6f)).draw(g);
+        Shapes.icon(k.ruler() ? Icons.SPARKLE : k.monarch() ? Icons.CROWN : Icons.SKULL, x + 8, y + hgt / 2f, 8).fill(Gfx.mix(kc, WHITE, 0.3f))
+                .glow(2, Gfx.alpha(kc, 0.6f)).draw(g);
         float cx = x + 14;
         SysFont.draw(g, name, cx, SysFont.centerY(y, hgt, size), size, WHITE, true, 0f);
         cx += nw + 8;
@@ -217,6 +246,7 @@ public final class WorldBossHud {
         }
         arrow(g, x + mw - 9, y + hgt / 2f, rel, Gfx.mix(kc, WHITE, 0.35f));
         Gfx.setAlpha(old);
+        return (hgt + 4) * in;
     }
 
     /** An arrow turned {@code degrees} from straight up (where the player looks). */
@@ -242,20 +272,29 @@ public final class WorldBossHud {
 
     // ================================================================ the domain
 
-    private static void domain(GuiGraphics g, Minecraft mc, int w, int h, WorldBossClient.Tracked t) {
+    /** The edges of the screen while the player stands in a monarch's domain (or, softer, a ruler's sanctum). */
+    private static void domain(GuiGraphics g, Minecraft mc, int w, int h, WorldBossClient.Tracked t, WorldBossClient.Tracked r) {
         boolean inside = false;
-        int kc = 0xFFFFFFFF;
-        if (t != null && t.kind.monarch() && t.domain > 0 && !t.leaving && !t.slain) {
-            ColossalBoss boss = t.boss();
-            if (boss != null && boss.isAlive() && boss.introTicks() <= 31) {
-                inside = boss.position().subtract(mc.player.position()).horizontalDistance() <= t.domain;
-            }
-            kc = color(t.kind);
+        if (inside(mc, t)) {
+            inside = true;
+            domainColor = color(t.kind);
+            domainStrength = 0.2f;
+        } else if (inside(mc, r)) {
+            inside = true;
+            domainColor = color(r.kind);
+            domainStrength = 0.11f;
         }
         domainIn = Anim.approach(domainIn, inside ? 1 : 0, inside ? 1.5f : 2.5f);
-        if (domainIn < 0.01f || t == null) return;
+        if (domainIn < 0.01f) return;
         float beat = 0.75f + 0.25f * Anim.pulse(3.2f);
-        Shapes.vignette(0, 0, w, h, 0.35f, 1.35f).fill(Gfx.alpha(color(t.kind), 0.2f * domainIn * beat)).draw(g);
+        Shapes.vignette(0, 0, w, h, 0.35f, 1.35f).fill(Gfx.alpha(domainColor, domainStrength * domainIn * beat)).draw(g);
+    }
+
+    private static boolean inside(Minecraft mc, WorldBossClient.Tracked t) {
+        if (t == null || !t.kind.sovereign() || t.domain <= 0 || t.leaving || t.slain) return false;
+        ColossalBoss boss = t.boss();
+        return boss != null && boss.isAlive() && boss.introTicks() <= 31
+                && boss.position().subtract(mc.player.position()).horizontalDistance() <= t.domain;
     }
 
     // ================================================================ banners
@@ -271,6 +310,7 @@ public final class WorldBossHud {
                 case PHASE -> GateOverlay.addTrauma(0.25f * near);
                 case AUTHORITY -> GateOverlay.addTrauma(0.35f * near);
                 case APPEAR -> GateOverlay.addTrauma(0.3f * near);
+                case WAR -> GateOverlay.addTrauma(b.b <= 0 ? 0.25f * near : 0f);
                 default -> {
                 }
             }
@@ -283,6 +323,9 @@ public final class WorldBossHud {
             case AUTHORITY -> authority(g, w, h, b, t, live);
             case SLAIN -> slain(g, w, h, b, t, live);
             case WITHDRAW -> withdraw(g, w, h, b, t, live);
+            case WAR -> war(g, mc, w, h, b, t, live);
+            case SENTENCE -> sentence(g, mc, w, h, b, t, live);
+            case BLESSED -> blessed(g, w, h, b, t, live);
         }
     }
 
@@ -344,7 +387,8 @@ public final class WorldBossHud {
         Shapes.vignette(0, 0, w, h, 0.2f, 1.3f).fill(Gfx.alpha(kc, (0.18f + 0.14f * pulse) * live * (1 - Anim.window(t, 1.5f, 4f)))).draw(g);
         float old = Gfx.fade(live);
         float cx = w / 2f, y = h - bh - 64;
-        String head = upper(Component.translatable(k.monarch() ? "worldboss.beyondsolo.banner.descended" : "worldboss.beyondsolo.banner.risen"));
+        String head = upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.banner.descended"
+                : k.monarch() ? "worldboss.beyondsolo.banner.descended" : "worldboss.beyondsolo.banner.risen"));
         tag(g, head, cx, y, Anim.outBack(Anim.window(t, 0.4f, 0.8f)), tc, 6.5f);
         float nameK = Anim.window(t, 0.8f, 1.8f);
         if (nameK > 0) {
@@ -371,7 +415,8 @@ public final class WorldBossHud {
         float old = Gfx.fade(live);
         float bw = Math.min(w * 0.94f, 420);
         float tear = Anim.outCubic(Anim.window(t, 0.05f, 0.6f));
-        Shapes.pill(cx - bw / 2f, y - 14, bw, 66).fill(Gfx.alpha(0xFF06030C, 0.62f * tear)).glow(20, Gfx.alpha(0xFF06030C, 0.4f * tear)).draw(g);
+        int sky = k.ruler() ? 0xFF14110A : 0xFF06030C;
+        Shapes.pill(cx - bw / 2f, y - 14, bw, 66).fill(Gfx.alpha(sky, 0.62f * tear)).glow(20, Gfx.alpha(k.ruler() ? kc : sky, (k.ruler() ? 0.25f : 0.4f) * tear)).draw(g);
         // the rent in the sky: two edges of light parting
         float gap = 3 + 3 * Anim.outCubic(Anim.window(t, 0.3f, 1.2f));
         for (int side = -1; side <= 1; side += 2) {
@@ -379,7 +424,7 @@ public final class WorldBossHud {
                     .glow(5, Gfx.alpha(kc, 0.7f)).draw(g);
         }
         Shapes.box(cx - bw / 2f * tear, y + 6 - gap, bw * tear, gap * 2).fill(Gfx.alpha(kc, 0.18f)).draw(g);
-        String head = upper(Component.translatable("worldboss.beyondsolo.banner.gate"));
+        String head = upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.banner.rift" : "worldboss.beyondsolo.banner.gate"));
         tag(g, head, cx, y - 20, Anim.outBack(Anim.window(t, 0.1f, 0.4f)), tc, 6f);
         float nameIn = Anim.outCubic(Anim.window(t, 0.6f, 1.2f));
         if (nameIn > 0.01f) {
@@ -442,7 +487,8 @@ public final class WorldBossHud {
         Shapes.pill(cx - bw / 2f, y - 8, bw, 40).fill(Gfx.alpha(0xFF05060E, 0.55f)).glow(14, Gfx.alpha(kc, 0.18f)).draw(g);
         Ui.divider(g, cx - bw / 2f, y - 8, bw, Gfx.alpha(kc, 0.8f));
         Ui.divider(g, cx - bw / 2f, y + 32, bw, Gfx.alpha(kc, 0.8f));
-        tag(g, upper(Component.translatable("worldboss.beyondsolo.hud.domain")), cx, y - 8, Anim.outBack(Anim.window(t, 0.2f, 0.5f)), kc, 5.5f);
+        tag(g, upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.hud.sanctum" : "worldboss.beyondsolo.hud.domain")), cx, y - 8,
+                Anim.outBack(Anim.window(t, 0.2f, 0.5f)), kc, 5.5f);
         float nameIn = Anim.outCubic(Anim.window(t, 0.35f, 0.9f));
         if (nameIn > 0.01f) {
             float o2 = Gfx.fade(nameIn);
@@ -500,7 +546,7 @@ public final class WorldBossHud {
     private static void slain(GuiGraphics g, int w, int h, WorldBossClient.Banner b, float t, float live) {
         WorldBossKind k = b.boss;
         boolean took = b.a >= 0;
-        int gold = k.monarch() ? tier(k) : SystemTheme.GOLD;
+        int gold = k.sovereign() ? tier(k) : SystemTheme.GOLD;
         float flash = 1 - Anim.outCubic(Anim.window(t, 0f, 0.8f));
         Shapes.box(0, 0, w, h).fill(Gfx.alpha(WHITE, (took ? 0.5f : 0.25f) * flash)).draw(g);
         Shapes.vignette(0, 0, w, h, 0.2f, 1.4f).fill(Gfx.alpha(gold, 0.18f * live * (1 - Anim.window(t, 1.5f, 4f)))).draw(g);
@@ -517,7 +563,8 @@ public final class WorldBossHud {
         if (open > 0.95f) {
             float hk = Anim.outCubic(Anim.window(t, 0.6f, 1.0f));
             float o2 = Gfx.fade(hk);
-            String head = upper(Component.translatable(k.monarch() ? "worldboss.beyondsolo.banner.slain.monarch" : "worldboss.beyondsolo.banner.slain.world"));
+            String head = upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.banner.slain"
+                    : k.monarch() ? "worldboss.beyondsolo.banner.slain.monarch" : "worldboss.beyondsolo.banner.slain.world"));
             SysFont.spaced(g, head, cx, y + 9 - 4 * (1 - hk), 11f, Gfx.mix(gold, WHITE, 0.55f), true, 2.6f, 0.5f);
             Gfx.setAlpha(o2);
             Component sub = took ? k.fullName() : Component.translatable("worldboss.beyondsolo.banner.fallen", k.fullName());
@@ -548,17 +595,126 @@ public final class WorldBossHud {
         float cx = w / 2f, y = h * 0.28f;
         Ui.divider(g, cx - 110, y - 4, 220, Gfx.alpha(kc, 0.7f));
         SysFont.spaced(g, upper(Component.translatable("worldboss.beyondsolo.banner.gone")), cx, y + 2, 10f, Gfx.mix(kc, WHITE, 0.45f), true, 2.6f, 0.5f);
-        SysFont.draw(g, Component.translatable(k.monarch() ? "worldboss.beyondsolo.notify.ascended" : "worldboss.beyondsolo.notify.sank", k.fullName()),
-                cx, y + 17, 7f, SystemTheme.TEXT_SOFT, false, 0.5f);
+        String said = k.ruler() ? "ruler.beyondsolo.notify.left" : k.monarch() ? "worldboss.beyondsolo.notify.ascended" : "worldboss.beyondsolo.notify.sank";
+        SysFont.draw(g, Component.translatable(said, k.fullName()), cx, y + 17, 7f, SystemTheme.TEXT_SOFT, false, 0.5f);
         Ui.divider(g, cx - 110, y + 29, 220, Gfx.alpha(kc, 0.7f));
         Gfx.setAlpha(old);
     }
 
+    // ================================================================ the light's banners
+
+    /**
+     * The Eternal War: the ruler's name against the monarch's, light against dark, with the countdown while the ruler is
+     * still coming down (b), and what it means for the hunter.
+     */
+    private static void war(GuiGraphics g, Minecraft mc, int w, int h, WorldBossClient.Banner b, float t, float live) {
+        WorldBossKind k = b.boss;
+        WorldBossKind m = b.a >= 0 ? WorldBossKind.byIndex(b.a) : null;
+        int kc = color(k), mc2 = m != null ? color(m) : 0xFFC77DFF;
+        boolean coming = b.b > 0;
+        float bh = letterbox(g, w, h, t, live, kc, coming ? 0.07f : 0.1f);
+        Shapes.vignette(0, 0, w, h, 0.25f, 1.3f).fill(Gfx.alpha(kc, 0.16f * live * (1 - Anim.window(t, 2f, 5f)))).draw(g);
+        float old = Gfx.fade(live);
+        float cx = w / 2f, y = coming ? h * 0.22f : h - bh - 70;
+        tag(g, upper(Component.translatable("ruler.beyondsolo.banner.war")), cx, y, Anim.outBack(Anim.window(t, 0.2f, 0.6f)), tier(k), 6.5f);
+        // the two names meet in the middle: the light from the left, the dark from the right
+        float meet = Anim.outCubic(Anim.window(t, 0.5f, 1.3f));
+        if (meet > 0.01f) {
+            float size = 13f;
+            float lw = SysFont.width(k.bossName(), size, true), rw = m != null ? SysFont.width(m.bossName(), size, true) : 0;
+            String vs = upper(Component.translatable("ruler.beyondsolo.banner.versus"));
+            float vw = SysFont.width(vs, 7f, true);
+            float slide = 40 * (1 - meet);
+            float o2 = Gfx.fade(meet);
+            Shapes.box(cx - lw - vw / 2f - 30 - slide, y + 13, lw + 22, 22).radius(11).fill(0).glow(16, Gfx.alpha(kc, 0.3f)).draw(g);
+            SysFont.draw(g, k.bossName(), cx - vw / 2f - 10 - lw - slide, y + 16, size, Gfx.mix(kc, WHITE, 0.5f), true, 0f);
+            SysFont.draw(g, vs, cx, y + 20, 7f, SystemTheme.TEXT_SOFT, true, 0.5f);
+            if (m != null) {
+                Shapes.box(cx + vw / 2f + 8 + slide, y + 13, rw + 22, 22).radius(11).fill(0).glow(16, Gfx.alpha(mc2, 0.3f)).draw(g);
+                SysFont.draw(g, m.bossName(), cx + vw / 2f + 10 + slide, y + 16, size, Gfx.mix(mc2, WHITE, 0.45f), true, 0f);
+            }
+            Gfx.setAlpha(o2);
+        }
+        float rest = Anim.outCubic(Anim.window(t, 1.2f, 1.8f));
+        if (rest > 0.01f) {
+            float o3 = Gfx.fade(rest);
+            if (coming) {
+                String lands = Component.translatable("worldboss.beyondsolo.hud.lands", clock(b.left(b.b))).getString();
+                SysFont.draw(g, lands, cx, y + 40, 7.5f, Gfx.mix(kc, WHITE, 0.45f), true, 0.5f);
+                SysFont.draw(g, where(mc, b.pos), cx, y + 51, 6.5f, SystemTheme.TEXT_SOFT, false, 0.5f);
+            } else {
+                SysFont.draw(g, Component.translatable("ruler.beyondsolo.banner.war.hint"), cx, y + 42, 7f, SystemTheme.TEXT_SOFT, false, 0.5f);
+            }
+            Gfx.setAlpha(o3);
+        }
+        Gfx.setAlpha(old);
+    }
+
+    /** A Sentence of Light: who comes to judge whom; for the judged hunter, the screen burns and the time is counted down. */
+    private static void sentence(GuiGraphics g, Minecraft mc, int w, int h, WorldBossClient.Banner b, float t, float live) {
+        WorldBossKind k = b.boss;
+        int kc = color(k);
+        boolean me = b.b == 1;
+        if (me) {
+            float throb = 0.5f + 0.5f * Mth.sin(t * 5f);
+            Shapes.vignette(0, 0, w, h, 0.15f, 1.25f).fill(Gfx.alpha(kc, (0.22f + 0.12f * throb) * live)).draw(g);
+        } else {
+            Shapes.vignette(0, 0, w, h, 0.3f, 1.35f).fill(Gfx.alpha(kc, 0.12f * live * (1 - Anim.window(t, 2f, 5f)))).draw(g);
+        }
+        float old = Gfx.fade(live);
+        float cx = w / 2f, y = h * 0.24f;
+        float open = Anim.outCubic(Anim.window(t, 0f, 0.5f));
+        float bw = Math.min(w * 0.85f, 320) * open;
+        Shapes.pill(cx - bw / 2f, y - 10, bw, me ? 62 : 48).fill(Gfx.alpha(0xFF100C04, 0.6f)).glow(16, Gfx.alpha(kc, 0.22f)).draw(g);
+        Ui.divider(g, cx - bw / 2f, y - 10, bw, Gfx.alpha(kc, 0.85f));
+        tag(g, upper(Component.translatable("ruler.beyondsolo.banner.sentence")), cx, y - 10, Anim.outBack(Anim.window(t, 0.15f, 0.5f)), tier(k), 6f);
+        float nameIn = Anim.outCubic(Anim.window(t, 0.4f, 1.0f));
+        if (nameIn > 0.01f) {
+            float o2 = Gfx.fade(nameIn);
+            Component head = me ? Component.translatable("ruler.beyondsolo.banner.sentence.you") : k.fullName();
+            SysFont.draw(g, head, cx, y + 5, me ? 11f : 9.5f, me ? Gfx.mix(kc, WHITE, 0.6f) : WHITE, true, 0.5f);
+            Component sub = me ? Component.translatable("ruler.beyondsolo.banner.sentence.you.sub", k.fullName())
+                    : Component.translatable("ruler.beyondsolo.banner.sentence.sub");
+            SysFont.draw(g, sub, cx, y + 21, 6.8f, SystemTheme.TEXT_SOFT, false, 0.5f);
+            Gfx.setAlpha(o2);
+        }
+        int left = b.left(b.a);
+        if (b.a > 0 && left > 0) {
+            float rest = Anim.outCubic(Anim.window(t, 0.9f, 1.4f));
+            float o3 = Gfx.fade(rest);
+            String lands = Component.translatable("worldboss.beyondsolo.hud.lands", clock(left)).getString();
+            SysFont.draw(g, lands, cx, y + 33, 8f, me ? SystemTheme.DANGER : Gfx.mix(kc, WHITE, 0.45f), true, 0.5f);
+            if (me) SysFont.draw(g, where(mc, b.pos), cx, y + 44, 6.5f, SystemTheme.TEXT_SOFT, false, 0.5f);
+            Gfx.setAlpha(o3);
+        }
+        Gfx.setAlpha(old);
+    }
+
+    /** A ruler blessed this hunter: a sunburst and the blessing's name. */
+    private static void blessed(GuiGraphics g, int w, int h, WorldBossClient.Banner b, float t, float live) {
+        int gold = 0xFF000000 | WorldBossKind.Tier.RULER.color;
+        float flash = 1 - Anim.outCubic(Anim.window(t, 0f, 0.7f));
+        Shapes.box(0, 0, w, h).fill(Gfx.alpha(gold, 0.18f * flash)).draw(g);
+        float old = Gfx.fade(live);
+        float cx = w / 2f, y = h * 0.26f;
+        float open = Anim.outBack(Anim.window(t, 0.1f, 0.6f));
+        Shapes.rays(cx, y + 14, 120 * Math.max(0.05f, open), 18).fill(Gfx.alpha(gold, 0.18f)).rotation(t * 0.05f).additive().draw(g);
+        float k = Anim.outCubic(Anim.window(t, 0.3f, 0.9f));
+        if (k > 0.01f) {
+            float o2 = Gfx.fade(k);
+            SysFont.spaced(g, upper(Component.translatable("effect.beyondsolo.blessing_of_light")), cx, y + 6, 12f, Gfx.mix(gold, WHITE, 0.55f), true, 2.6f, 0.5f);
+            int mins = Math.max(1, Math.round(b.a / 60f));
+            SysFont.draw(g, Component.translatable("ruler.beyondsolo.banner.blessed", mins), cx, y + 24, 7f, SystemTheme.TEXT_SOFT, false, 0.5f);
+            Gfx.setAlpha(o2);
+        }
+        Gfx.setAlpha(old);
+    }
+
     static void reset() {
-        barIn = 0;
-        markIn = 0;
+        THREAT.barIn = THREAT.markIn = 0;
+        LIGHT.barIn = LIGHT.markIn = 0;
+        THREAT.last = LIGHT.last = null;
         domainIn = 0;
-        lastTracked = null;
         kicked = null;
     }
 

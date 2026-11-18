@@ -905,6 +905,8 @@ public final class SkillActions {
         if (e == p || !e.isAlive() || e.isInvulnerable() || e instanceof Player || e instanceof ArmorStand) return false;
         if (e instanceof AbstractVillager || e instanceof TravelerEntity || e instanceof AbstractGolem) return false;
         if (e instanceof TamableAnimal t && t.isTame()) return false;
+        // a ruler of light and its heralds, unless the hunter stands against them
+        if (com.beyondsolo.ruler.Rulers.spares(p.getUUID(), e)) return false;
         return true;
     }
 

@@ -23,7 +23,13 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  *   <li>{@link #SLAIN}: it fell. a = this player's share in thousandths (-1: they took no part), b = the XP it paid them.</li>
  *   <li>{@link #WITHDRAW}: it left the world without falling (no hunter came for it, or none was left).</li>
  *   <li>{@link #GONE}: forget it (its event ended).</li>
+ *   <li>{@link #WAR}: a ruler is coming to make war on the monarch abroad (boss: the ruler; a = the monarch's kind
+ *       ordinal; b = ticks until the ruler lands, 0 once it has).</li>
+ *   <li>{@link #SENTENCE}: a ruler is coming to pass sentence on a crowned hunter (a = ticks until it lands; b = 1 for
+ *       the hunter judged, 0 for everyone else).</li>
+ *   <li>{@link #BLESSED}: a ruler blessed this hunter for fighting at its side (a = the blessing's seconds).</li>
  * </ul>
+ * The rulers of light use the same messages; the client keeps a ruler apart from the great threat abroad by its tier.
  */
 public record WorldBossPayload(int kind, int boss, long event, int entity, BlockPos pos, int phase, int a, int b) implements CustomPacketPayload {
     public static final int STATUS = 0;
@@ -36,6 +42,9 @@ public record WorldBossPayload(int kind, int boss, long event, int entity, Block
     public static final int SLAIN = 7;
     public static final int WITHDRAW = 8;
     public static final int GONE = 9;
+    public static final int WAR = 10;
+    public static final int SENTENCE = 11;
+    public static final int BLESSED = 12;
 
     public static final Type<WorldBossPayload> TYPE = new Type<>(BeyondSolo.id("world_boss"));
     public static final StreamCodec<ByteBuf, WorldBossPayload> STREAM_CODEC = StreamCodec.of(

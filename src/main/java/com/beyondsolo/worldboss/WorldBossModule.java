@@ -110,6 +110,7 @@ public final class WorldBossModule {
             .withTabsBefore(BeyondSolo.id("armory"))
             .displayItems((params, out) -> {
                 out.accept(MONARCH_SEAL.get());
+                out.accept(com.beyondsolo.ruler.RulerModule.MOTE.get());
                 for (List<DeferredItem<SystemArmorItem>> pieces : PIECES.values()) pieces.forEach(p -> out.accept(p.get()));
             })
             .build());
@@ -154,6 +155,9 @@ public final class WorldBossModule {
             case STILLNESS -> STILLNESS.get();
             case HUNGER -> HUNGER.get();
             case STORMS -> STORMS.get();
+            case VERDICT -> com.beyondsolo.ruler.RulerModule.VERDICT.get();
+            case WINGS -> com.beyondsolo.ruler.RulerModule.WINGS.get();
+            case HAND -> com.beyondsolo.ruler.RulerModule.HAND.get();
         };
     }
 

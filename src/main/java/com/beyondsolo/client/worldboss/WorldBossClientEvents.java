@@ -2,7 +2,9 @@ package com.beyondsolo.client.worldboss;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.armor.ArmorModels;
+import com.beyondsolo.client.ruler.HeraldRenderer;
 import com.beyondsolo.item.SystemArmorItem;
+import com.beyondsolo.ruler.RulerModule;
 import com.beyondsolo.worldboss.MonarchArmor;
 import com.beyondsolo.worldboss.WorldBossKind;
 import com.beyondsolo.worldboss.WorldBossModule;
@@ -32,7 +34,10 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 
-/** Client wiring of the great threats: renderers, the HUD, the light in the world, and monarch armor's look. */
+/**
+ * Client wiring of the great threats and the rulers of light: renderers, the HUD, the light in the world, and monarch
+ * armor's look.
+ */
 public final class WorldBossClientEvents {
     /** Monarch armor is worn with its set's own model (the plate and its extra parts, see {@link ArmorModels}). */
     static final IClientItemExtensions MONARCH_ARMOR = new IClientItemExtensions() {
@@ -54,6 +59,10 @@ public final class WorldBossClientEvents {
             event.registerEntityRenderer(WorldBossModule.HUNGER.get(), ctx -> new ColossalBossRenderer<>(ctx, WorldBossKind.HUNGER));
             event.registerEntityRenderer(WorldBossModule.STORMS.get(), ctx -> new ColossalBossRenderer<>(ctx, WorldBossKind.STORMS));
             event.registerEntityRenderer(WorldBossModule.PROJECTILE.get(), BossProjectileRenderer::new);
+            event.registerEntityRenderer(RulerModule.VERDICT.get(), ctx -> new ColossalBossRenderer<>(ctx, WorldBossKind.VERDICT));
+            event.registerEntityRenderer(RulerModule.WINGS.get(), ctx -> new ColossalBossRenderer<>(ctx, WorldBossKind.WINGS));
+            event.registerEntityRenderer(RulerModule.HAND.get(), ctx -> new ColossalBossRenderer<>(ctx, WorldBossKind.HAND));
+            event.registerEntityRenderer(RulerModule.HERALD.get(), HeraldRenderer::new);
         }
 
         @SubscribeEvent

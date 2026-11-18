@@ -18,14 +18,16 @@ import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 
 /**
- * A world boss or a monarch: its GeckoLib model with its glowing parts, and its light round it. A monarch walks on a
- * slowly turning sigil of its colour once it has landed, and a soft glow of its power hangs on it; in its last phase both
- * burn brighter. As one dies, light gathers on it and a pillar of light takes it.
+ * A world boss, a monarch or a ruler of light: its GeckoLib model with its glowing parts, and its light round it. A
+ * monarch or a ruler walks on a slowly turning sigil of its colour once it has landed, and a soft glow of its power hangs
+ * on it; in its last phase both burn brighter. A ruler wears a halo of light. As one dies, light gathers on it and a
+ * pillar of light takes it.
  */
 public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRenderer<T> {
     private static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
     private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
     private static final ResourceLocation BEAM = BeyondSolo.id("textures/effect/beam.png");
+    private static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
 
     private final WorldBossKind kind;
 
@@ -64,10 +66,18 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
         float dying = boss.deathTime > 0 ? Mth.clamp((boss.deathTime + partial) / 90f, 0f, 1f) : 0f;
         boolean last = boss.phase() >= 3;
 
-        if (kind.monarch() && boss.isAwake()) {
+        if (kind.sovereign() && boss.isAwake()) {
             // the sigil it walks on, once it has landed
             float landed = boss.introTicks() > 0 ? Mth.clamp((31 - boss.introTicks()) / 10f, 0, 1) : 1;
             float a = landed * (1 - dying) * (boss.leaving() ? 0 : 1);
+            if (a > 0.01f && kind.ruler()) {
+                // a ruler of light wears a halo: a ring of white light over its head, and a second, fainter, in its last phase
+                float hy = h + 0.35f + 0.08f * Mth.sin(time * 0.07f);
+                int white = GateFx.mix(rgb, 0xFFFFFF, 0.6f);
+                GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, hy, 0.75f, 0, white, 0.9f * a);
+                GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, hy - 0.02f, 1.3f, 0, rgb, 0.4f * a);
+                if (last) GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, hy + 0.25f, 1.1f, 0, rgb, 0.45f * a);
+            }
             if (a > 0.01f) {
                 float r = 2.6f + (last ? 0.6f : 0);
                 GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.06f, r, time * (last ? 2.6f : 1.2f), rgb, 0.6f * a);
@@ -83,7 +93,7 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
                 VertexConsumer b = buffers.getBuffer(ModRenderTypes.lightTexture(BEAM));
                 GateFx.column(b, pose, camera, boss.getX(), boss.getZ(), 1.2f, MonarchBoss.GATE_HEIGHT * 0.5f, rgb, 0.4f);
             }
-        } else if (!kind.monarch() && boss.isAwake() && last) {
+        } else if (!kind.sovereign() && boss.isAwake() && last) {
             // a world boss in its last phase: its own light spills out of it
             float pulse = 0.75f + 0.25f * Mth.sin(time * 0.2f);
             GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, 0.1f, w * 1.3f, 0, rgb, 0.45f * pulse * (1 - dying));

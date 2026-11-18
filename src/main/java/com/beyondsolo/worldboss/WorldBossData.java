@@ -11,7 +11,9 @@ import java.util.UUID;
 
 /**
  * The world's great threats, kept with the overworld's data: the one abroad now (at most one at a time), when the next
- * comes, and how many have been slain (monarchs only come once world bosses have fallen).
+ * comes, and how many have been slain (monarchs only come once world bosses have fallen). Beside it, the ruler abroad
+ * ({@link #ruler()}, at most one): rulers come to make war on a monarch abroad or to pass sentence on a crowned hunter,
+ * so one can be abroad at the same time as the great threat ({@code com.beyondsolo.ruler.Rulers}).
  */
 public final class WorldBossData extends SavedData {
     private static final String NAME = "beyondsolo_world_bosses";
@@ -33,8 +35,11 @@ public final class WorldBossData extends SavedData {
         long engaged;
         /** Called by a seal or a command: it doesn't move the schedule. */
         final boolean called;
+        /** A ruler's: why it came ({@code Rulers}' reasons), and whom for (the monarch it makes war on, the hunter it judges). */
+        int reason;
+        @Nullable UUID quarry;
 
-        Event(UUID id, WorldBossKind kind, BlockPos home, long started, long landAt, boolean called) {
+        public Event(UUID id, WorldBossKind kind, BlockPos home, long started, long landAt, boolean called) {
             this.id = id;
             this.kind = kind;
             this.home = home;
@@ -70,6 +75,36 @@ public final class WorldBossData extends SavedData {
             return called;
         }
 
+        public int reason() {
+            return reason;
+        }
+
+        @Nullable
+        public UUID quarry() {
+            return quarry;
+        }
+
+        public void setReason(int reason, @Nullable UUID quarry) {
+            this.reason = reason;
+            this.quarry = quarry;
+        }
+
+        public void setLandAt(long landAt) {
+            this.landAt = landAt;
+        }
+
+        public void setEntity(@Nullable UUID entity) {
+            this.entity = entity;
+        }
+
+        public void setLast(BlockPos last) {
+            this.last = last;
+        }
+
+        public void setEngaged(long engaged) {
+            this.engaged = engaged;
+        }
+
         CompoundTag save() {
             CompoundTag t = new CompoundTag();
             t.putUUID("id", id);
@@ -81,6 +116,8 @@ public final class WorldBossData extends SavedData {
             t.putLong("last", last.asLong());
             t.putLong("engaged", engaged);
             t.putBoolean("called", called);
+            if (reason != 0) t.putInt("reason", reason);
+            if (quarry != null) t.putUUID("quarry", quarry);
             return t;
         }
 
@@ -93,11 +130,18 @@ public final class WorldBossData extends SavedData {
             e.entity = t.hasUUID("entity") ? t.getUUID("entity") : null;
             e.last = BlockPos.of(t.getLong("last"));
             e.engaged = t.getLong("engaged");
+            e.reason = t.getInt("reason");
+            e.quarry = t.hasUUID("quarry") ? t.getUUID("quarry") : null;
             return e;
         }
     }
 
     @Nullable private Event current;
+    /** The ruler abroad, beside the great threat. */
+    @Nullable private Event ruler;
+    private int rulerKills;
+    /** When the next ruler may come to judge a crowned hunter (game time); -1 until one is crowned. */
+    private long nextSentenceAt = -1;
     /** When the next great threat comes on its own (game time); -1 until a hunter is strong enough to face one. */
     private long nextAt = -1;
     private int worldKills;
@@ -119,6 +163,29 @@ public final class WorldBossData extends SavedData {
         setDirty();
     }
 
+    @Nullable
+    public Event ruler() {
+        return ruler;
+    }
+
+    public void setRuler(@Nullable Event e) {
+        ruler = e;
+        setDirty();
+    }
+
+    public int rulerKills() {
+        return rulerKills;
+    }
+
+    public long nextSentenceAt() {
+        return nextSentenceAt;
+    }
+
+    public void setNextSentenceAt(long t) {
+        nextSentenceAt = t;
+        setDirty();
+    }
+
     public long nextAt() {
         return nextAt;
     }
@@ -136,8 +203,9 @@ public final class WorldBossData extends SavedData {
         return monarchKills;
     }
 
-    void countKill(WorldBossKind kind) {
-        if (kind.monarch()) monarchKills++;
+    public void countKill(WorldBossKind kind) {
+        if (kind.ruler()) rulerKills++;
+        else if (kind.monarch()) monarchKills++;
         else worldKills++;
         setDirty();
     }
@@ -154,6 +222,9 @@ public final class WorldBossData extends SavedData {
         tag.putInt("worldKills", worldKills);
         tag.putInt("monarchKills", monarchKills);
         if (lastKind != null) tag.putString("lastKind", lastKind.id);
+        if (ruler != null) tag.put("ruler", ruler.save());
+        tag.putInt("rulerKills", rulerKills);
+        tag.putLong("nextSentenceAt", nextSentenceAt);
         return tag;
     }
 
@@ -164,6 +235,9 @@ public final class WorldBossData extends SavedData {
         d.worldKills = tag.getInt("worldKills");
         d.monarchKills = tag.getInt("monarchKills");
         d.lastKind = WorldBossKind.byId(tag.getString("lastKind"));
+        if (tag.contains("ruler")) d.ruler = Event.load(tag.getCompound("ruler"));
+        d.rulerKills = tag.getInt("rulerKills");
+        d.nextSentenceAt = tag.contains("nextSentenceAt") ? tag.getLong("nextSentenceAt") : -1;
         return d;
     }
 }

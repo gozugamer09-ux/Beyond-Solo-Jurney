@@ -82,6 +82,8 @@ public class StormMonarch extends MonarchBoss {
             List<LivingEntity> in = new java.util.ArrayList<>(near(position(), DOMAIN));
             // a hunter monarch's domain keeps the storm off whoever it shelters
             in.removeIf(com.beyondsolo.monarch.MonarchDomain::shelters);
+            // and so does a ruler's sanctum
+            in.removeIf(com.beyondsolo.ruler.Rulers::shelters);
             if (!in.isEmpty()) {
                 LivingEntity e = in.get(random.nextInt(in.size()));
                 circleStrike(ground(e.position()), 2.4f, 24, 0.6f, TEMPEST);

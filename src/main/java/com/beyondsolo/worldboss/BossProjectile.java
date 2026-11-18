@@ -16,13 +16,14 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Something a great threat throws or shoots: a boulder, an ice spear, a storm orb, a blood shard. It flies a set path
+ * Something a great threat throws or shoots: a boulder, an ice spear, a storm orb, a blood shard, and the rulers' spears
+ * of light, feathers of light and the stones their unseen hands throw. It flies a set path
  * (straight, or in an arc) from where it was thrown to where it lands, in a set time, so it lands exactly as the strike
  * announced on the ground does ({@link ColossalBoss#strike}); the strike does the harm, the throw is what you see coming.
  * It is never saved.
  */
 public class BossProjectile extends Entity {
-    public enum Kind { BOULDER, ICE_SPEAR, STORM_ORB, BLOOD_SHARD }
+    public enum Kind { BOULDER, ICE_SPEAR, STORM_ORB, BLOOD_SHARD, LIGHT_SPEAR, FEATHER, HURLED_STONE }
 
     private static final EntityDataAccessor<Integer> KIND = SynchedEntityData.defineId(BossProjectile.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> SCALE = SynchedEntityData.defineId(BossProjectile.class, EntityDataSerializers.FLOAT);
@@ -104,6 +105,12 @@ public class BossProjectile extends Entity {
             case BLOOD_SHARD -> {
                 if (age % 2 == 0) level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, at.x, at.y, at.z, 1, 0.1, 0.1, 0.1, 0.01);
             }
+            case LIGHT_SPEAR, FEATHER -> {
+                if (age % 2 == 0) level.sendParticles(ParticleTypes.END_ROD, at.x, at.y, at.z, 1, 0.08, 0.08, 0.08, 0.005);
+            }
+            case HURLED_STONE -> {
+                if (age % 3 == 0) level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.4, at.z, 1, 0.4, 0.4, 0.4, 0.01);
+            }
         }
     }
 
@@ -118,6 +125,12 @@ public class BossProjectile extends Entity {
                     at.y + 0.3, at.z, 24, 0.4, 0.3, 0.4, 0.2);
             case STORM_ORB -> level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 0.3, at.z, 30, 0.6, 0.4, 0.6, 0.3);
             case BLOOD_SHARD -> level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, at.x, at.y + 0.3, at.z, 10, 0.4, 0.3, 0.4, 0.1);
+            case LIGHT_SPEAR, FEATHER -> level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.3, at.z, kind() == Kind.FEATHER ? 6 : 16, 0.3, 0.3, 0.3, 0.12);
+            case HURLED_STONE -> {
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.CALCITE.defaultBlockState()), at.x, at.y + 0.5, at.z, 36,
+                        0.8, 0.4, 0.8, 0.25);
+                level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.5, at.z, 10, 0.6, 0.3, 0.6, 0.1);
+            }
         }
     }
 

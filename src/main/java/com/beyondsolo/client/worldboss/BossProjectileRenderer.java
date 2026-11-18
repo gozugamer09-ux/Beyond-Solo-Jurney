@@ -30,6 +30,8 @@ import org.joml.Matrix4f;
  *   <li>an <b>ice spear</b>: a long crystal of ice, point first</li>
  *   <li>a <b>storm orb</b>: a ball of lightning crawling with arcs</li>
  *   <li>a <b>blood shard</b>: a spike of crystallised blood</li>
+ *   <li>a <b>spear of light</b> and a <b>feather of light</b>: a ruler's, long and white-hot</li>
+ *   <li>a <b>hurled stone</b>: pale rock torn up by an unseen hand, light bleeding from its cracks</li>
  * </ul>
  */
 public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
@@ -38,6 +40,9 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
     private static final BlockState ROCK = Blocks.BASALT.defaultBlockState();
     private static final BlockState CORE = Blocks.MAGMA_BLOCK.defaultBlockState();
     private static final BlockState CHIP = Blocks.BLACKSTONE.defaultBlockState();
+    private static final BlockState PALE = Blocks.CALCITE.defaultBlockState();
+    private static final BlockState PALE_CHIP = Blocks.SMOOTH_QUARTZ.defaultBlockState();
+    private static final BlockState LIGHT_CORE = Blocks.GLOWSTONE.defaultBlockState();
 
     private final BlockRenderDispatcher blocks;
 
@@ -57,6 +62,9 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
             case ICE_SPEAR -> crystal(p, pose, buffers, camera, s * 0.32f, s * 2.6f, c, 0xE8F8FF);
             case BLOOD_SHARD -> crystal(p, pose, buffers, camera, s * 0.26f, s * 1.5f, c, 0xFF8A94);
             case STORM_ORB -> orb(p, pose, buffers, camera, time, s, c, partial);
+            case LIGHT_SPEAR -> crystal(p, pose, buffers, camera, s * 0.22f, s * 3.2f, c, 0xFFFFFF);
+            case FEATHER -> crystal(p, pose, buffers, camera, s * 0.14f, s * 1.4f, c, 0xFFFFF0);
+            case HURLED_STONE -> stone(p, pose, buffers, camera, time, s, c);
         }
         super.render(p, yaw, partial, pose, buffers, light);
     }
@@ -75,6 +83,22 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
         pose.popPose();
         GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, s * 0.5f, 0, s * 2.6f, c, 0.55f);
         trail(p, pose, buffers, camera, s, c, 0.5f);
+    }
+
+    /** A slab of pale rock torn out of the ground, turning slowly, light bleeding out of its heart. */
+    private void stone(BossProjectile p, PoseStack pose, MultiBufferSource buffers, Camera camera, float time, float s, int c) {
+        int full = LightTexture.FULL_BRIGHT;
+        pose.pushPose();
+        pose.translate(0, s * 0.5f, 0);
+        pose.mulPose(Axis.XP.rotationDegrees(time * 5));
+        pose.mulPose(Axis.YP.rotationDegrees(time * 3));
+        block(pose, buffers, PALE, s * 1.6f, 0, 0, 0, 12, 30, full);
+        block(pose, buffers, PALE_CHIP, s * 0.9f, s * 0.6f, s * 0.2f, -s * 0.3f, 40, 15, full);
+        block(pose, buffers, PALE, s * 0.8f, -s * 0.55f, -s * 0.3f, s * 0.35f, 20, 50, full);
+        block(pose, buffers, LIGHT_CORE, s * 0.7f, s * 0.15f, 0, s * 0.5f, 25, 25, full);
+        pose.popPose();
+        GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, s * 0.5f, 0, s * 2.4f, c, 0.45f);
+        trail(p, pose, buffers, camera, s, c, 0.35f);
     }
 
     /** One block's model, centred, {@code size} on a side, turned. */

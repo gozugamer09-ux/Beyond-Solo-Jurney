@@ -67,10 +67,11 @@ import java.util.UUID;
  *   <li><b>Strikes</b> on the ground, announced first ({@link WorldBossFx}): a disc, a band, a strip, a wedge, a
  *   square, and waves that run out along the ground and can be jumped. Everything it does can be seen coming.</li>
  *   <li><b>A share of the kill</b>: the health each hunter takes off it (their shadows and pets count for them) is kept,
- *   and the reward is shared by it ({@link WorldBosses#slain}).</li>
+ *   and the reward is shared by it ({@link WorldBosses#slain}). What another great threat takes off it (a ruler at war
+ *   with a monarch) counts against every hunter's share: a kill the light did most of pays the hunters less.</li>
  * </ul>
- * It only ever hits hunters, what they own (shadows, pets), iron golems and whatever it is fighting: villagers and
- * animals that wander into the fight are left alone.
+ * It only ever hits hunters, what they own (shadows, pets), iron golems, its sworn {@link #foe foes} (a monarch's: the
+ * rulers and their heralds) and whatever it is fighting: villagers and animals that wander into the fight are left alone.
  */
 public abstract class ColossalBoss extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Boolean> AWAKE = SynchedEntityData.defineId(ColossalBoss.class, EntityDataSerializers.BOOLEAN);
@@ -123,6 +124,8 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Map<UUID, Float> dealt = new LinkedHashMap<>();
+    /** Health taken off it by what isn't a hunter's: another great threat, its host or heralds. */
+    private float foreign;
     protected final List<Strike> strikes = new ArrayList<>();
     protected final List<Wave> waves = new ArrayList<>();
     private final Map<String, Long> ready = new HashMap<>();
@@ -441,7 +444,11 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
 
     private void credit(DamageSource source, float lost) {
         UUID who = hunterBehind(source);
-        if (who == null) return;
+        if (who == null) {
+            // another great threat's blow (or its host's): no hunter's, and it thins every hunter's share
+            if (source.getEntity() instanceof LivingEntity && !(source.getEntity() instanceof Player)) foreign += lost;
+            return;
+        }
         dealt.merge(who, lost, Float::sum);
         engaged();
     }
@@ -457,9 +464,14 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         return t;
     }
 
-    /** A hunter's share of the damage it has taken from hunters (0..1). */
+    /** Health taken off it by others than hunters (another great threat, a host). */
+    public float foreignDealt() {
+        return foreign;
+    }
+
+    /** A hunter's share of the damage it has taken from hunters and from other great threats (0..1). */
     public float share(UUID who) {
-        float total = totalDealt();
+        float total = totalDealt() + foreign;
         return total <= 0 ? 0 : dealt.getOrDefault(who, 0f) / total;
     }
 
@@ -518,6 +530,10 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
 
     @Override
     public void aiStep() {
+        // a move that ended before it set its boss back down (a phase change cut it short, a command) leaves it to fall
+        if (!level().isClientSide && move == null && noPhysics != walksThrough() && isAwake() && introTicks() <= 0 && !leaving()) {
+            noPhysics = walksThrough();
+        }
         boolean still = !isAwake() || introTicks() > 0 || shifting() || leaving();
         if (still && isAlive()) {
             setDeltaMovement(getDeltaMovement().multiply(0, enterFrom != null || leaving() ? 0 : 1, 0));
@@ -838,9 +854,19 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         return kind().color;
     }
 
-    /** Can its blows land on {@code e}? Hunters and what they own, iron golems, whatever it fights. */
+    /**
+     * A sworn foe besides the hunters: something its blows land on though it is a creature of the gates itself (a
+     * monarch's: the rulers and their heralds). None by default.
+     */
+    protected boolean foe(LivingEntity e) {
+        return false;
+    }
+
+    /** Can its blows land on {@code e}? Hunters and what they own, iron golems, its sworn foes, whatever it fights. */
     public boolean canHit(LivingEntity e) {
-        if (e == this || !e.isAlive() || e instanceof Monster || e instanceof ArmorStand) return false;
+        if (e == this || !e.isAlive() || e instanceof ArmorStand) return false;
+        if (foe(e)) return true;
+        if (e instanceof Monster) return false;
         if (e instanceof Player p) return !p.isCreative() && !p.isSpectator();
         if (e instanceof OwnableEntity o && o.getOwnerUUID() != null) return true;
         return e instanceof IronGolem || e == getTarget();
@@ -993,6 +1019,7 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
             list.add(c);
         }
         tag.put("Dealt", list);
+        if (foreign > 0) tag.putFloat("Foreign", foreign);
     }
 
     @Override
@@ -1004,6 +1031,7 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         lastEngaged = tag.getLong("Engaged");
         home = tag.contains("Home") ? BlockPos.of(tag.getLong("Home")) : null;
         noPhysics = walksThrough();
+        foreign = tag.getFloat("Foreign");
         dealt.clear();
         for (Tag t : tag.getList("Dealt", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) t;

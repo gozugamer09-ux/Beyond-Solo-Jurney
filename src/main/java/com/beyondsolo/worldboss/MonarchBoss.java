@@ -37,6 +37,9 @@ import java.util.List;
  *   crumble when it falls.</li>
  *   <li><b>Its authority</b>: in its last phase, its greatest power, named on every hunter's screen and given time to
  *   be escaped.</li>
+ *   <li><b>Its old enemies</b>: the rulers of light ({@link com.beyondsolo.ruler.Rulers}). One may come down to make war
+ *   on it once it has landed; it turns on a ruler that comes within reach, and its blows land on the ruler's heralds. A
+ *   ruler's sanctum holds its domain and its presence back from whoever stands in it.</li>
  * </ul>
  * Monarchs walk (they are not giants): paths, leaps, blinks.
  */
@@ -69,6 +72,20 @@ public abstract class MonarchBoss extends ColossalBoss {
                 .add(Attributes.FOLLOW_RANGE, 64)
                 .add(Attributes.STEP_HEIGHT, 1.6)
                 .add(Attributes.SAFE_FALL_DISTANCE, 64);
+    }
+
+    @Override
+    protected void registerGoals() {
+        super.registerGoals();
+        // a ruler within reach is the enemy it was made to fight: it turns on it, and no hunter draws it away
+        targetSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, false, false,
+                e -> e instanceof ColossalBoss && foe(e)));
+    }
+
+    /** The rulers of light and their heralds. */
+    @Override
+    protected boolean foe(LivingEntity e) {
+        return com.beyondsolo.ruler.Rulers.light(e);
     }
 
     /** Its army's creatures: where they come from. */
@@ -149,6 +166,8 @@ public abstract class MonarchBoss extends ColossalBoss {
                     blockPosition(), phase(), DOMAIN, 0));
         }
         callArmy(level, 4);
+        // the light may answer it
+        com.beyondsolo.ruler.Rulers.monarchLanded(level, this);
         // the banner, now it is here
         WorldBossData.Event ev = WorldBosses.eventOf(level, this);
         if (ev != null) {
@@ -194,11 +213,13 @@ public abstract class MonarchBoss extends ColossalBoss {
             landed = true;
             if (tickCount % 20 == 0) {
                 for (LivingEntity e : near(position(), DOMAIN)) {
-                    // a hunter monarch's domain holds this one back from whoever it shelters
-                    if (!com.beyondsolo.monarch.MonarchDomain.shelters(e)) domainTick(server, e);
+                    // a hunter monarch's domain, or a ruler's sanctum, holds this one back from whoever it shelters
+                    if (!com.beyondsolo.monarch.MonarchDomain.shelters(e) && !com.beyondsolo.ruler.Rulers.shelters(e)) domainTick(server, e);
                 }
                 for (Player p : server.getEntitiesOfClass(Player.class, getBoundingBox().inflate(PRESSURE_RANGE), this::canHit)) {
                     if (SystemAPI.get(p).level() >= PRESSURE_LEVEL || com.beyondsolo.monarch.MonarchAPI.crowned(p)) continue;
+                    // the light's favour lifts its weight
+                    if (com.beyondsolo.ruler.Rulers.shelters(p) || com.beyondsolo.ruler.Rulers.blessed(p)) continue;
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, true, false), this);
                     p.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0, true, false), this);
                 }

@@ -57,6 +57,8 @@ import java.util.UUID;
 public final class WorldBossGameTests {
     private static final String ARENA = "evaluation_zone";
     private static final String LANG = "/assets/beyondsolo_worldboss/lang/en_us.json";
+    /** The rulers of light keep their own lines. */
+    private static final String RULER_LANG = "/assets/beyondsolo_rulers/lang/en_us.json";
 
     /** Every animation a boss plays is in its animation file, and its model and skin are there. */
     @GameTest(template = ARENA)
@@ -86,13 +88,16 @@ public final class WorldBossGameTests {
     @GameTest(template = ARENA)
     public static void everyKindIsNamed(GameTestHelper helper) {
         JsonObject lang = json(LANG);
+        JsonObject rulers = json(RULER_LANG);
         helper.assertTrue(lang != null, "the great threats have their own lang file");
+        helper.assertTrue(rulers != null, "the rulers of light have their own lang file");
+        rulers.entrySet().forEach(e -> lang.add(e.getKey(), e.getValue()));
         List<String> missing = new ArrayList<>();
         for (WorldBossKind kind : WorldBossKind.values()) {
             String k = "worldboss.beyondsolo." + kind.id;
             List<String> keys = new ArrayList<>(List.of(k, k + ".title", k + ".phase.1", k + ".phase.2", k + ".phase.3",
                     "entity.beyondsolo." + kind.asset()));
-            if (kind.monarch()) keys.addAll(List.of(k + ".domain", k + ".domain.hint", k + ".authority", k + ".authority.hint"));
+            if (kind.sovereign()) keys.addAll(List.of(k + ".domain", k + ".domain.hint", k + ".authority", k + ".authority.hint"));
             for (String key : keys) if (!lang.has(key)) missing.add(key);
         }
         for (ArmorSets.Set set : MonarchArmor.sets()) {

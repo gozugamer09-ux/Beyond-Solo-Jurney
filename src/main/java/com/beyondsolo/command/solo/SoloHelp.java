@@ -88,6 +88,17 @@ final class SoloHelp {
                 new Line("monarch reset [players]", "monarch.reset"),
                 new Line("monarch jump 1|2|arbiter|throne|<crown> [player]", "monarch.jump"),
                 new Line("monarch power domain|dread|crown|authority [players]", "monarch.power")));
+        TOPICS.put("rulers", List.of(
+                new Line("ruler call [verdict|wings|hand|random]", "ruler.call"),
+                new Line("ruler war [verdict|wings|hand|random]", "ruler.war"),
+                new Line("ruler sentence [<ruler>] on [player]", "ruler.sentence"),
+                new Line("ruler land", "ruler.land"),
+                new Line("ruler stop", "ruler.stop"),
+                new Line("ruler status", "ruler.status"),
+                new Line("ruler next <minutes>", "ruler.next"),
+                new Line("ruler bless [players]", "ruler.bless"),
+                new Line("ruler mote [count]", "ruler.mote"),
+                new Line("ruler record [player]", "ruler.record")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }
