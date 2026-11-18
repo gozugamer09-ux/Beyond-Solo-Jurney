@@ -90,8 +90,10 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
         }
         float oldAlpha = Gfx.setAlpha(open);
         renderBlurredBackground(partialTick);
-        Shapes.vignette(0, 0, width, height, 0.15f, 1.5f).fill(0xC8040912).draw(g);
-        Shapes.box(0, 0, width, height).fill(0x30040912).draw(g);
+        try (var b = Shapes.batch(g)) {
+            Shapes.vignette(0, 0, width, height, 0.15f, 1.5f).fill(0xC8040912).draw(g);
+            Shapes.box(0, 0, width, height).fill(0x30040912).draw(g);
+        }
         g.pose().pushPose();
         float scale = 0.95f + 0.05f * open;
         g.pose().translate(width / 2f, height / 2f, 0);
@@ -110,6 +112,13 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
 
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
+        // the whole window (90 slot cells and all) in a few draw calls: it was one per shape and per letter
+        try (var b = Shapes.batch(g)) {
+            drawWindow(g, mouseX, mouseY);
+        }
+    }
+
+    private void drawWindow(GuiGraphics g, int mouseX, int mouseY) {
         float x = leftPos;
         float y = topPos;
         Ui.panel(g, x, y, W, H, 11, SystemTheme.ACCENT, 1f);
@@ -179,8 +188,13 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
                         .border(0.6f, Gfx.alpha(SystemTheme.ACCENT, 0.32f * a), Gfx.alpha(SystemTheme.ACCENT, 0.12f * a)).draw(g);
             } else {
                 Shapes.box(sx + 1, sy + 1, 16, 16).radius(3f).fill(Gfx.alpha(0xFF02050C, 0.6f)).border(0.5f, 0x18FFFFFF).draw(g);
-                Shapes.icon(Icons.LOCK, sx + 9, sy + 9, 7).fill(Gfx.alpha(SystemTheme.TEXT_DIM, 0.45f)).draw(g);
             }
+        }
+        // the locks after all the cells, so the cells are one run of shapes and the locks another
+        for (int i = 0; i < StorageMenu.PAGE; i++) {
+            if (menu.unlocked(i)) continue;
+            Slot s = menu.slots.get(i);
+            Shapes.icon(Icons.LOCK, x + s.x + 8, y + s.y + 8, 7).fill(Gfx.alpha(SystemTheme.TEXT_DIM, 0.45f)).draw(g);
         }
 
         // capacity
@@ -287,6 +301,12 @@ public class StorageScreen extends AbstractContainerScreen<StorageMenu> {
 
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+        try (var b = Shapes.batch(g)) {
+            drawFlashes(g);
+        }
+    }
+
+    private void drawFlashes(GuiGraphics g) {
         // the page sweep: a sheet of light crosses the grid after a page change (drawn over the items)
         float t = Anim.progress(pageAt, 0.35f);
         if (t < 1f) {

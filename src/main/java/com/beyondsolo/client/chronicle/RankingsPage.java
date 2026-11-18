@@ -274,6 +274,7 @@ final class RankingsPage implements ChronicleTab.Page {
         scrollTarget = Mth.clamp(scrollTarget, 0, maxScroll);
         scroll = Anim.approach(scroll, scrollTarget, 18f);
         boolean inList = Ui.inside(mouseX, mouseY, listX, listY, listW, listH);
+        Shapes.flush(g);
         g.enableScissor((int) listX, (int) listY, (int) Math.ceil(listX + listW), (int) Math.ceil(listY + listH));
         float rw = listW - (maxScroll > 0 ? 6 : 2);
         for (int i = 0; i < rows.size(); i++) {
@@ -281,6 +282,7 @@ final class RankingsPage implements ChronicleTab.Page {
             if (ry + ROW_H < listY || ry > listY + listH) continue;
             row(g, rows.get(i), i + 1, listX + 1, ry, rw, inList && Ui.inside(mouseX, mouseY, listX + 1, ry, rw, ROW_H - 1.5f));
         }
+        Shapes.flush(g);
         g.disableScissor();
         ChronicleUi.scrollbar(g, listX + listW - 3, listY + 1, listH - 2, scroll, maxScroll, SystemTheme.ACCENT);
         if (rows.isEmpty()) {

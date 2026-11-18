@@ -70,6 +70,11 @@ public class GatesTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().hasSystem();
     }
@@ -148,6 +153,7 @@ public class GatesTab implements SystemTab {
             int max = Math.max(0, groups.size() - visible);
             scroll = Mth.clamp(scroll, 0, max);
             int rank = ClientSystemData.get().rank().tier();
+            Shapes.flush(g);
             g.enableScissor((int) x - 2, (int) ly - 1, (int) (x + LIST_W + 4), (int) (ly + lh));
             for (int i = 0; i < groups.size(); i++) {
                 float ry = ly + (i - scroll) * ROW_H;
@@ -170,6 +176,7 @@ public class GatesTab implements SystemTab {
                 SysFont.title(g, n, x + LIST_W - 6 - SysFont.width(n, 6.4f, true), ry + 6, 6.4f, SystemTheme.TEXT_SOFT);
                 hits.add(new Object[]{"key", x, ry, LIST_W, ROW_H - 2, gr.id});
             }
+            Shapes.flush(g);
             g.disableScissor();
             if (max > 0) {
                 float knob = Math.max(12, lh * visible / groups.size());

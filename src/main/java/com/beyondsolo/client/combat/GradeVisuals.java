@@ -139,18 +139,33 @@ public final class GradeVisuals {
         static void slots(ContainerScreenEvent.Render.Background event) {
             AbstractContainerScreen<?> screen = event.getContainerScreen();
             GuiGraphics g = event.getGuiGraphics();
+            boolean any = false;
             for (Slot slot : screen.getMenu().slots) {
-                if (!slot.isActive()) continue;
-                ItemGrade grade = ItemGrade.of(slot.getItem());
-                if (grade == null || grade == ItemGrade.COMMON) continue;
-                int x = screen.getGuiLeft() + slot.x;
-                int y = screen.getGuiTop() + slot.y;
-                int c = shimmer(grade, slot.index * 0.6f);
-                float pulse = grade.shimmers() ? 0.75f + 0.25f * Mth.sin(time() * 0.12f + slot.index) : 0.8f;
-                int a = Math.round((0x50 + grade.tier() * 0x10) * pulse);
-                g.fillGradient(x, y, x + 16, y + 16, (a / 3) << 24 | c, a << 24 | c);
-                g.fill(x, y + 15, x + 16, y + 16, Math.min(255, a * 2) << 24 | c);
+                if (slot.isActive() && graded(slot)) {
+                    any = true;
+                    break;
+                }
             }
+            if (!any) return;
+            // all the glows in one draw call (each fill on its own costs one)
+            g.drawManaged(() -> {
+                for (Slot slot : screen.getMenu().slots) {
+                    if (!slot.isActive() || !graded(slot)) continue;
+                    ItemGrade grade = ItemGrade.of(slot.getItem());
+                    int x = screen.getGuiLeft() + slot.x;
+                    int y = screen.getGuiTop() + slot.y;
+                    int c = shimmer(grade, slot.index * 0.6f);
+                    float pulse = grade.shimmers() ? 0.75f + 0.25f * Mth.sin(time() * 0.12f + slot.index) : 0.8f;
+                    int a = Math.round((0x50 + grade.tier() * 0x10) * pulse);
+                    g.fillGradient(x, y, x + 16, y + 16, (a / 3) << 24 | c, a << 24 | c);
+                    g.fill(x, y + 15, x + 16, y + 16, Math.min(255, a * 2) << 24 | c);
+                }
+            });
+        }
+
+        private static boolean graded(Slot slot) {
+            ItemGrade grade = ItemGrade.of(slot.getItem());
+            return grade != null && grade != ItemGrade.COMMON;
         }
 
         @SubscribeEvent

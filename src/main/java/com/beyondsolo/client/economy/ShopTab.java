@@ -66,6 +66,11 @@ public class ShopTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().hasSystem();
     }
@@ -199,6 +204,7 @@ public class ShopTab implements SystemTab {
         int max = Math.max(0, entries.size() - visible);
         scroll = Mth.clamp(scroll, 0, max);
         long day = EconomyClient.day();
+        Shapes.flush(g);
         g.enableScissor((int) x - 2, (int) y - 1, (int) (x + LIST_W + 4), (int) (y + h));
         for (int i = 0; i < entries.size(); i++) {
             float ry = y + (i - scroll) * ROW_H;
@@ -244,6 +250,7 @@ public class ShopTab implements SystemTab {
             if (locked) Shapes.icon(Icons.LOCK, x + 19, ry + 15, 6).fill(SystemTheme.DANGER).draw(g);
             hits.add(new Object[]{"entry", x, ry, LIST_W, ROW_H - 2, e.id()});
         }
+        Shapes.flush(g);
         g.disableScissor();
         if (max > 0) {
             float knob = Math.max(12, h * visible / entries.size());
@@ -353,6 +360,7 @@ public class ShopTab implements SystemTab {
             List<SysFont.Line> lines = SysFont.wrap(Component.translatable("shop.beyondsolo.sell_empty"), 6.5f, false, LIST_W - 20);
             for (int i = 0; i < lines.size(); i++) SysFont.draw(g, lines.get(i), lx + LIST_W / 2f, y + h / 2f + 6 + i * 8.5f, SystemTheme.TEXT_SOFT, 0.5f);
         }
+        Shapes.flush(g);
         g.enableScissor((int) lx - 2, (int) y - 1, (int) (lx + LIST_W + 4), (int) (y + h));
         for (int i = 0; i < slots.size(); i++) {
             float ry = y + (i - scroll) * ROW_H;
@@ -374,6 +382,7 @@ public class ShopTab implements SystemTab {
             SysFont.title(g, ps, lx + LIST_W - 6 - pw, ry + 6, 6.8f, 0xFFFFE7A6);
             hits.add(new Object[]{"slot", lx, ry, LIST_W, ROW_H - 2, slot});
         }
+        Shapes.flush(g);
         g.disableScissor();
         if (max > 0) {
             float knob = Math.max(12, h * visible / slots.size());

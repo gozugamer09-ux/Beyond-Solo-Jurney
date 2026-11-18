@@ -45,6 +45,11 @@ public class StatusTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public void render(GuiGraphics g, Font font, int x, int y, int w, int h, int mouseX, int mouseY, float partialTick) {
         SystemData d = ClientSystemData.get();
         Player player = Minecraft.getInstance().player;
@@ -208,6 +213,7 @@ public class StatusTab implements SystemTab {
         if (Gfx.alpha() > 0.6f) {
             float ax = (float) Math.atan((mid - mouseX) / 70f) + (float) Math.sin(Anim.now() * 0.7) * 0.18f;
             float ay = (float) Math.atan((y + 40 - mouseY) / 90f) * 0.6f;
+            Shapes.flush(g);
             InventoryScreen.renderEntityInInventoryFollowsAngle(g, x + 3, y + 6, Math.round(x + CARD_W - 3), y + 118, 46, 0.0625f, ax, ay, player);
         }
 

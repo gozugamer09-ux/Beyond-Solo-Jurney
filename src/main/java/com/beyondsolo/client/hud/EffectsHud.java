@@ -167,6 +167,7 @@ public final class EffectsHud {
         int iy = Math.round(cy) - 9;
         float a = alpha * Gfx.alpha();
         IClientMobEffectExtensions ext = IClientMobEffectExtensions.of(e);
+        Shapes.flush(g);   // the icon is blitted (or drawn by its mod) straight away: the disc goes first
         RenderSystem.enableBlend();
         if (!ext.renderGuiIcon(e, mc.gui, g, ix - 3, iy - 3, 0, a)) {
             TextureAtlasSprite sprite = mc.getMobEffectTextures().get(effect);
