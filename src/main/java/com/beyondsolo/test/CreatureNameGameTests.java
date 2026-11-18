@@ -197,10 +197,11 @@ public final class CreatureNameGameTests {
         Mob far = creature(helper, MonsterKind.PIT_RAVAGER, PlayerRank.A, EnemyTraits.NONE);
         helper.assertTrue(HiddenLevel.threat(far, p) == Threat.FAR_STRONGER, "an A gate's creature is red to a fresh hunter");
 
+        // a pit ravager is one of an A gate's heaviest creatures (near S's home level on the power curve)
         ServerPlayer veteran = hunter(helper, PlayerRank.E);
-        SystemAPI.addStatPoints(veteran, Math.round(HiddenLevel.POINTS_PER_LEVEL * 59));
-        helper.assertTrue(HiddenLevel.threat(champion, veteran) == Threat.WEAKER, "an E gate's champion is white to a level 60");
-        helper.assertTrue(HiddenLevel.threat(far, veteran) != Threat.FAR_STRONGER, "an A gate's plain creature is no red to a level 60");
+        SystemAPI.addStatPoints(veteran, Math.round(HiddenLevel.POINTS_PER_LEVEL * 65));
+        helper.assertTrue(HiddenLevel.threat(champion, veteran) == Threat.WEAKER, "an E gate's champion is white to a level 66");
+        helper.assertTrue(HiddenLevel.threat(far, veteran) != Threat.FAR_STRONGER, "an A gate's plain creature is no red to a level 66");
         champion.discard();
         far.discard();
         helper.succeed();

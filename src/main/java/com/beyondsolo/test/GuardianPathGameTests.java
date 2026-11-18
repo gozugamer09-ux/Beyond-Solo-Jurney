@@ -152,7 +152,7 @@ public final class GuardianPathGameTests {
         ServerPlayer c = guardian(helper, Subclass.EVERLASTING_COLOSSUS);
         float health = c.getMaxHealth();
         SkillAPI.learn(c, GuardianPath.TITANIC_FRAME, 5, SkillEvent.Source.OTHER);
-        helper.assertTrue(Math.abs(c.getMaxHealth() - health - 10) < 0.01f, "Titanic Frame 5 adds 10 health: " + (c.getMaxHealth() - health));
+        helper.assertTrue(Math.abs(c.getMaxHealth() - health * 1.25f) < 0.01f, "Titanic Frame 5 adds 25% health: " + (c.getMaxHealth() - health));
         ServerPlayer i = guardian(helper, Subclass.IRONWALL_SENTINEL);
         double armor = i.getAttributeValue(Attributes.ARMOR);
         SkillAPI.learn(i, GuardianPath.HEAVY_PLATING, 5, SkillEvent.Source.OTHER);

@@ -167,6 +167,8 @@ public final class SystemAPI {
         data.setLevel(target);
         data.setXp(0);
         data.setStatPoints(data.statPoints() + (target - oldLevel) * Config.STAT_POINTS_PER_LEVEL.get());
+        // levels carry max health and damage (Balance)
+        StatEffects.apply(player);
         if (target > oldLevel) {
             player.setHealth(player.getMaxHealth());
             data.setMana(data.maxMana());
