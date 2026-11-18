@@ -138,6 +138,7 @@ public final class GearTooltip {
         }
         if (src.startsWith("villager:")) return Component.translatable("tooltip.beyondsolo.set_source.villager." + src.substring(9));
         if (src.equals("divine")) return Component.translatable("tooltip.beyondsolo.set_source.divine");
+        if (src.equals("monarch")) return Component.translatable("tooltip.beyondsolo.set_source.monarch");
         return null;
     }
 

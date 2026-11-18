@@ -83,9 +83,13 @@ public final class HiddenLevel {
         }
     }
 
-    /** Has a hidden level at all: one of the roster's creatures (it carries traits or is a gate creature) or a dungeon's boss. */
+    /**
+     * Has a hidden level at all: one of the roster's creatures (it carries traits or is a gate creature), a dungeon's
+     * boss, or one of the world's great threats (a world boss or a monarch).
+     */
     public static boolean has(LivingEntity e) {
-        return !(e instanceof Player) && (EnemyTraits.has(e) || e instanceof GateMonsterEntity || e instanceof DungeonBoss);
+        return !(e instanceof Player) && (EnemyTraits.has(e) || e instanceof GateMonsterEntity || e instanceof DungeonBoss
+                || e instanceof com.beyondsolo.worldboss.ColossalBoss);
     }
 
     /** A creature's hidden level. Worked out and kept the first time it is asked for. */

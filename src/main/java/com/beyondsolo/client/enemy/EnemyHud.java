@@ -31,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Elites and champions wear a bigger plate: a tag ("ELITE", "CHAMPION") in the variant's colour over the name,
  * their affixes under it. A boss fighting under its bar at the top of the screen has its name there instead (in the
- * same colour). Without the System only elites and champions get a plate, their name in their affinity's colour.
+ * same colour), and so does a world boss or monarch ({@code WorldBossHud}). Without the System only elites and champions get a plate, their name in their affinity's colour.
  * Everything is drawn with the System's own font and shapes.</p>
  */
 public final class EnemyHud {
@@ -100,8 +100,9 @@ public final class EnemyHud {
         boolean plate = t.variant().special();
         boolean named = names && EnemyClient.level(e.getId()) >= 0;
         if (!plate && !named) return null;
-        // a boss fighting under its bar has its name up there
+        // a boss fighting under its bar has its name up there; a great threat always has its own bar or marker
         if (named && e instanceof DungeonBoss && e.getId() == GateOverlay.barBossId()) return null;
+        if (e instanceof com.beyondsolo.worldboss.ColossalBoss) return null;
         double range = plate ? PLATE_RANGE : NAME_RANGE;
         double dist = mc.player.distanceTo(e);
         if (dist > range || !mc.player.hasLineOfSight(e)) return null;
