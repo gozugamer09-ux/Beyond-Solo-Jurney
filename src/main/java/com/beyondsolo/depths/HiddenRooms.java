@@ -131,7 +131,7 @@ public final class HiddenRooms {
         List<BlockPos> wall = new ArrayList<>();
         if (m != null) {
             // every block of the plug (it may not all touch where it was struck)
-            int reach = Mth.ceil(m.radius() + 3);
+            int reach = DepthsBuild.wallReach(m);
             BlockPos c = BlockPos.containing(m.center());
             for (BlockPos p : BlockPos.betweenClosed(c.offset(-reach, -reach, -reach), c.offset(reach, reach, reach))) {
                 if (level.getBlockState(p).getBlock() instanceof HiddenSealBlock) wall.add(p.immutable());

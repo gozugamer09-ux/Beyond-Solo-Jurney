@@ -6,6 +6,7 @@ import com.beyondsolo.gate.DungeonLayout.Space;
 import com.beyondsolo.gate.DungeonLayout.SpaceShape;
 import com.beyondsolo.gate.DungeonLayout.Style;
 import com.beyondsolo.gate.DungeonLayout.Tunnel;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -41,7 +42,9 @@ import java.util.function.Consumer;
  *     <li>the structures go in: the chasm's sea and the lake, islands on their pillars, bridge decks with railings,
  *     steps in corridors, the walkway of winding stairs, terraces for camps in a hollow;</li>
  *     <li>then the dressing ({@link DungeonDecor}): lights, the realm's decorations, the boss's arena, caches, mana
- *     veins, and walls and fences are joined up to their neighbours.</li>
+ *     veins, and walls and fences are joined up to their neighbours;</li>
+ *     <li>last, it is walked from the entrance as a player would, and a way is opened to any room that can't be got
+ *     to on foot ({@link DungeonMend}).</li>
  * </ol>
  */
 public final class DungeonBuilder {
@@ -65,6 +68,8 @@ public final class DungeonBuilder {
     /** Walls, fences and bars placed: they are joined to their neighbours once everything is in. */
     private final List<BlockPos> joins = new ArrayList<>();
     private final DungeonDecor decor;
+    /** The middle of every corridor, worked out when first needed ({@link #lanes()}). */
+    private Long2IntOpenHashMap lanes;
 
     public DungeonBuilder(GateInstance gate) {
         this.gate = gate;
@@ -87,7 +92,11 @@ public final class DungeonBuilder {
                 ledge(level, room);
             }));
         }
-        for (Tunnel t : layout.tunnels()) steps.add(once(level -> walkway(level, t)));
+        for (int k = 0; k < layout.tunnels().size(); k++) {
+            Tunnel t = layout.tunnels().get(k);
+            int self = k;
+            steps.add(once(level -> walkway(level, t, self)));
+        }
         for (Space s : layout.spaces()) steps.add(once(level -> decor.space(level, s)));
         for (Room room : layout.rooms()) steps.add(once(level -> decor.room(level, room)));
         for (Tunnel t : layout.tunnels()) steps.add(once(level -> decor.passage(level, t)));
@@ -95,6 +104,9 @@ public final class DungeonBuilder {
         // the hidden chamber's wall and dressing, the trap rooms' cores and vents
         steps.add(once(level -> com.beyondsolo.depths.DepthsBuild.build(level, gate)));
         steps.add(once(this::landing));
+        // last, walked through as a player would: every room can be got to on foot, the hidden chamber only past its wall
+        DungeonMend mend = new DungeonMend(this);
+        steps.add(mend::step);
     }
 
     private static Step once(Consumer<ServerLevel> work) {
@@ -263,7 +275,7 @@ public final class DungeonBuilder {
     int[] span(Space s, int x, int z) {
         double dx = (x - s.center().getX() - ox) / (double) s.rx(), dz = (z - s.center().getZ() - oz) / (double) s.rz();
         double h = dx * dx + dz * dz;
-        double edge = noise(x / 6.0, 0.5, z / 6.0) - 0.5;
+        double edge = noise((x - ox) / 6.0, 0.5, (z - oz) / 6.0) - 0.5;
         switch (s.shape()) {
             case SHAFT -> {
                 if (h > 1 + (realm.built() ? 0 : edge * 0.15)) return null;
@@ -291,10 +303,10 @@ public final class DungeonBuilder {
         return null;
     }
 
-    /** A hollow's floor in a column: low hills and bumps, rising up into the walls. */
+    /** A hollow's floor in a column (world x and z): low hills and bumps, rising up into the walls. */
     int hollowGround(Space s, int x, int z, double k) {
-        double hills = noise(x / 13.0, 3.5, z / 13.0) - 0.5;
-        double bumps = noise(x / 4.0, 9.5, z / 4.0) - 0.5;
+        double hills = noise((x - ox) / 13.0, 3.5, (z - oz) / 13.0) - 0.5;
+        double bumps = noise((x - ox) / 4.0, 9.5, (z - oz) / 4.0) - 0.5;
         int g = s.floorY() + (int) Math.round(hills * 7 + bumps * 2);
         if (k > 0.6) g += (int) Math.round((k - 0.6) * 15);
         return g;
@@ -560,7 +572,8 @@ public final class DungeonBuilder {
         }
     }
 
-    private BlockState skin(ServerLevel level, BlockPos.MutableBlockPos q, int x, int y, int z) {
+    /** The realm's block for bare rock at a spot, by what is open beside it; null if nothing is (world coordinates). */
+    BlockState skin(ServerLevel level, BlockPos.MutableBlockPos q, int x, int y, int z) {
         if (air(level, q.set(x, y + 1, z))) return realm.floorAt(x, z, random);
         if (air(level, q.set(x, y - 1, z))) return realm.ceiling(random);
         for (Direction d : HORIZONTAL) if (air(level, q.set(x + d.getStepX(), y, z + d.getStepZ()))) return realm.wallAt(y, random);
@@ -717,16 +730,16 @@ public final class DungeonBuilder {
     }
 
     /** What a passage stands on: steps in a corridor, a bridge's deck and railings, the treads of winding stairs. */
-    private void walkway(ServerLevel level, Tunnel t) {
+    private void walkway(ServerLevel level, Tunnel t, int self) {
         switch (t.style()) {
-            case CORRIDOR -> corridorSteps(level, t);
+            case CORRIDOR -> corridorSteps(level, t, self);
             case BRIDGE -> bridgeDeck(level, t);
             case SPIRAL -> spiralTreads(level, t);
             default -> {}
         }
     }
 
-    private void corridorSteps(ServerLevel level, Tunnel t) {
+    private void corridorSteps(ServerLevel level, Tunnel t, int self) {
         List<int[]> path = corridorPath(t);
         int w = corridorHalf(t);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -736,7 +749,7 @@ public final class DungeonBuilder {
             // a floor under every cell (it may cross open space)
             for (int o = -w; o <= w; o++) {
                 int x = cell[0] + px * o, z = cell[1] + pz * o;
-                if (inRoom(x, cell[2] + 1, z, 1.0)) continue;
+                if (inRoom(x, cell[2] + 1, z, 1.0) || inLane(x, cell[2] - 1, z, self)) continue;
                 place(level, p.set(x + ox, cell[2] - 1, z + oz), realm.deck);
             }
             if (i == 0) continue;
@@ -751,10 +764,44 @@ public final class DungeonBuilder {
             int apx = -at[4], apz = at[3];
             for (int o = -w; o <= w; o++) {
                 int x = at[0] + apx * o, z = at[1] + apz * o;
-                if (inRoom(x, y + 1, z, 1.0)) continue;
+                if (inRoom(x, y + 1, z, 1.0) || inLane(x, y, z, self)) continue;
                 put(level, p.set(x + ox, y, z + oz), stairs(facing));
             }
         }
+    }
+
+    /**
+     * The middle of every corridor, where a player walks it (layout coordinates, to the corridor's index; -2 where two
+     * share it): the feet and head, and the block over that where it steps up or down. Two corridors can run through
+     * each other (from one room along the same line, at different heights), and the floor and steps of one are kept
+     * out of the other's middle, so neither is capped; the one above keeps the rest of its floor.
+     */
+    private Long2IntOpenHashMap lanes() {
+        if (lanes != null) return lanes;
+        lanes = new Long2IntOpenHashMap();
+        lanes.defaultReturnValue(-1);
+        List<Tunnel> all = layout.tunnels();
+        for (int k = 0; k < all.size(); k++) {
+            if (all.get(k).style() != Style.CORRIDOR) continue;
+            List<int[]> path = corridorPath(all.get(k));
+            for (int i = 0; i < path.size(); i++) {
+                int[] c = path.get(i);
+                // where it steps, the lower side needs the block over the head free too, to jump up or drop down
+                boolean step = i > 0 && path.get(i - 1)[2] > c[2] || i + 1 < path.size() && path.get(i + 1)[2] > c[2];
+                for (int y = c[2]; y <= c[2] + (step ? 2 : 1); y++) {
+                    long key = BlockPos.asLong(c[0], y, c[1]);
+                    int had = lanes.get(key);
+                    lanes.put(key, had == -1 || had == k ? k : -2);
+                }
+            }
+        }
+        return lanes;
+    }
+
+    /** True if a block (layout coordinates) is in the middle of a corridor other than the {@code self}th passage (-1: any). */
+    boolean inLane(int x, int y, int z, int self) {
+        int k = lanes().get(BlockPos.asLong(x, y, z));
+        return k != -1 && k != self;
     }
 
     static Direction direction(int dx, int dz) {
@@ -893,12 +940,20 @@ public final class DungeonBuilder {
 
     // ------------------------------------------------------------------ noise
 
-    /** Smooth 3D value noise in 0..1 with a feature size of about 5 blocks (4 up and down), seeded by the gate. */
+    /**
+     * Smooth 3D value noise in 0..1 at a block (world coordinates) with a feature size of about 5 blocks (4 up and
+     * down), seeded by the gate.
+     */
     float noise(int x, int y, int z) {
-        return noise(x / 5.0, y / 4.0, z / 5.0);
+        return noise((x - ox) / 5.0, y / 4.0, (z - oz) / 5.0);
     }
 
-    /** Smooth 3D value noise in 0..1, one feature per unit. */
+    /**
+     * Smooth 3D value noise in 0..1, one feature per unit. It is laid out from the dungeon's origin, not from the world
+     * (callers pass layout x and z, scaled): a gate's dungeon is carved in whichever slot of the gate dimension is free,
+     * and must come out the same in any of them. Noise keyed to the world gave the same seed other walls, floors and
+     * ledges from slot to slot, now and then cutting a room off.
+     */
     float noise(double fx, double fy, double fz) {
         int x0 = Mth.floor(fx), y0 = Mth.floor(fy), z0 = Mth.floor(fz);
         float tx = smooth((float) (fx - x0)), ty = smooth((float) (fy - y0)), tz = smooth((float) (fz - z0));
