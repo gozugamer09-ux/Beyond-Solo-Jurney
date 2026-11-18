@@ -85,7 +85,7 @@ public final class GuardianPath {
     }
 
     private static void debris(ServerLevel level, Vec3 at, int count, double spread) {
-        level.sendParticles(STONE, at.x, at.y + 0.3, at.z, count, spread, 0.3, spread, 0.15);
+        SkillParticles.send(level, STONE, at.x, at.y + 0.3, at.z, count, spread, 0.3, spread, 0.15);
     }
 
     /**
@@ -169,7 +169,7 @@ public final class GuardianPath {
         });
         repeat(p, 120, 20, () -> {
             for (Player ally : level.getEntitiesOfClass(Player.class, new net.minecraft.world.phys.AABB(center, center).inflate(5), Player::isAlive)) ally.heal(0.5f + 0.1f * l);
-            level.sendParticles(ParticleTypes.END_ROD, center.x, center.y + 0.2, center.z, 8, 2.5, 0.1, 2.5, 0.01);
+            SkillParticles.send(level, ParticleTypes.END_ROD, center.x, center.y + 0.2, center.z, 8, 2.5, 0.1, 2.5, 0.01);
         });
         return true;
     }
@@ -249,7 +249,7 @@ public final class GuardianPath {
             fxAt(level, Kind.ROAR, 0xFFFFFF, at, 10, 0);
             fxAt(level, Kind.CRACK, s.color(), at, 10, 0);
             fxAt(level, Kind.GEYSER, s.color(), at, 6, 2);
-            level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 1, at.z, 60, 3, 1, 3, 0.1);
+            SkillParticles.send(level, ParticleTypes.END_ROD, at.x, at.y + 1, at.z, 60, 3, 1, 3, 0.1);
         });
         return true;
     }
@@ -616,8 +616,8 @@ public final class GuardianPath {
             }
             sound(level, land, SoundEvents.GENERIC_EXPLODE.value(), 0.8f, 1.2f);
             fxAt(level, Kind.CRACK, s.color(), land, 4, 0);
-            level.sendParticles(ParticleTypes.FLAME, land.x, land.y + 0.3, land.z, 24, 1.4, 0.2, 1.4, 0.04);
-            level.sendParticles(DIRT, land.x, land.y + 0.3, land.z, 16, 1.2, 0.2, 1.2, 0.15);
+            SkillParticles.send(level, ParticleTypes.FLAME, land.x, land.y + 0.3, land.z, 24, 1.4, 0.2, 1.4, 0.04);
+            SkillParticles.send(level, DIRT, land.x, land.y + 0.3, land.z, 16, 1.2, 0.2, 1.2, 0.15);
         });
         return true;
     }
@@ -640,7 +640,7 @@ public final class GuardianPath {
         SkillAPI.setBuff(p, BUFF_WRATH, 160);
         sound(p, SoundEvents.RAVAGER_ROAR, 0.8f, 1.3f);
         fx(p, Kind.ROAR, s.color(), p.position(), 3, 0);
-        repeat(p, 160, 8, () -> level.sendParticles(ParticleTypes.FLAME, p.getX(), p.getY() + 1, p.getZ(), 3, 0.3, 0.5, 0.3, 0.01));
+        repeat(p, 160, 8, () -> SkillParticles.send(level, ParticleTypes.FLAME, p.getX(), p.getY() + 1, p.getZ(), 3, 0.3, 0.5, 0.3, 0.01));
         return true;
     }
 
@@ -663,7 +663,7 @@ public final class GuardianPath {
             }
             sound(p, SoundEvents.GENERIC_EXPLODE.value(), 1f, 1.1f);
             fx(p, Kind.NOVA, s.color(), at, 6, 0);
-            level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.5, at.z, 40, 2, 0.4, 2, 0.06);
+            SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y + 0.5, at.z, 40, 2, 0.4, 2, 0.06);
         });
         return true;
     }
@@ -673,7 +673,7 @@ public final class GuardianPath {
         Vec3 at = aimGround(p, 18);
         sound(level, at, SoundEvents.FIRECHARGE_USE, 1.2f, 0.5f);
         repeat(p, 80, 16, () -> fxAt(level, Kind.GEYSER, s.color(), at, 5, 0));
-        repeat(p, 80, 4, () -> level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 1.5, at.z, 10, 0.8, 1.5, 0.8, 0.02));
+        repeat(p, 80, 4, () -> SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y + 1.5, at.z, 10, 0.8, 1.5, 0.8, 0.02));
         repeat(p, 80, 10, () -> {
             for (LivingEntity e : foes(p, at, 3)) {
                 hit(p, s, e, 4 * m(l, tier(p)) + vit(p, 0.08f));
@@ -720,7 +720,7 @@ public final class GuardianPath {
             sound(level, center, SoundEvents.GENERIC_EXPLODE.value(), 1.4f, 0.7f);
             fxAt(level, Kind.NOVA, s.color(), center, 10, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 10, 0);
-            level.sendParticles(ParticleTypes.LAVA, center.x, center.y + 0.5, center.z, 20, 3, 0.3, 3, 0);
+            SkillParticles.send(level, ParticleTypes.LAVA, center.x, center.y + 0.5, center.z, 20, 3, 0.3, 3, 0);
         });
         return true;
     }
@@ -929,7 +929,7 @@ public final class GuardianPath {
                     e.hurt(p.damageSources().onFire(), com.beyondsolo.system.Balance.flatDamage(p, 3 * m(wrath, tier(p))));
                     e.igniteForSeconds(3);
                 }
-                level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.8, at.z, 10, 0.8, 0.4, 0.8, 0.03);
+                SkillParticles.send(level, ParticleTypes.FLAME, at.x, at.y + 0.8, at.z, 10, 0.8, 0.4, 0.8, 0.03);
             });
         }
     }

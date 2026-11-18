@@ -128,7 +128,7 @@ final class SubclassKit {
      * flowers and trees that are seen but never built, so nothing is left behind in the world.
      */
     static void marker(ServerLevel level, BlockState state, Vec3 at) {
-        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK_MARKER, state), at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
+        SkillParticles.send(level, new BlockParticleOption(ParticleTypes.BLOCK_MARKER, state), at.x, at.y + 0.5, at.z, 1, 0, 0, 0, 0);
     }
 
     // ================================================================ space

@@ -72,6 +72,10 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillMoment(payload)));
         registrar.playToClient(SkillFxPayload.TYPE, SkillFxPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillFx(payload)));
+        registrar.playToClient(SkillCastPayload.TYPE, SkillCastPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillCast(payload)));
+        registrar.playToClient(SkillParticlesPayload.TYPE, SkillParticlesPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ClientPayloadHandler.onSkillParticles(payload)));
         registrar.playToServer(SkillActionPayload.TYPE, SkillActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (!(ctx.player() instanceof ServerPlayer player)) return;

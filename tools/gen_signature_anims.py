@@ -152,8 +152,9 @@ ANIMS["colossus_stance"] = emote("colossus_stance", "Heave the hammer up, slam i
                  (14, {"pitch": -40}), (20, {"pitch": -70, "roll": 20}), (24, {"pitch": -70, "roll": 20})],
     "leftArm": [(2, {"pitch": -130}), (7, {"pitch": -175}), (9, {"pitch": -45}, "EASEINCUBIC"),
                 (14, {"pitch": -40}), (20, {"pitch": -95, "roll": 25}), (24, {"pitch": -95, "roll": 25})],
-    "torso": [(2, {"pitch": 6}), (7, {"pitch": 14}), (9, {"pitch": -28, "y": 1.5}, "EASEINCUBIC"),
-              (14, {"pitch": -24, "y": 1.5}), (20, {"pitch": -4, "y": 0}), (24, {"pitch": -4, "y": 0})],
+    # no "y" on the torso: this format reads it as the whole player, and 1.5 lifted them a block and a half off the ground
+    "torso": [(2, {"pitch": 6}), (7, {"pitch": 14}), (9, {"pitch": -28}, "EASEINCUBIC"),
+              (14, {"pitch": -24}), (20, {"pitch": -4}), (24, {"pitch": -4})],
     "head": [(2, {"pitch": -15}), (7, {"pitch": -25}), (9, {"pitch": 20}), (14, {"pitch": 15}), (20, {"pitch": 0})],
     "rightLeg": [(2, {"roll": 8}), (9, {"roll": 22}, "EASEOUTQUAD"), (24, {"roll": 18})],
     "leftLeg": [(2, {"roll": -8}), (9, {"roll": -22}, "EASEOUTQUAD"), (24, {"roll": -18})],

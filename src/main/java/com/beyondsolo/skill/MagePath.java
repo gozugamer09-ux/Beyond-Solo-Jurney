@@ -106,7 +106,7 @@ public final class MagePath {
         }
         for (int i = 2; i < 18; i += 2) {
             Vec3 pt = ray[0].lerp(ray[1], i / 18.0);
-            level.sendParticles(ParticleTypes.FLAME, pt.x, pt.y, pt.z, 4, 0.15, 0.15, 0.15, 0.02);
+            SkillParticles.send(level, ParticleTypes.FLAME, pt.x, pt.y, pt.z, 4, 0.15, 0.15, 0.15, 0.02);
         }
         sound(p, SoundEvents.BLAZE_SHOOT, 1f, 0.8f);
         fx(p, Kind.BEAM, s.color(), ray[1], 0.45f, 6);
@@ -127,7 +127,7 @@ public final class MagePath {
         repeat(p, 100, 5, () -> {
             for (int i = 0; i <= 7; i++) {
                 Vec3 pt = a.lerp(b, i / 7.0);
-                level.sendParticles(ParticleTypes.FLAME, pt.x, pt.y + 0.8, pt.z, 3, 0.25, 0.7, 0.25, 0.01);
+                SkillParticles.send(level, ParticleTypes.FLAME, pt.x, pt.y + 0.8, pt.z, 3, 0.25, 0.7, 0.25, 0.01);
             }
         });
         repeat(p, 100, 10, () -> {
@@ -158,7 +158,7 @@ public final class MagePath {
         sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.9f, lit ? 0.8f : 1.3f);
         fxAt(level, Kind.NOVA, s.color(), at, lit ? 4.5f : 2.4f, 0);
         fxAt(level, Kind.GEYSER, s.color(), at, lit ? 4 : 2.4f, 0);
-        level.sendParticles(ParticleTypes.LAVA, at.x, at.y + 1, at.z, lit ? 16 : 6, 0.5, 0.5, 0.5, 0);
+        SkillParticles.send(level, ParticleTypes.LAVA, at.x, at.y + 1, at.z, lit ? 16 : 6, 0.5, 0.5, 0.5, 0);
         return true;
     }
 
@@ -168,7 +168,7 @@ public final class MagePath {
         sound(p, SoundEvents.BLAZE_SHOOT, 1f, 0.5f);
         fx(p, Kind.GEYSER, s.color(), p.position(), 3, 0);
         fx(p, Kind.AURA, s.color(), p.position(), 1.3f, 24);
-        repeat(p, 20, 2, () -> level.sendParticles(ParticleTypes.FLAME, p.getX(), p.getY() + 0.8, p.getZ(), 8, 0.4, 0.5, 0.4, 0.03));
+        repeat(p, 20, 2, () -> SkillParticles.send(level, ParticleTypes.FLAME, p.getX(), p.getY() + 0.8, p.getZ(), 8, 0.4, 0.5, 0.4, 0.03));
         leap(p, to, 0.85, land -> {
             for (LivingEntity e : foes(p, land, 5)) {
                 magic(p, s, e, 13 * m(l, tier(p)) + wis(p, 0.3f));
@@ -179,7 +179,7 @@ public final class MagePath {
             fxAt(level, Kind.NOVA, s.color(), land, 5, 0);
             fxAt(level, Kind.CRACK, s.color(), land, 5, 0);
             fxAt(level, Kind.GEYSER, 0xFFE090, land, 4, 0);
-            level.sendParticles(ParticleTypes.FLAME, land.x, land.y + 0.4, land.z, 60, 1.8, 0.3, 1.8, 0.06);
+            SkillParticles.send(level, ParticleTypes.FLAME, land.x, land.y + 0.4, land.z, 60, 1.8, 0.3, 1.8, 0.06);
         });
         return true;
     }
@@ -202,7 +202,7 @@ public final class MagePath {
                     }
                     sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.7f, 1.1f + 0.05f * k);
                     fxAt(level, Kind.NOVA, s.color(), at, 2.8f, 0);
-                    level.sendParticles(ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 6, 0.6, 0.1, 0.6, 0);
+                    SkillParticles.send(level, ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 6, 0.6, 0.1, 0.6, 0);
                 });
             });
         }
@@ -231,7 +231,7 @@ public final class MagePath {
             fxAt(level, Kind.NOVA, s.color(), at, 5, 0);
             fxAt(level, Kind.GEYSER, s.color(), at, 4, 0);
             fxAt(level, Kind.ROAR, 0xFFE090, at, 5, 0);
-            level.sendParticles(ParticleTypes.EXPLOSION, at.x, at.y + 1, at.z, 3, 0.8, 0.5, 0.8, 0);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION, at.x, at.y + 1, at.z, 3, 0.8, 0.5, 0.8, 0);
         });
         return true;
     }
@@ -246,7 +246,7 @@ public final class MagePath {
         fxAt(level, Kind.ORB, s.color(), sun, 3.5f, 44);
         fxAt(level, Kind.ZONE, s.color(), center, 10, 48);
         fxAt(level, Kind.QUAKE, s.color(), center, 10, 48);
-        repeat(p, 40, 4, () -> level.sendParticles(ParticleTypes.FLAME, sun.x, sun.y, sun.z, 12, 1.5, 1.5, 1.5, 0.02));
+        repeat(p, 40, 4, () -> SkillParticles.send(level, ParticleTypes.FLAME, sun.x, sun.y, sun.z, 12, 1.5, 1.5, 1.5, 0.02));
         later(p, 40, () -> fx(p, Kind.METEOR, s.color(), center, 9, 8));
         later(p, 48, () -> {
             for (LivingEntity e : foes(p, center, 10)) {
@@ -260,8 +260,8 @@ public final class MagePath {
             fxAt(level, Kind.ROAR, 0xFFF0C0, center, 10, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 10, 0);
             fxAt(level, Kind.GEYSER, 0xFFE090, center, 9, 0);
-            level.sendParticles(ParticleTypes.EXPLOSION, center.x, center.y + 1, center.z, 4, 2, 0.6, 2, 0);
-            level.sendParticles(ParticleTypes.LAVA, center.x, center.y + 0.5, center.z, 30, 3, 0.3, 3, 0);
+            SkillParticles.send(level, ParticleTypes.EXPLOSION, center.x, center.y + 1, center.z, 4, 2, 0.6, 2, 0);
+            SkillParticles.send(level, ParticleTypes.LAVA, center.x, center.y + 0.5, center.z, 30, 3, 0.3, 3, 0);
             for (int i = 0; i < 8; i++) {
                 double ang = i * Math.PI / 4;
                 Vec3 pt = ground(level, center.add(Math.cos(ang) * 6.5, 0, Math.sin(ang) * 6.5));
@@ -270,7 +270,7 @@ public final class MagePath {
             // the ground keeps burning
             fxAt(level, Kind.ZONE, 0xFF5A1A, center, 8, 80);
             repeat(p, 80, 10, () -> {
-                level.sendParticles(ParticleTypes.FLAME, center.x, center.y + 0.3, center.z, 40, 3.5, 0.2, 3.5, 0.02);
+                SkillParticles.send(level, ParticleTypes.FLAME, center.x, center.y + 0.3, center.z, 40, 3.5, 0.2, 3.5, 0.02);
                 for (LivingEntity e : foes(p, center, 8)) {
                     magic(p, s, e, 5 * m(l, tier(p)));
                     ignite(p, e, 20);
@@ -326,7 +326,7 @@ public final class MagePath {
             later(p, t, () -> {
                 Vec3 at = start.add(dir.scale(tt * 0.3));
                 fxAt(level, Kind.ORB, s.color(), at, 0.7f, 7);
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, 10, 0.5, 0.5, 0.5, 0.2);
+                SkillParticles.send(level, ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, 10, 0.5, 0.5, 0.5, 0.2);
                 for (LivingEntity e : foes(p, at, 3.5)) {
                     magic(p, s, e, 3 * m(l, tier(p)) + wis(p, 0.06f));
                     fx(e, Kind.BOLT, s.color(), at, 0.3f, 0);
@@ -366,7 +366,7 @@ public final class MagePath {
         fxAt(level, Kind.THUNDER, s.color(), to, 2.5f, 0);
         for (int i = 1; i < 9; i++) {
             Vec3 pt = from.lerp(to, i / 9.0);
-            level.sendParticles(ParticleTypes.ELECTRIC_SPARK, pt.x, pt.y + 1, pt.z, 5, 0.2, 0.4, 0.2, 0.1);
+            SkillParticles.send(level, ParticleTypes.ELECTRIC_SPARK, pt.x, pt.y + 1, pt.z, 5, 0.2, 0.4, 0.2, 0.1);
         }
         return true;
     }
@@ -487,8 +487,8 @@ public final class MagePath {
     static int bubbleTicks(int l) { return 40 + 4 * l; }
 
     private static void drench(ServerLevel level, Vec3 at, int count, double spread) {
-        level.sendParticles(ParticleTypes.SPLASH, at.x, at.y + 0.5, at.z, count, spread, 0.4, spread, 0.2);
-        level.sendParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.8, at.z, count / 2, spread, 0.6, spread, 0.02);
+        SkillParticles.send(level, ParticleTypes.SPLASH, at.x, at.y + 0.5, at.z, count, spread, 0.4, spread, 0.2);
+        SkillParticles.send(level, ParticleTypes.BUBBLE_POP, at.x, at.y + 0.8, at.z, count / 2, spread, 0.6, spread, 0.02);
     }
 
     static boolean waterWhip(ServerPlayer p, Skill s, int l) {
@@ -681,7 +681,7 @@ public final class MagePath {
         }
         for (int i = 2; i < 18; i += 2) {
             Vec3 pt = ray[0].lerp(ray[1], i / 18.0);
-            level.sendParticles(ParticleTypes.WHITE_ASH, pt.x, pt.y, pt.z, 6, 0.15, 0.15, 0.15, 0.01);
+            SkillParticles.send(level, ParticleTypes.WHITE_ASH, pt.x, pt.y, pt.z, 6, 0.15, 0.15, 0.15, 0.01);
         }
         sound(p, SoundEvents.SKELETON_HURT, 1f, 0.6f);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.7f);
@@ -723,7 +723,7 @@ public final class MagePath {
                 double ang = i * Math.PI * 2 / 5;
                 fxAt(level, Kind.GEYSER, i % 2 == 0 ? BONE : s.color(), at.add(Math.cos(ang) * 2.4, 0, Math.sin(ang) * 2.4), 2.6f, 1);
             }
-            level.sendParticles(ParticleTypes.WHITE_ASH, at.x, at.y + 1, at.z, 60, 1.5, 1, 1.5, 0.02);
+            SkillParticles.send(level, ParticleTypes.WHITE_ASH, at.x, at.y + 1, at.z, 60, 1.5, 1, 1.5, 0.02);
         });
         return true;
     }
@@ -740,7 +740,7 @@ public final class MagePath {
             p.heal(drainHeal(l));
             fx(p, Kind.BEAM, s.color(), mid(target), 0.3f, 6);
             Vec3 pt = mid(target).lerp(p.getEyePosition(), p.getRandom().nextDouble());
-            level.sendParticles(ParticleTypes.SOUL, pt.x, pt.y, pt.z, 3, 0.15, 0.15, 0.15, 0.01);
+            SkillParticles.send(level, ParticleTypes.SOUL, pt.x, pt.y, pt.z, 3, 0.15, 0.15, 0.15, 0.01);
             sound(p, SoundEvents.SOUL_ESCAPE.value(), 0.6f, 1.2f);
         });
         later(p, 40, () -> fx(p, Kind.HEAL, s.color(), p.position(), 1, 0));
@@ -762,7 +762,7 @@ public final class MagePath {
                 e.addEffect(new MobEffectInstance(MobEffects.WITHER, 60, 0));
                 fx(p, Kind.SHOT, s.color(), mid(e), 1, 0);
                 fxAt(level, Kind.ORB, s.color(), mid(e), 0.6f, 6);
-                level.sendParticles(ParticleTypes.SOUL, e.getX(), e.getY() + 1, e.getZ(), 6, 0.3, 0.5, 0.3, 0.03);
+                SkillParticles.send(level, ParticleTypes.SOUL, e.getX(), e.getY() + 1, e.getZ(), 6, 0.3, 0.5, 0.3, 0.03);
                 sound(e, SoundEvents.VEX_HURT, 0.7f, 0.8f);
             });
         }
@@ -799,7 +799,7 @@ public final class MagePath {
         repeat(p, 40, 5, () -> {
             for (LivingEntity e : foes(p, center, 12)) {
                 Vec3 pt = mid(e);
-                level.sendParticles(ParticleTypes.SOUL, pt.x, pt.y, pt.z, 3, 0.3, 0.4, 0.3, 0.04);
+                SkillParticles.send(level, ParticleTypes.SOUL, pt.x, pt.y, pt.z, 3, 0.3, 0.4, 0.3, 0.04);
             }
             sound(level, center, SoundEvents.SOUL_ESCAPE.value(), 1f, 0.6f);
         });
@@ -825,7 +825,7 @@ public final class MagePath {
             fxAt(level, Kind.NOVA, s.color(), center, 12, 4);
             fxAt(level, Kind.ROAR, BONE, center, 12, 0);
             fxAt(level, Kind.CRACK, s.color(), center, 12, 0);
-            level.sendParticles(ParticleTypes.SOUL, center.x, center.y + 1, center.z, 40, 5, 1, 5, 0.05);
+            SkillParticles.send(level, ParticleTypes.SOUL, center.x, center.y + 1, center.z, 40, 5, 1, 5, 0.05);
         });
         return true;
     }
@@ -856,7 +856,7 @@ public final class MagePath {
             MagePath::genesisRay, (l, t) -> a(f(9 * m(l, t)), f(30 * m(l, t))));
 
     private static void stars(ServerLevel level, Vec3 at, int count, double spread) {
-        level.sendParticles(ParticleTypes.END_ROD, at.x, at.y, at.z, count, spread, spread, spread, 0.03);
+        SkillParticles.send(level, ParticleTypes.END_ROD, at.x, at.y, at.z, count, spread, spread, spread, 0.03);
     }
 
     static boolean starBolt(ServerPlayer p, Skill s, int l) {
@@ -905,7 +905,7 @@ public final class MagePath {
         fxAt(level, Kind.VORTEX, s.color(), origin, 5, 20);
         repeat(p, 20, 4, () -> {
             for (LivingEntity e : foes(p, origin, 7)) pull(e, origin, 0.9);
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, origin.x, origin.y + 1.2, origin.z, 20, 1.5, 1, 1.5, 0.02);
+            SkillParticles.send(level, ParticleTypes.REVERSE_PORTAL, origin.x, origin.y + 1.2, origin.z, 20, 1.5, 1, 1.5, 0.02);
         });
         later(p, 20, () -> {
             for (LivingEntity e : foes(p, origin, 4)) magic(p, s, e, 14 * m(l, tier(p)) + wis(p, 0.3f));
@@ -949,7 +949,7 @@ public final class MagePath {
         sound(p, SoundEvents.BEACON_ACTIVATE, 1f, 1.6f);
         fx(p, Kind.AURA, s.color(), p.position(), 1.4f, 16);
         fxAt(level, Kind.ORB, s.color(), p.position().add(0, 1.1, 0), 1.6f, 16);
-        repeat(p, 16, 4, () -> level.sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 1, p.getZ(), 10, 3, 1.5, 3, -0.2));
+        repeat(p, 16, 4, () -> SkillParticles.send(level, ParticleTypes.END_ROD, p.getX(), p.getY() + 1, p.getZ(), 10, 3, 1.5, 3, -0.2));
         later(p, 16, () -> {
             Vec3 at = p.position();
             for (LivingEntity e : foes(p, at, 9)) {

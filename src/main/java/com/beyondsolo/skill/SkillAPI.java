@@ -213,7 +213,14 @@ public final class SkillAPI {
             return false;
         }
         SkillCombat.begin(player, skill);
-        if (!skill.action().cast(player, skill, level)) {
+        boolean done;
+        SkillFx.beginCast();
+        try {
+            done = skill.action().cast(player, skill, level);
+        } finally {
+            SkillFx.endCast();
+        }
+        if (!done) {
             SkillCombat.undo(player);
             refuse(player, skill, SkillMomentPayload.NO_TARGET);
             return false;
@@ -222,6 +229,7 @@ public final class SkillAPI {
         int cooldown = com.beyondsolo.rune.Runes.cooldown(player, skill, level);
         data.startCooldown(skill.path(), now, player.isCreative() ? Math.min(20, cooldown) : cooldown);
         player.swing(InteractionHand.MAIN_HAND, true);
+        SkillFx.gesture(player, skill);
         if (skill.castCircle()) SkillFx.play(player, SkillFxPayload.Kind.CAST, skill.color(), 1.2f);
         if (!player.isCreative()) SystemAPI.addExhaustion(player, CAST_EXHAUSTION);
         addProficiency(player, skill, 1);
