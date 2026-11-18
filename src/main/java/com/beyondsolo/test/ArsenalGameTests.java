@@ -20,6 +20,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
@@ -28,7 +29,9 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import net.neoforged.neoforge.event.PlayLevelSoundEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -36,6 +39,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** Arsenal tests: grades, gate loot odds, traits, class-bound divine weapons and signature arts. */
 @GameTestHolder(BeyondSolo.MOD_ID)
@@ -229,5 +233,28 @@ public final class ArsenalGameTests {
             helper.assertTrue(BuiltInRegistries.ITEM.getKey(divine).getPath().equals("starfall_longbow"), "bow registered");
             helper.succeed();
         });
+    }
+
+    @GameTest(template = ARENA)
+    public static void bowStringCreaksOncePerDraw(GameTestHelper helper) {
+        ServerPlayer p = player(helper);
+        SystemBowItem bow = Arsenal.HUNTERS_SHORTBOW.get();
+        ItemStack stack = new ItemStack(bow);
+        int full = bow.getUseDuration(stack, p);
+        int[] creaks = {0};
+        Consumer<PlayLevelSoundEvent.AtPosition> listener = e -> {
+            if (e.getLevel() == helper.getLevel() && e.getSound() != null
+                    && e.getSound().value() == SoundEvents.CROSSBOW_LOADING_START.value()) creaks[0]++;
+        };
+        NeoForge.EVENT_BUS.addListener(PlayLevelSoundEvent.AtPosition.class, listener);
+        try {
+            for (int used = 0; used < 3; used++) bow.onUseTick(helper.getLevel(), p, stack, full - used);
+            helper.assertTrue(creaks[0] == 0, "a tap on the button stays silent, heard " + creaks[0]);
+            for (int used = 3; used <= 40; used++) bow.onUseTick(helper.getLevel(), p, stack, full - used);
+            helper.assertTrue(creaks[0] == 1, "the string creaks once as the draw begins, heard " + creaks[0]);
+        } finally {
+            NeoForge.EVENT_BUS.unregister(listener);
+        }
+        helper.succeed();
     }
 }
