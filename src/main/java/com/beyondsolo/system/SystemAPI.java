@@ -80,6 +80,17 @@ public final class SystemAPI {
         NeoForge.EVENT_BUS.post(new SystemEvent.RankChanged(player, old, rank));
     }
 
+    /**
+     * Changes the class and nothing else (commands): stats stay where they are. Callers bring skills and the job in
+     * line with the new class.
+     */
+    public static void setClass(ServerPlayer player, PlayerClass playerClass) {
+        SystemData data = get(player);
+        if (data.playerClass() == playerClass) return;
+        data.setPlayerClass(playerClass);
+        sync(player);
+    }
+
     public static void setTitle(ServerPlayer player, String title) {
         get(player).setTitle(title);
         sync(player);
@@ -138,6 +149,49 @@ public final class SystemAPI {
         }
         sync(player);
         if (level != oldLevel) NeoForge.EVENT_BUS.post(new SystemEvent.LevelUp(player, oldLevel, level));
+    }
+
+    /**
+     * Sets the level directly (commands). Going up gives the free stat points those levels are worth and restores
+     * the player like a level up; going down takes those points back (never below zero). Either way the XP towards
+     * the next level starts over and {@link SystemEvent.LevelUp} fires, so what follows a level (skill unlocks, the
+     * job change, the army's size) catches up.
+     */
+    public static void setLevel(ServerPlayer player, int level) {
+        SystemData data = get(player);
+        int oldLevel = data.level();
+        int target = Math.max(1, Math.min(Progression.MAX_LEVEL, level));
+        if (target == oldLevel) return;
+        data.setLevel(target);
+        data.setXp(0);
+        data.setStatPoints(data.statPoints() + (target - oldLevel) * Config.STAT_POINTS_PER_LEVEL.get());
+        if (target > oldLevel) {
+            player.setHealth(player.getMaxHealth());
+            data.setMana(data.maxMana());
+            data.setExhaustion(0);
+            player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.2f);
+            Notifications.send(player, SystemNotification.of(SystemNotification.Kind.LEVEL_UP,
+                    Component.translatable("notify.beyondsolo.level_up.title"),
+                    Component.translatable("notify.beyondsolo.level_up.body", target, data.statPoints())));
+        }
+        sync(player);
+        NeoForge.EVENT_BUS.post(new SystemEvent.LevelUp(player, oldLevel, target));
+    }
+
+    /**
+     * Puts every stat back to its base value and hands the difference back as free points (commands). Returns how
+     * many points came back.
+     */
+    public static int refundStats(ServerPlayer player) {
+        SystemData data = get(player);
+        int back = 0;
+        for (Stat s : Stat.values()) back += data.stat(s) - Stat.BASE;
+        data.resetStats();
+        data.setStatPoints(data.statPoints() + back);
+        data.setMana(data.mana());
+        StatEffects.apply(player);
+        sync(player);
+        return back;
     }
 
     public static void addStatPoints(ServerPlayer player, int points) {
