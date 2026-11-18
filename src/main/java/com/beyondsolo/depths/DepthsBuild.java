@@ -125,16 +125,27 @@ public final class DepthsBuild {
         return s.isAir() || s.is(Blocks.LIGHT) || s.canBeReplaced();
     }
 
+    /** How far the hidden wall reaches past its mouth's opening, and half its thickness. */
+    public static final float SEAL_PAD = 1.1f, SEAL_HALF = 1.25f;
+
+    /**
+     * How far from its mouth's middle (in x, y and z) the hidden wall's blocks are looked for when it comes down: all
+     * of them there go ({@link HiddenRooms#open}).
+     */
+    public static int wallReach(Mouth m) {
+        return Mth.ceil(m.radius() + 3);
+    }
+
     /** The hidden wall: a plug of rock dressed as the dungeon's own walls, flush with the room's side. */
     static void seal(ServerLevel level, GateInstance g, RandomSource r) {
         Mouth m = sealMouth(g);
         if (m == null) return;
         GateRealm realm = g.realm();
-        fillSlab(level, m, m.radius() + 1.1f, 1.25f, at -> sealState(realm, at.getY(), r), DepthsBuild::open);
+        fillSlab(level, m, m.radius() + SEAL_PAD, SEAL_HALF, at -> sealState(realm, at.getY(), r), DepthsBuild::open);
     }
 
     /** A hidden-wall block that passes for one of the realm's walls at that height. */
-    static BlockState sealState(GateRealm realm, int y, RandomSource r) {
+    public static BlockState sealState(GateRealm realm, int y, RandomSource r) {
         HiddenSealBlock.Look look = null;
         for (int i = 0; i < 4 && look == null; i++) look = HiddenSealBlock.Look.of(realm.wallAt(y, r));
         if (look == null) look = HiddenSealBlock.Look.of(realm.mainWall());

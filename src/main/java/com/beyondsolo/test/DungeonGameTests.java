@@ -13,6 +13,7 @@ import com.beyondsolo.gate.DungeonLayout.Space;
 import com.beyondsolo.gate.DungeonLayout.SpaceShape;
 import com.beyondsolo.gate.DungeonLayout.Tunnel;
 import com.beyondsolo.gate.DungeonShape;
+import com.beyondsolo.gate.DungeonWalk;
 import com.beyondsolo.gate.GateBossEntity;
 import com.beyondsolo.gate.GateData;
 import com.beyondsolo.gate.GateInstance;
@@ -266,6 +267,62 @@ public final class DungeonGameTests {
 
     // ------------------------------------------------------------------ carving, walking, wiping
 
+    /**
+     * A gate's dungeon comes out the same, block for block, in whichever slot of the gate dimension it is carved: all of
+     * it follows from its seed. Its rock was once shaped by noise laid over the world rather than the dungeon, so one
+     * seed carved other walls, floors and ledges in every slot, and in some slots a room couldn't be reached on foot
+     * (the gloomshade realm test below failed now and then, always with the same seed).
+     */
+    @GameTest(template = ARENA, timeoutTicks = 600)
+    public static void aDungeonIsTheSameInAnySlot(GameTestHelper helper) {
+        // that realm test's caverns, and a hollow (its hills, its lake and its columns are shaped by noise too)
+        sameInAnySlot(helper, PlayerRank.B, GateRealm.GLOOMSHADE, DungeonShape.CAVERNS, 0xD00DL + GateRealm.GLOOMSHADE.ordinal() * 104729L);
+        sameInAnySlot(helper, PlayerRank.C, GateRealm.SPOREFALL_DEEP, DungeonShape.HOLLOW, 0x5EEDL + DungeonShape.HOLLOW.ordinal() * 7919L);
+        helper.succeed();
+    }
+
+    /** Carves the same gate twice, in two slots, and compares every block of the two. */
+    private static void sameInAnySlot(GameTestHelper helper, PlayerRank rank, GateRealm realm, DungeonShape shape, long seed) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerLevel d = GateService.dungeon(server);
+        GateInstance[] twins = new GateInstance[2];
+        for (int i = 0; i < 2; i++) {
+            GateInstance g = GateData.get(server).create(UUID.randomUUID(), rank, seed, helper.getLevel().dimension(), helper.absolutePos(new BlockPos(3, 2, 3)));
+            g.setDungeon(realm, shape);
+            g.depths().setHidden(HiddenKind.VAULT);
+            g.replan();
+            for (Room room : g.layout().rooms()) {
+                if (room.kind() == DungeonLayout.Kind.CAVERN && room.index() >= 2) g.depths().setTrap(room.index(), TrapKind.ROCKFALL);
+            }
+            GateService.buildNow(server, g);
+            twins[i] = g;
+        }
+        GateInstance a = twins[0], b = twins[1];
+        String what = realm.id() + "/" + shape.id() + " " + rank + " seed " + seed + " in slots " + a.slot() + " and " + b.slot() + ": ";
+        helper.assertTrue(a.slot() != b.slot(), what + "two slots");
+        int compared = 0, differ = 0;
+        List<String> first = new ArrayList<>();
+        BlockPos.MutableBlockPos pa = new BlockPos.MutableBlockPos(), pb = new BlockPos.MutableBlockPos();
+        for (int[] box : a.layout().boxes(2)) {
+            for (int x = box[0]; x <= box[3]; x++) {
+                for (int y = box[1]; y <= box[4]; y++) {
+                    for (int z = box[2]; z <= box[5]; z++) {
+                        BlockState sa = d.getBlockState(pa.set(a.origin().getX() + x, y, a.origin().getZ() + z));
+                        BlockState sb = d.getBlockState(pb.set(b.origin().getX() + x, y, b.origin().getZ() + z));
+                        compared++;
+                        if (sa == sb) continue;
+                        if (differ++ < 5) first.add("layout " + x + " " + y + " " + z + ": " + sa + " / " + sb);
+                    }
+                }
+            }
+        }
+        for (GateInstance g : twins) {
+            g.setState(GateInstance.State.CLOSED);
+            helper.assertTrue(GateWiper.wipeNow(server, g), what + "wiped");
+        }
+        helper.assertTrue(differ == 0, what + differ + " of " + compared + " blocks differ, as " + String.join("; ", first));
+    }
+
     @GameTest(template = ARENA, timeoutTicks = 600)
     public static void cavernsAreCarvedWalkedAndWiped(GameTestHelper helper) {
         carveWalkWipe(helper, PlayerRank.D, GateRealm.ROOTBOUND_DEN, DungeonShape.CAVERNS);
@@ -354,6 +411,33 @@ public final class DungeonGameTests {
     private static final boolean EXPLORE = false;
 
     /**
+     * Dungeons that came out cut off before the builder walked them to check its work ({@code gate.DungeonMend}), found
+     * by carving every realm in every layout: two corridors from one room laid along one line, the higher one's floor
+     * capping the lower (now kept out of the lower one's way as they are built); a tunnel into the hidden chamber
+     * leaving its cave two blocks above the floor; a corridor's corner wider than the hidden wall across it, so the
+     * chamber could be walked into round the wall. Now every passage is walked along, every room is walked to, and the
+     * hidden chamber only past its wall.
+     */
+    @GameTestGenerator
+    public static List<TestFunction> brokenDungeonsAreMended() {
+        record Broken(GateRealm realm, DungeonShape shape, PlayerRank rank, long seed) {}
+        List<Broken> broken = List.of(
+                new Broken(GateRealm.MOSSWEPT_RUINS, DungeonShape.CAVERNS, PlayerRank.C, 6364136223846895973L),
+                new Broken(GateRealm.CRYSTAL_SEAM, DungeonShape.CAVERNS, PlayerRank.B, 149330L),
+                new Broken(GateRealm.MOSSWEPT_RUINS, DungeonShape.LABYRINTH, PlayerRank.C, 6364136223862381836L),
+                new Broken(GateRealm.SUNSCORCHED_TOMB, DungeonShape.CAVERNS, PlayerRank.B, 110695L),
+                new Broken(GateRealm.IRONBOUND_KEEP, DungeonShape.LABYRINTH, PlayerRank.A, 6364136223862443652L),
+                new Broken(GateRealm.INFERNAL_CITADEL, DungeonShape.GAUNTLET, PlayerRank.A, 31159691L));
+        List<TestFunction> out = new ArrayList<>();
+        for (int i = 0; i < broken.size(); i++) {
+            Broken k = broken.get(i);
+            out.add(new TestFunction("beyondsolo_mended_" + i / 3, "dungeongametests.mended_" + k.realm().id() + "_" + k.shape().id(),
+                    BeyondSolo.MOD_ID + ":" + ARENA, 900, 0, true, helper -> carveWalkWipe(helper, k.rank(), k.realm(), k.shape(), k.seed())));
+        }
+        return out;
+    }
+
+    /**
      * Opens a gate of the realm and shape, carves its dungeon, checks you can stand at the entrance, walk every
      * passage and find the boss in its room, then closes it and checks every block of it went back to rock.
      */
@@ -417,6 +501,9 @@ public final class DungeonGameTests {
         // no further than a fall that doesn't hurt
         BlockPos o = g.origin();
         Set<Long> reached = onFoot(d, e, 800_000);
+        // the builder walked it by the same rules when it checked its work
+        Set<Long> walked = new DungeonWalk(d, false).reach(e, 800_000);
+        helper.assertTrue(walked.equals(reached), what + "the builder walks it as this test does (" + walked.size() + " and " + reached.size() + " spots)");
         boolean[] got = new boolean[layout.rooms().size()];
         BlockPos[] nearest = new BlockPos[got.length];
         double[] best = new double[got.length];
