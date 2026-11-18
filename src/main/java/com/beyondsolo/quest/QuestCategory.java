@@ -18,7 +18,12 @@ public enum QuestCategory {
     /** Given by a villager or other NPC (NPC module). */
     NPC(0xFFC79BFF),
     /** Part of a gate run (gate module). */
-    GATE(0xFFB9EDFF);
+    GATE(0xFFB9EDFF),
+    /**
+     * Never announced: the System only reveals it once it is already done, as a reward for something brave or unusual
+     * the player did on their own (see {@code quest.situation.Secrets}).
+     */
+    SECRET(0xFFFF8AD0);
 
     private final int color;
 

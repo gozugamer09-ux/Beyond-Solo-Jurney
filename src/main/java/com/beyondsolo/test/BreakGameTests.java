@@ -206,6 +206,12 @@ public final class BreakGameTests {
         DungeonBreaks.breakOpen(level, data, g, level.getGameTime());
         GateBossEntity boss = DungeonBreaks.bossOut(level, data, g);
         helper.assertTrue(boss != null && b.bossOut(), "its boss is out");
+        // it can come out a few blocks past the test's own chunks, where creatures don't tick: keep its chunk ticking
+        // so it can finish its entrance (TestChunks)
+        ChunkPos bossChunk = new ChunkPos(boss.blockPosition());
+        boolean forced = level.getForcedChunks().contains(bossChunk.toLong());
+        if (!forced) level.setChunkForced(bossChunk.x, bossChunk.z, true);
+        TestChunks.ticking(level, List.of(bossChunk));
         // what its boss calls in belongs to the break too; a creature from nowhere doesn't
         Mob add = EntityType.ZOMBIE.create(level);
         add.moveTo(boss.getX() + 2, boss.getY(), boss.getZ());
@@ -222,7 +228,8 @@ public final class BreakGameTests {
         helper.assertTrue(before > 2, "monsters, an add and the boss out: " + before);
         Vec3[] fell = new Vec3[1];
         helper.startSequence()
-                .thenWaitUntil(() -> helper.assertTrue(boss.introTicks() <= 0, "its entrance is over"))
+                .thenWaitUntil(() -> helper.assertTrue(boss.introTicks() <= 0, "its entrance is over (" + boss.introTicks() + " ticks left, "
+                        + (boss.isRemoved() ? "removed" : level.isPositionEntityTicking(boss.blockPosition()) ? "ticking" : "not ticking") + ")"))
                 .thenExecute(() -> {
                     fell[0] = boss.position();
                     boss.hurt(level.damageSources().generic(), 100_000f);
@@ -244,6 +251,9 @@ public final class BreakGameTests {
                         if (level.getBlockEntity(p) instanceof RewardCacheBlockEntity) cache = true;
                     }
                     helper.assertTrue(cache, "a reward cache where the boss fell");
+                })
+                .thenExecute(() -> {
+                    if (!forced) level.setChunkForced(bossChunk.x, bossChunk.z, false);
                 })
                 .thenSucceed();
     }

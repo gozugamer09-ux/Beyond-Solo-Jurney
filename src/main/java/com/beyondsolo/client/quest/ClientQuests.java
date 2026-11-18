@@ -49,13 +49,22 @@ public final class ClientQuests {
             case QuestEventPayload.COMPLETED -> {
                 QuestOverlay.push(QuestOverlay.Moment.COMPLETED, quest, 0);
                 NotificationManager.log(SystemNotification.of(SystemNotification.Kind.REWARD,
-                        Component.translatable("quest.beyondsolo.log.completed", quest.title()), QuestText.rewardsLine(quest)));
+                        Component.translatable(quest.category() == QuestCategory.SECRET ? "quest.beyondsolo.log.secret" : "quest.beyondsolo.log.completed",
+                                quest.title()), quest.outcome() != null ? quest.outcome() : QuestText.rewardsLine(quest)));
             }
             case QuestEventPayload.FAILED -> {
                 QuestEvent.FailReason reason = QuestEvent.FailReason.values()[Math.floorMod(payload.detail(), QuestEvent.FailReason.values().length)];
                 QuestOverlay.push(QuestOverlay.Moment.FAILED, quest, payload.detail());
                 NotificationManager.log(SystemNotification.of(SystemNotification.Kind.ALERT,
-                        Component.translatable("quest.beyondsolo.log.failed", quest.title()), reason.describe()));
+                        Component.translatable("quest.beyondsolo.log.failed", quest.title()), quest.outcome() != null ? quest.outcome() : reason.describe()));
+            }
+            case QuestEventPayload.BRANCHED -> {
+                // the situation turned and the System rewrote the quest
+                Quest previous = payload.previous().isEmpty() ? null : Quest.load(payload.previous(), mc.level.registryAccess());
+                QuestOverlay.push(QuestOverlay.Moment.BRANCHED, quest, payload.detail(), previous);
+                NotificationManager.log(SystemNotification.of(quest.isForced() ? SystemNotification.Kind.ALERT : SystemNotification.Kind.QUEST,
+                        Component.translatable("quest.beyondsolo.log.changed", previous == null ? Component.empty() : previous.title(), quest.title()),
+                        quest.description()));
             }
             case QuestEventPayload.OBJECTIVE -> QuestTracker.objectiveDone(quest.id(), payload.detail());
             case QuestEventPayload.READY -> {
@@ -91,6 +100,7 @@ public final class ClientQuests {
             case SURPRISE -> 3;
             case NPC -> 4;
             case DAILY -> 5;
+            case SECRET -> 6;
         };
     }
 

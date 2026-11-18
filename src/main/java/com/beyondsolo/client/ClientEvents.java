@@ -72,6 +72,7 @@ public final class ClientEvents {
         static void layers(RegisterGuiLayersEvent event) {
             // over-head villager markers sit under everything else of ours
             event.registerAboveAll(BeyondSolo.id("npc_markers"), com.beyondsolo.client.npc.NpcMarkers::render);
+            event.registerAboveAll(BeyondSolo.id("situation_markers"), com.beyondsolo.client.quest.SituationMarkers::render);
             event.registerAboveAll(BeyondSolo.id("status_hud"), StatusHud::render);
             event.registerAboveAll(BeyondSolo.id("quest_tracker"), QuestTracker::render);
             event.registerAboveAll(BeyondSolo.id("notifications"), NotificationRenderer::renderHud);

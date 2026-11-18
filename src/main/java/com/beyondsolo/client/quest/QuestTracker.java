@@ -53,9 +53,11 @@ public final class QuestTracker {
         for (Quest q : data.active()) {
             for (int i = 0; i < q.objectives().size(); i++) {
                 String key = q.id() + "#" + i;
-                int p = q.objectives().get(i).progress();
+                QuestObjective o = q.objectives().get(i);
+                int p = o.progress();
                 Integer old = SEEN.put(key, p);
-                if (old != null && p > old) FLASH.put(key, now);
+                // a count flashes when it moves on; a watched health bar flashes when it is hit (or heals)
+                if (old != null && (p > old || o.display() == QuestObjective.Display.HEALTH && p != old)) FLASH.put(key, now);
             }
         }
     }
@@ -178,17 +180,41 @@ public final class QuestTracker {
                         .glow(4, Gfx.alpha(fc, 0.3f * Math.max(flash, doneFx))).draw(g);
             }
             float ix = x + 12;
+            QuestObjective.Display shown = o.display();
+            if (shown == QuestObjective.Display.HEALTH) {
+                // someone's health to watch: a heart, their name, a bar in the colour of how they are doing
+                int hc = QuestText.healthColor(o.fraction());
+                Shapes.icon(Icons.HEART, ix, oy + 3.5f, 7f).fill(Gfx.mix(hc, 0xFFFFFFFF, 0.25f + 0.5f * flash)).glow(1 + 3 * flash, Gfx.alpha(hc, 0.6f)).draw(g);
+                String pct = QuestText.count(o);
+                float cw = SysFont.width(pct, 6.5f, true);
+                SysFont.text(g, SysFont.fit(o.label().getString(), 7f, false, WIDTH - 32 - cw), x + 19, oy, 7f, SystemTheme.TEXT);
+                SysFont.draw(g, pct, x + WIDTH - 7, oy + 0.4f, 6.5f, Gfx.mix(hc, 0xFFFFFFFF, 0.3f + 0.5f * flash), true, 1f);
+                Ui.bar(g, x + 19, oy + 8, WIDTH - 26, 2.2f, bar, Gfx.mix(hc, 0xFF000000, 0.35f), Gfx.mix(hc, 0xFFFFFFFF, flash * 0.6f));
+                oy += rowH;
+                continue;
+            }
+            if (shown == QuestObjective.Display.RULE) {
+                // a rule the quest is played under: no counter, no bar
+                int rc = Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.2f);
+                Shapes.icon(Icons.SHIELD, ix, oy + 3.5f, 7f).fill(Gfx.alpha(rc, 0.9f)).draw(g);
+                SysFont.text(g, SysFont.fit(o.label().getString(), 7f, false, WIDTH - 28), x + 19, oy + 1.5f, 7f, Gfx.alpha(rc, 0.9f));
+                oy += rowH;
+                continue;
+            }
             if (o.done()) {
                 float pop = DONE_AT.containsKey(key) ? Anim.outBackStrong(Anim.progress(DONE_AT.get(key), 0.35f)) : 1;
                 Shapes.icon(Icons.CHECK, ix, oy + 3.5f, 7.5f * pop).fill(SystemTheme.GOOD).glow(2 + 4 * doneFx, Gfx.alpha(SystemTheme.GOOD, 0.6f)).draw(g);
             } else {
-                Shapes.icon(QuestText.icon(o.type()), ix, oy + 3.5f, 7f).fill(Gfx.alpha(SystemTheme.TEXT_SOFT, 0.85f)).draw(g);
+                Shapes.icon(QuestText.icon(o), ix, oy + 3.5f, 7f).fill(Gfx.alpha(SystemTheme.TEXT_SOFT, 0.85f)).draw(g);
             }
-            String count = o.progress() + "/" + o.required();
-            float cw = SysFont.width(count, 6.5f, true);
-            SysFont.text(g, SysFont.fit(o.label().getString(), 7f, false, WIDTH - 32 - cw), x + 19, oy, 7f, o.done() ? Gfx.alpha(SystemTheme.GOOD, 0.85f) : SystemTheme.TEXT_SOFT);
-            SysFont.draw(g, count, x + WIDTH - 7, oy + 0.4f, 6.5f, o.done() ? SystemTheme.GOOD : Gfx.mix(SystemTheme.TEXT_SOFT, 0xFFFFFFFF, flash), true, 1f);
-            if (!o.done()) {
+            String count = QuestText.count(o);
+            float cw = count.isEmpty() ? 0 : SysFont.width(count, 6.5f, true);
+            boolean plain = shown == QuestObjective.Display.NONE;
+            SysFont.text(g, SysFont.fit(o.label().getString(), 7f, false, WIDTH - 32 - cw), x + 19, oy + (plain ? 1.5f : 0), 7f, o.done() ? Gfx.alpha(SystemTheme.GOOD, 0.85f) : SystemTheme.TEXT_SOFT);
+            if (!count.isEmpty()) {
+                SysFont.draw(g, count, x + WIDTH - 7, oy + 0.4f, 6.5f, o.done() ? SystemTheme.GOOD : Gfx.mix(SystemTheme.TEXT_SOFT, 0xFFFFFFFF, flash), true, 1f);
+            }
+            if (!o.done() && !plain) {
                 int a = q.isForced() ? SystemTheme.HP_A : SystemTheme.MP_A;
                 int b = q.isForced() ? SystemTheme.HP_B : SystemTheme.MP_B;
                 Ui.bar(g, x + 19, oy + 8, WIDTH - 26, 1.8f, bar, a, Gfx.mix(b, 0xFFFFFFFF, flash * 0.6f));

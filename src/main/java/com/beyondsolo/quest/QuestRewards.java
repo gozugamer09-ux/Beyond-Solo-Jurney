@@ -18,6 +18,11 @@ public record QuestRewards(long xp, int statPoints, float mana, List<ItemStack> 
         title = title == null ? "" : title;
     }
 
+    /** Part of it: {@code share} of the XP and mana, and nothing else (no stat points, items or title). */
+    public QuestRewards partial(float share) {
+        return new QuestRewards(Math.round(xp * (double) share), 0, mana * share, List.of(), "");
+    }
+
     CompoundTag save(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
         tag.putLong("xp", xp);
