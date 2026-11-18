@@ -39,6 +39,11 @@ public class LogTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public void onOpened() {
         NotificationManager.markAllRead();
     }

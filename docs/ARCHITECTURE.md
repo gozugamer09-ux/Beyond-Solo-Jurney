@@ -93,6 +93,32 @@ it, and add a constant in `Icons`.
 
 `UiGalleryScreen` shows every piece of the toolkit on one page (dev only, see "Checking the UI without a screen").
 
+### Draw calls: shape batches
+
+Every shape carries its settings (size, colours, border, glow...) in its own four corners (`ShapeFormat`: a vertex
+format with eight extra elements, ids taken from the top of the 32 the game allows; `BufferBuilder.beginElement` is
+opened by the access transformer), so shapes go through the GUI's buffer source like vanilla text and fills, and
+shapes that follow each other can share one draw call. They still draw over everything without the depth test, the
+way they always did.
+
+- Inside `try (var b = Shapes.batch(g)) { ... }` shapes and `SysFont` text are collected and drawn together, a run at a
+  time, in the order they were drawn. Items, vanilla text and fills still draw where they come, after what was
+  collected so far. Outside a batch each shape draws at once, as before.
+- Batched now: the System window's frame, each System page whose `SystemTab.batched()` says true (all of today's), the
+  storage window, and every `beyondsolo:` HUD layer (`HudClientEvents` opens one per layer). With the storage page
+  open, a frame went from about 920 draw calls to about 570: the storage window's own from about 380 to about 110 and
+  the HUD's from about 165 to about 85. Most of what is left are the items, which vanilla draws one at a time.
+- **The rule inside a batch:** what is collected is drawn later, with the clip and shader colour of that moment. Call
+  `Shapes.flush(g)` (or `g.flush()`) before `g.enableScissor`/`g.disableScissor`, `RenderSystem.setShaderColor`/
+  `g.setColor`, `g.blit` and `InventoryScreen.renderEntityInInventory...` (they clip), or the shapes before them get
+  clipped, tinted or drawn over the blit. A new System page starts unbatched (`batched()` is false by default): say
+  true once it follows the rule. A new HUD layer is batched at once, so follow the rule there from the start.
+- Draw a grid's backgrounds in one loop and its icons in the next (as the storage cells and their locks): a plain shape
+  and an icon need different render types, so alternating them costs a draw call each.
+- The UI test driver's `perf <label> [frames] [sync]` logs the frame time, the open screen's share, and the shapes and
+  shape draw calls a frame (`client/UiPerf`); `tools/uitest/README.md` also shows how to count every GL draw call of a
+  frame. The cloud machine draws in software: compare its numbers with each other.
+
 ### The System HUD
 
 While `systemHud` is on (client config, default on), the System draws Minecraft's own HUD itself (`client.hud`):

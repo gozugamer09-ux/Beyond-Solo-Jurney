@@ -61,6 +61,11 @@ public class CraftTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().hasSystem();
     }
@@ -158,6 +163,7 @@ public class CraftTab implements SystemTab {
         int max = Math.max(0, recipes.size() - visible);
         scroll = Mth.clamp(scroll, 0, max);
         int rank = ClientSystemData.get().rank().tier();
+        Shapes.flush(g);
         g.enableScissor((int) x - 2, (int) y - 1, (int) (x + LIST_W + 4), (int) (y + h));
         for (int i = 0; i < recipes.size(); i++) {
             float ry = y + (i - scroll) * ROW_H;
@@ -197,6 +203,7 @@ public class CraftTab implements SystemTab {
             }
             hits.add(new Object[]{"recipe", x, ry, LIST_W, ROW_H - 2, r.id()});
         }
+        Shapes.flush(g);
         g.disableScissor();
         if (max > 0) {
             float knob = Math.max(12, h * visible / recipes.size());

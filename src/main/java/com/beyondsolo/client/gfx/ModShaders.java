@@ -19,9 +19,10 @@ public final class ModShaders {
     static void register(RegisterShadersEvent event) {
         shape = null;
         try {
-            event.registerShader(new ShaderInstance(event.getResourceProvider(), BeyondSolo.id("shape"), DefaultVertexFormat.POSITION_TEX_COLOR),
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), BeyondSolo.id("shape"), ShapeFormat.FORMAT),
                     loaded -> shape = loaded);
-        } catch (Exception e) {
+        } catch (Exception | LinkageError e) {
+            // LinkageError: the shapes' vertex format could not be set up (see ShapeFormat)
             BeyondSolo.LOGGER.error("Could not load the System UI shader. The UI falls back to plain rectangles.", e);
         }
         light = null;

@@ -21,6 +21,16 @@ public interface SystemTab {
     /** Draw the page inside the content box (x, y, w, h). */
     void render(GuiGraphics g, Font font, int x, int y, int w, int h, int mouseX, int mouseY, float partialTick);
 
+    /**
+     * True if the page is drawn inside a {@link com.beyondsolo.client.gfx.Shapes#batch shape batch}, so its shapes and
+     * System text cost a few draw calls instead of one each. Only say true once the page calls
+     * {@code Shapes.flush(g)} before every clip ({@code g.enableScissor} / {@code g.disableScissor}), shader colour,
+     * blit and mob it draws, or the shapes drawn before them get clipped, tinted or covered.
+     */
+    default boolean batched() {
+        return false;
+    }
+
     /** Return true if the click was handled. Coordinates are absolute screen coordinates. */
     default boolean mouseClicked(double mouseX, double mouseY, int button) {
         return false;

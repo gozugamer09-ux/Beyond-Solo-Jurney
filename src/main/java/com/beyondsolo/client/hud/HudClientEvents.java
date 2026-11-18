@@ -1,8 +1,11 @@
 package com.beyondsolo.client.hud;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.gfx.Shapes;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -16,8 +19,15 @@ import java.util.Set;
 /**
  * Client wiring for the System HUD: its two layers sit where the vanilla pieces they replace were (so chat, titles
  * and other mods' layers stay above them as before), and the vanilla pieces are switched off while it is on.
+ *
+ * <p>Every layer of the mod (HUD, markers, overlays) is drawn inside a {@link Shapes#batch shape batch}, so its shapes
+ * and System text cost a few draw calls instead of one each. A layer that clips, blits or changes the shader colour
+ * calls {@code Shapes.flush(g)} first.</p>
  */
 public final class HudClientEvents {
+    /** True while one of the mod's layers is being drawn inside its batch. */
+    private static boolean layerBatch;
+
     /** The vanilla layers the System HUD draws itself. Spectators keep vanilla's (see {@link VitalsHud#active()}). */
     private static final Set<ResourceLocation> REPLACED = Set.of(
             VanillaGuiLayers.HOTBAR, VanillaGuiLayers.JUMP_METER, VanillaGuiLayers.EXPERIENCE_BAR,
@@ -42,6 +52,25 @@ public final class HudClientEvents {
             HudSpace.newFrame();
         }
 
+        /** The mod's layers draw in a batch: opened last, once nothing cancelled the layer. */
+        @SubscribeEvent(priority = EventPriority.LOWEST)
+        static void batchLayer(RenderGuiLayerEvent.Pre event) {
+            endLayerBatch(event.getGuiGraphics());
+            if (!event.getName().getNamespace().equals(BeyondSolo.MOD_ID)) return;
+            Shapes.begin();
+            layerBatch = true;
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        static void endLayer(RenderGuiLayerEvent.Post event) {
+            endLayerBatch(event.getGuiGraphics());
+        }
+
+        @SubscribeEvent
+        static void endFrame(RenderGuiEvent.Post event) {
+            endLayerBatch(event.getGuiGraphics());
+        }
+
         @SubscribeEvent
         static void hideVanilla(RenderGuiLayerEvent.Pre event) {
             if (!VitalsHud.active()) return;
@@ -56,6 +85,12 @@ public final class HudClientEvents {
             VitalsHud.reset();
             EffectsHud.reset();
         }
+    }
+
+    private static void endLayerBatch(GuiGraphics g) {
+        if (!layerBatch) return;
+        layerBatch = false;
+        Shapes.end(g);
     }
 
     private HudClientEvents() {}

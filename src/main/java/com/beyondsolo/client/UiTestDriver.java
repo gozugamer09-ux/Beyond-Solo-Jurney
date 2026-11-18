@@ -90,6 +90,9 @@ import java.util.Deque;
  * raidbrief                            open the raid briefing (on a raid that is mustering)
  * raidresults [cleared|failed]         show a made-up raid's results board
  * raidfx barrier|broken|cataclysm|lieutenant   play a raid moment: a banner, or the cataclysm gathering
+ * perf &lt;label&gt; [frames] [sync]       time the next frames (200) and log the frame time, the open screen's share and
+ *                                      the System shapes and their draw calls a frame (see UiPerf); the next
+ *                                      commands wait until it is done
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -130,10 +133,11 @@ public final class UiTestDriver {
             reloading = null;
             waitTicks = 10;   // a few frames with the new resources before anything looks at them
         }
+        if (UiPerf.running()) return;   // the next commands wait until the frames being timed are over
         if (waitTicks > 0) {
             waitTicks--;
         } else {
-            while (!QUEUE.isEmpty() && waitTicks == 0) {
+            while (!QUEUE.isEmpty() && waitTicks == 0 && !UiPerf.running()) {
                 String line = QUEUE.pollFirst();
                 try {
                     run(mc, line);
@@ -144,7 +148,7 @@ public final class UiTestDriver {
         }
         // Scripts wait for this line, so it is only written when everything is over: a final "wait" has run out
         // and every pressed key is up again.
-        if (busy && QUEUE.isEmpty() && waitTicks == 0 && HELD.isEmpty()) {
+        if (busy && QUEUE.isEmpty() && waitTicks == 0 && HELD.isEmpty() && !UiPerf.running()) {
             busy = false;
             BeyondSolo.LOGGER.info("UITEST idle");
         }
@@ -418,6 +422,11 @@ public final class UiTestDriver {
                 }
             }
             case "chronicle" -> com.beyondsolo.client.chronicle.ChronicleTab.show(arg);
+            case "perf" -> {
+                // perf <label> [frames] [sync]: time the next frames (see UiPerf)
+                String[] a = arg.split(" ");
+                UiPerf.start(a[0], a.length > 1 ? Integer.parseInt(a[1]) : 200, a.length > 2 && a[2].equals("sync"));
+            }
             case "npc" -> {
                 String[] a = arg.split(" ");
                 if (a[0].equals("scroll")) com.beyondsolo.client.npc.NpcBoardScreen.scrollBy(Float.parseFloat(a[1]));
