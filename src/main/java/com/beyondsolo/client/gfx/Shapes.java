@@ -1,15 +1,10 @@
 package com.beyondsolo.client.gfx;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.shaders.AbstractUniform;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
@@ -22,6 +17,10 @@ import org.joml.Matrix4f;
  *
  * Coordinates are GUI pixels and follow the current {@code g.pose()} transform.
  * Colours are ARGB. Everything is multiplied by {@link Gfx#alpha()}.
+ *
+ * <p>Inside a {@link #batch} shapes (and {@link SysFont} text) that follow each other are drawn together in one draw
+ * call; outside one each shape is drawn at once, as it always was. The System window frame, the storage window, the
+ * System pages that say {@code batched()} and the mod's HUD layers draw inside one.</p>
  */
 public final class Shapes {
     private static final int MODE_BOX = 0;
@@ -31,6 +30,88 @@ public final class Shapes {
     private static final int MODE_RAYS = 4;
 
     private static final Shape SHAPE = new Shape();
+    private static long drawn;
+    private static long batches;
+    /** Open batches; shapes are only collected while this is above zero. */
+    private static int batchDepth;
+    /** The buffer the shapes being collected go into, or null when no run of shapes is open. */
+    private static VertexConsumer run;
+
+    /**
+     * Collects the shapes and {@link SysFont} text drawn until the returned batch is closed, so the ones that follow
+     * each other cost one draw call together instead of one each. Items, vanilla text and anything else drawn through
+     * {@code g} in between keep their order: what was collected so far is drawn before them. Use it as
+     * {@code try (var b = Shapes.batch(g)) { ... }}.
+     *
+     * <p>What is collected is drawn later, with the clip and shader colour of that moment. So inside a batch call
+     * {@link #flush} before anything that changes them or draws straight away: {@code g.enableScissor} /
+     * {@code g.disableScissor}, {@code RenderSystem.setShaderColor} / {@code g.setColor}, {@code g.blit},
+     * {@code InventoryScreen.renderEntityInInventory...} (they clip). Without it the shapes so far get clipped,
+     * tinted or drawn over the blit. Batches nest; the outermost one draws what is left when it closes.</p>
+     */
+    public static Batch batch(GuiGraphics g) {
+        begin();
+        return new Batch(g);
+    }
+
+    /** True inside a {@link #batch}: shapes and System text are being collected. */
+    public static boolean batching() {
+        return batchDepth > 0;
+    }
+
+    /**
+     * Draws what a {@link #batch} collected so far. Call it inside a batch before clipping, changing the shader
+     * colour, blitting or drawing a mob (see {@link #batch}). Does nothing outside a batch.
+     */
+    public static void flush(GuiGraphics g) {
+        if (batchDepth > 0) finishRun(g);
+    }
+
+    /** Opens a batch that {@link #end} closes (for code that cannot use try-with-resources). */
+    public static void begin() {
+        batchDepth++;
+    }
+
+    /** Closes a batch opened with {@link #begin}. */
+    public static void end(GuiGraphics g) {
+        if (batchDepth <= 0) return;
+        if (--batchDepth == 0) finishRun(g);
+    }
+
+    private static void finishRun(GuiGraphics g) {
+        run = null;
+        g.flush();
+    }
+
+    public static final class Batch implements AutoCloseable {
+        private final GuiGraphics g;
+        private boolean closed;
+
+        private Batch(GuiGraphics g) {
+            this.g = g;
+        }
+
+        @Override
+        public void close() {
+            if (closed) return;
+            closed = true;
+            end(g);
+        }
+    }
+
+    /** Shapes drawn since the last call (for the UI test driver's frame timer). */
+    public static long drawn() {
+        long n = drawn;
+        drawn = 0;
+        return n;
+    }
+
+    /** Draw calls the shapes took since the last call (for the UI test driver's frame timer). */
+    public static long batches() {
+        long n = batches;
+        batches = 0;
+        return n;
+    }
 
     public static Shape box(float x, float y, float w, float h) {
         return SHAPE.begin(MODE_BOX, x + w / 2f, y + h / 2f, w / 2f, h / 2f);
@@ -208,73 +289,60 @@ public final class Shapes {
         public void draw(GuiGraphics g) {
             float alpha = Gfx.alpha();
             if (alpha <= 0.004f || hw <= 0 || hh <= 0) return;
-            ShaderInstance shader = ModShaders.shape();
-            if (shader == null) {
+            if (ModShaders.shape() == null) {
                 if (mode == MODE_BOX) {
                     g.fill(Math.round(cx - hw), Math.round(cy - hh), Math.round(cx + hw), Math.round(cy + hh), Gfx.fade(fillA, alpha));
                 }
                 return;
             }
-            g.flush();
+            RenderType type = ShapeFormat.type(mode == MODE_ICON ? texture : null, additive);
+            MultiBufferSource.BufferSource source = g.bufferSource();
+            VertexConsumer out = source.getBuffer(type);
+            if (out != run) {
+                // A new run of shapes: whatever was drawn before it (models, items) goes first, as before a lone shape.
+                g.flush();
+                out = source.getBuffer(type);
+                run = out;
+                batches++;
+            }
+            if (!(out instanceof BufferBuilder buffer)) {
+                // someone wrapped the buffers: nothing to write the shape's settings into
+                run = null;
+                return;
+            }
 
             float pad = mode == MODE_BOX || mode == MODE_RING ? glowSize + 1.5f : 0;
             float extent = mode == MODE_RING ? thickness / 2f : 0;
             float qx = hw + extent + pad;
             float qy = hh + extent + pad;
-
-            float rectZ = switch (mode) {
-                case MODE_ICON -> 2f * Icons.SPREAD * (2f * hw) / Icons.TEXTURE_SIZE;
-                default -> radius;
-            };
-            set(shader, "Rect", hw, hh, rectZ, mode);
-            setColor(shader, "FillA", fillA);
-            setColor(shader, "FillB", fillB);
-            switch (gradient) {
-                case 1 -> set(shader, "Grad", 0, 1f / (2f * (hh + extent)), 0, 0);
-                case 2 -> set(shader, "Grad", 1f / (2f * (hw + extent)), 0, 0, 0);
-                case 3 -> set(shader, "Grad", 0, 0, 1, 0);
-                default -> set(shader, "Grad", 0, 0, 0, 0);
-            }
-            setColor(shader, "BorderA", borderA);
-            setColor(shader, "BorderB", borderB);
-            setColor(shader, "GlowColor", glowColor);
-            set(shader, "Params", mode == MODE_RING ? thickness : borderWidth, glowSize, sheenPos, sheenStrength);
-            set(shader, "Extra", progress, rotation, dashCount, dashFill);
-
-            RenderSystem.setShader(() -> shader);
-            if (mode == MODE_ICON && texture != null) RenderSystem.setShaderTexture(0, texture);
-            RenderSystem.enableBlend();
-            if (additive) {
-                RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE,
-                        GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-            } else {
-                RenderSystem.defaultBlendFunc();
-            }
-            RenderSystem.disableDepthTest();
-            RenderSystem.depthMask(false);
-            RenderSystem.disableCull();
-
-            Matrix4f m = g.pose().last().pose();
+            float rectZ = mode == MODE_ICON ? 2f * Icons.SPREAD * (2f * hw) / Icons.TEXTURE_SIZE : radius;
+            float code = mode + 8 * gradient;
+            float border = mode == MODE_RING ? thickness : borderWidth;
             int vertexColor = Gfx.alpha(0xFFFFFF, alpha);
-            BufferBuilder bb = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-            bb.addVertex(m, cx - qx, cy - qy, 0).setUv(-qx, -qy).setColor(vertexColor);
-            bb.addVertex(m, cx - qx, cy + qy, 0).setUv(-qx, qy).setColor(vertexColor);
-            bb.addVertex(m, cx + qx, cy + qy, 0).setUv(qx, qy).setColor(vertexColor);
-            bb.addVertex(m, cx + qx, cy - qy, 0).setUv(qx, -qy).setColor(vertexColor);
-            BufferUploader.drawWithShader(bb.buildOrThrow());
+            Matrix4f m = g.pose().last().pose();
+            corner(buffer, m, -qx, -qy, vertexColor, rectZ, code, border);
+            corner(buffer, m, -qx, qy, vertexColor, rectZ, code, border);
+            corner(buffer, m, qx, qy, vertexColor, rectZ, code, border);
+            corner(buffer, m, qx, -qy, vertexColor, rectZ, code, border);
+            drawn++;
 
-            RenderSystem.enableCull();
-            RenderSystem.depthMask(true);
-            RenderSystem.defaultBlendFunc();
+            if (batchDepth == 0) {
+                // not batching: draw it now, as it always was
+                source.endBatch(type);
+                run = null;
+            }
         }
 
-        private static void set(ShaderInstance shader, String name, float a, float b, float c, float d) {
-            AbstractUniform u = shader.safeGetUniform(name);
-            u.set(a, b, c, d);
-        }
-
-        private static void setColor(ShaderInstance shader, String name, int argb) {
-            set(shader, name, ((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f, (argb >>> 24) / 255f);
+        private void corner(BufferBuilder out, Matrix4f m, float u, float v, int vertexColor, float rectZ, float code, float border) {
+            out.addVertex(m, cx + u, cy + v, 0).setUv(u, v).setColor(vertexColor);
+            ShapeFormat.put(out, ShapeFormat.RECT, hw, hh, rectZ, code);
+            ShapeFormat.put(out, ShapeFormat.PARAMS, border, glowSize, sheenPos, sheenStrength);
+            ShapeFormat.put(out, ShapeFormat.EXTRA, progress, rotation, dashCount, dashFill);
+            ShapeFormat.putColor(out, ShapeFormat.FILL_A, fillA);
+            ShapeFormat.putColor(out, ShapeFormat.FILL_B, fillB);
+            ShapeFormat.putColor(out, ShapeFormat.BORDER_A, borderA);
+            ShapeFormat.putColor(out, ShapeFormat.BORDER_B, borderB);
+            ShapeFormat.putColor(out, ShapeFormat.GLOW, glowColor);
         }
     }
 

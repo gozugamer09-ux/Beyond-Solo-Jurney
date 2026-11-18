@@ -50,6 +50,11 @@ public class SkillsTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().isAwakened();
     }

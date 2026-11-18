@@ -1,5 +1,6 @@
 package com.beyondsolo.client.screen;
 
+import com.beyondsolo.client.ClientConfig;
 import com.beyondsolo.client.ClientEvents;
 import com.beyondsolo.client.SystemTheme;
 import com.beyondsolo.client.gfx.Anim;
@@ -33,6 +34,7 @@ public class SystemScreen extends Screen {
     private final List<SystemTabs.Entry> entries = new ArrayList<>();
     private final List<SystemTab> tabs = new ArrayList<>();
     private final List<float[]> tabRects = new ArrayList<>();
+    private final List<String> tabTitles = new ArrayList<>();
     private int selected;
     private int previous;
     private double openedAt = -1;
@@ -102,69 +104,76 @@ public class SystemScreen extends Screen {
         float y = top();
         float oldAlpha = Gfx.setAlpha(open);
 
-        // dim the world towards the edges so the window reads clearly
-        Shapes.vignette(0, 0, width, height, 0.15f, 1.5f).fill(0xC8040912).draw(g);
-        Shapes.box(0, 0, width, height).fill(0x30040912).draw(g);
+        // The window's frame, and the page if it is ready for it, is drawn in a few draw calls (see Shapes.batch).
+        Shapes.Batch frame = Shapes.batch(g);
+        try {
+            // dim the world towards the edges so the window reads clearly
+            Shapes.vignette(0, 0, width, height, 0.15f, 1.5f).fill(0xC8040912).draw(g);
+            Shapes.box(0, 0, width, height).fill(0x30040912).draw(g);
 
-        g.pose().pushPose();
-        float scale = 0.95f + 0.05f * open;
-        g.pose().translate(width / 2f, height / 2f, 0);
-        g.pose().scale(scale, scale, 1f);
-        g.pose().translate(-width / 2f, -height / 2f, 0);
-
-        Ui.panel(g, x, y, WIDTH, HEIGHT, 11, SystemTheme.ACCENT, 1f);
-
-        // header: mark + title on the left, tabs on the right
-        float headerMid = y + HEADER / 2f + 1;
-        float pulse = Anim.pulse(2.6f);
-        Shapes.icon(Icons.DIAMOND, x + 17, headerMid, 9).fill(SystemTheme.ACCENT_BRIGHT).glow(3 + pulse * 1.5f, Gfx.alpha(SystemTheme.ACCENT, 0.5f + 0.3f * pulse)).draw(g);
-
-        layoutTabs(x, y);
-        float tabsLeft = tabRects.isEmpty() ? x + WIDTH : tabRects.get(0)[0];
-        String title = Component.translatable("screen.beyondsolo.system.header").getString();
-        if (x + 27 + SysFont.spacedWidth(title, 10.5f, true, 2.6f) < tabsLeft - 10) {
-            SysFont.spaced(g, title, x + 27, SysFont.centerY(headerMid - 6, 12, 10.5f), 10.5f, SystemTheme.TEXT, true, 2.6f, 0f);
-        }
-
-        if (!tabRects.isEmpty()) {
-            float[] target = tabRects.get(selected);
-            if (Float.isNaN(indicatorX)) {
-                indicatorX = target[0];
-                indicatorW = target[2];
-            }
-            indicatorX = Anim.approach(indicatorX, target[0], 20f);
-            indicatorW = Anim.approach(indicatorW, target[2], 20f);
-            List<String> titles = new ArrayList<>();
-            for (SystemTab t : tabs) titles.add(t.title().getString());
-            drawTabs(g, titles, tabRects, selected, indicatorX, indicatorW, mouseX, mouseY);
-        }
-
-        Ui.divider(g, x + 12, y + HEADER, WIDTH - 24, Gfx.alpha(SystemTheme.ACCENT, 0.55f));
-
-        if (!tabs.isEmpty()) {
-            int cx = Math.round(x + 12);
-            int cy = Math.round(y + HEADER + 8);
-            int cw = WIDTH - 24;
-            int ch = Math.round(HEIGHT - HEADER - 8 - 12);
-            float switchT = Anim.outCubic(Anim.progress(tabChangedAt, 0.2f));
-            float dir = Integer.compare(selected, previous);
-            float inner = Gfx.fade(switchT);
             g.pose().pushPose();
-            g.pose().translate(dir * (1 - switchT) * 10f, 0, 0);
-            tabs.get(selected).render(g, font, cx, cy, cw, ch, mouseX, mouseY, partialTick);
-            g.pose().popPose();
-            Gfx.setAlpha(inner);
-        }
+            float scale = 0.95f + 0.05f * open;
+            g.pose().translate(width / 2f, height / 2f, 0);
+            g.pose().scale(scale, scale, 1f);
+            g.pose().translate(-width / 2f, -height / 2f, 0);
 
-        g.pose().popPose();
+            Ui.panel(g, x, y, WIDTH, HEIGHT, 11, SystemTheme.ACCENT, 1f);
+
+            // header: mark + title on the left, tabs on the right
+            float headerMid = y + HEADER / 2f + 1;
+            float pulse = Anim.pulse(2.6f);
+            Shapes.icon(Icons.DIAMOND, x + 17, headerMid, 9).fill(SystemTheme.ACCENT_BRIGHT).glow(3 + pulse * 1.5f, Gfx.alpha(SystemTheme.ACCENT, 0.5f + 0.3f * pulse)).draw(g);
+
+            layoutTabs(x, y);
+            float tabsLeft = tabRects.isEmpty() ? x + WIDTH : tabRects.get(0)[0];
+            String title = Component.translatable("screen.beyondsolo.system.header").getString();
+            if (x + 27 + SysFont.spacedWidth(title, 10.5f, true, 2.6f) < tabsLeft - 10) {
+                SysFont.spaced(g, title, x + 27, SysFont.centerY(headerMid - 6, 12, 10.5f), 10.5f, SystemTheme.TEXT, true, 2.6f, 0f);
+            }
+
+            if (!tabRects.isEmpty()) {
+                float[] target = tabRects.get(selected);
+                if (Float.isNaN(indicatorX)) {
+                    indicatorX = target[0];
+                    indicatorW = target[2];
+                }
+                indicatorX = Anim.approach(indicatorX, target[0], 20f);
+                indicatorW = Anim.approach(indicatorW, target[2], 20f);
+                drawTabs(g, tabTitles, tabRects, selected, indicatorX, indicatorW, mouseX, mouseY);
+            }
+
+            Ui.divider(g, x + 12, y + HEADER, WIDTH - 24, Gfx.alpha(SystemTheme.ACCENT, 0.55f));
+
+            if (!tabs.isEmpty()) {
+                int cx = Math.round(x + 12);
+                int cy = Math.round(y + HEADER + 8);
+                int cw = WIDTH - 24;
+                int ch = Math.round(HEIGHT - HEADER - 8 - 12);
+                float switchT = Anim.outCubic(Anim.progress(tabChangedAt, 0.2f));
+                float dir = Integer.compare(selected, previous);
+                float inner = Gfx.fade(switchT);
+                SystemTab tab = tabs.get(selected);
+                // a page that is not ready for batching gets the frame drawn first and draws as it always did
+                if (!tab.batched()) frame.close();
+                g.pose().pushPose();
+                g.pose().translate(dir * (1 - switchT) * 10f, 0, 0);
+                tab.render(g, font, cx, cy, cw, ch, mouseX, mouseY, partialTick);
+                g.pose().popPose();
+                Gfx.setAlpha(inner);
+            }
+
+            g.pose().popPose();
+        } finally {
+            frame.close();
+        }
         Gfx.setAlpha(oldAlpha);
     }
 
     private void layoutTabs(float x, float y) {
+        tabTitles.clear();
+        for (SystemTab t : tabs) tabTitles.add(t.title().getString());
         tabRects.clear();
-        List<String> titles = new ArrayList<>();
-        for (SystemTab t : tabs) titles.add(t.title().getString());
-        tabRects.addAll(layoutTabs(titles, x, y));
+        tabRects.addAll(layoutTabs(tabTitles, x, y));
     }
 
     /** Ever tighter ways to fit the tabs: pill padding, gap, letter spacing (share of normal), smallest label (share of normal). */
@@ -180,6 +189,31 @@ public class SystemScreen extends Screen {
      * pills and letters move closer. Each rect is {x, y, width, label size, letter spacing}.
      */
     public static List<float[]> layoutTabs(List<String> titles, float x, float y) {
+        // Measuring every label at every step is the costly part, and the answer only changes with the labels, the
+        // window's place, the GUI scale and the font: keep the last one.
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        boolean font = ClientConfig.SYSTEM_FONT.get();
+        float content = SysFont.contentScale();
+        if (x == layoutX && y == layoutY && gui == layoutGui && font == layoutFont && content == layoutContent && titles.equals(layoutTitles)) {
+            return layout;
+        }
+        layout = List.copyOf(measureLayout(titles, x, y));
+        layoutTitles = List.copyOf(titles);
+        layoutX = x;
+        layoutY = y;
+        layoutGui = gui;
+        layoutFont = font;
+        layoutContent = content;
+        return layout;
+    }
+
+    private static List<String> layoutTitles = List.of();
+    private static List<float[]> layout = List.of();
+    private static float layoutX = Float.NaN, layoutY = Float.NaN, layoutContent;
+    private static double layoutGui;
+    private static boolean layoutFont;
+
+    private static List<float[]> measureLayout(List<String> titles, float x, float y) {
         int n = titles.size();
         float[] text = new float[n];
         float avail = WIDTH - 24 - 26;

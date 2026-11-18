@@ -183,6 +183,7 @@ final class JournalPage implements ChronicleTab.Page {
         boolean inGrid = Ui.inside(mouseX, mouseY, gridX, gridY, gridW, gridH);
         ChronicleData data = ChronicleClient.data();
         boolean solid = Gfx.alpha() > 0.6f;
+        Shapes.flush(g);
         g.enableScissor((int) gridX, (int) gridY, (int) Math.ceil(gridX + gridW), (int) Math.ceil(gridY + gridH));
         for (int i = 0; i < pages.size(); i++) {
             float tx = ox + (i % cols) * (tw + GAP);
@@ -195,6 +196,7 @@ final class JournalPage implements ChronicleTab.Page {
             float top = Math.max(ty, gridY), bottom = Math.min(ty + th, gridY + gridH);
             if (bottom > top) hits.add(new ChronicleUi.Hit(tx, top, tw, bottom - top, () -> pick(e)));
         }
+        Shapes.flush(g);
         g.disableScissor();
         ChronicleUi.scrollbar(g, gridX + gridW - 3, gridY + 1, gridH - 2, scroll, maxScroll, SystemTheme.ACCENT);
     }
@@ -349,6 +351,7 @@ final class JournalPage implements ChronicleTab.Page {
         loreTarget = Mth.clamp(loreTarget, 0, loreMax);
         loreScroll = Anim.approach(loreScroll, loreTarget, 18f);
         g.pose().popPose();
+        Shapes.flush(g);
         g.enableScissor((int) x, (int) ty, (int) (x + w), (int) Math.max(ty, loreBottom));
         g.pose().pushPose();
         g.pose().translate(0, 0, 250);
@@ -358,6 +361,7 @@ final class JournalPage implements ChronicleTab.Page {
             ly += lh;
         }
         g.pose().popPose();
+        Shapes.flush(g);
         g.disableScissor();
         if (loreMax > 0) ChronicleUi.scrollbar(g, x + w - 4, ty, Math.max(4, areaH), loreScroll, loreMax, c);
     }

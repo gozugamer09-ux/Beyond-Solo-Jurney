@@ -5,6 +5,7 @@ import com.beyondsolo.client.ClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
@@ -58,6 +59,11 @@ public final class SysFont {
         return previous;
     }
 
+    /** The scale set with {@link #setContentScale} (1 when nothing is scaled). */
+    public static float contentScale() {
+        return contentScale;
+    }
+
     // ---------------------------------------------------------------- drawing
 
     public static void text(GuiGraphics g, String s, float x, float y, float size, int color) {
@@ -107,7 +113,13 @@ public final class SysFont {
         g.pose().translate(left, baseline, 0);
         g.pose().scale(line.scale(), line.scale(), 1f);
         // Both the TTF fonts and the vanilla font put the baseline 7 units below the draw position.
-        g.drawString(font, line.text(), 0f, -7f, argb, false);
+        if (Shapes.batching()) {
+            // what g.drawString does, without drawing at once: the text waits with the shapes of the batch
+            font.drawInBatch(line.text(), 0f, -7f, argb, false, g.pose().last().pose(), g.bufferSource(), Font.DisplayMode.NORMAL, 0,
+                    LightTexture.FULL_BRIGHT);
+        } else {
+            g.drawString(font, line.text(), 0f, -7f, argb, false);
+        }
         g.pose().popPose();
     }
 

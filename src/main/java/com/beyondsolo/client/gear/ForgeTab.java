@@ -68,6 +68,11 @@ public class ForgeTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().hasSystem();
     }
@@ -125,6 +130,7 @@ public class ForgeTab implements SystemTab {
         int visible = (int) (lh / ROW_H);
         int max = Math.max(0, slots.size() - visible);
         scroll = Mth.clamp(scroll, 0, max);
+        Shapes.flush(g);
         g.enableScissor((int) x - 2, (int) ly - 1, (int) (x + LIST_W + 4), (int) (ly + lh));
         for (int i = 0; i < slots.size(); i++) {
             float ry = ly + (i - scroll) * ROW_H;
@@ -156,6 +162,7 @@ public class ForgeTab implements SystemTab {
             if (inf != null) Shapes.circle(x + 20, ry + 16, 2.6f).fill(Gfx.opaque(inf.color())).glow(2.5f, Gfx.alpha(Gfx.opaque(inf.color()), 0.8f)).draw(g);
             hits.add(new Object[]{"slot", x, ry, LIST_W, ROW_H - 2, slot});
         }
+        Shapes.flush(g);
         g.disableScissor();
         if (max > 0) {
             float knob = Math.max(12, lh * visible / slots.size());

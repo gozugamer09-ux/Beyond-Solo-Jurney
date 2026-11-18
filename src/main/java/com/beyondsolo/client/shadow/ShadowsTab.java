@@ -54,6 +54,11 @@ public class ShadowsTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public boolean isVisible() {
         return ClientSystemData.get().isAwakened() && ShadowClient.canRaise();
     }
@@ -108,6 +113,7 @@ public class ShadowsTab implements SystemTab {
         int visible = (int) (lh / ROW_H);
         int maxScroll = Math.max(0, all.size() - visible);
         scroll = Mth.clamp(scroll, 0, maxScroll);
+        Shapes.flush(g);
         g.enableScissor(x, (int) ly, (int) (x + LIST_W + 2), (int) (ly + lh));
         for (int i = 0; i < all.size(); i++) {
             float ry = ly + (i - scroll) * ROW_H;
@@ -142,6 +148,7 @@ public class ShadowsTab implements SystemTab {
                     .fill(sc).glow(2 + 2 * Anim.pulse(1.4f), Gfx.alpha(sc, 0.7f)).draw(g);
             rows.add(new Object[]{r.id(), ry, (float) x});
         }
+        Shapes.flush(g);
         g.disableScissor();
         if (maxScroll > 0) {
             float track = lh;
@@ -267,6 +274,7 @@ public class ShadowsTab implements SystemTab {
         int scale = (int) Mth.clamp((y1 - y0) * 0.62f / Math.max(0.5f, big), 6, 60);
         float turn = (float) Math.sin(Anim.now() * 0.6) * 0.9f;
         try {
+            Shapes.flush(g);
             InventoryScreen.renderEntityInInventoryFollowsAngle(g, x0, y0, x1, y1 - 4, scale, 0.0625f, turn, -0.15f, preview);
         } catch (RuntimeException ignored) {
             // some creatures can't be drawn outside a world; the card still shows its numbers
