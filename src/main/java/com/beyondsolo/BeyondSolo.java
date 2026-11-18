@@ -52,6 +52,7 @@ public final class BeyondSolo {
         com.beyondsolo.breaks.BreakModule.init(modBus);
         com.beyondsolo.redgate.RedGateModule.init(modBus, container);
         com.beyondsolo.worldboss.WorldBossModule.init(modBus, container);
+        com.beyondsolo.party.PartyModule.init(modBus, container);
         com.beyondsolo.chronicle.ChronicleModule.init(modBus);
         container.registerConfig(ModConfig.Type.CLIENT, com.beyondsolo.client.ClientConfig.SPEC);
     }

@@ -66,6 +66,11 @@ public final class Icons {
     public static final ResourceLocation BUBBLES = icon("bubbles");
     public static final ResourceLocation HORSE = icon("horse");
     public static final ResourceLocation FATIGUE = icon("fatigue");
+    // parties
+    public static final ResourceLocation X = icon("x");
+    public static final ResourceLocation INVITE = icon("party_invite");
+    public static final ResourceLocation LEAVE = icon("party_leave");
+    public static final ResourceLocation ARROW = icon("arrow");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

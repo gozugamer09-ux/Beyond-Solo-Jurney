@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class Economy {
     /** Why gold changed (shown with the change on the client). */
-    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY }
+    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY, PARTY }
 
     public static HunterData data(Player player) {
         return player.getData(EconomyModule.HUNTER.get());

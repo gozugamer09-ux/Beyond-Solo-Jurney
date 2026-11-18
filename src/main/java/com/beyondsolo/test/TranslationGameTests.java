@@ -44,7 +44,7 @@ public final class TranslationGameTests {
     /** Namespaces with their own language files. New ones are found on their own when the assets folder can be listed. */
     private static final List<String> KNOWN = List.of("beyondsolo", "beyondsolo_armory", "beyondsolo_breaks", "beyondsolo_commands", "beyondsolo_crafting", "beyondsolo_depths",
             "beyondsolo_economy", "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty",
-            "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_tower", "beyondsolo_chronicle",
+            "beyondsolo_party", "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_tower", "beyondsolo_chronicle",
             "beyondsolo_worldboss");
     /** Minecraft's own pattern for a translation argument ({@code TranslatableContents}). */
     private static final Pattern ARG = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
