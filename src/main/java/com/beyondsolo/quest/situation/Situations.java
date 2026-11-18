@@ -9,6 +9,7 @@ import com.beyondsolo.quest.QuestEvent;
 import com.beyondsolo.quest.QuestObjective;
 import com.beyondsolo.quest.trigger.QuestTriggers;
 import com.beyondsolo.system.SystemAPI;
+import com.beyondsolo.util.OnlinePlayers;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -268,8 +269,8 @@ public final class Situations {
             return;
         }
         if (dead.getPersistentData().getBoolean(TARGET_MARK) && dead.level() instanceof ServerLevel level) {
-            // everyone it may matter to: the players online, and whoever dealt the blow (a stand-in player too)
-            Set<ServerPlayer> told = new LinkedHashSet<>(level.getServer().getPlayerList().getPlayers());
+            // everyone it may matter to: the players online (a game test's stand-ins too), and whoever dealt the blow
+            Set<ServerPlayer> told = new LinkedHashSet<>(OnlinePlayers.all(level.getServer()));
             ServerPlayer behind = Foes.playerBehind(event.getSource().getEntity());
             if (behind != null) told.add(behind);
             for (ServerPlayer p : told) {
