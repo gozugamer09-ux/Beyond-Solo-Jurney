@@ -1,0 +1,818 @@
+{
+ "acolyte_mace": {
+  "extent": [
+   0.46,
+   38.08
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "apprentice_staff": {
+  "extent": [
+   -0.6,
+   40.2
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "ashen_oath": {
+  "extent": [
+   1.16,
+   39.85
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "bloodletter": {
+  "extent": [
+   1.16,
+   36.31
+  ],
+  "grip": [
+   3.5,
+   11.5,
+   0.0
+  ]
+ },
+ "calamity_fang": {
+  "extent": [
+   2.22,
+   31.36
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "colossus_aegis": {
+  "extent": [
+   -0.6,
+   35.61
+  ],
+  "grip": [
+   3,
+   12,
+   0.0
+  ]
+ },
+ "crimson_commander_blade": {
+  "extent": [
+   -0.25,
+   40.56
+  ],
+  "grip": [
+   2.5,
+   11,
+   0.0
+  ]
+ },
+ "crimson_reaper": {
+  "extent": [
+   -0.6,
+   33.84
+  ],
+  "grip": [
+   9,
+   15,
+   0.0
+  ]
+ },
+ "dawnpetal_rapier": {
+  "extent": [
+   1.16,
+   40.56
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "ember_sage_staff": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "emberbrand": {
+  "extent": [
+   1.16,
+   38.43
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "eye_of_the_insatiable": {
+  "extent": [
+   -0.6,
+   39.49
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "frostbear_gauntlets": {
+  "extent": [
+   1.52,
+   32.78
+  ]
+ },
+ "frostwarden_dagger": {
+  "extent": [
+   2.22,
+   31.36
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "galebreaker_warbow": {
+  "extent": [
+   2.58,
+   34.54
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "galebreaker_warbow_pulling_0": {
+  "extent": [
+   3.29,
+   34.19
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "galebreaker_warbow_pulling_1": {
+  "extent": [
+   3.29,
+   33.84
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "galebreaker_warbow_pulling_2": {
+  "extent": [
+   3.64,
+   33.13
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "galebreaker_warbow_pulling_3": {
+  "extent": [
+   3.99,
+   33.13
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "galebreaker_warbow_pulling_4": {
+  "extent": [
+   3.99,
+   32.78
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.07
+  ]
+ },
+ "goblin_shiv": {
+  "extent": [
+   4.7,
+   26.77
+  ],
+  "grip": [
+   5,
+   11.5,
+   0.0
+  ]
+ },
+ "hellhound_halberd": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   3,
+   12,
+   0.0
+  ]
+ },
+ "hellsovereign_fang": {
+  "extent": [
+   2.22,
+   30.3
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "hunter_dagger": {
+  "extent": [
+   2.22,
+   29.95
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "hunters_shortbow": {
+  "extent": [
+   5.41,
+   31.72
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunters_shortbow_pulling_0": {
+  "extent": [
+   5.76,
+   31.36
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunters_shortbow_pulling_1": {
+  "extent": [
+   5.76,
+   31.36
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunters_shortbow_pulling_2": {
+  "extent": [
+   6.11,
+   31.01
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunters_shortbow_pulling_3": {
+  "extent": [
+   6.47,
+   30.66
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunters_shortbow_pulling_4": {
+  "extent": [
+   6.82,
+   30.66
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.37
+  ]
+ },
+ "hunting_spear": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   14,
+   16,
+   0.0
+  ]
+ },
+ "ironblood_claymore": {
+  "extent": [
+   -0.25,
+   40.56
+  ],
+  "grip": [
+   2.5,
+   11,
+   0.0
+  ]
+ },
+ "ironclad_warhammer": {
+  "extent": [
+   -0.6,
+   34.9
+  ],
+  "grip": [
+   3,
+   12,
+   0.0
+  ]
+ },
+ "knight_sword": {
+  "extent": [
+   1.16,
+   38.43
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "knightsbane": {
+  "extent": [
+   2.22,
+   29.95
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "lifebloom_staff": {
+  "extent": [
+   -0.6,
+   40.91
+  ]
+ },
+ "lycan_fang_knife": {
+  "extent": [
+   2.58,
+   29.24
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "mending_scepter": {
+  "extent": [
+   0.46,
+   37.02
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "naga_glaive": {
+  "extent": [
+   -0.6,
+   38.08
+  ],
+  "grip": [
+   4,
+   11,
+   0.0
+  ]
+ },
+ "nightglass_fang": {
+  "extent": [
+   2.58,
+   31.36
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "nightveil_kris": {
+  "extent": [
+   2.22,
+   30.66
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "ruinbringer": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   2.5,
+   11,
+   0.0
+  ]
+ },
+ "saints_sunstaff": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "serpentsting_bow": {
+  "extent": [
+   3.29,
+   33.84
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "serpentsting_bow_pulling_0": {
+  "extent": [
+   3.64,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "serpentsting_bow_pulling_1": {
+  "extent": [
+   3.99,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "serpentsting_bow_pulling_2": {
+  "extent": [
+   4.35,
+   32.78
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "serpentsting_bow_pulling_3": {
+  "extent": [
+   4.35,
+   32.42
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "serpentsting_bow_pulling_4": {
+  "extent": [
+   4.7,
+   32.07
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.97
+  ]
+ },
+ "silvermoon_rapier": {
+  "extent": [
+   1.52,
+   40.56
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "starfall_longbow": {
+  "extent": [
+   2.22,
+   34.54
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starfall_longbow_pulling_0": {
+  "extent": [
+   2.58,
+   34.19
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starfall_longbow_pulling_1": {
+  "extent": [
+   2.93,
+   33.84
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starfall_longbow_pulling_2": {
+  "extent": [
+   3.29,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starfall_longbow_pulling_3": {
+  "extent": [
+   3.99,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starfall_longbow_pulling_4": {
+  "extent": [
+   3.99,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.47
+  ]
+ },
+ "starseer_staff": {
+  "extent": [
+   -0.6,
+   40.2
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "steel_greatsword": {
+  "extent": [
+   -0.25,
+   40.56
+  ],
+  "grip": [
+   2.5,
+   11,
+   0.0
+  ]
+ },
+ "stormcaller_edict": {
+  "extent": [
+   -0.6,
+   34.9
+  ],
+  "grip": [
+   3,
+   12,
+   0.0
+  ]
+ },
+ "stormlord_longsword": {
+  "extent": [
+   1.16,
+   40.56
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "sunderveil": {
+  "extent": [
+   -0.25,
+   40.91
+  ],
+  "grip": [
+   2.8,
+   10.5,
+   0.0
+  ]
+ },
+ "swarm_king_talons": {
+  "extent": [
+   3.64,
+   36.67
+  ],
+  "grip": [
+   4,
+   12,
+   0.0
+  ]
+ },
+ "thorn_requiem": {
+  "extent": [
+   -0.6,
+   34.19
+  ],
+  "grip": [
+   8,
+   15,
+   0.0
+  ]
+ },
+ "thunderfang_longsword": {
+  "extent": [
+   1.16,
+   39.14
+  ],
+  "grip": [
+   4,
+   10.5,
+   0.0
+  ]
+ },
+ "titans_knuckles": {
+  "extent": [
+   1.52,
+   33.13
+  ]
+ },
+ "venom_fang": {
+  "extent": [
+   2.22,
+   30.3
+  ],
+  "grip": [
+   5,
+   12,
+   0.0
+  ]
+ },
+ "warchief_cleaver": {
+  "extent": [
+   -0.6,
+   36.31
+  ],
+  "grip": [
+   3,
+   12,
+   0.0
+  ]
+ },
+ "windrunner_longbow": {
+  "extent": [
+   2.22,
+   34.9
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "windrunner_longbow_pulling_0": {
+  "extent": [
+   2.58,
+   34.19
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "windrunner_longbow_pulling_1": {
+  "extent": [
+   3.29,
+   34.19
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "windrunner_longbow_pulling_2": {
+  "extent": [
+   3.29,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "windrunner_longbow_pulling_3": {
+  "extent": [
+   3.64,
+   33.48
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "windrunner_longbow_pulling_4": {
+  "extent": [
+   3.64,
+   33.13
+  ],
+  "grip": [
+   15.86,
+   21.26,
+   4.27
+  ]
+ },
+ "winter_breath_staff": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   6,
+   12,
+   0.0
+  ]
+ },
+ "winterborne_requiem": {
+  "extent": [
+   -0.6,
+   40.91
+  ],
+  "grip": [
+   12,
+   18,
+   0.0
+  ]
+ },
+ "world_tree_branch": {
+  "extent": [
+   -0.6,
+   39.85
+  ]
+ }
+}

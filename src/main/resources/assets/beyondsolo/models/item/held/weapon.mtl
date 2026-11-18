@@ -1,0 +1,7 @@
+# materials of every held weapon (tools/gen_weapon_models.py); the textures come from the model json
+newmtl face
+Kd 1 1 1
+map_Kd #layer0
+newmtl side
+Kd 1 1 1
+map_Kd #side

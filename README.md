@@ -101,7 +101,14 @@ Needs Java 21.
 ./gradlew runGameTestServer  # automated in-game tests
 ```
 
-Admin commands for testing (op level 2): `/system evaluate [rank] [class]` (plays the whole evaluation, on the
+Operator commands (op level 2; in single player, turn cheats on): everything is under `/solo`, with tab completion.
+`/solo` alone shows the groups as clickable buttons. A few: `/solo wipe` (start a player over: `system` or `all`),
+`/solo set level 40`, `/solo awaken s mage`, `/solo give item <item> [count] [grade]`, `/solo spawn gate s red`,
+`/solo spawn creature <kind> [count] [rank]`, `/solo dungeon enter|boss|clear|leave`, `/solo quest complete all`.
+Most take players at the end (`@a`, a name); left out, it's you. See "Operator commands: /solo" in
+docs/ARCHITECTURE.md.
+
+Older testing commands (op level 2, also reachable as `/solo dev ...`): `/system evaluate [rank] [class]` (plays the whole evaluation, on the
 nearest crystal if there is one), `/system awaken [rank] [class]` (same result, no show), `/system reset`,
 `/system xp <n>`, `/system points <n>`, `/system rank <rank>`, `/system stat <stat> <value>`,
 `/system exhaustion <percent>`, `/system notify <text>`, `/system buildup <targets> <element> <amount>`,

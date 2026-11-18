@@ -37,6 +37,7 @@ public class StatusTab implements SystemTab {
     private float shownHp = -1, shownMp = -1, shownXp = -1, shownFatigue = -1;
     private int lastLevel = -1;
     private boolean first = true;
+    private float[] titleRect;
 
     @Override
     public Component title() {
@@ -231,8 +232,13 @@ public class StatusTab implements SystemTab {
         Component titleText = d.title().isEmpty() ? Component.translatable("status.beyondsolo.title.none") : Component.translatable(d.title());
         String title = SysFont.fit(titleText.getString(), 7.5f, false, CARD_W - 14);
         Ui.divider(g, x + 12, y + 150, CARD_W - 24, Gfx.alpha(SystemTheme.ACCENT, 0.3f));
-        SysFont.spaced(g, Component.translatable("status.beyondsolo.title").getString(), mid, y + 155, 6f, SystemTheme.TEXT_DIM, true, 1.2f, 0.5f);
-        SysFont.draw(g, title, mid, y + 164, 7.5f, d.title().isEmpty() ? SystemTheme.TEXT_DIM : SystemTheme.GOLD, false, 0.5f);
+        // the title worn, in its tier's colour; a click opens the hunter's titles
+        titleRect = new float[]{x + 6, y + 152, CARD_W - 12, 20};
+        boolean titleHover = Ui.inside(mouseX, mouseY, titleRect[0], titleRect[1], titleRect[2], titleRect[3]);
+        if (titleHover) Shapes.box(titleRect[0], titleRect[1], titleRect[2], titleRect[3]).radius(5).fill(0x12FFFFFF).border(0.5f, Gfx.alpha(SystemTheme.ACCENT, 0.45f)).draw(g);
+        SysFont.spaced(g, Component.translatable("status.beyondsolo.title").getString(), mid, y + 155, 6f, titleHover ? SystemTheme.ACCENT_BRIGHT : SystemTheme.TEXT_DIM, true, 1.2f, 0.5f);
+        int titleColor = d.title().isEmpty() ? SystemTheme.TEXT_DIM : Gfx.mix(com.beyondsolo.client.chronicle.ChronicleClient.titleColor(d.title()), 0xFFFFFFFF, 0.2f);
+        SysFont.draw(g, title, mid, y + 164, 7.5f, titleColor, false, 0.5f);
         g.pose().popPose();
     }
 
@@ -322,6 +328,12 @@ public class StatusTab implements SystemTab {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (titleRect != null && Ui.inside(mouseX, mouseY, titleRect[0], titleRect[1], titleRect[2], titleRect[3])) {
+            com.beyondsolo.client.chronicle.ChronicleTab.open(com.beyondsolo.client.chronicle.ChronicleTab.Section.TITLES);
+            SystemScreen.playClick();
+            Minecraft.getInstance().setScreen(SystemScreen.openInstant(com.beyondsolo.client.chronicle.ChronicleClientEvents.CHRONICLE_TAB));
+            return true;
+        }
         for (int i = 0; i < plusButtons.length; i++) {
             float[] b = plusButtons[i];
             if (b != null && Math.hypot(mouseX - b[0], mouseY - b[1]) <= 9) {

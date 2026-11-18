@@ -76,7 +76,8 @@ def uv(x, y):
 
 
 class Part:
-    def __init__(self, u0, u1, width, colors, kind="metal", bend=None, fuller=False, bands=0):
+    def __init__(self, u0, u1, width, colors, kind="metal", bend=None, fuller=False, bands=0, relief=None):
+        self.relief = relief        # what it is in depth (tools/weapon_relief.py): round, blade, bar, block, gem
         self.u0, self.u1 = u0, u1
         self.width = width          # function u -> half width
         self.colors = colors        # (light, mid, dark)
@@ -107,12 +108,59 @@ class Part:
         return mid
 
 
-def blade(u0, u1, base, tip_len, colors, bend=None, fuller=True):
+def blade(u0, u1, base, tip_len, colors, bend=None, fuller=True, relief="blade"):
     def width(u):
         if u > u1 - tip_len:
             return base * max(0.0, (u1 - u) / tip_len)
         return base
-    return Part(u0, u1, width, colors, bend=bend, fuller=fuller)
+    return Part(u0, u1, width, colors, bend=bend, fuller=fuller, relief=relief)
+
+
+class Crescent:
+    """A scythe's blade: it leaves the top of the shaft (at u = `root`) to the upper-left side and curls back down
+    the weapon over `reach`, narrowing to a point. Its spine is the outer side, its edge the inner one. `thorns`:
+    colours of the spikes that grow from the spine every few pixels, or None."""
+
+    def __init__(self, root, reach, colors, lead=2.5, curl=11.0, half=3.6, thorns=None):
+        self.root, self.reach, self.colors = root, reach, colors
+        self.lead, self.curl, self.half, self.thorns = lead, curl, half, thorns
+
+    def at(self, u, v):
+        """(t, half width, along) at a point: t is -1 at the edge and 1 at the spine; None outside the blade."""
+        bv = v - 0.5
+        if not 0 <= bv <= self.reach:
+            return None
+        k = bv / self.reach
+        half = self.half * (1 - k) ** 0.6 + 0.3
+        d = (u - self.root) - (self.lead - self.curl * k * k)
+        thorn = 0.0
+        if self.thorns and bv < self.reach - 2:
+            x = (bv % 4.2) - 2.1                       # a spike every 4.2 along the spine, leaning to the point
+            thorn = max(0.0, 2.3 * (1 - abs(x + 0.25 * max(0.0, d - half)) / 0.95))
+        if -half <= d <= half + thorn:
+            return d / half, half, k
+        return None
+
+    def color_at(self, u, v):
+        hit = self.at(u, v)
+        if hit is None:
+            return None
+        t = hit[0]
+        light, mid, dark = self.colors
+        if t > 1:
+            return self.thorns[0]
+        return light if t > 0.4 else dark if t < -0.4 else mid
+
+    def relief(self, u, v, g):
+        """A wedge: thick along the spine, honed at the edge, thinner towards the point."""
+        hit = self.at(u, v)
+        if hit is None:
+            return None
+        t, half, _k = hit
+        if t > 1:
+            return 0.2
+        spine = 0.28 + 0.15 * half
+        return spine + (0.14 - spine) * ((1 - t) / 2) ** 0.8
 
 
 def const(w):
@@ -158,11 +206,11 @@ DUSK = (hexc("8c86b4"), hexc("4a4470"), hexc("221e38"))
 
 
 def guard(u, half, colors, thick=1.6):
-    return Part(u - thick, u + thick, const(half), colors)
+    return Part(u - thick, u + thick, const(half), colors, relief="bar")
 
 
 def pommel(u, r, colors):
-    return Part(u - r, u + r, lambda x: math.sqrt(max(0.0, r * r - (x - u) ** 2)) + 0.2, colors)
+    return Part(u - r, u + r, lambda x: math.sqrt(max(0.0, r * r - (x - u) ** 2)) + 0.2, colors, relief="round")
 
 
 def grip(u0, u1, colors, w=1.3):
@@ -206,31 +254,10 @@ def weapons():
         blade(14, 38, 0.6, 5, (BLOOD[0], BLOOD[1], BLOOD[1]), bend=lambda u: 0.012 * (u - 13) ** 2 - 1.3, fuller=False)],
         glow=(211, 23, 42, 60))
     # Crimson Reaper: long shaft and a hooked crimson blade
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    px = img.load()
-    shaft = Part(0, 33, const(1.0), DUSK)
-    wrap = Part(9, 15, const(1.4), CRIMSON, kind="grip")
-    collar = Part(27, 29.5, const(2.0), GOLD)
-    for y in range(S):
-        for x in range(S):
-            u, v = uv(x, y)
-            c = None
-            for p in (shaft, wrap, collar):
-                c = p.color_at(u, v) or c
-            # the blade: a crescent hanging from the top of the shaft towards the upper-left
-            bu, bv = u - 29.5, v - 0.5
-            if 0 <= bv <= 19:
-                k = bv / 19.0
-                centre = 2.5 - 11 * k * k         # curves back down the shaft
-                half = 3.6 * (1 - k) ** 0.6 + 0.3
-                d = bu - centre
-                if abs(d) <= half:
-                    t = d / half
-                    c = CRIMSON[0] if t > 0.4 else CRIMSON[2] if t < -0.4 else CRIMSON[1]
-            if c is not None:
-                px[x, y] = c
-    img = outline(img)
-    out["crimson_reaper"] = img
+    out["crimson_reaper"] = render_weapon([
+        Part(0, 30.5, const(1.0), DUSK), Part(9, 15, const(1.4), CRIMSON, kind="grip"),
+        Part(24.5, 27, const(2.0), GOLD), Crescent(27.0, 18.5, CRIMSON, curl=12.5)],
+        glow=(208, 42, 104, 70))
     return out
 
 

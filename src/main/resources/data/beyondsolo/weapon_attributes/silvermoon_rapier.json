@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:rapier"
+  "parent": "bettercombat:rapier",
+  "attributes": {
+    "pose": "beyondsolo:pose_rapier"
+  }
 }

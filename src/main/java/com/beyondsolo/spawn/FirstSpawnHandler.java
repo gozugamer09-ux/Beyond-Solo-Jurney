@@ -25,6 +25,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * First join: drop the player somewhere random (everyone after the first beside where the first one landed, with
@@ -46,13 +47,7 @@ public final class FirstSpawnHandler {
         boolean newPlayer = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) < NEW_PLAYER_MAX_TICKS;
         if (Config.RANDOM_SPAWN.get() && newPlayer && player.level().dimension() == Level.OVERWORLD) {
             ServerLevel level = player.serverLevel();
-            // friends start together: everyone lands by the world's first landing (see LandingData)
-            LandingData landing = LandingData.get(player.server);
-            BlockPos spot = Config.SPAWN_TOGETHER.get() ? landing.near(level, player.getRandom()) : null;
-            if (spot == null) {
-                spot = findRandomSpawn(level, player.getRandom());
-                if (spot != null && landing.landing() == null) landing.set(spot);
-            }
+            BlockPos spot = newPlayerSpot(level, player.getRandom());
             if (spot != null) {
                 player.teleportTo(level, spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), player.getXRot());
                 player.setRespawnPosition(level.dimension(), spot, 0f, true, false);
@@ -75,6 +70,47 @@ public final class FirstSpawnHandler {
                     Component.translatable("notify.beyondsolo.welcome.body")));
             SystemAPI.setObjective(player, Objectives.FIND_VILLAGE);
         });
+    }
+
+    /**
+     * A fresh start (the wipe command): the player is put down where a new player would be ({@link #newPlayerSpot}:
+     * beside the world's first landing with {@code spawn.together}, else a new random spot in the overworld), which
+     * becomes their respawn point (or at world spawn when random spawns are off or none was found).
+     */
+    public static void startOver(ServerPlayer player) {
+        ServerLevel world = player.server.overworld();
+        BlockPos spot = Config.RANDOM_SPAWN.get() ? newPlayerSpot(world, player.getRandom()) : null;
+        if (spot != null) {
+            player.setRespawnPosition(world.dimension(), spot, 0f, true, false);
+        } else {
+            player.setRespawnPosition(Level.OVERWORLD, null, 0f, false, false);
+            spot = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, world.getSharedSpawnPos());
+        }
+        player.stopRiding();
+        player.teleportTo(world, spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), 0f);
+        // fake players (tests) ignore same-level teleports
+        if (player.distanceToSqr(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5) > 1) {
+            player.moveTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), 0f);
+        }
+        player.fallDistance = 0;
+        player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+        SystemAPI.markFirstJoinHandled(player);
+    }
+
+    /**
+     * Where a new player lands in the overworld: friends start together, so with {@code spawn.together} it is beside
+     * the world's first landing (see {@link LandingData}; the first new player's random spot becomes it), else a random
+     * spot. Null if none was found.
+     */
+    @Nullable
+    static BlockPos newPlayerSpot(ServerLevel level, RandomSource random) {
+        LandingData landing = LandingData.get(level.getServer());
+        BlockPos spot = Config.SPAWN_TOGETHER.get() ? landing.near(level, random) : null;
+        if (spot == null) {
+            spot = findRandomSpawn(level, random);
+            if (spot != null && landing.landing() == null) landing.set(spot);
+        }
+        return spot;
     }
 
     /** Picks a random dry surface spot between the configured min and max distance from world spawn. */
