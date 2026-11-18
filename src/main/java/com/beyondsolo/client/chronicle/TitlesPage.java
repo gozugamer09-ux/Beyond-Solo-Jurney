@@ -298,9 +298,9 @@ final class TitlesPage implements ChronicleTab.Page {
         Ui.chip(g, chipX + tw + 3, ty, chipH, cat, chipSize, SystemTheme.ACCENT, false);
         ty += chipH + 5;
 
-        // the bottom, from the button up: perks, then how far along (or when it was earned)
+        // under it, top down: what earns it, how far along (or when it was earned), its perks; the button at the bottom
         float by = y + h - 19;
-        List<PerkLine> perks = d.perks();
+        List<PerkLine> perks = secret ? List.of() : d.perks();
         float perkH = perks.isEmpty() ? 0 : 8 + perks.size() * 8.2f;
         float progH = earned || secret ? 9 : d.feat() != null && d.goal() > 0 ? 13 : 0;
         float bottomTop = by - 4 - perkH - progH;
@@ -316,7 +316,8 @@ final class TitlesPage implements ChronicleTab.Page {
             ty += ls * SysFont.LINE;
         }
 
-        float py = bottomTop;
+        float py = Math.min(ty + 6, bottomTop);
+        Ui.divider(g, cx - 40, py - 3, 80, Gfx.alpha(tc, earned ? 0.45f : 0.2f));
         if (earned) {
             Long at = data.titles().get(d.key());
             String s = Component.translatable("chronicle.beyondsolo.earned_on", ChronicleUi.day(at == null ? 0 : at)).getString();
@@ -332,7 +333,7 @@ final class TitlesPage implements ChronicleTab.Page {
         }
 
         if (!perks.isEmpty()) {
-            float ky = by - 4 - perkH;
+            float ky = py + progH + 4;
             SysFont.spaced(g, Component.translatable("chronicle.beyondsolo.perks").getString(), x + 9, ky, 4.6f, SystemTheme.TEXT_DIM, true, 1.1f, 0f);
             ky += 8;
             for (PerkLine p : perks) {

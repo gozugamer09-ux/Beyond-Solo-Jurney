@@ -28,9 +28,11 @@ public record Rival(String id, String name, PlayerRank rank, PlayerClass playerC
         return gates + (int) Math.min(gates, Math.max(0, day) * Math.max(1, gates / 40));
     }
 
-    /** Their best time in a boss rush tier, in ticks (-1 for none). */
+    /** Their best time in a boss rush tier, in ticks (-1 for none): their rank's pace, a little off it for each one. */
     public long rushTicks(RushTier tier) {
         int i = tier.ordinal();
-        return i < rushSeconds.length && rushSeconds[i] > 0 ? rushSeconds[i] * 20L : -1;
+        if (i >= rushSeconds.length || rushSeconds[i] <= 0) return -1;
+        int spread = Math.floorMod(id.hashCode() * 31 + i * 7, 37) - 18;
+        return Math.max(60, rushSeconds[i] + spread) * 20L;
     }
 }

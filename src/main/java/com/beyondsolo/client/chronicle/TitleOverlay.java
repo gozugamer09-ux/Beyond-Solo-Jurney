@@ -26,6 +26,7 @@ import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 
@@ -97,9 +98,14 @@ public final class TitleOverlay {
             current = EARNED.pollFirst();
             also = List.of();
             if (EARNED.size() >= 2) {
-                // many at once (a hunter's past feats on their first day with the chronicle): one moment for all
-                also = new ArrayList<>(EARNED);
+                // many at once (a hunter's past feats on their first day with the chronicle): one moment for all,
+                // led by the rarest
+                List<Earned> all = new ArrayList<>(EARNED);
+                all.add(0, current);
                 EARNED.clear();
+                all.sort(Comparator.comparingInt((Earned e) -> Titles.tierOf(e.key()).ordinal()).reversed());
+                current = all.remove(0);
+                also = all;
             }
             startedAt = Anim.now();
             time = !also.isEmpty() ? 5.6f : EARNED.isEmpty() ? 4.4f : 3.2f;
@@ -171,6 +177,7 @@ public final class TitleOverlay {
 
         // the crest bursts in
         float ey = cy - 20;
+
         float pop = Anim.outBackStrong(Anim.window(t, 0.1f, 0.6f));
         float rays = Anim.window(t, 0.15f, 0.7f) * (1 - out);
         if (rays > 0) {
@@ -205,6 +212,19 @@ public final class TitleOverlay {
         // the name types itself on a band of light
         float ny = ey + 26;
         SysFont.Line name = SysFont.line(Component.translatable(m.key()).getString(), 17, true);
+        List<SysFont.Line> descLines = def == null ? List.of() : limit(SysFont.wrap(def.description(), 7f, false, 250), 2);
+
+        // a soft shade behind the words, so they read on snow and sand too
+        float shade = Anim.outCubic(Anim.window(t, 0.5f, 1.0f));
+        if (shade > 0) {
+            float bodyH = 39 + descLines.size() * 7f * SysFont.LINE + 3 + (def == null ? 0 : def.perks().size() * (7.5f * SysFont.LINE + 1)) + 20;
+            if (!also.isEmpty()) bodyH += 10 + Math.min(5, also.size()) * 7.5f * SysFont.LINE + (also.size() > 5 ? 8 : 0);
+            float top = ny - 9;
+            float sh = bodyH + 9;
+            float sw = Math.max(name.width() + 60, 270);
+            Shapes.box(cx - sw / 2f, top, sw, sh).radius(sh / 2f)
+                    .fill(Gfx.alpha(0xFF02060E, 0.24f * shade)).glow(26, Gfx.alpha(0xFF02060E, 0.24f * shade)).draw(g);
+        }
         float band = Anim.outCubic(Anim.window(t, 0.55f, 0.95f));
         if (band > 0) {
             float bw = (name.width() + 70) * band;
@@ -238,7 +258,7 @@ public final class TitleOverlay {
             Ui.chip(g, chipX, dy, 10, cat, 6f, SystemTheme.TEXT_SOFT, false);
             dy += 15;
             if (def != null) {
-                for (SysFont.Line l : limit(SysFont.wrap(def.description(), 7f, false, 250), 2)) {
+                for (SysFont.Line l : descLines) {
                     SysFont.draw(g, l, cx - l.width() / 2f, dy, SystemTheme.TEXT_SOFT, 0f);
                     dy += 7f * SysFont.LINE;
                 }
