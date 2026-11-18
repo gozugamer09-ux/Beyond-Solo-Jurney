@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Idle stances for the two-handed weapon kinds: Better Combat poses (playerAnimator "emote" files) written to
+Idle stances for held weapons: Better Combat poses (playerAnimator "emote" files) written to
 assets/beyondsolo/player_animations/pose_<stance>.json and named by the weapons' attribute files.
 
 Better Combat's own idle poses are made for its own item transforms, and with ours they held a claymore straight
-up in front of the face, spears and hammers sideways across the hips and katanas and scythes pointing backwards.
-Each stance here is described by what it should look like instead: where the weapon points, which way its edge
-faces, where the main hand holds it and where along the weapon the other hand goes. The script then works out the
-arm angles that put both fists on the grip (straight Minecraft arms, so a shoulder may slide a pixel or two) and
-the item bone rotation and offset that line the weapon up with them through our held-item transforms.
+up in front of the face, spears and hammers sideways across the hips and katanas and scythes pointing backwards;
+one-handed weapons and staffs have no pose at all and stick out of the fist at the hip. Each stance here is
+described by what it should look like instead: where the weapon points, which way its edge faces, where the main
+fist is and how far along the weapon the other hand goes. The script then works out the arm angles that put the
+fists there (straight Minecraft arms, so a shoulder may slide a pixel or two) and the item bone rotation and
+offset that line the weapon up with them through our held-item transforms.
 
 Only idle and walking use these poses: every Better Combat attack animation sets the arms and the item bone
 itself, so attacks look exactly as before.
 
 Body model space, in pixels: x to the player's left, y down, z backwards (the player faces -z). The item is the
 64x64 sprite drawn from bottom-left (pommel or butt) to top-right (tip or head), its upper-left side being the edge
-of axes, scythes, katanas and glaives. Positions along the weapon are "t", 0 at the sprite's bottom-left corner and
-64 at its top-right corner, measured along the diagonal (one t is one pixel across and one up).
+of axes, scythes, katanas and glaives.
 
 Run from the repo root (tools/gen_weapon_models.py calls it):  python3 tools/weapon_stances.py
 Needs: numpy.
@@ -81,17 +81,16 @@ VAN_R = Rx(math.radians(-90)) @ Ry(math.radians(180))
 VAN_T = np.array([1.0, 2.0, -10.0])
 
 
+# where the middle of the fist is after the display transform: every weapon's hold point is put there
+FIST_IN_DISPLAY = VAN_R.T @ RIGHT_FIST - VAN_T
+
+
 def display_affine(tr):
     """Item model pixels (0..16) -> pixels after the display transform (ItemTransform.apply, then -0.5)."""
     R = gm._rot(*tr["rotation"])
     s = tr["scale"][0]
     t = np.array(tr["translation"], float)
     return R * s, t - R @ (np.full(3, 8.0) * s)
-
-
-def sprite_point(t):
-    """The point at position t along the sprite's diagonal, in item model pixels."""
-    return np.array([t / 4.0, t / 4.0, 8.0])
 
 
 L_ITEM = np.array([1.0, 1.0, 0.0]) / math.sqrt(2)     # pommel -> tip
@@ -158,26 +157,26 @@ def clipping(pivot, fist, half=1.5):
 
 class Stance:
     """
-    kinds: weapon kinds (Better Combat parents) that use it; the first one's held transform is used for the maths
+    kinds: weapon kinds (Better Combat parents) that use it
     tip/edge: where the weapon points and where its edge (the sprite's upper-left side) faces, as body() directions
-    grip: t along the weapon where the main (right) hand holds it; fist: where that fist goes, in body pixels
-    other: t where the left hand holds it, or None to leave the left arm free
+    fist: where the main (right) fist goes, in body pixels. Where on the weapon that hand closes is the kind's own
+    hold point (gen_weapon_models.PROFILES), which every weapon's held transform puts in the middle of the fist.
+    other: how far from the main hand the left hand holds the weapon, in pixels along it (+ towards the tip), or
+    None to leave the left arm free
     """
 
-    def __init__(self, name, kinds, tip, edge, grip, fist, other=None):
+    def __init__(self, name, kinds, tip, edge, fist, other=None):
         self.name, self.kinds = name, kinds
         L = tip / np.linalg.norm(tip)
         E = edge - np.dot(edge, L) * L
         self.L, self.E = L, E / np.linalg.norm(E)
-        self.grip, self.fist, self.other = grip, np.array(fist, float), other
+        self.fist, self.other = np.array(fist, float), other
 
     def arms(self, fist, other):
         right = solve_arm(RIGHT_SHOULDER, RIGHT_FIST, fist)
         left = target = None
         if other is not None:
-            s = gm.displays(self.kinds[0])["thirdperson_righthand"]["scale"][0]
-            d = (other - self.grip) * math.sqrt(2) / 4.0 * s      # pixels along the weapon
-            target = fist + d * self.L
+            target = fist + other * self.L
             left = solve_arm(LEFT_SHOULDER, LEFT_FIST, target)
         return right, left, target
 
@@ -186,19 +185,19 @@ class Stance:
         c = right["shift"] ** 2 + 0.25 * float(np.sum((fist - self.fist) ** 2))
         c += 3 * clipping(right["pivot"], fist)
         if left is not None:
-            c += left["shift"] ** 2 + 0.15 * (other - self.other) ** 2 + 3 * clipping(left["pivot"], target)
+            c += left["shift"] ** 2 + 0.6 * (other - self.other) ** 2 + 3 * clipping(left["pivot"], target)
             gap = float(np.linalg.norm(target - fist))
             c += 4 * max(0.0, 3.0 - gap) ** 2                         # two fists, not one
         return c
 
     def fit(self):
-        """Nudges the main fist (up to 3 px) and the other hand's place on the grip (up to 6 t) so the arms reach
-        with the least shoulder sliding and without pushing through the chest."""
+        """Nudges the main fist (up to 3 px) and the other hand's place on the weapon (up to 3 px along it) so the
+        arms reach with the least shoulder sliding and without pushing through the chest."""
         if getattr(self, "_fit", None) is not None:
             return self._fit
         best = (self.cost(self.fist, self.other), self.fist, self.other)
         offs = np.arange(-3.0, 3.01, 1.0)
-        others = [None] if self.other is None else list(np.arange(self.other - 6, self.other + 6.01, 1.0))
+        others = [None] if self.other is None else list(np.arange(self.other - 3, self.other + 3.01, 0.5))
         for dx in offs:
             for dy in offs:
                 for dz in offs:
@@ -211,21 +210,18 @@ class Stance:
         return best
 
     def solve(self):
-        tr = gm.displays(self.kinds[0])["thirdperson_righthand"]
-        A, b = display_affine(tr)
         _, fist, other = self.fit()
         right, left, target = self.arms(fist, other)
         Ra = part_rot(right["pitch"], right["yaw"], right["roll"])
         # weapon orientation in body space -> item bone rotation
         Fw = np.column_stack([self.L, self.E, np.cross(self.L, self.E)])
         Fi = np.column_stack([L_ITEM, E_ITEM, N_ITEM])
-        Ad = A / tr["scale"][0]                                   # display rotation only
+        Ad = gm._rot(*gm.VANILLA_HAND)                            # the held transform's rotation
         Rb = (Ra @ VAN_R).T @ Fw @ (Ad @ Fi).T
-        # item bone offset: the grip point lands on the fist
-        p_disp = A @ sprite_point(self.grip) + b                  # grip after the display transform
+        # item bone offset: the hold point (at FIST_IN_DISPLAY after the display transform) lands on the fist
         # body = pivot + Ra (VAN_R (VAN_T + bone_t + Rb p_disp)) -> solve for bone_t
         local = VAN_R.T @ (Ra.T @ (fist - right["pivot"]))
-        bone_t = local - VAN_T - Rb @ p_disp
+        bone_t = local - VAN_T - Rb @ FIST_IN_DISPLAY
         out = {"right": right, "bone": (euler_zyx(Rb), bone_t), "fist": fist, "other": other}
         if left is not None:
             out["left"], out["left_target"] = left, target
@@ -265,7 +261,7 @@ class Stance:
         msg = f"{self.name:9s} fist ({f[0]:5.1f} {f[1]:5.1f} {f[2]:5.1f}) R shift {r['shift']:.2f} [{deg(r)}]"
         if "left" in sol:
             left, t = sol["left"], sol["left_target"]
-            msg += f" | other t {sol['other']:.1f} at ({t[0]:5.1f} {t[1]:5.1f} {t[2]:5.1f}) L shift {left['shift']:.2f} [{deg(left)}]"
+            msg += f" | other {sol['other']:.1f} px at ({t[0]:5.1f} {t[1]:5.1f} {t[2]:5.1f}) L shift {left['shift']:.2f} [{deg(left)}]"
         return msg
 
 
@@ -273,30 +269,29 @@ class Stance:
 STANCES = [
     # two-handed sword in a middle guard: both fists in front of the belly, blade forward and up a little to the
     # right (so it shows past the body from the usual camera behind the player), edge down
-    Stance("claymore", ["claymore"], tip=body(0.28, 0.55, 1.0), edge=body(0, -1, 0), grip=16, fist=(-1.5, 8.0, -7.0),
-           other=9),
+    Stance("claymore", ["claymore"], tip=body(0.28, 0.55, 1.0), edge=body(0, -1, 0), fist=(-1.5, 8.0, -7.0), other=-3.6),
     # katana in chudan: the same guard with the longer grip and the blade a little lower
-    Stance("katana", ["katana"], tip=body(0.25, 0.45, 1.0), edge=body(0, -1, 0), grip=19, fist=(-1.5, 8.5, -6.5),
-           other=11),
+    Stance("katana", ["katana"], tip=body(0.25, 0.45, 1.0), edge=body(0, -1, 0), fist=(-1.5, 8.5, -6.5), other=-3.7),
     # spears, glaives and halberds: rear fist at the right hip, the other hand forward on the shaft, point forward
     # and up towards the enemy's face, blade edge down
-    Stance("polearm", ["spear", "glaive", "halberd"], tip=body(-0.20, 0.45, 0.87), edge=body(0, -1, 0), grip=12,
-           fist=(-5.0, 11.0, 0.0), other=22),
+    Stance("polearm", ["spear", "glaive", "halberd"], tip=body(-0.20, 0.45, 0.87), edge=body(0, -1, 0),
+           fist=(-5.0, 11.0, 0.0), other=6.0),
     # war hammers and great axes at port arms: haft across the body from the right hip, head up by the left shoulder
     # and well forward, striking face or edge to the front
-    Stance("heavy", ["hammer", "heavy_axe"], tip=body(-0.55, 0.60, 0.58), edge=body(0, 0, 1), grip=12,
-           fist=(-4.0, 10.5, -4.0), other=24),
+    Stance("heavy", ["hammer", "heavy_axe"], tip=body(-0.55, 0.60, 0.58), edge=body(0, 0, 1), fist=(-4.0, 10.5, -4.0),
+           other=6.0),
     # scythes like a reaper: shaft upright at the right side, blade over the head pointing forward, one hand
-    Stance("scythe", ["scythe"], tip=body(0.10, 0.95, 0.25), edge=body(0, 0, 1), grip=18, fist=(-6.0, 10.0, -4.0)),
+    Stance("scythe", ["scythe"], tip=body(0.10, 0.95, 0.25), edge=body(0, 0, 1), fist=(-6.0, 10.0, -4.0)),
+    # a mage's staff like a walking staff: upright at the right side, a little ahead, the head above the shoulder
+    Stance("staff", ["battlestaff"], tip=body(0.06, 0.97, 0.20), edge=body(0, 0, 1), fist=(-6.5, 9.5, -3.5)),
+    # one-handed swords and maces at the ready: the hand a little forward, the blade up and ahead, turned so its
+    # flat shows from behind the player
+    Stance("blade", ["sword", "mace"], tip=body(0.22, 0.62, 0.75), edge=body(0.6, -0.8, 0), fist=(-6.0, 9.5, -3.5)),
+    # rapiers on guard: the arm out, the point at the enemy's chest
+    Stance("rapier", ["rapier"], tip=body(0.06, 0.20, 0.98), edge=body(0, -1, 0), fist=(-5.5, 7.5, -6.5)),
+    # daggers and claws low and close, the point up and ahead
+    Stance("dagger", ["dagger", "claw"], tip=body(0.15, 0.48, 0.86), edge=body(0.5, -0.85, 0), fist=(-5.5, 9.0, -4.5)),
 ]
-
-
-def euler_xyz(R):
-    """Degrees (x, y, z) with gm._rot(x, y, z) == R (item display rotations are applied X, then Y, then Z)."""
-    y = math.asin(max(-1.0, min(1.0, R[0, 2])))
-    x = math.atan2(-R[1, 2], R[2, 2])
-    z = math.atan2(-R[0, 1], R[0, 0])
-    return [round(math.degrees(v), 2) for v in (x, y, z)]
 
 
 def held_transform(tip, edge, grip, scale, arm_pitch=-18.0, offset=(0.0, 0.0, 0.0)):
@@ -310,7 +305,7 @@ def held_transform(tip, edge, grip, scale, arm_pitch=-18.0, offset=(0.0, 0.0, 0.
     Fw = np.column_stack([L, E, np.cross(L, E)])
     Fi = np.column_stack([L_ITEM, E_ITEM, N_ITEM])
     Rd = (Ra @ VAN_R).T @ Fw @ Fi.T
-    rot = euler_xyz(Rd)
+    rot = gm.euler(Rd)
     Rd = gm._rot(*rot)
     want = VAN_R.T @ (RIGHT_FIST + np.array(offset, float)) - VAN_T   # where the grip ends up after the display
     t = want - Rd @ ((np.array(grip, float) - 8.0) * scale)

@@ -5,6 +5,7 @@ import com.beyondsolo.Config;
 import com.beyondsolo.armory.SetPerks;
 import com.beyondsolo.awakening.AwakeningData;
 import com.beyondsolo.awakening.AwakeningService;
+import com.beyondsolo.chronicle.title.TitleService;
 import com.beyondsolo.depths.WeaknessLog;
 import com.beyondsolo.economy.Economy;
 import com.beyondsolo.economy.EconomyModule;
@@ -161,6 +162,8 @@ final class SoloWipe {
         ShadowService.sync(p);
         Reevaluation.sync(p);
         WeaknessLog.sync(p);
+        TitleService.applyPerks(p);
+        TitleService.sync(p);
         for (MobEffectInstance effect : List.copyOf(p.getActiveEffects())) {
             if (effect.getEffect().unwrapKey().map(k -> k.location().getNamespace().equals(BeyondSolo.MOD_ID)).orElse(false)) {
                 p.removeEffect(effect.getEffect());

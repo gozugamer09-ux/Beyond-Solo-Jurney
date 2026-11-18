@@ -167,45 +167,54 @@ public class SystemScreen extends Screen {
         tabRects.addAll(layoutTabs(titles, x, y));
     }
 
+    /** Ever tighter ways to fit the tabs: pill padding, gap, letter spacing (share of normal), smallest label (share of normal). */
+    private static final float[][] TIGHTER = {
+            {8, 4, 1f, 1f},
+            {6, 4, 1f, 0.6f},
+            {4, 2, 0.35f, 0.6f},
+            {4, 2, 0.35f, 0.5f}};
+
     /**
-     * Where the tab pills go in a window at (x, y): right-aligned in the header. With many tabs the padding
-     * shrinks so they still fit (the title gives way first), and past that the labels get smaller. Each rect is
-     * {x, y, width, label size}.
+     * Where the tab pills go in a window at (x, y): right-aligned in the header. With many tabs (or long words, as in
+     * Spanish) the padding shrinks so they still fit (the title gives way first), then the labels get smaller, then the
+     * pills and letters move closer. Each rect is {x, y, width, label size, letter spacing}.
      */
     public static List<float[]> layoutTabs(List<String> titles, float x, float y) {
-        List<float[]> rects = new ArrayList<>();
         int n = titles.size();
         float[] text = new float[n];
-        float size = TAB_SIZE;
-        float textTotal = measureTabs(titles, size, text);
-        float gaps = Math.max(0, n - 1) * 4;
         float avail = WIDTH - 24 - 26;
-        float minPad = 8;
-        if (n > 0 && textTotal + gaps + minPad * n > avail) {
-            // too many to fit even with tight pills: smaller labels, a little tighter still
-            minPad = 6;
-            for (int i = 0; i < 4 && textTotal + gaps + minPad * n > avail; i++) {
-                size *= Math.max(0.6f, (avail - gaps - minPad * n) / textTotal);
-                size = Math.max(TAB_SIZE * 0.6f, size);
-                textTotal = measureTabs(titles, size, text);
+        float size = TAB_SIZE, tracking = TAB_TRACKING, gap = 4, minPad = 8, textTotal = 0;
+        for (float[] step : TIGHTER) {
+            minPad = step[0];
+            gap = step[1];
+            tracking = TAB_TRACKING * step[2];
+            size = TAB_SIZE;
+            textTotal = measureTabs(titles, size, tracking, text);
+            float budget = avail - gap * Math.max(0, n - 1) - minPad * n;
+            for (int i = 0; i < 5 && textTotal > budget && size > TAB_SIZE * step[3]; i++) {
+                size = Math.max(TAB_SIZE * step[3], size * Math.max(0.5f, budget / textTotal));
+                textTotal = measureTabs(titles, size, tracking, text);
             }
+            if (textTotal <= budget) break;
         }
+        float gaps = gap * Math.max(0, n - 1);
         float room = avail - gaps - textTotal;
         float pad = n == 0 ? 18 : Math.max(minPad, Math.min(18, room / n));
         float total = textTotal + pad * n + gaps;
         float tx = x + WIDTH - 12 - total;
         float ty = y + (HEADER - TAB_H) / 2f + 1;
+        List<float[]> rects = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            rects.add(new float[]{tx, ty, text[i] + pad, size});
-            tx += text[i] + pad + 4;
+            rects.add(new float[]{tx, ty, text[i] + pad, size, tracking * size / TAB_SIZE});
+            tx += text[i] + pad + gap;
         }
         return rects;
     }
 
-    private static float measureTabs(List<String> titles, float size, float[] out) {
+    private static float measureTabs(List<String> titles, float size, float tracking, float[] out) {
         float total = 0;
         for (int i = 0; i < titles.size(); i++) {
-            out[i] = SysFont.spacedWidth(titles.get(i), size, true, TAB_TRACKING * size / TAB_SIZE);
+            out[i] = SysFont.spacedWidth(titles.get(i), size, true, tracking * size / TAB_SIZE);
             total += out[i];
         }
         return total;
@@ -227,7 +236,8 @@ public class SystemScreen extends Screen {
             if (hover) Shapes.pill(r[0], r[1], r[2], TAB_H).fill(0x18FFFFFF).border(0.5f, 0x30FFFFFF).draw(g);
             int color = sel ? SystemTheme.TEXT : hover ? SystemTheme.ACCENT_BRIGHT : SystemTheme.TEXT_SOFT;
             float size = r.length > 3 ? r[3] : TAB_SIZE;
-            SysFont.spaced(g, titles.get(i), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, size), size, color, true, TAB_TRACKING * size / TAB_SIZE, 0.5f);
+            float tracking = r.length > 4 ? r[4] : TAB_TRACKING * size / TAB_SIZE;
+            SysFont.spaced(g, titles.get(i), r[0] + r[2] / 2f, SysFont.centerY(r[1], TAB_H, size), size, color, true, tracking, 0.5f);
         }
     }
 

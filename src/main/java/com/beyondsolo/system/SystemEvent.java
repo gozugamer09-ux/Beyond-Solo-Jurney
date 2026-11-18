@@ -117,6 +117,22 @@ public abstract class SystemEvent extends Event {
         public int getDurationTicks() { return durationTicks; }
     }
 
+    /**
+     * A feature gives the player a title ({@code SystemAPI.setTitle}), by its lang key. The chronicle keeps it among the
+     * titles they have earned, announces it and decides whether it is worn. Cancel it to refuse the title.
+     */
+    public static final class TitleGranted extends SystemEvent implements ICancellableEvent {
+        private final String title;
+
+        public TitleGranted(ServerPlayer player, String title) {
+            super(player);
+            this.title = title;
+        }
+
+        /** The title's lang key, e.g. {@code title.beyondsolo.relentless}. */
+        public String getTitle() { return title; }
+    }
+
     /** The objective line changed (e.g. "find a village" was completed). */
     public static final class ObjectiveChanged extends SystemEvent {
         private final String oldObjective;

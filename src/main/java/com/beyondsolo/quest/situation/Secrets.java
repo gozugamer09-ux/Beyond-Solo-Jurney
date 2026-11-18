@@ -1,6 +1,12 @@
 package com.beyondsolo.quest.situation;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.chronicle.title.PerkLine;
+import com.beyondsolo.chronicle.title.TitleCategory;
+import com.beyondsolo.chronicle.title.TitleDef;
+import com.beyondsolo.chronicle.title.TitlePerk;
+import com.beyondsolo.chronicle.title.TitleTier;
+import com.beyondsolo.chronicle.title.Titles;
 import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestBuilder;
@@ -59,7 +65,26 @@ public final class Secrets {
 
     /** The title a secret grants: {@code title.beyondsolo.<id>}. */
     public static String title(String id) {
-        return "title.beyondsolo." + id;
+        return TitleDef.PREFIX + id;
+    }
+
+    /**
+     * The secrets' titles on the chronicle's TITLES page: hidden until earned, given here rather than counted (the
+     * Giant Slayer is the chronicle's own, earned by the same kill). Perks are first guesses for the balancing pass.
+     */
+    public static void registerTitles() {
+        given(UNBROKEN, TitleCategory.HUNT, TitleTier.RARE, new PerkLine(TitlePerk.LAST_STAND, 0.08f));
+        given(VALOR, TitleCategory.HUNT, TitleTier.EPIC, new PerkLine(TitlePerk.GUARD, 0.06f), new PerkLine(TitlePerk.VITALITY, 0.03f));
+        given(UNTOUCHED, TitleCategory.GATES, TitleTier.EPIC, new PerkLine(TitlePerk.SWIFTNESS, 0.05f), new PerkLine(TitlePerk.GUARD, 0.03f));
+        given(LONE_WOLF, TitleCategory.GATES, TitleTier.EPIC, new PerkLine(TitlePerk.BOSS_DAMAGE, 0.06f), new PerkLine(TitlePerk.MIGHT, 0.03f));
+        given(NEMESIS_SLAIN, TitleCategory.HUNT, TitleTier.EPIC, new PerkLine(TitlePerk.GIANT_DAMAGE, 0.08f), new PerkLine(TitlePerk.VITALITY, 0.03f));
+        given(FLAWLESS, TitleCategory.MASTERY, TitleTier.RARE, new PerkLine(TitlePerk.GUARD, 0.04f));
+        given(UNSTOPPABLE, TitleCategory.MASTERY, TitleTier.RARE, new PerkLine(TitlePerk.HASTE, 0.05f));
+        given(SILENT, TitleCategory.MASTERY, TitleTier.RARE, new PerkLine(TitlePerk.LUCK, 1));
+    }
+
+    private static void given(String id, TitleCategory category, TitleTier tier, PerkLine... perks) {
+        Titles.register(new TitleDef(id, category, tier, null, 0, List.of(perks), true));
     }
 
     /**
@@ -86,8 +111,8 @@ public final class Secrets {
                 .description(Component.translatable("secret.beyondsolo." + id + ".desc"))
                 .line(BeyondSolo.id("secret").toString(), Component.translatable("secret.beyondsolo." + id + ".obj"))
                 .xp(pay[0]).statPoints(pay[1]);
-        // a title, but never in place of one the player already carries
-        if (SystemAPI.get(player).title().isEmpty()) b.rewardTitle(title(id));
+        // kept with the hunter's titles; the chronicle decides whether it is worn
+        b.rewardTitle(title(id));
         return b.build();
     }
 

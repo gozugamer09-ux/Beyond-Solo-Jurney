@@ -192,5 +192,21 @@
   "secret.beyondsolo.silent": "Silent Step",
   "secret.beyondsolo.silent.desc": "Plunder the silent city without waking what sleeps below.",
   "secret.beyondsolo.silent.obj": "Loot the silent city unheard",
-  "secret.beyondsolo.silent.deed": "You came and went unheard."
+  "secret.beyondsolo.silent.deed": "You came and went unheard.",
+  "title.beyondsolo.unbroken": "The Unbroken",
+  "title.beyondsolo.unbroken.desc": "Hold on at the edge of death until the very end.",
+  "title.beyondsolo.valor": "Village Defender",
+  "title.beyondsolo.valor.desc": "Defend a village through an entire raid.",
+  "title.beyondsolo.untouched": "The Untouched",
+  "title.beyondsolo.untouched.desc": "Clear a gate without a single creature landing a blow on you.",
+  "title.beyondsolo.lone_wolf": "Lone Wolf",
+  "title.beyondsolo.lone_wolf.desc": "Clear a gate above your rank, alone.",
+  "title.beyondsolo.nemesis_slain": "Nemesis Slayer",
+  "title.beyondsolo.nemesis_slain.desc": "Put down a creature that kept coming back for you.",
+  "title.beyondsolo.flawless": "Flawless",
+  "title.beyondsolo.flawless.desc": "Finish every tier of an Untouchable streak without being hit.",
+  "title.beyondsolo.unstoppable": "Unstoppable",
+  "title.beyondsolo.unstoppable.desc": "Keep a Frenzy going through every tier.",
+  "title.beyondsolo.silent": "Silent Step",
+  "title.beyondsolo.silent.desc": "Plunder the silent city without waking what sleeps below."
 }

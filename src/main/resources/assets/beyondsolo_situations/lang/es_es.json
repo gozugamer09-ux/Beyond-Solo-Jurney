@@ -192,5 +192,21 @@
   "secret.beyondsolo.silent": "Paso silencioso",
   "secret.beyondsolo.silent.desc": "Saquea la ciudad silenciosa sin despertar a lo que duerme abajo.",
   "secret.beyondsolo.silent.obj": "Saquea la ciudad sin que te oigan",
-  "secret.beyondsolo.silent.deed": "Llegaste y te fuiste sin que te oyeran."
+  "secret.beyondsolo.silent.deed": "Llegaste y te fuiste sin que te oyeran.",
+  "title.beyondsolo.unbroken": "El Inquebrantable",
+  "title.beyondsolo.unbroken.desc": "Aguanta al borde de la muerte hasta el final.",
+  "title.beyondsolo.valor": "Defensor de Aldeas",
+  "title.beyondsolo.valor.desc": "Defiende una aldea durante toda una invasión.",
+  "title.beyondsolo.untouched": "El Intacto",
+  "title.beyondsolo.untouched.desc": "Despeja un portal sin que ninguna criatura te golpee.",
+  "title.beyondsolo.lone_wolf": "Lobo Solitario",
+  "title.beyondsolo.lone_wolf.desc": "Despeja en solitario un portal por encima de tu rango.",
+  "title.beyondsolo.nemesis_slain": "Cazador de Némesis",
+  "title.beyondsolo.nemesis_slain.desc": "Acaba con una criatura que no dejaba de volver a por ti.",
+  "title.beyondsolo.flawless": "Impecable",
+  "title.beyondsolo.flawless.desc": "Completa todos los niveles de una racha Intocable sin recibir un golpe.",
+  "title.beyondsolo.unstoppable": "Imparable",
+  "title.beyondsolo.unstoppable.desc": "Mantén un Frenesí durante todos sus niveles.",
+  "title.beyondsolo.silent": "Paso Silencioso",
+  "title.beyondsolo.silent.desc": "Saquea la ciudad silenciosa sin despertar a lo que duerme abajo."
 }

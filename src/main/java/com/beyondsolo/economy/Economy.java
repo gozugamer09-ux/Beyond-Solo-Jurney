@@ -27,6 +27,8 @@ public final class Economy {
     /** Adds gold (negative amounts take it, never below zero). */
     public static void add(ServerPlayer player, long amount, Reason reason) {
         if (amount == 0) return;
+        // the worn title's gold perk (kills, quests, gates and the Citadel only)
+        amount = com.beyondsolo.chronicle.title.TitleService.gold(player, amount, reason);
         HunterData d = data(player);
         long before = d.gold;
         d.gold = Math.max(0, d.gold + amount);
