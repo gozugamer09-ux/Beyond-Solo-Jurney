@@ -22,6 +22,11 @@ public class QuestsTab implements SystemTab {
     }
 
     @Override
+    public boolean batched() {
+        return true;
+    }
+
+    @Override
     public void render(GuiGraphics g, Font font, int x, int y, int w, int h, int mouseX, int mouseY, float partialTick) {
         SystemData d = ClientSystemData.get();
         String objective = d.objective();

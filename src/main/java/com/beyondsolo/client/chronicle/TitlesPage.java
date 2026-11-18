@@ -164,6 +164,7 @@ final class TitlesPage implements ChronicleTab.Page {
         scrollTarget = Mth.clamp(scrollTarget, 0, maxScroll);
         scroll = Anim.approach(scroll, scrollTarget, 18f);
         boolean inList = Ui.inside(mouseX, mouseY, listX, listY, listW, listH);
+        Shapes.flush(g);
         g.enableScissor((int) listX, (int) listY, (int) Math.ceil(listX + listW), (int) Math.ceil(listY + listH));
         float rw = listW - (maxScroll > 0 ? 6 : 2);
         for (int i = 0; i < list.size(); i++) {
@@ -176,6 +177,7 @@ final class TitlesPage implements ChronicleTab.Page {
                 hits.add(new ChronicleUi.Hit(listX + 1, top, rw, bottom - top, () -> pick(d)));
             }
         }
+        Shapes.flush(g);
         g.disableScissor();
         ChronicleUi.scrollbar(g, listX + listW - 3, listY + 1, listH - 2, scroll, maxScroll, SystemTheme.ACCENT);
     }

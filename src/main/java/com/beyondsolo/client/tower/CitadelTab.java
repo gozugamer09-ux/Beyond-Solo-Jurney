@@ -52,6 +52,11 @@ public class CitadelTab implements SystemTab {
         return Component.translatable("screen.beyondsolo.tab.citadel");
     }
 
+    @Override
+    public boolean batched() {
+        return true;
+    }
+
     /** Shown once the System has told the hunter of the citadel, or they hold (or have bound) its key. */
     @Override
     public boolean isVisible() {

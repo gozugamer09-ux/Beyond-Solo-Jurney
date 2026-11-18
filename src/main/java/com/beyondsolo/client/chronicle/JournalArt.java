@@ -5,6 +5,7 @@ import com.beyondsolo.chronicle.ChronicleData;
 import com.beyondsolo.chronicle.journal.Journal;
 import com.beyondsolo.chronicle.journal.JournalEntry;
 import com.beyondsolo.client.gfx.Gfx;
+import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.enemy.EnemyModule;
 import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.gate.GateBossEntity;
@@ -91,6 +92,7 @@ final class JournalArt {
         if (entity instanceof GateBossEntity boss && e.boss() != null) boss.displayAs(bossRank(e, mark), e.boss());
         float big = Math.max(entity.getBbHeight(), entity.getBbWidth() * 0.95f);
         int scale = (int) Mth.clamp((y1 - y0) * fill / Math.max(0.4f, big), 3, 80);
+        Shapes.flush(g);   // the creature is clipped and maybe tinted: the shapes so far go first
         if (!known) RenderSystem.setShaderColor(SHADOW[0], SHADOW[1], SHADOW[2], 1f);
         try {
             // the box's bottom is where the feet go: lift a little for tall creatures so the head fits
@@ -117,6 +119,7 @@ final class JournalArt {
         g.pose().pushPose();
         g.pose().translate(cx - size / 2f, cy - size / 2f, 0);
         g.pose().scale(s, s, 1f);
+        Shapes.flush(g);   // before the tint
         if (!known) RenderSystem.setShaderColor(SHADOW[0], SHADOW[1], SHADOW[2], 1f);
         try {
             g.renderItem(stack, 0, 0);
@@ -142,6 +145,7 @@ final class JournalArt {
             uw = texH * boxAspect;
             u = (texW - uw) / 2f;
         }
+        Shapes.flush(g);   // the picture is blitted straight away: the shapes so far go first
         RenderSystem.enableBlend();
         RenderSystem.setShaderColor(light, light, light * 1.04f, Gfx.alpha());
         g.blit(picture(e), Math.round(x), Math.round(y), Math.round(w), Math.round(h), u, v, Math.round(uw), Math.round(vh), texW, texH);

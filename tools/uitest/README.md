@@ -49,3 +49,26 @@ Gradle sets the game up.
   ```
   tools/uitest/rcon.py "execute at Dev rotated ~ 0 run setblock ^ ^ ^4 beyondsolo:evaluation_crystal"
   ```
+
+## Measuring how much a screen costs
+
+`ui.sh "screen storage" "wait 60" "perf storage 150"` logs, after 150 frames, the average frame time, the open
+screen's share of it, and how many System shapes and shape draw calls a frame took (`client/UiPerf`, in
+`runs/client/logs/latest.log`). The machine draws in software and is slow at blur and large fills, so compare these
+numbers with each other, never with a real PC. `rcon.py "tick freeze"` stops mobs and the sky, so that two runs see
+the same world (`tick unfreeze` after).
+
+To count every OpenGL draw call of a frame, vanilla's and other mods' included, start the client with the small
+counter in `glcount/`. It sits between the game and the OpenGL library:
+
+```
+gcc -shared -fPIC -O2 -o build/uitest/libglcount.so tools/uitest/glcount/glcount.c \
+    -Wl,--no-as-needed -ldl -lpthread /usr/lib/x86_64-linux-gnu/libGL.so.1
+JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dorg.lwjgl.opengl.libname=$PWD/build/uitest/libglcount.so" \
+    GLCOUNT_FILE=$PWD/build/uitest/glcount.txt tools/uitest/client.sh
+tools/uitest/ui.sh "close" "wait 40" "perf world 150" "screen storage" "wait 60" "perf storage 150" "close"
+python3 tools/uitest/glcount/drawcalls.py build/uitest/glcount.txt runs/client/logs/latest.log
+```
+
+The last line prints the draw calls a frame of every `perf` run in the log; a screen's own share is its number minus
+the `world` one. Start the client again without the counter afterwards (`tools/uitest/client.sh`).

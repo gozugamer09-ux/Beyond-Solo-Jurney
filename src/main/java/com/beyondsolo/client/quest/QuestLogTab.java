@@ -52,6 +52,11 @@ public class QuestLogTab implements SystemTab {
         return offers > 0 ? Component.translatable("tab.beyondsolo.quests.new", offers) : Component.translatable("tab.beyondsolo.quests");
     }
 
+    @Override
+    public boolean batched() {
+        return true;
+    }
+
     private static List<Quest> entries() {
         List<Quest> list = new ArrayList<>(ClientQuests.offers());
         list.addAll(ClientQuests.active());
