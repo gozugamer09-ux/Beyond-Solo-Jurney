@@ -191,7 +191,7 @@ public final class PenaltyZone {
         if (p.level().dimension().equals(DIMENSION)) return true;
         if (GateService.isDungeon(p.level()) && !(p.server instanceof net.minecraft.gametest.framework.GameTestServer)) return true;
         if (GateService.inTransit(p)) return true;
-        if (com.beyondsolo.job.JobTrial.inTrial(p)) return true;
+        if (com.beyondsolo.job.JobTrial.inTrial(p) || com.beyondsolo.monarch.ThroneTrial.inTrial(p)) return true;
         if (com.beyondsolo.redgate.RedGates.occupied(p)) return true;
         if (com.beyondsolo.awakening.AwakeningService.inSequence(p)) return true;
         if (com.beyondsolo.tower.TowerAPI.inCitadel(p)) return true;

@@ -39,7 +39,7 @@
   "command.beyondsolo.solo.help.dungeon.clear": "Every creature of the dungeon gone and its boss slain: the way out opens.",
   "command.beyondsolo.solo.help.dungeon.leave": "Out of wherever the player is held: a dungeon, a red gate, a trial, the Citadel or the Penalty Zone.",
   "command.beyondsolo.solo.help.dungeon.info": "The dungeon you are in: realm, shape, rooms, boss, element and seed.",
-  "command.beyondsolo.solo.help.trial": "Starts the awakening trial, the job change trial or the Penalty Zone now.",
+  "command.beyondsolo.solo.help.trial": "Starts the awakening trial, the job change trial, the throne trial or the Penalty Zone now.",
   "command.beyondsolo.solo.help.tower.climb": "Into the Crimson Citadel, at its checkpoint or on a floor you name.",
   "command.beyondsolo.solo.help.tower.rush": "Into a boss rush of a rank (or the Sovereign Rush).",
   "command.beyondsolo.solo.help.tower.endless": "Into the Endless Spire.",

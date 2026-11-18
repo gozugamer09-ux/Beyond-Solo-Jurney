@@ -118,9 +118,9 @@ public final class ShadowRecord {
         return Math.round((20 + 10 * level) * (1 + 0.5f * rank.ordinal()));
     }
 
-    /** The shadow can't grow any more. */
-    public boolean maxed() {
-        return rank.isMax() && level >= ShadowRank.LEVEL_CAP;
+    /** The shadow can't grow any more under a master whose shadows stop at {@code top} ({@link ShadowService#top}). */
+    public boolean maxed(ShadowRank top) {
+        return rank.ordinal() >= top.ordinal() && level >= ShadowRank.LEVEL_CAP;
     }
 
     // ---- changes (through ShadowService)
@@ -137,13 +137,14 @@ public final class ShadowRecord {
     void addKill() { kills++; }
 
     /**
-     * Adds XP. Returns how many ranks it climbed (0 if none); levels inside a rank are applied on the way.
+     * Adds XP, climbing no higher than {@code top}. Returns how many ranks it climbed (0 if none); levels inside a rank
+     * are applied on the way.
      */
-    int addXp(int amount) {
-        if (maxed() || amount <= 0) return 0;
+    int addXp(int amount, ShadowRank top) {
+        if (maxed(top) || amount <= 0) return 0;
         int ranks = 0;
         xp += amount;
-        while (!maxed() && xp >= xpToNext()) {
+        while (!maxed(top) && xp >= xpToNext()) {
             xp -= xpToNext();
             if (level < ShadowRank.LEVEL_CAP) {
                 level++;
@@ -153,7 +154,7 @@ public final class ShadowRecord {
                 ranks++;
             }
         }
-        if (maxed()) xp = 0;
+        if (maxed(top)) xp = 0;
         return ranks;
     }
 

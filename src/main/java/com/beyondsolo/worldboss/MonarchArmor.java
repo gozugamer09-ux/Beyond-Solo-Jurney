@@ -116,13 +116,25 @@ public final class MonarchArmor {
 
     // ================================================================ the aura
 
-    /** The colour of a hunter's aura: their class's, or the monarchs' violet when they have none. */
+    /** The colour of a hunter's aura: a crowned hunter's crown's, their class's, or the monarchs' violet when they have none. */
     public static int auraOf(LivingEntity wearer) {
         if (wearer instanceof Player p) {
+            com.beyondsolo.monarch.Dominion crown = com.beyondsolo.monarch.MonarchAPI.dominion(p);
+            if (crown != null) return crown.color();
             SystemData d = SystemAPI.get(p);
             if (d.isAwakened() && d.playerClass() != null) return d.playerClass().color();
         }
         return DEFAULT_AURA;
+    }
+
+    /** The hunter's aura changed (crowned, or the crown taken back): the pieces they wear take its new colour. */
+    public static void retint(Player wearer) {
+        int aura = auraOf(wearer);
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            if (!slot.isArmor()) continue;
+            ItemStack worn = wearer.getItemBySlot(slot);
+            if (is(worn) && aura(worn) != aura) worn.set(WorldBossModule.AURA.get(), aura);
+        }
     }
 
     /** The light in a piece: its last wearer's aura. */

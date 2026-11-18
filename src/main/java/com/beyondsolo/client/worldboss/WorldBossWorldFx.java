@@ -147,6 +147,7 @@ public final class WorldBossWorldFx {
         }
         any |= threat(buffers, time, partial);
         any |= regalia(buffers, partial);
+        any |= monarchs(buffers, time, partial);
         if (any) for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
     }
 
@@ -441,7 +442,7 @@ public final class WorldBossWorldFx {
             }
             if (boss != null && boss.isAlive() && t.domain > 0 && !t.leaving && boss.introTicks() <= 31) {
                 float in = boss.introTicks() > 0 ? Mth.clamp((31 - boss.introTicks()) / 12f, 0, 1) : 1;
-                domain(buffers, boss.getPosition(partial), t.domain, c, in, time);
+                domain(buffers, DOMAIN_LAND, boss.getPosition(partial), t.domain, c, in, time);
                 drew = true;
             }
         }
@@ -474,11 +475,21 @@ public final class WorldBossWorldFx {
                 }
             }
             if (pieces == 0) continue;
-            Vec3 at = e.getPosition(partial);
+            aura(buf(buffers, GLOW), wearer, e.getPosition(partial), time, aura, pieces, 1);
+            drew = true;
+        }
+        return drew;
+    }
+
+    /**
+     * An aura burning off someone: motes of its light drifting up off them and wisps of it licking upward, more the
+     * stronger it is ({@code pieces}: monarch armour pieces worn, 6 for a crown form), with a halo from 4 on.
+     */
+    private static void aura(VertexConsumer glow, LivingEntity e, Vec3 at, double time, int aura, int pieces, float strength) {
+        {
             float h = e.getBbHeight(), w = e.getBbWidth();
             int seed = e.getId() * 0x2F0B3;
             int core = GateFx.mix(aura, 0xFFFFFF, 0.5f);
-            VertexConsumer glow = buf(buffers, GLOW);
             // motes: bright points drifting up and fading, each rise from a new place
             for (int i = 0; i < 5 * pieces; i++) {
                 double run = time * (0.011 + 0.006 * hash(seed, i, 0)) + hash(seed, i, 1);
@@ -489,7 +500,7 @@ public final class WorldBossWorldFx {
                 float r = w * (0.6f + 0.4f * hash(seed, id, 3));
                 double x = at.x + Mth.cos(ang) * r, z = at.z + Mth.sin(ang) * r;
                 double y = at.y + h * (0.1f + 0.75f * hash(seed, id, 4)) + k * 1.1;
-                float a = Mth.sin(k * Mth.PI);
+                float a = Mth.sin(k * Mth.PI) * strength;
                 float size = 0.03f + 0.032f * hash(seed, id, 5);
                 billboard(glow, x, y, z, size * 2.8f, 0, aura, 0.5f * a);
                 billboard(glow, x, y, z, size, 0, core, 0.9f * a);
@@ -507,16 +518,14 @@ public final class WorldBossWorldFx {
                 float len = 0.22f + 0.26f * hash(seed, id, 11);
                 float sway = 0.06f * Mth.sin((float) (time * 0.2) + i);
                 ribbon(glow, x, y, z, x + Mth.cos(ang) * sway, y + len, z + Mth.sin(ang) * sway, 0.075f, 0.015f, aura,
-                        0.55f * Mth.sin(k * Mth.PI));
+                        0.55f * Mth.sin(k * Mth.PI) * strength);
             }
-            if (pieces == ARMOR.length) {
+            if (pieces >= ARMOR.length) {
                 float breath = 0.75f + 0.25f * Mth.sin((float) (time * 0.11));
-                billboard(glow, at.x, at.y + h * 0.55, at.z, h * 0.6f, 0, aura, 0.38f * breath);
-                billboard(glow, at.x, at.y + h * 0.6, at.z, h * 1.05f, 0, aura, 0.15f * breath);
+                billboard(glow, at.x, at.y + h * 0.55, at.z, h * 0.6f, 0, aura, 0.38f * breath * strength);
+                billboard(glow, at.x, at.y + h * 0.6, at.z, h * 1.05f, 0, aura, 0.15f * breath * strength);
             }
-            drew = true;
         }
-        return drew;
     }
 
     /** 0..1, the same every frame for the same numbers. */
@@ -578,18 +587,90 @@ public final class WorldBossWorldFx {
     }
 
     /** A monarch's domain: a ring of its light on the land round it, a faint wall at its edge, sigils turning on it. */
-    private static void domain(MultiBufferSource buffers, Vec3 at, int radius, int c, float in, float time) {
-        DOMAIN_LAND.around((float) at.y);
+    private static void domain(MultiBufferSource buffers, Terrain land, Vec3 at, int radius, int c, float in, float time) {
+        land.around((float) at.y);
         float r = radius * outCubic(in);
         float pulse = 0.8f + 0.2f * Mth.sin(time * 0.1f);
-        annulus(buf(buffers, BAND), DOMAIN_LAND, at.x, at.z, r - 0.7f, r + 0.7f, 0, Mth.TWO_PI, 0.05f, c, 0.6f * pulse * in);
-        wall(buf(buffers, BEAM), DOMAIN_LAND, at.x, at.z, r, 3.2f, c, 0.22f * in);
+        annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.7f, r + 0.7f, 0, Mth.TWO_PI, 0.05f, c, 0.6f * pulse * in);
+        wall(buf(buffers, BEAM), land, at.x, at.z, r, 3.2f, c, 0.22f * in);
         float turn = (time % 7200) * 0.004f;
         for (int i = 0; i < 8; i++) {
             float ang = turn + i * Mth.TWO_PI / 8;
             double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
-            flatOnLand(buf(buffers, CIRCLE), DOMAIN_LAND, sx, sz, 1.7f, (time * 3 + i * 45) % 360, 0.06f, c, 0.6f * in);
+            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 1.7f, (time * 3 + i * 45) % 360, 0.06f, c, 0.6f * in);
         }
+    }
+
+    // ================================================================ the hunters who wear a crown
+
+    /** The land under each hunter monarch's domain (each follows its own monarch). */
+    private static final java.util.Map<Integer, Terrain> REIGN_LANDS = new java.util.HashMap<>();
+
+    /**
+     * A hunter monarch's domain and crown form ({@link com.beyondsolo.client.monarch.MonarchClient}). The domain is a
+     * monarch's from beyond the gates in the hunter's own colour, with the ground inside it tinted and the crown's circle
+     * turning under their feet; the crown form is a crown of light over their head and their aura burning off them.
+     */
+    private static boolean monarchs(MultiBufferSource buffers, float time, float partial) {
+        var domains = com.beyondsolo.client.monarch.MonarchClient.domains();
+        var forms = com.beyondsolo.client.monarch.MonarchClient.forms();
+        if (domains.isEmpty() && forms.isEmpty()) {
+            REIGN_LANDS.clear();
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        double now = com.beyondsolo.client.monarch.MonarchClient.now(partial);
+        boolean drew = false;
+        for (var d : domains) {
+            Entity owner = mc.level.getEntity(d.entity);
+            float in = d.strength(now);
+            if (owner == null || in <= 0.005f) continue;
+            Terrain land = REIGN_LANDS.computeIfAbsent(d.entity, id -> new Terrain((float) owner.getY()));
+            Vec3 at = owner.getPosition(partial);
+            int c = d.color;
+            domain(buffers, land, at, d.size, c, in, time);
+            float r = d.size * outCubic(in);
+            float breath = 0.85f + 0.15f * Mth.sin(time * 0.07f);
+            annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.04f, c, 0.13f * in * breath);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 3.4f, (time * 0.9f) % 360, 0.07f, c, 0.5f * in);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 2.1f, (-time * 1.6f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.4f), 0.35f * in);
+            drew = true;
+        }
+        REIGN_LANDS.keySet().removeIf(id -> domains.stream().noneMatch(d -> d.entity == id));
+        Entity viewer = mc.getCameraEntity();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        for (var f : forms) {
+            Entity e = mc.level.getEntity(f.entity);
+            float k = f.strength(now);
+            if (!(e instanceof LivingEntity monarch) || k <= 0.005f || monarch.isInvisible()) continue;
+            // their own crown shows on their screen instead (MonarchHud)
+            if (e == viewer && firstPerson) continue;
+            Vec3 at = e.getPosition(partial);
+            int c = f.color;
+            // their aura burns off them, more than any armour's
+            aura(buf(buffers, GLOW), monarch, at, time, c, 6, k);
+            // a crown of light over their head: a ring, and points of light standing up from it
+            float h = e.getBbHeight();
+            double y = at.y + h + 0.28;
+            float spin = (time * 1.4f) % 360;
+            int light = GateFx.mix(c, 0xFFFFFF, 0.55f);
+            flat(buf(buffers, RING), at.x, y, at.z, 0.42f * k, spin, light, 0.9f * k);
+            // asked for again: asking for the ring's buffer closed the glow's (drawing into it then crashes the game)
+            VertexConsumer glow = buf(buffers, GLOW);
+            flat(glow, at.x, y, at.z, 0.7f * k, 0, c, 0.45f * k);
+            for (int i = 0; i < 7; i++) {
+                float ang = i / 7f * Mth.TWO_PI + time * 0.015f;
+                float tall = (i % 2 == 0 ? 0.3f : 0.2f) * k;
+                double bx = at.x + Mth.cos(ang) * 0.3, bz = at.z + Mth.sin(ang) * 0.3;
+                double tx = at.x + Mth.cos(ang) * 0.34, tz = at.z + Mth.sin(ang) * 0.34;
+                ribbon(glow, bx, y, bz, tx, y + tall, tz, 0.07f, 0.01f, light, 0.95f * k);
+                ribbon(glow, bx, y, bz, tx, y + tall, tz, 0.16f, 0.03f, c, 0.4f * k);
+            }
+            // the crown's circle under their feet
+            flat(buf(buffers, CIRCLE), at.x, at.y + 0.06, at.z, 1.5f * k, -spin * 1.5f, c, 0.45f * k);
+            drew = true;
+        }
+        return drew;
     }
 
     // ================================================================ drawing

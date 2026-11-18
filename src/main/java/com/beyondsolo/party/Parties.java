@@ -604,6 +604,7 @@ public final class Parties {
 
     public static Place place(ServerPlayer p) {
         if (com.beyondsolo.job.JobTrial.inTrial(p)) return new Place(PartySyncPayload.JOB_TRIAL, -1, Component.empty());
+        if (com.beyondsolo.monarch.ThroneTrial.inTrial(p)) return new Place(PartySyncPayload.THRONE, -1, Component.empty());
         if (com.beyondsolo.penalty.PenaltyZone.inZone(p)) return new Place(PartySyncPayload.PENALTY, -1, Component.empty());
         ResourceKey<Level> dim = p.level().dimension();
         if (dim.equals(com.beyondsolo.tower.TowerRun.DIMENSION)) return new Place(PartySyncPayload.CITADEL, -1, Component.empty());

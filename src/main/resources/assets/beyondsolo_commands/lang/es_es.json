@@ -39,7 +39,7 @@
   "command.beyondsolo.solo.help.dungeon.clear": "Desaparecen todas las criaturas de la mazmorra y cae su jefe: se abre la salida.",
   "command.beyondsolo.solo.help.dungeon.leave": "Sale de donde esté retenido el jugador: una mazmorra, un Portal Rojo, una prueba, la Ciudadela o la Zona de Castigo.",
   "command.beyondsolo.solo.help.dungeon.info": "La mazmorra en la que estás: reino, forma, salas, jefe, elemento y semilla.",
-  "command.beyondsolo.solo.help.trial": "Empieza ya la prueba del despertar, la prueba del cambio de clase o la Zona de Castigo.",
+  "command.beyondsolo.solo.help.trial": "Empieza ya la prueba del despertar, la prueba del cambio de clase, la prueba del trono o la Zona de Castigo.",
   "command.beyondsolo.solo.help.tower.climb": "Entra en la Ciudadela Carmesí, en su punto de control o en la planta que indiques.",
   "command.beyondsolo.solo.help.tower.rush": "Entra en un Asalto de Jefes de un rango (o en el Asalto Soberano).",
   "command.beyondsolo.solo.help.tower.endless": "Entra en la Aguja Infinita.",

@@ -145,7 +145,8 @@ public final class JobTrial {
         if (GateService.isDungeon(player.level()) || GateService.inTransit(player)
                 || com.beyondsolo.awakening.AwakeningService.inSequence(player)
                 || com.beyondsolo.penalty.PenaltyZone.busy(player)
-                || com.beyondsolo.redgate.RedGates.occupied(player)) {
+                || com.beyondsolo.redgate.RedGates.occupied(player)
+                || com.beyondsolo.monarch.ThroneTrial.inTrial(player)) {
             info(player, "job_not_here");
             return;
         }
@@ -737,6 +738,17 @@ public final class JobTrial {
             returnHome(p, false);
             info(p, "job_returned");
         }
+    }
+
+    /**
+     * Logging out ends the session here, before the player is saved (a change made on a later tick would be lost with
+     * the old player object): a verdict already reached is kept.
+     */
+    @SubscribeEvent
+    static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        Session s = SESSIONS.remove(p.getUUID());
+        if (s != null) abandon(s);
     }
 
     @SubscribeEvent

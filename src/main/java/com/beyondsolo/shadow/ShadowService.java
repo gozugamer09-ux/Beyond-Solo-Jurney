@@ -129,26 +129,38 @@ public final class ShadowService {
         return player.getData(ShadowModule.ARMY);
     }
 
-    /** Only a necromancer raises shadows. */
+    /** A necromancer raises shadows, and so does whoever wears the crown of Night. */
     public static boolean canRaise(Player player) {
         Subclass s = JobAPI.subclass(player);
-        return s != null && s.canRaiseShadows();
+        return s != null && s.canRaiseShadows() || com.beyondsolo.monarch.MonarchAPI.dominion(player) == com.beyondsolo.monarch.Dominion.NIGHT;
+    }
+
+    /** The highest rank this master's shadows can climb to: past the marshals for a crowned monarch. */
+    public static ShadowRank top(Player player) {
+        return ShadowRank.top(com.beyondsolo.monarch.MonarchAPI.crowned(player));
+    }
+
+    /** Whether a shadow of this master's can't grow any more. */
+    public static boolean maxed(Player player, ShadowRecord r) {
+        return r.maxed(top(player));
     }
 
     public static int intellect(Player player) {
         return SystemAPI.get(player).stat(Stat.INT);
     }
 
-    /** How many shadows the army can hold. */
+    /** How many shadows the army can hold (half as many again for a monarch). */
     public static int capacity(Player player) {
         SystemData d = SystemAPI.get(player);
-        return Math.min(300, 10 + d.level() / 2 + Math.max(0, d.stat(Stat.INT) - Stat.BASE) / 2);
+        int cap = Math.min(300, 10 + d.level() / 2 + Math.max(0, d.stat(Stat.INT) - Stat.BASE) / 2);
+        return com.beyondsolo.monarch.MonarchAPI.crowned(player) ? cap * 3 / 2 : cap;
     }
 
-    /** How many shadows can stand in the world at once. */
+    /** How many shadows can stand in the world at once (a few more for a monarch, more again for a monarch of Night). */
     public static int activeLimit(Player player) {
         SystemData d = SystemAPI.get(player);
-        return Math.min(40, 3 + d.level() / 10 + Math.max(0, d.stat(Stat.INT) - Stat.BASE) / 8);
+        return Math.min(40, 3 + d.level() / 10 + Math.max(0, d.stat(Stat.INT) - Stat.BASE) / 8)
+                + com.beyondsolo.monarch.MonarchAPI.extraShadows(player);
     }
 
     private static float intMult(int intellect) {
@@ -350,6 +362,23 @@ public final class ShadowService {
 
     /** Calls out every ready shadow (not the mounts) up to the limit, strongest first. Returns how many came. */
     public static int summonAll(ServerPlayer p) {
+        return summonAll(p, false);
+    }
+
+    /**
+     * A Night monarch's authority (Eclipse of Kings): every resting shadow gets up, those already out are mended, and
+     * the army is called out at no cost, up to the limit. Returns how many came out.
+     */
+    public static int eclipse(ServerPlayer p) {
+        ShadowData army = army(p);
+        for (ShadowRecord r : army.shadows()) r.setRecoverUntil(0);
+        for (Map.Entry<UUID, UUID> en : army.active().entrySet()) {
+            if (p.serverLevel().getEntity(en.getValue()) instanceof ShadowEntity e && e.isAlive()) e.setHealth(e.getMaxHealth());
+        }
+        return army.size() == 0 ? 0 : summonAll(p, true);
+    }
+
+    private static int summonAll(ServerPlayer p, boolean free) {
         ShadowData army = army(p);
         long now = p.level().getGameTime();
         List<ShadowRecord> ready = new ArrayList<>();
@@ -357,7 +386,7 @@ public final class ShadowService {
             if (!r.isMount() && !army.isActive(r.id()) && !r.recovering(now)) ready.add(r);
         }
         if (ready.isEmpty()) {
-            alert(p, "shadow.beyondsolo.none_ready", Component.translatable(army.size() == 0
+            if (!free) alert(p, "shadow.beyondsolo.none_ready", Component.translatable(army.size() == 0
                     ? "shadow.beyondsolo.none_ready.empty" : "shadow.beyondsolo.none_ready.body"));
             return 0;
         }
@@ -368,7 +397,7 @@ public final class ShadowService {
         float yaw = p.getYRot() * Mth.DEG_TO_RAD;
         for (ShadowRecord r : ready) {
             if (n >= room) break;
-            if (!p.isCreative() && !SystemAPI.consumeMana(p, summonCost(r))) {
+            if (!free && !p.isCreative() && !SystemAPI.consumeMana(p, summonCost(r))) {
                 if (n == 0) alert(p, "shadow.beyondsolo.no_mana", Component.translatable("shadow.beyondsolo.no_mana.body"));
                 break;
             }
@@ -551,7 +580,7 @@ public final class ShadowService {
     public static void addXp(ServerPlayer p, ShadowRecord r, int amount) {
         ShadowRank before = r.rank();
         int levelBefore = r.level();
-        int ranks = r.addXp(amount);
+        int ranks = r.addXp(amount, top(p));
         if (ranks > 0) rankedUp(p, r, before);
         if (ranks > 0 || r.level() != levelBefore) {
             ShadowEntity e = entity(p, r.id());
@@ -562,7 +591,7 @@ public final class ShadowService {
 
     /** Raises a shadow one rank straight away (staging). */
     public static void rankUp(ServerPlayer p, ShadowRecord r) {
-        if (r.rank().isMax()) return;
+        if (r.rank().ordinal() >= top(p).ordinal()) return;
         ShadowRank before = r.rank();
         r.setRank(before.next());
         r.setLevel(1);
@@ -625,16 +654,20 @@ public final class ShadowService {
         }
     }
 
-    /** +15% damage for shadows fighting near one of their master's boss shadows. */
+    /**
+     * +15% damage for shadows fighting near one of their master's boss shadows; inside their master's domain (a crowned
+     * monarch's) they fight harder still ({@link com.beyondsolo.monarch.MonarchDomain#shadowBonus}).
+     */
     public static float auraBonus(ShadowEntity shadow) {
-        if (shadow.isBoss()) return 1f;
+        float domain = com.beyondsolo.monarch.MonarchDomain.shadowBonus(shadow);
+        if (shadow.isBoss()) return domain;
         UUID owner = shadow.getOwnerUUID();
-        if (owner == null) return 1f;
+        if (owner == null) return domain;
         for (ShadowEntity s : shadow.level().getEntitiesOfClass(ShadowEntity.class, shadow.getBoundingBox().inflate(12),
                 o -> o.isBoss() && owner.equals(o.getOwnerUUID()) && o.isAlive())) {
-            return 1.15f;
+            return Math.max(1.15f, domain);
         }
-        return 1f;
+        return domain;
     }
 
     // ================================================================ entity lifecycle
@@ -859,6 +892,7 @@ public final class ShadowService {
         tag.putInt("cap", capacity(p));
         tag.putInt("limit", activeLimit(p));
         tag.putBoolean("canRaise", canRaise(p));
+        tag.putInt("top", top(p).ordinal());
         tag.putLong("time", p.level().getGameTime());
         PacketDistributor.sendToPlayer(p, new ShadowSyncPayload(tag));
     }

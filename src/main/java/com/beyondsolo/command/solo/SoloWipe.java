@@ -136,6 +136,7 @@ final class SoloWipe {
         TowerRun.cancel(p);
         PenaltyZone.cancel(p);
         JobTrial.cancel(p);
+        com.beyondsolo.monarch.MonarchAPI.reset(p);
         RedGates.leaveNow(p);
         ShadowService.reset(p);
         AwakeningService.reset(p);

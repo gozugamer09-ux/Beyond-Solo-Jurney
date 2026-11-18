@@ -129,7 +129,7 @@ public final class Regroup {
         AwakeningData.Stage stage = AwakeningService.stage(p);
         if (stage == AwakeningData.Stage.CALLED || stage == AwakeningData.Stage.TRIAL || stage == AwakeningData.Stage.AWAKENING) return true;
         if (com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p)) return true;
-        if (com.beyondsolo.job.JobTrial.inTrial(p) || com.beyondsolo.penalty.PenaltyZone.inZone(p)) return true;
+        if (com.beyondsolo.job.JobTrial.inTrial(p) || com.beyondsolo.monarch.ThroneTrial.inTrial(p) || com.beyondsolo.penalty.PenaltyZone.inZone(p)) return true;
         return com.beyondsolo.redgate.RedGates.occupied(p);
     }
 
@@ -142,6 +142,7 @@ public final class Regroup {
             case PartySyncPayload.PENALTY -> "penalty";
             case PartySyncPayload.TRIAL -> "trial";
             case PartySyncPayload.JOB_TRIAL -> "job_trial";
+            case PartySyncPayload.THRONE -> "throne";
             case PartySyncPayload.OFFLINE -> "offline";
             default -> "world";
         };

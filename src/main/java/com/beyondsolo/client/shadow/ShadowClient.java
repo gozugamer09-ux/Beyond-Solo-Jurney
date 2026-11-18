@@ -2,6 +2,7 @@ package com.beyondsolo.client.shadow;
 
 import com.beyondsolo.network.ShadowFxPayload;
 import com.beyondsolo.network.ShadowSyncPayload;
+import com.beyondsolo.shadow.ShadowRank;
 import com.beyondsolo.shadow.ShadowRecord;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -21,6 +22,7 @@ public final class ShadowClient {
     private static int cap;
     private static int limit;
     private static boolean canRaise;
+    private static ShadowRank top = ShadowRank.MARSHAL;
 
     public static List<ShadowRecord> shadows() { return SHADOWS; }
     public static boolean isActive(UUID id) { return ACTIVE.contains(id); }
@@ -28,6 +30,8 @@ public final class ShadowClient {
     public static int capacity() { return cap; }
     public static int limit() { return limit; }
     public static boolean canRaise() { return canRaise; }
+    /** The highest rank the player's shadows can climb to (past the marshals for a monarch). */
+    public static ShadowRank top() { return top; }
 
     public static long gameTime() {
         var level = Minecraft.getInstance().level;
@@ -50,6 +54,7 @@ public final class ShadowClient {
         cap = t.getInt("cap");
         limit = t.getInt("limit");
         canRaise = t.getBoolean("canRaise");
+        top = t.contains("top") ? ShadowRank.byOrdinal(t.getInt("top")) : ShadowRank.MARSHAL;
     }
 
     public static void onFx(ShadowFxPayload p) {
@@ -63,6 +68,7 @@ public final class ShadowClient {
         cap = 0;
         limit = 0;
         canRaise = false;
+        top = ShadowRank.MARSHAL;
         ShadowWorldFx.clear();
         ShadowHud.reset();
     }

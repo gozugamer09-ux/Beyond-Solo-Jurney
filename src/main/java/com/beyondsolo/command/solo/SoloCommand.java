@@ -22,6 +22,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /solo spawn|gate|dungeon|trial|tower ...                        the world             (SoloWorld)
  * /solo give ...                                                 items                  (SoloGive)
  * /solo guild|raid ...                                           guilds and raids       (SoloGuilds)
+ * /solo monarch ...                                              monarchs               (SoloMonarch)
  * /solo dev ...                                                  the older /system testing commands
  * </pre>
  *
@@ -41,6 +42,7 @@ public final class SoloCommand {
         SoloWorld.register(root);
         SoloGive.register(root);
         SoloGuilds.register(root);
+        SoloMonarch.register(root);
         CommandNode<CommandSourceStack> system = dispatcher.getRoot().getChild("system");
         if (system != null) root.then(Commands.literal("dev").redirect(system));
         dispatcher.register(root);

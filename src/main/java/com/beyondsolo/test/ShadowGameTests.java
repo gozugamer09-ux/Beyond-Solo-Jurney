@@ -171,7 +171,7 @@ public final class ShadowGameTests {
         helper.assertTrue(r.rank().ordinal() > ShadowRank.HUSK.ordinal(), "climbed a rank");
         helper.assertTrue(ShadowService.maxHealth(r, 20) > hp, "stronger after ranking up");
         ShadowService.addXp(p, r, 10_000_000);
-        helper.assertTrue(r.maxed() && r.rank() == ShadowRank.MARSHAL, "marshal at the top");
+        helper.assertTrue(ShadowService.maxed(p, r) && r.rank() == ShadowRank.MARSHAL, "marshal at the top (past it only for a monarch)");
         ShadowService.reset(p);
         helper.succeed();
     }

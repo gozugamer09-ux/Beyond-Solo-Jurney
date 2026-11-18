@@ -97,6 +97,8 @@ public final class ClientEvents {
             if (mc.player == null) return;
             EvaluationOverlay.tick();
             while (OPEN_SYSTEM.consumeClick()) {
+                // the throne's question comes first while it waits for an answer
+                if (com.beyondsolo.client.monarch.ThroneScreen.reopen()) continue;
                 // no System, no window: before the awakening the key does nothing at all
                 if (mc.screen == null && ClientSystemData.get().hasSystem()) mc.setScreen(new SystemScreen());
             }
@@ -135,6 +137,7 @@ public final class ClientEvents {
     public static void hideKeyPressed() {
         if (EvaluationOverlay.skip()) return;
         if (com.beyondsolo.client.job.JobRevealOverlay.skip()) return;
+        if (com.beyondsolo.client.monarch.CoronationOverlay.skip()) return;
         if (QuestOverlay.skip()) return;
         if (com.beyondsolo.client.skill.SkillOverlay.skip()) return;
         if (com.beyondsolo.client.gate.GateOverlay.skip()) return;

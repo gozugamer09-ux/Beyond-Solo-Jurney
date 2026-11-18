@@ -27,6 +27,8 @@ import com.beyondsolo.gate.RewardCacheBlock;
 import com.beyondsolo.gate.RewardCacheBlockEntity;
 import com.beyondsolo.job.JobAPI;
 import com.beyondsolo.job.JobTrial;
+import com.beyondsolo.monarch.MonarchAPI;
+import com.beyondsolo.monarch.ThroneTrial;
 import com.beyondsolo.penalty.PenaltyZone;
 import com.beyondsolo.redgate.RedGateData;
 import com.beyondsolo.redgate.RedGates;
@@ -494,9 +496,10 @@ final class SoloWorld {
         return true;
     }
 
-    /** Out of wherever the player is held: a dungeon, a red gate, the job change trial, the Citadel or the Penalty Zone. */
+    /** Out of wherever the player is held: a dungeon, a red gate, the job change or throne trial, the Citadel or the Penalty Zone. */
     private static Component leave(ServerPlayer p) throws CommandSyntaxException {
         if (JobTrial.cancel(p)) return Solo.t("dungeon.left", p.getDisplayName());
+        if (ThroneTrial.cancel(p)) return Solo.t("dungeon.left", p.getDisplayName());
         if (TowerRun.inRun(p) || TowerAPI.data(p).inside()) {
             TowerRun.cancel(p);
             return Solo.t("dungeon.left", p.getDisplayName());
@@ -524,11 +527,19 @@ final class SoloWorld {
                 }))
                 .then(Solo.target(Commands.literal("job"), (ctx, p) -> {
                     Solo.needEvaluated(p);
-                    if (JobTrial.inTrial(p)) throw Solo.error("busy", p.getDisplayName());
+                    if (JobTrial.inTrial(p) || ThroneTrial.inTrial(p)) throw Solo.error("busy", p.getDisplayName());
                     JobAPI.setRetryAt(p, 0);
                     if (!JobAPI.get(p).unlocked()) JobAPI.unlock(p);
                     if (!JobTrial.begin(p, true)) throw Solo.error("busy", p.getDisplayName());
                     return Solo.t("trial.job", p.getDisplayName());
+                }))
+                .then(Solo.target(Commands.literal("throne"), (ctx, p) -> {
+                    Solo.needEvaluated(p);
+                    if (JobTrial.inTrial(p) || ThroneTrial.inTrial(p)) throw Solo.error("busy", p.getDisplayName());
+                    MonarchAPI.setRetryAt(p, 0);
+                    if (!MonarchAPI.get(p).called()) MonarchAPI.call(p);
+                    if (!ThroneTrial.begin(p, true)) throw Solo.error("busy", p.getDisplayName());
+                    return Solo.t("trial.throne", p.getDisplayName());
                 }))
                 .then(Solo.target(Commands.literal("penalty"), (ctx, p) -> {
                     if (!SystemAPI.hasSystem(p)) throw Solo.error("no_system", p.getDisplayName());

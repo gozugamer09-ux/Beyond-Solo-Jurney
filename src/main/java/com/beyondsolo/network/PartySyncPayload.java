@@ -21,7 +21,7 @@ import java.util.UUID;
 public record PartySyncPayload(boolean inParty, UUID leader, List<Member> members, List<Invite> invites, int maxSize, long regroupIn)
         implements CustomPacketPayload {
     /** Where a member is: out in a world, or inside one of the places only some can go. */
-    public static final int WORLD = 0, GATE = 1, RED_GATE = 2, CITADEL = 3, PENALTY = 4, TRIAL = 5, JOB_TRIAL = 6, OFFLINE = 7;
+    public static final int WORLD = 0, GATE = 1, RED_GATE = 2, CITADEL = 3, PENALTY = 4, TRIAL = 5, JOB_TRIAL = 6, OFFLINE = 7, THRONE = 8;
 
     /**
      * One member. rank, cls, sub: ordinals (-1 for none: not evaluated, no subclass yet). place: {@link #WORLD} ..

@@ -143,6 +143,14 @@ public final class RaidGameTests {
     }
 
     /** What a blow of {@code amount} comes to once everything that weighs on incoming damage has had its say. */
+    private static void noCrits(LivingEntity e) {
+        var crit = e.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.CRIT_CHANCE);
+        if (crit != null) {
+            crit.removeModifiers();
+            crit.setBaseValue(-10);
+        }
+    }
+
     private static float incoming(LivingEntity victim, DamageSource source, float amount) {
         LivingIncomingDamageEvent event = new LivingIncomingDamageEvent(victim, new DamageContainer(source, amount));
         NeoForge.EVENT_BUS.post(event);
@@ -418,6 +426,9 @@ public final class RaidGameTests {
         GateService.arrive(b, g);
         Zombie z = new Zombie(EntityType.ZOMBIE, d);
         z.moveTo(a.getX() + 1, a.getY(), a.getZ());
+        // no lucky critical hits (Apothic Attributes rolls them on any blow): the test compares damage numbers
+        noCrits(a);
+        noCrits(z);
 
         float struck = incoming(z, d.damageSources().playerAttack(a), 10f);
         s.raider(a.getUUID()).role = RaidRole.SUPPORT;

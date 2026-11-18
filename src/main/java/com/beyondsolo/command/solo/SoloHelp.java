@@ -59,7 +59,7 @@ final class SoloHelp {
                 new Line("dungeon clear [player]", "dungeon.clear"),
                 new Line("dungeon leave [players]", "dungeon.leave"),
                 new Line("dungeon info [player]", "dungeon.info"),
-                new Line("trial awakening|job|penalty [player]", "trial"),
+                new Line("trial awakening|job|throne|penalty [player]", "trial"),
                 new Line("tower climb [floor] [player]", "tower.climb"),
                 new Line("tower rush <tier> [player]", "tower.rush"),
                 new Line("tower endless [player]", "tower.endless")));
@@ -81,6 +81,13 @@ final class SoloHelp {
                 new Line("raid make", "raid.make"),
                 new Line("raid start now [player]", "raid.start"),
                 new Line("raid phase barrier|cataclysm [player]", "raid.phase")));
+        TOPICS.put("monarch", List.of(
+                new Line("monarch crown <crown> [players]", "monarch.crown"),
+                new Line("monarch uncrown [players]", "monarch.uncrown"),
+                new Line("monarch call [players]", "monarch.call"),
+                new Line("monarch reset [players]", "monarch.reset"),
+                new Line("monarch jump 1|2|arbiter|throne|<crown> [player]", "monarch.jump"),
+                new Line("monarch power domain|dread|crown|authority [players]", "monarch.power")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

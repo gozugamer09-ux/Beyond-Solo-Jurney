@@ -97,7 +97,8 @@ final class SoloSkills {
         SystemData d = SystemAPI.get(p);
         int n = 0;
         for (Skill s : Skills.all()) {
-            if (!s.fits(d.playerClass(), JobAPI.subclass(p))) continue;
+            // the monarch powers come with a crown (/solo monarch crown), not with "every skill"
+            if (s.monarch() || !s.fits(d.playerClass(), JobAPI.subclass(p))) continue;
             teach(p, s, level);
             n++;
         }
