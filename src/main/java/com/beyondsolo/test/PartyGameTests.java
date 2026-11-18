@@ -84,7 +84,7 @@ public final class PartyGameTests {
         p.getInventory().clearContent();
         BlockPos pos = helper.absolutePos(at);
         p.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0f, 0f);
-        OnlinePlayers.addTestPlayer(p);
+        OnlinePlayers.addTestPlayer(helper, p);
         return p;
     }
 
