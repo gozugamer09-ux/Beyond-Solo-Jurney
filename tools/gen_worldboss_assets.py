@@ -1871,11 +1871,101 @@ def storms_anims():
     GC.write_anims(STORMS, A)
 
 
+# ============================================================================================= light textures
+
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "main", "resources", "assets", "beyondsolo")
+FX_OUT = os.path.join(ASSETS, "textures", "effect")
+
+
+def _gauss(v, at, sigma):
+    return np.exp(-0.5 * ((v - at) / sigma) ** 2)
+
+
+def _save_light(name, value, folder=None, meta='{"texture": {"blur": true, "clamp": true}}'):
+    """White light with the shape in its alpha (added to the scene and tinted by WorldBossWorldFx)."""
+    from PIL import Image
+    a = np.zeros(value.shape + (4,), np.uint8)
+    a[..., 0:3] = 255
+    a[..., 3] = np.clip(np.round(value * 255), 0, 255).astype(np.uint8)
+    out = os.path.join(folder or FX_OUT, name + ".png")
+    Image.fromarray(a, "RGBA").save(out, optimize=True)
+    if meta:
+        with open(out + ".mcmeta", "w") as f:
+            f.write(meta)
+
+
+def _profile(fn, w=16, h=128):
+    """A texture that only changes along v (rows): what WorldBossWorldFx lays round circles and along strips, where u
+    starts again on every segment."""
+    v = (np.arange(h) + 0.5) / h
+    col = np.clip(fn(v), 0, 1)
+    return np.repeat(col[:, None], w, axis=1)
+
+
+def fx_textures():
+    """The marks the great threats' blows leave on the ground before they land (WorldBossWorldFx), and the current
+    that runs over monarch armor (MonarchAuraLayer)."""
+    os.makedirs(FX_OUT, exist_ok=True)
+    # a circle's edge (v runs from its middle, 0, to its rim, 1): a hard bright rim with a second, thinner one inside
+    # it, a soft glow round both, and a faint wash over the ground inside that gets stronger towards the edge
+    _save_light("wb_rim", _profile(lambda v: _gauss(v, 0.955, 0.013) + 0.42 * _gauss(v, 0.955, 0.045) + 0.4 * _gauss(v, 0.885, 0.008)
+                                   + 0.08 + 0.2 * v ** 5 - 0.6 * np.clip((v - 0.985) / 0.015, 0, 1)))
+    # the fill that grows towards the edge as the blow comes (v 1 is its front): even light, faint ripples, the front
+    # brightest, the very edge soft
+    _save_light("wb_fill", _profile(lambda v: (0.5 + 0.025 * np.sin(v * 52) + 0.42 * sstep(0.72, 0.98, v) + 0.1 * _gauss(v, 0.98, 0.02))
+                                    * (1 - 0.5 * np.clip((v - 0.99) / 0.01, 0, 1))))
+    # a band of ground (a ring, a lane): bright edges on both sides, a soft light between
+    _save_light("wb_band", _profile(lambda v: _gauss(v, 0.05, 0.016) + _gauss(v, 0.95, 0.016) + 0.35 * (_gauss(v, 0.05, 0.06) + _gauss(v, 0.95, 0.06))
+                                    + 0.14 + 0.06 * np.cos((v - 0.5) * math.pi * 8) ** 2))
+    # a line of light (v across it): a hot core in a soft halo, nothing at its sides
+    _save_light("wb_line", _profile(lambda v: (_gauss(v, 0.5, 0.075) + 0.42 * _gauss(v, 0.5, 0.2)) * np.sin(v * math.pi) ** 0.6))
+    # a square cell of the ground (drawn whole, u and v 0 to 1): a framed square, its corners marked
+    S = 64
+    ys, xs = np.mgrid[0:S, 0:S] + 0.5
+    d_edge = np.minimum(np.minimum(xs, S - xs), np.minimum(ys, S - ys))           # pixels to the nearest edge
+    near = np.minimum(np.abs(xs - S / 2), np.abs(ys - S / 2))
+    corner = (np.maximum(np.abs(xs - S / 2), np.abs(ys - S / 2)) > S / 2 - 14) & (near > S / 2 - 14)
+    frame = 0.95 * _gauss(d_edge, 2.6, 0.65) + 0.22 * _gauss(d_edge, 2.6, 2.4) + 0.22 * _gauss(d_edge, 6.5, 0.5)
+    frame = frame + corner * 0.45 * _gauss(d_edge, 4.4, 0.8)
+    _save_light("wb_cell", np.clip(frame + 0.06 * (d_edge > 3), 0, 1) * (d_edge > 0.6))
+    # the cell's fill, drawn at a growing scale (clamped: nothing at its border, so what lies past it stays dark)
+    fill = 0.5 + 0.2 * _gauss(d_edge, 4.5, 1.6) + 0.03 * np.sin((xs + ys) * 0.5)
+    _save_light("wb_cell_fill", np.clip(fill, 0, 1) * sstep(1.0, 3.0, d_edge))
+    # the current over monarch armor (scrolled by RenderType.energySwirl, so it tiles both ways; added as light, so
+    # black is nothing): threads of light drawn along a warped diagonal flow, and a few brighter knots
+    from PIL import Image
+    N = 128
+    y, x = (np.mgrid[0:N, 0:N] + 0.5) / N
+    rng = np.random.default_rng(91)
+    warp = np.zeros((N, N))
+    for fx_, fy_, amp in ((1, 2, 0.9), (2, -1, 0.7), (3, 1, 0.45), (1, -3, 0.35), (4, 3, 0.2)):
+        warp += amp * np.sin(2 * math.pi * (fx_ * x + fy_ * y) + rng.uniform(0, 2 * math.pi))
+    a = np.sin(2 * math.pi * (2 * x + 3 * y) + 2.2 * warp)
+    b = np.sin(2 * math.pi * (5 * x + 2 * y) + 1.6 * warp + 1.3)
+    threads = (0.5 + 0.5 * a) ** 14 + 0.55 * (0.5 + 0.5 * b) ** 22
+    knots = np.zeros((N, N))
+    for _ in range(9):
+        cx, cy, r = rng.uniform(0, 1), rng.uniform(0, 1), rng.uniform(0.02, 0.05)
+        dx = (x - cx + 0.5) % 1 - 0.5
+        dy = (y - cy + 0.5) % 1 - 0.5
+        knots += np.exp(-(dx * dx + dy * dy) / (2 * r * r))
+    v = np.clip(threads * (0.75 + 0.25 * np.sin(2 * math.pi * (x - y) * 2) ** 2) + 0.5 * knots * threads ** 0.3 + 0.04, 0, 1)
+    img = np.zeros((N, N, 4), np.uint8)
+    img[..., 0:3] = np.round(v * 255).astype(np.uint8)[..., None]
+    img[..., 3] = 255
+    armor = os.path.join(ASSETS, "textures", "models", "armor")
+    os.makedirs(armor, exist_ok=True)
+    Image.fromarray(img, "RGBA").save(os.path.join(armor, "monarch_current.png"), optimize=True)
+    with open(os.path.join(armor, "monarch_current.png.mcmeta"), "w") as f:
+        f.write('{"texture": {"blur": true}}')
+    print("  light textures: wb_rim, wb_fill, wb_band, wb_line, wb_cell, wb_cell_fill, monarch_current")
+
+
 # ============================================================================================= main
 
 def main():
     want = set(sys.argv[1:])
-    makers = {"titan": titan, "behemoth": behemoth, "stillness": stillness, "hunger": hunger, "storms": storms}
+    makers = {"titan": titan, "behemoth": behemoth, "stillness": stillness, "hunger": hunger, "storms": storms, "fx": fx_textures}
     for key, fn in makers.items():
         if not want or key in want:
             print(key)

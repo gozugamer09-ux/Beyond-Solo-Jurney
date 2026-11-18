@@ -999,6 +999,14 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         return "animation.beyondsolo." + kind().asset() + ".";
     }
 
+    /** Every animation it plays: its loops, its death, its intro, phase changes and leaving, and its moves. */
+    public Set<String> animNames() {
+        Set<String> names = new HashSet<>(List.of("idle", "walk", "dormant", "death"));
+        names.addAll(extraAnims());
+        for (Move m : moves()) names.add(m.anim());
+        return names;
+    }
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         String base = animPrefix();
@@ -1018,6 +1026,13 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return cache;
+    }
+
+    /** Drawn while any of it is in sight: wings, raised weapons, falls and leaps reach well past its box. */
+    @Override
+    public AABB getBoundingBoxForCulling() {
+        float reach = Math.max(getBbWidth(), getBbHeight()) * 0.9f;
+        return getBoundingBox().inflate(reach, reach * 0.6f, reach).expandTowards(0, reach * 0.5f, 0);
     }
 
     /** Players who can see it from where they are (for banners and sounds). */

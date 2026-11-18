@@ -1,0 +1,384 @@
+{
+ "texture_height": {
+  "1": 96,
+  "2": 64
+ },
+ "parts": [
+  {
+   "name": "wing",
+   "part": "head",
+   "origin": [
+    -0.5,
+    -7.700000000000001,
+    0
+   ],
+   "size": [
+    0.5,
+    9.0,
+    6.5
+   ],
+   "uv": [
+    24,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -5,
+    -4.5,
+    -1.5
+   ],
+   "rotation": [
+    0,
+    -28,
+    -16
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "wing_l",
+   "part": "head",
+   "origin": [
+    0.0,
+    -7.700000000000001,
+    0
+   ],
+   "size": [
+    0.5,
+    9.0,
+    6.5
+   ],
+   "uv": [
+    24,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    5,
+    -4.5,
+    -1.5
+   ],
+   "rotation": [
+    0,
+    28,
+    16
+   ],
+   "mirror": true,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "crest",
+   "part": "head",
+   "origin": [
+    -0.5,
+    -2.5,
+    -5
+   ],
+   "size": [
+    1,
+    2.5,
+    10
+   ],
+   "uv": [
+    38,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -9,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "head",
+   "layer": 1
+  },
+  {
+   "name": "pauldron",
+   "part": "right_arm",
+   "origin": [
+    -5.75,
+    -4.25,
+    -4.25
+   ],
+   "size": [
+    7.5,
+    6.5,
+    8.5
+   ],
+   "uv": [
+    0,
+    59
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -2,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    -10
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "pauldron2",
+   "part": "right_arm",
+   "origin": [
+    -6.0,
+    1.25,
+    -4.0
+   ],
+   "size": [
+    7.0,
+    2.5,
+    8.0
+   ],
+   "uv": [
+    32,
+    59
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    0,
+    -2,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    -20
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "pspike0",
+   "part": "right_arm",
+   "origin": [
+    -1,
+    -4,
+    -0.75
+   ],
+   "size": [
+    1.5,
+    4,
+    1.5
+   ],
+   "uv": [
+    8,
+    74
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -4.25,
+    -3.5,
+    -1.5
+   ],
+   "rotation": [
+    0,
+    0,
+    20
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "pspike1",
+   "part": "right_arm",
+   "origin": [
+    -1,
+    -4,
+    -0.75
+   ],
+   "size": [
+    1.5,
+    4,
+    1.5
+   ],
+   "uv": [
+    14,
+    74
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -4.25,
+    -3.5,
+    1.5
+   ],
+   "rotation": [
+    0,
+    0,
+    20
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "bwing",
+   "part": "body",
+   "origin": [
+    -0.25,
+    -9.299999999999999,
+    0
+   ],
+   "size": [
+    0.5,
+    15.5,
+    11.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -1.0,
+    3.0,
+    5.0
+   ],
+   "rotation": [
+    0,
+    -68,
+    24
+   ],
+   "mirror": false,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "bwing_l",
+   "part": "body",
+   "origin": [
+    -0.25,
+    -9.299999999999999,
+    0
+   ],
+   "size": [
+    0.5,
+    15.5,
+    11.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    1.0,
+    3.0,
+    5.0
+   ],
+   "rotation": [
+    0,
+    68,
+    -24
+   ],
+   "mirror": true,
+   "slot": "chest",
+   "layer": 1
+  },
+  {
+   "name": "hwing",
+   "part": "right_leg",
+   "origin": [
+    -0.25,
+    -3,
+    0
+   ],
+   "size": [
+    0.5,
+    3.5,
+    3.5
+   ],
+   "uv": [
+    0,
+    74
+   ],
+   "inflate": 0.0,
+   "pivot": [
+    -2.9,
+    9.5,
+    0.5
+   ],
+   "rotation": [
+    0,
+    -30,
+    -20
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  },
+  {
+   "name": "toe",
+   "part": "right_leg",
+   "origin": [
+    -2.25,
+    10.5,
+    -4.4
+   ],
+   "size": [
+    4.5,
+    2.5,
+    1.5
+   ],
+   "uv": [
+    20,
+    74
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "feet",
+   "layer": 1
+  },
+  {
+   "name": "tasset",
+   "part": "right_leg",
+   "origin": [
+    -2.75,
+    -0.5,
+    -2.75
+   ],
+   "size": [
+    5.5,
+    5,
+    5.5
+   ],
+   "uv": [
+    0,
+    32
+   ],
+   "inflate": 0.0,
+   "pivot": null,
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mirror": false,
+   "slot": "legs",
+   "layer": 2
+  }
+ ]
+}

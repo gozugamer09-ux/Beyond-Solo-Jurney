@@ -34,6 +34,7 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
 | `key`, `client.key` | Dungeon keys: turning a key to open a gate on demand, keyed runs (doors that seal, refunds, chains, the run clock and records), drops, recipes, the shop, the GATES tab, the lock of light (see "Dungeon keys and re-runs"); `gate/GateWiper` recycles closed caves |
 | `depths`, `client.depths` | What lies off the beaten path of a gate's cave: hidden chambers behind disguised walls, trap rooms, the weather inside a gate, and finding creatures' weaknesses; the creature profiles themselves are `enemy/ElementalProfile` (see "Hidden chambers, traps, weaknesses and gate weather") |
 | `breaks`, `client.breaks` | Dungeon breaks: the collapse timer on every uncleared gate, the break itself (waves, the boss coming through, suppression), and gate sensing in Pulse Scan; the break's banners, timer chip, gate compass and world effects (see "Dungeon breaks and gate sensing") |
+| `worldboss`, `client.worldboss` | The world's great threats: world bosses and monarchs (the schedule and the call, the fights, rewards, the Monarch's Seal), monarch armor and its aura, the boss HUD and the warnings drawn on the ground (see "World bosses and monarchs") |
 | `test` | Game tests (`./gradlew runGameTestServer`) |
 | `gate` | Gates and dungeons: the gate block, gate instances and their saved data, the cave planner and builder, the boss, the reward cache, world-gen and natural spawning (`GateService` runs it) |
 | `client.gate` | Gate, boss and cache renderers (GeckoLib), the gate moments overlay and boss bar, camera shake, the gate dimension's look |
@@ -1113,6 +1114,72 @@ world), keyed by its gate's id.
   dawn, day n, time n, raid, blizzard [s], calm, seal, release, clear, chill n, or to the breach, keep, a camp, its
   master), `leave`, `end`, `status`. All numbers are first guesses for the balancing pass.
 
+## World bosses and monarchs
+
+Code in `worldboss/` (server) and `client/worldboss/` (client); lang in `assets/beyondsolo_worldboss/lang`.
+`WorldBossModule` registers the five bosses, `BossProjectile`, the Monarch's Seal, the monarch armor (pieces, the
+`monarch_aura` component), the hunter's record (`WorldBossRecord`, an attachment kept through death: kills by kind,
+times they did the most, the pity count), the payloads and the config (`WorldBossConfig`, `worldbosses.*`). What is
+abroad lives in `WorldBossData` (saved with the overworld): at most one great threat at a time, when the next comes,
+and how many have been slain.
+
+- **The kinds** (`WorldBossKind`): two world bosses that stride over the land as it is (`GiantBoss`: through trees,
+  over hills, never into deep water; they roam `ROAM` blocks round where they rose and give up a chase past `LEASH`):
+  Ghorrath, the Walking Mountain (`TitanBoss`, flame) and Thurvok, the Horned Calamity (`BehemothBoss`, blood). Three
+  monarchs (`MonarchBoss`: they walk, leap and blink): Veyrith of Stillness (`StillnessMonarch`, frost), Khorvane of
+  Hunger (`HungerMonarch`, blood) and Thyrax of Storms (`StormMonarch`, storm). Each kind has its health, damage,
+  colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
+  phase by phase.
+- **When they come** (`WorldBosses`): once an awakened hunter in the overworld reaches `minLevel` (20), the first
+  world boss rises `firstMinutes` (30) later, about 80 to 130 blocks from a hunter (`minDistance`, `maxDistance`),
+  and the next comes `intervalMinutes` (75) after the last one left. Once `monarchAfterKills` (2) world bosses have
+  fallen and a hunter is `monarchMinLevel` (40), the next is a monarch by `monarchChance` (0.3). A Monarch's Seal
+  (`MonarchSealItem`, the best hunter's chance gift from a world boss, `sealChance`) calls one down at once when
+  broken in the overworld. The System calls every hunter in the overworld (a pop-up, a banner, a quest from
+  `world_boss/hunt`, its mark on screen), and the status goes out every two seconds (`WorldBossPayload`). If no hunter
+  comes near it or hurts it for `abandonMinutes` (12), it sinks back into the earth (a monarch rises back into its gate).
+- **The fight** (`ColossalBoss`): three phases. A phase can't be skipped: however hard it is hit, its health stops
+  at the next phase's line (`phaseFloor`) until that phase has begun (a short transition: a roar, the land shaking,
+  the phase's banner). It takes damage all the while: no shield, no immunity, no healing, and no floor in its last
+  phase. Moves (`Move`) are an animation plus a script run on its ticks; every blow is announced on the ground first
+  (`WorldBossFx` sends `WorldBossFxPayload`s: discs, bands, strips, wedges, squares, and waves that run out along the
+  ground to be jumped), and what it throws (`BossProjectile`) flies a set path in a set time so it lands as the warning
+  said. It only ever hits hunters, what they own (shadows, pets), iron golems and whatever it is fighting. The health
+  each hunter takes off it is kept (their shadows and pets count for them).
+- **Monarchs** (`MonarchBoss`): a gate tears open in the sky (`GATE_HEIGHT` up), and `descentSeconds` (60) later the
+  monarch comes down through it and lands with a blow. Its domain (`DOMAIN` blocks round it) is its own rule:
+  Stillness slows and freezes, Hunger starves and bleeds, Storms calls lightning down (drawn on the ground first).
+  Hunters below `PRESSURE_LEVEL` within `PRESSURE_RANGE` are weighed down. Its army (`MonarchArmy`, tagged `ARMY_TAG`)
+  is S-rank gate creatures of its affinity, called up as it lands and again as it angers; they crumble when it falls
+  or leaves (soldiers in unloaded land as soon as it loads). Its authority, in the last phase, is named on every
+  hunter's screen with the time left to get clear.
+- **The kill** (`slain`, `pay`): every hunter with at least `MIN_SHARE` of the damage is paid by their share (in full
+  from half of it up, so a pair both get everything): System XP, gold, greater mana stones, a supreme healing elixir,
+  S-rank weapons, an Elixir of Rebirth from a monarch, a quest step for `SLAY_KEY`, and a line on their record.
+- **Monarch armor** (`MonarchArmor`): grade `MONARCH`, a tier above the divine sets, level `LEVEL` (60), any class.
+  Each monarch leaves its own regalia (`setOf`): Stillness (blows slow, every fifth freezes), Hunger (kills heal and
+  stack strength up to three times), Storms (every fourth blow calls lightning that leaps to two more), with 2- and
+  4-piece bonuses like any set. Each hunter who did a tenth of a monarch's health gets a piece by
+  `monarchArmorChance` (0.2), or for sure after `monarchArmorPity` (5) monarchs without one; `piece` prefers one they
+  lack. A piece takes its wearer's aura when put on (the `monarch_aura` component: their class's colour, the
+  monarchs' violet `DEFAULT_AURA` without one). On the client `MonarchAuraLayer` draws its light over the worn plate:
+  `<set>_aura_1/2.png` (seams, crest and edges, breathing in the aura's colour) and `monarch_current.png` (a slow
+  current running over the whole of it); the item colour handler tints the icon's `_aura` layer.
+- **Looks** (`client.worldboss`): `ColossalBossRenderer` and `WorldBossModel` (GeckoLib, glowing parts, the Walking
+  Mountain's molten skin in its last phase, a monarch's sigil underfoot, the pillar of light as one dies),
+  `BossProjectileRenderer`, `WorldBossWorldFx` (the warnings lying on the land as it is through `Terrain`, waves,
+  falling stones, lightning, pillars, cracks of light; a column of light over a far world boss; the gate in the sky; a
+  monarch's domain ring), `WorldBossHud` (the bar with phase notches and your share, a marker with distance and
+  arrow when it is far, the domain's edge tint, banners). Ground textures are `textures/effect/wb_*.png`.
+- **Art** is made by scripts: `tools/gen_worldboss_assets.py <titan|behemoth|stillness|hunger|storms|fx>` writes a
+  boss's model, skins (main and glow) and animations, or (`fx`) the warning textures and the armor's current.
+  `tools/gen_monarch_armor.py [set...|seal]` writes the regalia (worn layers, aura masks, worn model parts, item
+  icons) and the seal; `--preview <set> [rrggbb]` and `--icons [rrggbb]` render them in an aura colour into
+  `build/preview/`.
+- **Commands** (`/system worldboss ...`, level 2): `spawn <kind> [here]`, `land`, `phase <n>`, `move <name>`,
+  `hurt <amount>`, `kill`, `withdraw`, `stop`, `status`, `next <minutes>`, `armor <set> [n]`, `seal`, `record`. All
+  numbers are first guesses for the balancing pass.
+
 ## World generation
 
 `evaluation/VillageInjector` adds `beyondsolo:evaluation_zone` to the five vanilla village house pools when the
@@ -1195,3 +1262,4 @@ checks use zombies.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/WorldBossGameTests` covers: every kind's model, skins and each animation its moves play, every name the HUD and pop-ups ask for (names, titles, phases, domains, authorities, regalia), a phase not skipped by one huge blow (it stops at the line, the phase begins, nothing heals it), a monarch dying in its last phase, monarch armor taking its wearer's aura (grade, tier, level, the violet when unworn or classless), and each monarch leaving its own regalia (the missing piece first).
