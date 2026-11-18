@@ -307,10 +307,36 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
 
     /**
      * Sets up its entrance before it is added to the world at {@code at}: by default it climbs out of the earth over the
-     * first two thirds of its intro.
+     * first two thirds of its intro. It stands where it will be from the start, and only its model is drawn sunk into
+     * the ground ({@link #buried}): the game draws nothing whose feet are in buried ground it has never had to show, so a
+     * boss really moved up through the earth would only appear once it was nearly out.
      */
     public void prepareEntrance(ServerLevel level, Vec3 at) {
-        entrance(at.add(0, -getBbHeight() - 1, 0), at, introLength() * 2 / 3);
+        setPos(at.x, at.y, at.z);
+    }
+
+    /**
+     * Whether it comes out of the earth and goes back into it (drawn sunk, {@link #buried}), rather than travelling
+     * through the air to get there (a monarch's descent).
+     */
+    protected boolean earthbound() {
+        return true;
+    }
+
+    /**
+     * How far below the ground it is drawn, in blocks: climbing out of the earth over the first two thirds of its
+     * entrance, sinking back into it as it leaves. Always 0 for a boss that isn't {@link #earthbound}.
+     */
+    public float buried(float partial) {
+        if (!earthbound()) return 0f;
+        if (leaving()) {
+            float k = Mth.clamp((leaveLength() - leaveTicks() + partial) / leaveLength(), 0f, 1f);
+            return (getBbHeight() + 2) * k * k * (3 - 2 * k);
+        }
+        if (!isAwake() || introTicks() <= 0) return 0f;
+        float rise = introLength() * 2 / 3f;
+        float k = Mth.clamp((introLength() - introTicks() + partial) / rise, 0f, 1f);
+        return (getBbHeight() + 1) * (1 - k * k * (3 - 2 * k));
     }
 
     /** Ticks left of its leaving (0: it isn't leaving). */
@@ -327,9 +353,12 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         return 80;
     }
 
-    /** Where it goes as it leaves: down into the earth (world bosses), up into the sky (monarchs). */
+    /**
+     * Where it goes as it leaves: up into the sky (monarchs). A boss of the earth stays where it is and is drawn sinking
+     * into it ({@link #buried}).
+     */
     protected Vec3 leaveTarget() {
-        return position().add(0, -getBbHeight() - 2, 0);
+        return position();
     }
 
     /**

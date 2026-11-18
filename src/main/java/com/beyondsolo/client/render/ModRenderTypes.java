@@ -62,5 +62,40 @@ public final class ModRenderTypes {
         return LIGHT_THROUGH.apply(texture);
     }
 
+    // Armor is drawn a hair toward the camera (view-offset layering), so anything laid over it must be too, or the
+    // plate hides it. These are the eyes and energy-swirl looks with that same offset, and like the enchantment glint
+    // they only draw where the plate itself was drawn (equal depth): not on the see-through parts of a wing or a crest.
+    private static final Function<ResourceLocation, RenderType> ARMOR_GLOW = Util.memoize(texture -> RenderType.create("beyondsolo_armor_glow",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, true,
+            RenderType.CompositeState.builder()
+                    .setShaderState(RenderStateShard.RENDERTYPE_EYES_SHADER)
+                    .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
+                    .setTransparencyState(RenderStateShard.ADDITIVE_TRANSPARENCY)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .setDepthTestState(RenderStateShard.EQUAL_DEPTH_TEST)
+                    .setLayeringState(RenderStateShard.VIEW_OFFSET_Z_LAYERING)
+                    .createCompositeState(false)));
+
+    /** A black-and-white mask added to worn armor as full-bright light, tinted by the vertex colour: monarch armor's burning seams. */
+    public static RenderType armorGlow(ResourceLocation texture) {
+        return ARMOR_GLOW.apply(texture);
+    }
+
+    /** A texture scrolled by (u, v) and added to worn armor as light: the current running over monarch armor. */
+    public static RenderType armorCurrent(ResourceLocation texture, float u, float v) {
+        return RenderType.create("beyondsolo_armor_current", DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, true,
+                RenderType.CompositeState.builder()
+                        .setShaderState(RenderStateShard.RENDERTYPE_ENERGY_SWIRL_SHADER)
+                        .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
+                        .setTexturingState(new RenderStateShard.OffsetTexturingStateShard(u, v))
+                        .setTransparencyState(RenderStateShard.ADDITIVE_TRANSPARENCY)
+                        .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                        .setCullState(RenderStateShard.NO_CULL)
+                        .setDepthTestState(RenderStateShard.EQUAL_DEPTH_TEST)
+                        .setLayeringState(RenderStateShard.VIEW_OFFSET_Z_LAYERING)
+                        .createCompositeState(false));
+    }
+
     private ModRenderTypes() {}
 }

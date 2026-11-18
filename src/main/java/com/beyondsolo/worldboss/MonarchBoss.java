@@ -97,6 +97,12 @@ public abstract class MonarchBoss extends ColossalBoss {
         entrance(at.add(0, GATE_HEIGHT, 0), at, introLength() - 30);
     }
 
+    /** It travels through the air, down from its gate and back up into the sky. */
+    @Override
+    protected boolean earthbound() {
+        return false;
+    }
+
     /** It leaves back up into the sky. */
     @Override
     protected Vec3 leaveTarget() {

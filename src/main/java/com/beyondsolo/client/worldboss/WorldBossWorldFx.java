@@ -5,6 +5,7 @@ import com.beyondsolo.client.gate.GateFx;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.network.WorldBossFxPayload;
 import com.beyondsolo.worldboss.ColossalBoss;
+import com.beyondsolo.worldboss.MonarchArmor;
 import com.beyondsolo.worldboss.MonarchBoss;
 import com.beyondsolo.worldboss.WorldBossKind;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,6 +16,10 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -141,6 +146,7 @@ public final class WorldBossWorldFx {
             }
         }
         any |= threat(buffers, time, partial);
+        any |= regalia(buffers, partial);
         if (any) for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
     }
 
@@ -440,6 +446,88 @@ public final class WorldBossWorldFx {
             }
         }
         return drew;
+    }
+
+    // ================================================================ monarch armor's aura
+
+    private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+
+    /**
+     * Monarch armor is the wearer's own aura made solid, and some of it never settles: motes and wisps of that light
+     * rise off whoever wears it, more the more pieces they have on, and a whole regalia burns with a faint halo.
+     */
+    private static boolean regalia(MultiBufferSource buffers, float partial) {
+        Minecraft mc = Minecraft.getInstance();
+        Entity viewer = mc.getCameraEntity();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        double time = mc.level.getGameTime() + (double) partial;
+        boolean drew = false;
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (!(e instanceof LivingEntity wearer) || wearer.isInvisible() || (e == viewer && firstPerson)) continue;
+            if (e.distanceToSqr(camX, camY, camZ) > 48 * 48) continue;
+            int pieces = 0, aura = MonarchArmor.DEFAULT_AURA;
+            for (EquipmentSlot slot : ARMOR) {
+                ItemStack worn = wearer.getItemBySlot(slot);
+                if (MonarchArmor.is(worn)) {
+                    pieces++;
+                    aura = MonarchArmor.aura(worn);
+                }
+            }
+            if (pieces == 0) continue;
+            Vec3 at = e.getPosition(partial);
+            float h = e.getBbHeight(), w = e.getBbWidth();
+            int seed = e.getId() * 0x2F0B3;
+            int core = GateFx.mix(aura, 0xFFFFFF, 0.5f);
+            VertexConsumer glow = buf(buffers, GLOW);
+            // motes: bright points drifting up and fading, each rise from a new place
+            for (int i = 0; i < 5 * pieces; i++) {
+                double run = time * (0.011 + 0.006 * hash(seed, i, 0)) + hash(seed, i, 1);
+                int cycle = (int) Math.floor(run);
+                float k = (float) (run - cycle);
+                int id = i * 977 + cycle;
+                float ang = hash(seed, id, 2) * Mth.TWO_PI + k * 0.9f;
+                float r = w * (0.6f + 0.4f * hash(seed, id, 3));
+                double x = at.x + Mth.cos(ang) * r, z = at.z + Mth.sin(ang) * r;
+                double y = at.y + h * (0.1f + 0.75f * hash(seed, id, 4)) + k * 1.1;
+                float a = Mth.sin(k * Mth.PI);
+                float size = 0.03f + 0.032f * hash(seed, id, 5);
+                billboard(glow, x, y, z, size * 2.8f, 0, aura, 0.5f * a);
+                billboard(glow, x, y, z, size, 0, core, 0.9f * a);
+            }
+            // wisps: thin flames of it licking upward off the plate
+            for (int i = 0; i < 3 * pieces; i++) {
+                double run = time * (0.02 + 0.012 * hash(seed, i, 6)) + hash(seed, i, 7);
+                int cycle = (int) Math.floor(run);
+                float k = (float) (run - cycle);
+                int id = i * 613 + cycle;
+                float ang = hash(seed, id, 8) * Mth.TWO_PI;
+                float r = w * (0.55f + 0.2f * hash(seed, id, 9));
+                double x = at.x + Mth.cos(ang) * r, z = at.z + Mth.sin(ang) * r;
+                double y = at.y + h * (0.08f + 0.62f * hash(seed, id, 10)) + k * 0.7;
+                float len = 0.22f + 0.26f * hash(seed, id, 11);
+                float sway = 0.06f * Mth.sin((float) (time * 0.2) + i);
+                ribbon(glow, x, y, z, x + Mth.cos(ang) * sway, y + len, z + Mth.sin(ang) * sway, 0.075f, 0.015f, aura,
+                        0.55f * Mth.sin(k * Mth.PI));
+            }
+            if (pieces == ARMOR.length) {
+                float breath = 0.75f + 0.25f * Mth.sin((float) (time * 0.11));
+                billboard(glow, at.x, at.y + h * 0.55, at.z, h * 0.6f, 0, aura, 0.38f * breath);
+                billboard(glow, at.x, at.y + h * 0.6, at.z, h * 1.05f, 0, aura, 0.15f * breath);
+            }
+            drew = true;
+        }
+        return drew;
+    }
+
+    /** 0..1, the same every frame for the same numbers. */
+    private static float hash(int seed, int i, int salt) {
+        int x = seed ^ (i * 0x9E3779B9) ^ (salt * 0x85EBCA6B);
+        x ^= x >>> 16;
+        x *= 0x7FEB352D;
+        x ^= x >>> 15;
+        x *= 0x846CA68B;
+        x ^= x >>> 16;
+        return (x >>> 8) / (float) (1 << 24);
     }
 
     /** How open a monarch's gate is: open while it comes down, closing once it lands; open again as it leaves. */

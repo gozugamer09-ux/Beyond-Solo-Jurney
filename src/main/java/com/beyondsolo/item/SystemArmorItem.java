@@ -67,9 +67,12 @@ public class SystemArmorItem extends ArmorItem {
         return com.beyondsolo.item.arsenal.ArsenalTooltip.gradedName(super.getName(stack), stack, grade());
     }
 
+    /** Mythic and divine pieces shine; monarch armor doesn't, its own aura is its light (and the glint would hide it). */
     @Override
     public boolean isFoil(ItemStack stack) {
-        return com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade()).atLeast(ItemGrade.MYTHIC) || super.isFoil(stack);
+        ItemGrade g = com.beyondsolo.item.arsenal.ArsenalTooltip.gradeOf(stack, grade());
+        if (g == ItemGrade.MONARCH) return false;
+        return g.atLeast(ItemGrade.MYTHIC) || super.isFoil(stack);
     }
 
     /** Pieces a hunter is not ready for (too low a level, or a divine piece of another class) won't go on. */

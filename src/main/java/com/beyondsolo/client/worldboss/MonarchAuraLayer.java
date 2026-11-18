@@ -2,13 +2,13 @@ package com.beyondsolo.client.worldboss;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.armor.ArmorModels;
+import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.item.SystemArmorItem;
 import com.beyondsolo.worldboss.MonarchArmor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -58,11 +58,11 @@ public class MonarchAuraLayer<T extends LivingEntity, M extends HumanoidModel<T>
             float r = ((aura >> 16) & 255) / 255f, g = ((aura >> 8) & 255) / 255f, b = (aura & 255) / 255f;
             // the light breathes, a little out of step piece to piece
             float breath = 0.78f + 0.22f * Mth.sin(time * 0.11f + slot.ordinal() * 0.9f);
-            model.renderToBuffer(pose, buffers.getBuffer(RenderType.eyes(glow(set, inner))), LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
+            model.renderToBuffer(pose, buffers.getBuffer(ModRenderTypes.armorGlow(glow(set, inner))), LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
                     FastColor.ARGB32.colorFromFloat(1f, r * breath, g * breath, b * breath));
             float flow = (time * 0.006f) % 1f;
-            model.renderToBuffer(pose, buffers.getBuffer(RenderType.energySwirl(CURRENT, flow, flow * 0.6f)), LightTexture.FULL_BRIGHT,
-                    OverlayTexture.NO_OVERLAY, FastColor.ARGB32.colorFromFloat(1f, r * 0.32f, g * 0.32f, b * 0.32f));
+            model.renderToBuffer(pose, buffers.getBuffer(ModRenderTypes.armorCurrent(CURRENT, flow, flow * 0.6f)), LightTexture.FULL_BRIGHT,
+                    OverlayTexture.NO_OVERLAY, FastColor.ARGB32.colorFromFloat(1f, r * 0.45f, g * 0.45f, b * 0.45f));
         }
     }
 

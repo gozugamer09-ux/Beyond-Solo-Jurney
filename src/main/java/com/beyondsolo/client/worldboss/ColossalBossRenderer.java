@@ -49,7 +49,14 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
 
     @Override
     public void render(T boss, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
+        // climbing out of the earth or sinking back into it: drawn sunk into the ground, which hides what is below
+        float buried = boss.buried(partial);
+        if (buried > 0) {
+            pose.pushPose();
+            pose.translate(0, -buried, 0);
+        }
         super.render(boss, yaw, partial, pose, buffers, light);
+        if (buried > 0) pose.popPose();
         float time = (boss.tickCount + partial) % 7200;
         int rgb = boss.fxColor();
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
