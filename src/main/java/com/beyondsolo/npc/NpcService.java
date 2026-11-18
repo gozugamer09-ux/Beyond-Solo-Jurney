@@ -17,11 +17,9 @@ import com.beyondsolo.registry.ModItems;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -30,9 +28,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.gossip.GossipType;
 import net.minecraft.world.entity.monster.Monster;
@@ -40,7 +37,6 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -345,45 +341,108 @@ public final class NpcService {
         markers(p);
     }
 
-    /** Spawns the monsters of a clearing request once the player comes close to the spot. */
+    /** Spawns the creatures of a clearing request once the player comes close to the spot. */
     private static void nests(ServerPlayer p) {
+        // nest creatures that fell while their hunter was away
+        Map<String, Integer> pending = PENDING_NEST.remove(p.getUUID());
+        if (pending != null) pending.forEach((token, n) -> countNest(p, token, n, null));
         for (Quest q : QuestEngine.data(p).active()) {
             if (!q.template().equals(NpcQuestKind.CLEAR.template()) || q.area() == null || q.extra().getBoolean("spawned")) continue;
             if (!p.level().dimension().equals(q.area().dimension())) continue;
             if (!p.position().closerThan(Vec3.atCenterOf(q.area().center()), 30)) continue;
             q.extra().putBoolean("spawned", true);
-            spawnNest((ServerLevel) p.level(), q.area().center(), q.rankTier(), Math.max(1, q.extra().getInt("nest")));
+            spawnNest(p, q);
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
                     Component.translatable("npc.beyondsolo.nest.title"), Component.translatable("npc.beyondsolo.nest.body")));
             QuestEngine.sync(p);
         }
     }
 
-    public static void spawnNest(ServerLevel level, BlockPos center, int tier, int count) {
-        List<String> pool = NpcQuests.NEST.get(Math.min(tier, NpcQuests.NEST.size() - 1));
+    /** Persistent-data keys on a nest creature: the request it belongs to, and whose request it is. */
+    public static final String NEST_TOKEN = "beyondsolo_nest_token";
+    public static final String NEST_OWNER = "beyondsolo_nest_owner";
+    private static final String NEST_COUNTED = "beyondsolo_nest_counted";
+    /** Nest creatures that died while their hunter was offline: owner -> request token -> how many. */
+    private static final Map<UUID, Map<String, Integer>> PENDING_NEST = new HashMap<>();
+
+    /**
+     * A clearing request's nest: {@link NpcQuests#NEST_SIZE} of the gate's own creatures (more if an older request
+     * asks for more), as strong as the hunter is (their level on the creatures' scale, {@link #nestRank}), one of
+     * them leading the pack. Each is marked with the request and its hunter, so its death counts however it comes.
+     */
+    public static List<Mob> spawnNest(ServerPlayer p, Quest q) {
+        int count = NpcQuests.NEST_SIZE;
+        for (com.beyondsolo.quest.QuestObjective o : q.objectives()) count = Math.max(count, o.required() - o.progress());
+        return spawnNest((ServerLevel) p.level(), q.area().center(), nestRank(p), count, q.extra().getString("token"), p.getUUID());
+    }
+
+    /** The rank of a hunter's nest: the gate rank whose plain creatures are an even match for them. */
+    public static com.beyondsolo.system.PlayerRank nestRank(ServerPlayer p) {
+        float level = com.beyondsolo.enemy.HiddenLevel.hunterLevel(SystemAPI.get(p));
+        com.beyondsolo.system.PlayerRank[] ranks = com.beyondsolo.system.PlayerRank.values();
+        return ranks[Math.max(0, Math.min(ranks.length - 1, (int) (level / 10f)))];
+    }
+
+    public static List<Mob> spawnNest(ServerLevel level, BlockPos center, com.beyondsolo.system.PlayerRank rank, int count, String token, @Nullable UUID owner) {
         var random = level.getRandom();
+        com.beyondsolo.enemy.EnemyRoster.Mix mix = com.beyondsolo.enemy.EnemyRoster.random(rank, random);
+        List<Mob> out = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            ResourceLocation id = ResourceLocation.tryParse(pool.get(random.nextInt(pool.size())));
-            EntityType<?> type = id == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
-            if (type == null) continue;
+            EntityType<?> type = mix.pick(random);
             double a = random.nextDouble() * Math.PI * 2;
             double r = 2 + random.nextDouble() * 7;
             int x = (int) Math.floor(center.getX() + Math.cos(a) * r);
             int z = (int) Math.floor(center.getZ() + Math.sin(a) * r);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-            Entity e = type.create(level);
-            if (!(e instanceof Mob mob)) continue;
-            mob.moveTo(x + 0.5, y, z + 0.5, random.nextFloat() * 360, 0);
-            mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), MobSpawnType.EVENT, null);
-            // a helmet keeps the undead from burning in daylight; higher ranks get better ones
-            if (mob.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
-                mob.setItemSlot(EquipmentSlot.HEAD, new ItemStack(tier >= 4 ? Items.DIAMOND_HELMET : tier >= 2 ? Items.IRON_HELMET : Items.LEATHER_HELMET));
-                mob.setDropChance(EquipmentSlot.HEAD, 0f);
-            }
-            mob.setPersistenceRequired();
+            Mob mob = com.beyondsolo.enemy.Enemies.spawn(level, rank, type, new BlockPos(x, y, z),
+                    com.beyondsolo.enemy.Enemies.roll(rank, mix, type, random, i == 0, false), -1);
+            if (mob == null) continue;
             mob.addTag("beyondsolo_nest");
-            level.addFreshEntity(mob);
-            level.sendParticles(ParticleTypes.LARGE_SMOKE, x + 0.5, y + 0.5, z + 0.5, 8, 0.3, 0.4, 0.3, 0.02);
+            mob.getPersistentData().putString(NEST_TOKEN, token);
+            if (owner != null) mob.getPersistentData().putUUID(NEST_OWNER, owner);
+            out.add(mob);
+        }
+        return out;
+    }
+
+    /**
+     * A nest creature died: it counts for its hunter's request whatever killed it (the hunter, someone else, a fall,
+     * lava) and wherever it had wandered. Counted once, even if its death is called for twice.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    static void nestCreatureDied(LivingDeathEvent event) {
+        LivingEntity dead = event.getEntity();
+        if (dead.level().isClientSide || dead instanceof net.minecraft.world.entity.player.Player) return;
+        CompoundTag tag = dead.getPersistentData();
+        if (!tag.contains(NEST_TOKEN) || !tag.hasUUID(NEST_OWNER) || tag.getBoolean(NEST_COUNTED)) return;
+        tag.putBoolean(NEST_COUNTED, true);
+        String token = tag.getString(NEST_TOKEN);
+        UUID owner = tag.getUUID(NEST_OWNER);
+        ServerPlayer p = dead.level().getServer().getPlayerList().getPlayer(owner);
+        if (p == null) {
+            PENDING_NEST.computeIfAbsent(owner, k -> new HashMap<>()).merge(token, 1, Integer::sum);
+            return;
+        }
+        countNest(p, token, 1, event.getSource().getEntity() == p ? dead.position() : null);
+    }
+
+    /**
+     * Counts {@code n} fallen nest creatures toward the request with this token. A request from before nests counted
+     * this way (kill hostiles inside the area) still gets them, except a kill its hunter made inside the area, which
+     * that request already counted on its own ({@code killedInArea} is where the hunter's own kill fell, else null).
+     */
+    static void countNest(ServerPlayer p, String token, int n, @Nullable Vec3 killedInArea) {
+        for (Quest q : QuestEngine.data(p).active()) {
+            if (!q.template().equals(NpcQuestKind.CLEAR.template()) || !token.equals(q.extra().getString("token"))) continue;
+            if (q.objectives().isEmpty()) return;
+            com.beyondsolo.quest.QuestObjective o = q.objectives().get(0);
+            if (o.type() == com.beyondsolo.quest.ObjectiveType.CUSTOM) {
+                QuestEngine.progress(p, o.target(), n);
+            } else if (q.area() != null) {
+                if (killedInArea != null && q.area().contains(p.level(), killedInArea)) return;
+                QuestEngine.progress(p, o.type(), x -> x == o, n, Vec3.atCenterOf(q.area().center()));
+            }
+            return;
         }
     }
 
