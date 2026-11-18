@@ -31,7 +31,7 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|chronicle|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|party|guild|chronicle|gallery  open a System page (or the drawing test page)
  * chronicle titles [id|category|all]   what the CHRONICLE page shows: a title, or the list filtered by category
  * chronicle rankings [hunters|citadel|rush|gates] [tier]   ... a leaderboard (tier: e..s or sovereign for the rush)
  * chronicle journal [creatures|bosses|realms|arsenal] [page]   ... a journal section and page (page id or bare name)
@@ -79,6 +79,16 @@ import java.util.Deque;
  * partydemo [alone]                    stand in a made-up party (or, alone, two invitations) on the PARTY page and the HUD
  * partygo &lt;action&gt; [name]              press a PARTY page button (invite, accept, decline, leave, kick, promote, disband, regroup)
  * partyfx start|broken|done|joined     play a regroup moment on the HUD (with the first other member's name)
+ * guilddemo [member|raid|none]         stand in a made-up level 6 guild on the GUILD page (led by the player, as a plain
+ *                                      member, with a raid mustering, or no guild and two invitations)
+ * guildtab hall|members|hunters|raids  which GUILD page shows
+ * guildform &lt;name&gt;|&lt;tag&gt;|&lt;crest&gt;|&lt;colour&gt;   fill in the founding form (crest 0-11, colour 0-9)
+ * guildfx founded|level                play the guild-founded or level-up moment on the GUILD page
+ * raiddemo [muster|countdown|lieutenants|barrier|boss|none]   stand in a made-up B-Rank raid (inside, the HUD only
+ *                                      shows in a gate's cave)
+ * raidbrief                            open the raid briefing (on a raid that is mustering)
+ * raidresults [cleared|failed]         show a made-up raid's results board
+ * raidfx barrier|broken|cataclysm|lieutenant   play a raid moment: a banner, or the cataclysm gathering
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -227,6 +237,7 @@ public final class UiTestDriver {
                     case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     case "citadel" -> SystemScreen.openOn(com.beyondsolo.client.tower.TowerClientEvents.CITADEL_TAB);
                     case "party" -> SystemScreen.openOn(com.beyondsolo.client.party.PartyClientEvents.PARTY_TAB);
+                    case "guild" -> SystemScreen.openOn(com.beyondsolo.client.guild.GuildClientEvents.GUILD_TAB);
                     case "chronicle" -> SystemScreen.openOn(com.beyondsolo.client.chronicle.ChronicleClientEvents.CHRONICLE_TAB);
                     default -> {}
                 }
@@ -249,6 +260,30 @@ public final class UiTestDriver {
                         ? net.minecraft.network.chat.Component.translatable("party.beyondsolo.regroup.moved") : who;
                 com.beyondsolo.client.party.PartyClient.onEvent(new com.beyondsolo.network.PartyEventPayload(kind, com.beyondsolo.party.Regroup.CHANNEL_TICKS, text));
             }
+            case "guilddemo" -> com.beyondsolo.client.guild.GuildClient.demo(com.beyondsolo.client.guild.GuildDemo.guild(arg));
+            case "guildtab" -> com.beyondsolo.client.guild.GuildTab.show(com.beyondsolo.client.guild.GuildTab.Page.valueOf(arg.toUpperCase(java.util.Locale.ROOT)));
+            case "guildform" -> {
+                String[] a = arg.split("\\|", -1);
+                com.beyondsolo.client.guild.GuildTab.fill(a[0].strip(), a.length > 1 ? a[1].strip() : "",
+                        a.length > 2 ? Integer.parseInt(a[2].strip()) : 0, a.length > 3 ? Integer.parseInt(a[3].strip()) : 0);
+            }
+            case "guildfx" -> {
+                var gs = com.beyondsolo.client.guild.GuildClient.state();
+                String name = gs.getString("name").isEmpty() ? "Nightfall Lanterns" : gs.getString("name");
+                boolean founded = arg.equals("founded");
+                com.beyondsolo.client.guild.GuildClient.onEvent(new com.beyondsolo.network.GuildEventPayload(
+                        founded ? com.beyondsolo.network.GuildEventPayload.FOUNDED : com.beyondsolo.network.GuildEventPayload.LEVEL_UP,
+                        founded ? gs.getInt("crest") : Math.max(2, gs.getInt("level")), net.minecraft.network.chat.Component.literal(name)));
+            }
+            case "raiddemo" -> com.beyondsolo.client.raid.RaidClient.demo(com.beyondsolo.client.guild.GuildDemo.raid(arg));
+            case "raidbrief" -> mc.setScreen(new com.beyondsolo.client.raid.RaidBriefingScreen());
+            case "raidresults" -> {
+                boolean cleared = !arg.equals("failed");
+                com.beyondsolo.client.raid.RaidClient.demoResults(com.beyondsolo.client.guild.GuildDemo.results(cleared),
+                        net.minecraft.network.chat.Component.translatable(com.beyondsolo.raid.Raids.KEY + (cleared ? "results.cleared" : "results.failed")),
+                        com.beyondsolo.client.guild.GuildDemo.dungeon());
+            }
+            case "raidfx" -> com.beyondsolo.client.raid.RaidClient.onEvent(com.beyondsolo.client.guild.GuildDemo.moment(arg));
             case "partygo" -> {
                 String[] a = arg.split(" ");
                 com.beyondsolo.client.party.PartyTab.press(com.beyondsolo.client.party.PartyClient.actionNamed(a[0]),
