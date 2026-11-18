@@ -148,6 +148,11 @@ public final class HealerPath {
         ally.heal(healing(p, amount));
     }
 
+    /** {@link #mend} by an amount already sized for today's health pools: a share of max health, of a blow or of health paid. */
+    static void mendRaw(ServerPlayer p, LivingEntity ally, float amount) {
+        com.beyondsolo.system.Balance.healRaw(ally, healing(p, amount));
+    }
+
     /** Leaves something on a player for a while that works whatever their own class is. */
     private static void gift(Player ally, String key, long until, double value) {
         GIFTS.computeIfAbsent(ally.getUUID(), k -> new HashMap<>()).put(key, new double[]{until, value});
@@ -349,7 +354,7 @@ public final class HealerPath {
                 magic(p, s, e, undead(e) ? dmg * 2 : dmg);
                 e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 80, 0));
             }
-            for (Player ally : near(level, center, 12)) mend(p, ally, ally.getMaxHealth() * 0.3f);
+            for (Player ally : near(level, center, 12)) mendRaw(p, ally, ally.getMaxHealth() * 0.3f);
             sound(level, center, SoundEvents.FIREWORK_ROCKET_BLAST, 1.2f, 0.6f);
             sound(level, center, SoundEvents.BEACON_DEACTIVATE, 1f, 0.8f);
             // the sun comes down as a shower of light
@@ -370,7 +375,7 @@ public final class HealerPath {
             HealerPath::thornVolley, (l, t) -> a(f(6 * m(l, t))));
     public static final Skill HEALING_SPROUT = active("healing_sprout", GK, A, 24, 0x7CE05A, 16, 400, 260,
             HealerPath::healingSprout, (l, t) -> a(f(sproutHeal(l)), f(2 * m(l, t))));
-    public static final Skill BARKSKIN = passive("barkskin", GK, A, 26, 0xA08050, (l, t) -> a(f(0.6f * l), f(0.8f * l)));
+    public static final Skill BARKSKIN = passive("barkskin", GK, A, 26, 0xA08050, (l, t) -> a(f(0.6f * l), f(2 * l)));
     public static final Skill BRAMBLE_RUSH = active("bramble_rush", GK, A, 29, 0x6CB848, 18, 300, 180,
             HealerPath::brambleRush, (l, t) -> a(f(8 * m(l, t))));
     public static final Skill SECOND_SPRING = active("second_spring", GK, A, 32, 0xB0F080, 20, 520, 340,
@@ -768,10 +773,12 @@ public final class HealerPath {
 
     static boolean transfusion(ServerPlayer p, Skill s, int l) {
         float paid = pay(p, p.getHealth() * 0.15f);
-        float given = paid * 2.5f + 2 * m(l, tier(p)) + wit(p, 0.08f);
+        float flat = 2 * m(l, tier(p)) + wit(p, 0.08f);
         for (Player ally : allies(p, 8)) {
             if (ally == p) continue;
-            mend(p, ally, given);
+            // what was paid is already in today's sizes; the skill's own part grows with the ally like any heal
+            mendRaw(p, ally, paid * 2.5f);
+            mend(p, ally, flat);
             fx(ally, Kind.STREAM, s.color(), p.position().add(0, 1.1, 0), 0.9f, 12);
         }
         SkillAPI.setBuff(p, BUFF_BLOOD_PRICE, 160);
@@ -814,7 +821,7 @@ public final class HealerPath {
                 fx(p, Kind.STREAM, s.color(), mid(e), 0.9f, 10);
             }
             if (drawn > 0) {
-                mend(p, p, drawn * 0.4f);
+                mendRaw(p, p, drawn * 0.4f);
                 sound(p, SoundEvents.HONEY_DRINK, 0.5f, 0.8f);
             }
         });
@@ -839,7 +846,7 @@ public final class HealerPath {
     static boolean bloodRite(ServerPlayer p, Skill s, int l) {
         Vec3 at = p.position();
         float paid = pay(p, p.getHealth() * 0.25f);
-        float dmg = 8 * m(l, tier(p)) + wit(p, 0.3f) + paid * 2;
+        float dmg = 8 * m(l, tier(p)) + wit(p, 0.3f) + com.beyondsolo.system.Balance.keepSize(p, paid * 2);
         boolean bled = false;
         for (LivingEntity e : foes(p, at, 8)) {
             magic(p, s, e, dmg);
@@ -847,7 +854,7 @@ public final class HealerPath {
             bled = true;
         }
         // what was paid comes back, if anything bled for it
-        if (bled && paid > 0) repeat(p, 100, 20, () -> p.heal(paid / 5));
+        if (bled && paid > 0) repeat(p, 100, 20, () -> com.beyondsolo.system.Balance.healRaw(p, paid / 5));
         sound(p, SoundEvents.WARDEN_HEARTBEAT, 1f, 0.6f);
         sound(p, SoundEvents.WITHER_HURT, 0.5f, 0.6f);
         fx(p, Kind.CRACK, s.color(), at, 8, 0);
@@ -871,12 +878,12 @@ public final class HealerPath {
                 drawn += Math.max(0, before - e.getHealth());
                 Buildups.add(e, Buildups.BLOOD, 10, p);
             }
-            if (drawn > 0) mend(p, p, drawn * 0.3f);
+            if (drawn > 0) mendRaw(p, p, drawn * 0.3f);
         });
         repeat(p, 160, 40, () -> sound(level, center, SoundEvents.WEATHER_RAIN, 0.8f, 0.6f));
         later(p, 160, () -> {
             for (LivingEntity e : foes(p, center, 10)) magic(p, s, e, 25 * m(l, tier(p)) + wit(p, 0.5f));
-            for (Player ally : near(level, center, 10)) mend(p, ally, ally.getMaxHealth() * 0.25f);
+            for (Player ally : near(level, center, 10)) mendRaw(p, ally, ally.getMaxHealth() * 0.25f);
             sound(level, center, SoundEvents.GENERIC_EXPLODE.value(), 0.8f, 0.6f);
             fxAt(level, Kind.ROAR, s.color(), center, 10, 0);
             fxAt(level, Kind.SPLASH, s.color(), center.add(0, 1, 0), 6, 1);
@@ -1067,7 +1074,7 @@ public final class HealerPath {
 
     static {
         bonus(BARKSKIN, Attributes.ARMOR, 0.6f, ADD, "armor");
-        bonus(BARKSKIN, Attributes.MAX_HEALTH, 0.8f, ADD, "health");
+        bonus(BARKSKIN, Attributes.MAX_HEALTH, 0.02f, TOTAL, "health");
     }
 
     /** More mana from the Lightbinder's radiance and the Saint's soul. */
@@ -1093,7 +1100,7 @@ public final class HealerPath {
 
     static void afterStrike(ServerPlayer p, SkillData data, LivingEntity target, float amount, long now) {
         int pact = data.level(SANGUINE_PACT.path());
-        if (pact > 0 && amount > 0) p.heal(amount * pactSteal(pact) / 100f);
+        if (pact > 0 && amount > 0) com.beyondsolo.system.Balance.healRaw(p, amount * pactSteal(pact) / 100f);
         if (!FATED.isEmpty()) {
             double[] fate = FATED.get(target);
             if (fate != null && fate[2] == p.getId() && fate[0] > now) fate[1] += amount;
@@ -1141,7 +1148,7 @@ public final class HealerPath {
         if (briar > 0 && melee && attacker != null && attacker.isAlive()) {
             later(p, 1, () -> {
                 if (!attacker.isAlive()) return;
-                attacker.hurt(p.damageSources().thorns(p), briar(briar));
+                attacker.hurt(p.damageSources().thorns(p), com.beyondsolo.system.Balance.flatDamage(p, briar(briar)));
                 Statuses.apply(attacker, DamageElement.POISON, 4 + briar, p);
             });
         }
@@ -1166,7 +1173,7 @@ public final class HealerPath {
         if (last > 0 && !data.hasBuff(BUFF_LAST_LIGHT, now) && amount < p.getHealth() && p.getHealth() - amount < p.getMaxHealth() * 0.3f) {
             data.setBuff(BUFF_LAST_LIGHT, now + 1200);
             later(p, 1, () -> {
-                mend(p, p, p.getMaxHealth() * lastLight(last) / 100f);
+                mendRaw(p, p, p.getMaxHealth() * lastLight(last) / 100f);
                 sound(p, SoundEvents.BEACON_POWER_SELECT, 0.8f, 1.6f);
                 fx(p, Kind.HEAL, LAST_LIGHT.color(), p.position(), 1.2f, 0);
             });

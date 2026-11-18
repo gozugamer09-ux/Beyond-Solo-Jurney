@@ -71,6 +71,8 @@ final class SubclassKit {
 
     static final AttributeModifier.Operation ADD = AttributeModifier.Operation.ADD_VALUE;
     static final AttributeModifier.Operation MUL = AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+    /** Max health passives multiply the whole pool, so they keep their share of it at every level. */
+    static final AttributeModifier.Operation TOTAL = AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
     private static final List<Bonus> BONUSES = new ArrayList<>();
 
     /** A passive that adds to an attribute with every skill level. */

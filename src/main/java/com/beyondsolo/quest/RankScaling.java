@@ -10,9 +10,13 @@ public final class RankScaling {
         return Math.max(1, Math.round(base * (1 + 0.3f * tier)));
     }
 
-    /** XP: E x1, S x3.5, plus 4% per level. */
+    /**
+     * XP: E x1, S x3.5, plus 4% per level, and as much more as a level costs more than it used to
+     * ({@link com.beyondsolo.system.Balance#xpGrowth}), so a quest is still worth the same share of a level.
+     */
     public static long xp(long base, int tier, int level) {
-        return Math.round(base * (1 + 0.5 * tier) * (1 + 0.04 * Math.max(0, level - 1)));
+        return Math.round(base * (1 + 0.5 * tier) * (1 + 0.04 * Math.max(0, level - 1))
+                * com.beyondsolo.system.Balance.xpGrowth(level));
     }
 
     /** Stat points: one more for every two ranks. */

@@ -290,6 +290,13 @@ public class StatusTab implements SystemTab {
         if (stat == Stat.INT && d.stat(Stat.INT) > Stat.BASE) {
             now.add(0, Component.translatable("status.beyondsolo.bonus.mana", Math.round((d.stat(Stat.INT) - Stat.BASE) * 5f)).getString());
         }
+        if (stat == Stat.SENSE && d.stat(Stat.SENSE) > Stat.BASE) {
+            now.add(0, Component.translatable("status.beyondsolo.bonus.ranged",
+                    Math.round((d.stat(Stat.SENSE) - Stat.BASE) * com.beyondsolo.system.Balance.SENSE_RANGED * 100)).getString());
+        }
+        // what the stat adds to skills, procs and summons, for a class that leans on it
+        double power = com.beyondsolo.system.Balance.powerFrom(d, stat);
+        if (power > 0) now.add(Component.translatable("status.beyondsolo.bonus.skill_power", Math.round(power * 100)).getString());
         if (canSpend) now.add(Component.translatable("status.beyondsolo.spend_hint").getString());
         panel(g, Icons.of(stat), stat.displayName(), lines, now, canSpend, mouseX, mouseY, SystemTheme.ACCENT);
     }

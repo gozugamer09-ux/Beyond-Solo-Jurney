@@ -112,11 +112,11 @@ public final class CraftingModule {
         e.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 120, 0));
     });
     public static final DeferredItem<SystemPotionItem> GREATER_HEALING_DRAUGHT = potion("greater_healing_draught", 0xFF3050, 24, Rarity.UNCOMMON, e -> {
-        e.heal(e.getMaxHealth() * 0.4f);
+        com.beyondsolo.system.Balance.healRaw(e, e.getMaxHealth() * 0.4f);
         e.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 120, 1));
     });
     public static final DeferredItem<SystemPotionItem> SUPREME_HEALING_ELIXIR = potion("supreme_healing_elixir", 0xFFC070, 28, Rarity.EPIC, e -> {
-        e.heal(e.getMaxHealth());
+        com.beyondsolo.system.Balance.healRaw(e, e.getMaxHealth());
         e.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 1200, 1));
         e.removeEffectsCuredBy(ElementCures.ANTIDOTE);
         e.removeEffectsCuredBy(ElementCures.TONIC);

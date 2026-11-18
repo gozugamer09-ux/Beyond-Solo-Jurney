@@ -144,8 +144,9 @@ public class CitadelLordEntity extends Monster implements GeoEntity, DungeonBoss
 
     public static AttributeSupplier.Builder attributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 2400)
-                .add(Attributes.ATTACK_DAMAGE, 26)
+                // the hundredth floor: well past an S-rank gate's boss (see system.Balance)
+                .add(Attributes.MAX_HEALTH, 60000)
+                .add(Attributes.ATTACK_DAMAGE, 520)
                 .add(Attributes.ARMOR, 18)
                 .add(Attributes.ARMOR_TOUGHNESS, 10)
                 .add(Attributes.MOVEMENT_SPEED, 0.28)

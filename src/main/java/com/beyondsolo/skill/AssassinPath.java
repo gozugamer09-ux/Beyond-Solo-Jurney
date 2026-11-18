@@ -921,7 +921,7 @@ public final class AssassinPath {
         long[] contract = CONTRACTS.remove(dead);
         if (contract != null && contract[0] > p.level().getGameTime() && contract[2] == p.getId()) {
             // the contract is fulfilled: paid in full
-            p.heal(p.getMaxHealth());
+            com.beyondsolo.system.Balance.healRaw(p, p.getMaxHealth());
             SystemAPI.restoreMana(p, 40);
             SkillAPI.resetCooldowns(p);
             sound(p, SoundEvents.PLAYER_LEVELUP, 0.8f, 0.6f);

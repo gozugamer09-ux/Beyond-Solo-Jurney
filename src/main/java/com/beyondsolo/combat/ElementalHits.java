@@ -114,7 +114,7 @@ public final class ElementalHits {
             if (type.is(BLOOD_ATTACKERS)) Statuses.apply(target, DamageElement.BLOOD, Config.MOB_BLOOD_BUILDUP.get().floatValue() * power(living), living);
 
             // crimson brand: the attacker drinks a share of the hit
-            if (target.hasEffect(ModEffects.CRIMSON_BRAND)) living.heal(dealt * BRAND_LIFESTEAL);
+            if (target.hasEffect(ModEffects.CRIMSON_BRAND)) com.beyondsolo.system.Balance.healRaw(living, dealt * BRAND_LIFESTEAL);
         }
 
         // plain burning slowly turns into a deep burn
