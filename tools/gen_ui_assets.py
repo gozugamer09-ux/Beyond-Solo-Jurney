@@ -153,6 +153,10 @@ ICONS = {
     "id_card": "identification-card",
     "deposit": "arrow-fat-lines-down",
     "villagers": "users-three",
+    "x": "x",
+    "party_invite": "paper-plane-tilt",
+    "party_leave": "link-break",
+    "arrow": "arrow-fat-up",
 }
 
 RANKS = "EDCBAS"

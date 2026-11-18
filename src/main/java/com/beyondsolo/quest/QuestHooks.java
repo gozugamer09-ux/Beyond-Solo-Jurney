@@ -32,6 +32,10 @@ public final class QuestHooks {
         }
         if (event.getSource().getEntity() instanceof ServerPlayer killer) {
             QuestEngine.progress(killer, ObjectiveType.KILL, o -> Targets.entity(o.target(), victim), 1, victim.position());
+            // a kill made side by side counts for the whole party's hunts
+            for (ServerPlayer mate : com.beyondsolo.party.Parties.sharers(killer, victim)) {
+                QuestEngine.progress(mate, ObjectiveType.KILL, o -> Targets.entity(o.target(), victim), 1, victim.position());
+            }
         }
     }
 

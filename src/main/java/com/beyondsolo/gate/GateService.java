@@ -252,10 +252,10 @@ public final class GateService {
         ServerLevel level = player.serverLevel();
         GateInstance g = GateData.get(level.getServer()).get(gate.gateId());
         if (g == null || g.state() != GateInstance.State.OPEN || (g.isKeyed() && g.keyed().doorClosed)) return;
-        // a sealed gate is for the one it opened for; someone the System has bound must be evaluated first.
-        // Players without the System walk into gates freely: that is how they earn it. A gate that has broken has
-        // spilled its cave out here: its boss is the way to close it now.
-        String refusal = g.isTrial() && !player.getUUID().equals(g.owner()) ? "message.beyondsolo.gate.sealed_other"
+        // a sealed gate is for the ones it opened for (a party called in the same cave shares one); someone the System
+        // has bound must be evaluated first. Players without the System walk into gates freely: that is how they earn
+        // it. A gate that has broken has spilled its cave out here: its boss is the way to close it now.
+        String refusal = g.isTrial() && !com.beyondsolo.awakening.AwakeningService.mayEnter(player, g) ? "message.beyondsolo.gate.sealed_other"
                 : g.breakState().broken() ? "message.beyondsolo.gate.broken"
                 : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated" : null;
         if (refusal != null) {
@@ -384,6 +384,7 @@ public final class GateService {
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.arrived(player, g);
         if (g.isTrial()) com.beyondsolo.awakening.AwakeningService.arrived(player, g);
         else giveQuest(player, g);
+        com.beyondsolo.party.Parties.wentIn(player, g);
         return true;
     }
 
@@ -924,6 +925,7 @@ public final class GateService {
         }
         if (victim.getPersistentData().contains(MOB_TAG) && event.getSource().getEntity() instanceof ServerPlayer killer) {
             QuestEngine.progress(killer, MOB_KEY, 1);
+            for (ServerPlayer mate : com.beyondsolo.party.Parties.sharers(killer, victim)) QuestEngine.progress(mate, MOB_KEY, 1);
         }
     }
 

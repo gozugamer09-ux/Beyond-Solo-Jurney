@@ -27,8 +27,9 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * First join: drop the player somewhere random and give them the "find a village" objective.
- * Then watch for them entering a village and point them to the Evaluation Zone.
+ * First join: drop the player somewhere random (everyone after the first beside where the first one landed, with
+ * {@code spawn.together}) and give them the "find a village" objective. Then watch for them entering a village and
+ * point them to the Evaluation Zone.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class FirstSpawnHandler {
@@ -44,9 +45,15 @@ public final class FirstSpawnHandler {
 
         boolean newPlayer = player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) < NEW_PLAYER_MAX_TICKS;
         if (Config.RANDOM_SPAWN.get() && newPlayer && player.level().dimension() == Level.OVERWORLD) {
-            BlockPos spot = findRandomSpawn(player.serverLevel(), player.getRandom());
+            ServerLevel level = player.serverLevel();
+            // friends start together: everyone lands by the world's first landing (see LandingData)
+            LandingData landing = LandingData.get(player.server);
+            BlockPos spot = Config.SPAWN_TOGETHER.get() ? landing.near(level, player.getRandom()) : null;
+            if (spot == null) {
+                spot = findRandomSpawn(level, player.getRandom());
+                if (spot != null && landing.landing() == null) landing.set(spot);
+            }
             if (spot != null) {
-                ServerLevel level = player.serverLevel();
                 player.teleportTo(level, spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, player.getYRot(), player.getXRot());
                 player.setRespawnPosition(level.dimension(), spot, 0f, true, false);
             }

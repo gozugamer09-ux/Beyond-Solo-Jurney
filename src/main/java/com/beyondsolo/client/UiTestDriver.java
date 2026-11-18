@@ -220,11 +220,20 @@ public final class UiTestDriver {
                     case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
                     case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     case "citadel" -> SystemScreen.openOn(com.beyondsolo.client.tower.TowerClientEvents.CITADEL_TAB);
+                    case "party" -> SystemScreen.openOn(com.beyondsolo.client.party.PartyClientEvents.PARTY_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
             }
             case "close" -> mc.setScreen(null);
+            // partydemo [alone]: a made-up party (or invitations) on the PARTY page and the HUD, for screenshots
+            case "partydemo" -> com.beyondsolo.client.party.PartyClient.demo(com.beyondsolo.client.party.PartyClient.demoState(arg));
+            // partygo <invite|accept|decline|leave|kick|promote|disband|regroup> [player name]: a button of the PARTY page
+            case "partygo" -> {
+                String[] a = arg.split(" ");
+                com.beyondsolo.client.party.PartyTab.press(com.beyondsolo.client.party.PartyClient.actionNamed(a[0]),
+                        com.beyondsolo.client.party.PartyClient.idOf(a.length > 1 ? a[1] : ""));
+            }
             case "shop" -> {
                 // shop buy|sell <category> [entry]: what the Shop tab shows
                 String[] a = arg.split(" ");

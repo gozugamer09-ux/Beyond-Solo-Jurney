@@ -16,6 +16,11 @@ public final class Config {
     public static final ModConfigSpec.IntValue RANDOM_SPAWN_MAX = B
             .comment("Maximum distance from world spawn for the random first spawn.")
             .defineInRange("spawn.maxDistance", 3000, 16, 1_000_000);
+    public static final ModConfigSpec.BooleanValue SPAWN_TOGETHER = B
+            .comment("Everyone who joins after the world's first player lands a few blocks from where that player first landed,",
+                    "so friends start together instead of each at their own random spot. Party members can also travel to each",
+                    "other later (/party regroup, the PARTY page).")
+            .define("spawn.together", true);
 
     // --- Evaluation zone ---
     public static final ModConfigSpec.IntValue EVALUATION_ZONE_WEIGHT = B
