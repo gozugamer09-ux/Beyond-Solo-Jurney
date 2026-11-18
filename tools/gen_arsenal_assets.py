@@ -67,11 +67,34 @@ EYE = (hexc("ffe6ff"), hexc("c050ff"), hexc("4a0a7a"))
 class Fn:
     """A free-form layer: f(u, v) -> colour or None."""
 
-    def __init__(self, f):
+    def __init__(self, f, relief=None):
         self.f = f
+        self.relief = relief        # optional depth: (u, v, grow) -> half thickness in design units, or None
 
     def color_at(self, u, v):
         return self.f(u, v)
+
+
+def ball_relief(uc, vc, r):
+    """Depth of an orb: a ball."""
+    def h(u, v, g):
+        d2 = (u - uc) ** 2 + (v - vc) ** 2
+        return math.sqrt((r + g) ** 2 - d2) if d2 <= (r + g) ** 2 else None
+    return h
+
+
+def flanged_relief(uc, r, flanges):
+    """Depth of a flanged mace head: a ball in the middle, flange plates that thin towards their tips."""
+    def h(u, v, g):
+        d = math.hypot(u - uc, v)
+        core = r * 0.62 + g
+        best = math.sqrt(core * core - d * d) if d <= core else None
+        k = (math.atan2(v, u - uc) / (2 * math.pi) * flanges) % 1.0
+        if d <= r + g and (k < 0.4 + 0.08 * g or k > 1 - 0.08 * g):
+            plate = r * (0.5 - 0.3 * max(0.0, d - r * 0.62) / (r * 0.38))
+            best = plate if best is None else max(best, plate)
+        return best
+    return h
 
 
 def circle(uc, vc, r, colors):
@@ -90,7 +113,7 @@ def circle(uc, vc, r, colors):
         if d > r * 0.72 and dv < 0:
             return dark
         return mid
-    return Fn(f)
+    return Fn(f, relief=ball_relief(uc, vc, r))
 
 
 def diamond(u0, u1, w, colors, peak=0.45):
@@ -98,7 +121,7 @@ def diamond(u0, u1, w, colors, peak=0.45):
     def width(u):
         t = (u - u0) / (u1 - u0)
         return w * (t / peak if t < peak else (1 - t) / (1 - peak))
-    return Part(u0, u1, width, colors)
+    return Part(u0, u1, width, colors, relief="gem")
 
 
 def axe(u0, u1, reach, colors, side=1, inner=0.8):
@@ -106,7 +129,19 @@ def axe(u0, u1, reach, colors, side=1, inner=0.8):
     def width(u):
         t = (u - u0) / (u1 - u0)
         return max(0.0, reach * math.sin(math.pi * t) ** 0.6) / 2
-    return Part(u0, u1, width, colors, bend=lambda u: side * (inner + width(u)))
+
+    def relief(u, v, g):
+        # thick where it wraps the haft, honed at the cutting edge, thinner towards its two horns
+        if u < u0 - g or u > u1 + g:
+            return None
+        w = width(min(max(u, u0), u1))
+        vv = (v - side * (inner + w)) * side          # -w at the haft, +w at the edge
+        if abs(vv) > w + g:
+            return None
+        k = (vv + w + g) / (2 * (w + g))
+        root = min(1.05, 0.3 + 0.5 * w)
+        return root + (0.14 - root) * k ** 0.8
+    return Part(u0, u1, width, colors, bend=lambda u: side * (inner + width(u)), relief=relief)
 
 
 def flanged(uc, r, colors, flanges=6):
@@ -119,18 +154,18 @@ def flanged(uc, r, colors, flanges=6):
         if d <= r * 0.62 or (d <= r and k < 0.4):
             return light if v > 0.8 else dark if v < -1.5 else mid
         return None
-    return Fn(f)
+    return Fn(f, relief=flanged_relief(uc, r, flanges))
 
 
 def shaft(u0, u1, colors, w=1.0):
-    return Part(u0, u1, const(w), colors)
+    return Part(u0, u1, const(w), colors, relief="round")
 
 
 def serrated(u0, u1, base, tip_len, colors, teeth=2.2, depth=0.6, bend=None):
     def width(u):
         w = base if u <= u1 - tip_len else base * max(0.0, (u1 - u) / tip_len)
         return max(0.0, w - depth * (0.5 + 0.5 * math.sin(u * math.pi * 2 / teeth)))
-    return Part(u0, u1, width, colors, bend=bend, fuller=False)
+    return Part(u0, u1, width, colors, bend=bend, fuller=False, relief="blade")
 
 
 def line_glow(color, alpha=70):
@@ -143,87 +178,281 @@ def render(parts, glow=None):
 
 
 # ------------------------------------------------------------------------------------------------ bows
+#
+# A bow lies along the sprite's diagonal like every other weapon, bent towards the upper-left (its back, the side
+# that faces the target). The string runs below it and the arrow lies across it, pointing to the upper-left: the
+# layout of vanilla's bow, whose drawing pose every bow uses.
+#
+# `draw`: how far the string is pulled back, in design units (0: at rest, no arrow). The limbs bend with it: the
+# tips come back and in. Every bow has its own build (length, depth, recurve, what its tips and grip are).
 
-def bow(wood, string, pull, tips=None, grip_c=LEATHER, glow=None, arrow_c=(STEEL, WOOD), bulge=5.0, thick=1.4):
-    uc, L = 15.5, 14.5
+BOW_MID = 18.562            # u of the grip and of the arrow: the middle of the diagonal, between two texel diagonals
+BOW_STRING = -0.5303        # v of the string at rest: between two texel diagonals, so it is an even two pixels
+ARROW_LEN = 22.0
+DRAWS = (2.2, 4.2, 6.2, 7.8, 9.0)       # the pull frames...
+PULLS = (0.0, 0.2, 0.45, 0.7, 0.9)      # ...and the seconds of drawing from which each one shows
 
-    def wood_f(u, v):
-        if abs(v) > L:
+SERPENT = (hexc("a8e07a"), hexc("3f8a34"), hexc("14321c"))
+SNAKE_NECK = 0.8            # where along a limb of the serpent bow the snake's head begins
+GALE = (hexc("ffffff"), hexc("bfeee4"), hexc("4ab894"))
+STAR_BLUE = (hexc("ffffff"), hexc("b8e2ff"), hexc("5a8ad8"))
+FEATHER = (hexc("ffffff"), hexc("e4e4ea"), hexc("a8a8b8"))
+
+BOW_SPECS = {
+    "hunters_shortbow": dict(wood=WOOD, string="e8e0d0", tips=DARK_STEEL, grip=LEATHER, L=12.6, bulge=4.6, thick=1.35,
+                             bands=((0.5, DARK_WOOD), (0.74, DARK_WOOD))),
+    "windrunner_longbow": dict(wood=PALE_WOOD, string="ffffff", tips=NAGA, grip=NAGA, L=15.6, bulge=5.6, thick=1.2,
+                               recurve=1.1, bands=((0.3, NAGA), (0.56, NAGA)), feather=(hexc("e8fff6"), hexc("9fe6cc"), hexc("3f9a80"))),
+    "serpentsting_bow": dict(wood=SERPENT, string="b8f07a", tips=VENOM, grip=DUSK, L=14.6, bulge=5.2, thick=1.45,
+                             style="serpent", glow="7ccf3a/70", head=VENOM, feather=(hexc("d6ff9a"), hexc("7ccf3a"), hexc("2e5a1e"))),
+    "galebreaker_warbow": dict(wood=GALE, string="a8f0e0", tips=WHITE_GOLD, grip=NAVY, L=15.2, bulge=6.6, thick=1.7,
+                               recurve=2.3, style="gale", glow="a8f0e0/100", feather=(hexc("ffffff"), hexc("a8f0e0"), hexc("3f9a80"))),
+    "starfall_longbow": dict(wood=WHITE_GOLD, string="fff6c8", tips=STAR_BLUE, grip=NAVY, L=14.0, bulge=6.2, thick=1.6,
+                             recurve=1.5, style="star", glow="fff0a8/170",
+                             head=(hexc("ffffff"), hexc("fff0a8"), hexc("ffd84a")), shaft=WHITE_GOLD,
+                             feather=(hexc("ffffff"), hexc("b8e2ff"), hexc("5a8ad8"))),
+}
+
+
+def tone3(colors, x):
+    """Light, mid or dark of a (light, mid, dark) triple; tools/gen_hd_gear.py swaps in its smooth ramp."""
+    return colors[0] if x > 0.4 else colors[2] if x < -0.4 else colors[1]
+
+
+def seg_dist(u, v, a, b):
+    du, dv = b[0] - a[0], b[1] - a[1]
+    t = max(0.0, min(1.0, ((u - a[0]) * du + (v - a[1]) * dv) / max(1e-9, du * du + dv * dv)))
+    return math.hypot(u - a[0] - t * du, v - a[1] - t * dv)
+
+
+class BowShape:
+    """Where everything of a bow is, for one draw length."""
+
+    def __init__(self, spec, draw=0.0):
+        self.spec, self.draw = spec, draw
+        self.L0, self.bulge, self.thick = spec["L"], spec["bulge"], spec["thick"]
+        self.recurve = spec.get("recurve", 0.0)
+        self.L = self.L0 * (1 - 0.011 * draw)                    # drawn, a bow is shorter from tip to tip
+        self.grip_v = BOW_STRING + 0.3 + self.bulge - self.recurve
+        self.tip_v = self._arc(1.0)
+        self.nock = (BOW_MID, BOW_STRING - draw)
+        self.tips = ((BOW_MID - self.L, self.tip_v - 0.3), (BOW_MID + self.L, self.tip_v - 0.3))
+
+    def k(self, u):
+        return abs(u - BOW_MID) / self.L
+
+    def arc(self, u):
+        """v of the limb's middle line."""
+        k = self.k(u)
+        if k > 1:                                                # past the string: straight on, curling forward
+            e = 1e-3
+            slope = (self._arc(1.0) - self._arc(1.0 - e)) / e
+            return self._arc(1.0) + slope * (k - 1) + 14.0 * (k - 1) ** 2
+        return self._arc(k)
+
+    def _arc(self, k):
+        v = self.grip_v - self.bulge * k * k - 0.33 * self.draw * k ** 1.6
+        if self.recurve:
+            v += self.recurve * (1 - 0.04 * self.draw) * max(0.0, (k - 0.68) / 0.32) ** 2
+        return v
+
+    def width(self, u):
+        k = self.k(u)
+        w = self.thick * (1 - 0.5 * min(1.0, k) ** 1.5)
+        if self.spec.get("style") == "serpent":
+            w *= 1 + 0.08 * math.sin(k * 17)                     # a snake's body swells and narrows
+            if k > SNAKE_NECK:                                   # and ends in a head
+                s = min(1.0, (k - SNAKE_NECK) / (1 - SNAKE_NECK))
+                w = self.thick * (0.5 + 1.0 * math.sin(math.pi * s ** 0.7) ** 0.8 * (1 - 0.3 * s))
+                if s > 0.75:
+                    w = max(0.0, w * math.sqrt(max(0.0, 1 - ((s - 0.75) / 0.25) ** 2)))
+        return w
+
+    def grip_point(self):
+        """The middle of the grip in item model units (16 to the sprite)."""
+        u, v = BOW_MID, self.grip_v
+        return ((u - v) * gc.DIAG + gc.ORIGIN[0]) / 2.0, ((u + v) * gc.DIAG + gc.ORIGIN[1]) / 2.0
+
+
+def bow_parts(spec, draw=0.0):
+    sh = BowShape(spec, draw)
+    px = 32.0 / S                                               # design units to the texel
+    um, L = BOW_MID, sh.L
+    string_c = hexc(spec["string"])
+    lo, hi = sh.tips
+
+    def on_string(u, v, grow=0.0):
+        return min(seg_dist(u, v, lo, sh.nock), seg_dist(u, v, sh.nock, hi)) <= 0.6 * px + grow
+
+    string = Fn(lambda u, v: string_c if on_string(u, v) else None,
+                relief=lambda u, v, g: 0.3 if on_string(u, v, g) else None)
+    string.soft_outline = True                                  # a cord, not a black-edged bar
+    string.geometry = True                                      # in the hand it is a real cord (bow_geometry)
+    parts = [string]
+    style = spec.get("style")
+    end = 1.0 if style != "star" else 0.94
+    limb = Part(um - L * end, um + L * end, sh.width, spec["wood"], bend=sh.arc, relief="limb",
+                kind="scales" if style == "serpent" else "metal")
+    parts.append(limb)
+    for k, colors in spec.get("bands", ()):
+        for side in (-1, 1):
+            c = um + side * k * L
+            parts.append(Part(c - 0.55, c + 0.55, lambda u: sh.width(u) + 0.12, colors, bend=sh.arc, relief="limb"))
+    if style == "gale":
+        # white-gold plates above and below the grip, and a wind-blue line let into the back of each limb
+        parts.append(Part(um - 5.8, um + 5.8, lambda u: sh.width(u) + 0.3, WHITE_GOLD, bend=sh.arc, relief="limb"))
+        for side in (-1, 1):
+            a, b = sorted((um + side * 6.2, um + side * 0.8 * L))
+            parts.append(Part(a, b, const(0.3), (hexc("e8fffa"), hexc("6ad8c4"), hexc("2a8a78")),
+                              bend=lambda u: sh.arc(u) + 0.25 * sh.width(u)))
+    if style == "star":
+        # the tips are blades of star crystal that curl forward
+        for side in (-1, 1):
+            a, b = sorted((um + side * 0.9 * L, um + side * 1.14 * L))
+            parts.append(Part(a, b, lambda u: sh.thick * 0.62 * max(0.0, 1 - max(0.0, sh.k(u) - 0.97) / 0.17) ** 0.8,
+                              STAR_BLUE, bend=sh.arc, relief="gem"))
+        parts.append(Part(um - 5.4, um + 5.4, lambda u: sh.width(u) + 0.25, (hexc("fffef0"), hexc("ffd86a"), hexc("b8862a")),
+                          bend=sh.arc, relief="limb"))
+    elif spec.get("tips"):
+        # tip caps; the serpent bow's are the two snakes' heads
+        tip_len = 2.6 if style != "serpent" else (1 - SNAKE_NECK) * L
+        for side in (-1, 1):
+            a, b = sorted((um + side * (L - tip_len), um + side * L))
+            parts.append(Part(a, b, lambda u: sh.width(u) + (0.1 if style != "serpent" else 0.0), spec["tips"],
+                              bend=sh.arc, relief="limb"))
+    parts.append(Part(um - 2.7, um + 2.7, const(sh.thick + 0.45), spec["grip"], kind="grip", bend=sh.arc))
+    if style == "serpent":
+        # eyes, and a pale belly line
+        for side in (-1, 1):
+            eu = um + side * (SNAKE_NECK + (1 - SNAKE_NECK) * 0.45) * L
+            ev = sh.arc(eu) + 0.4 * sh.width(eu)
+            parts.append(Fn(lambda u, v, eu=eu, ev=ev: hexc("fff27a") if math.hypot(u - eu, v - ev) <= 0.5 * px + 0.3 else None))
+            parts.append(Fn(lambda u, v, eu=eu, ev=ev: hexc("1a0a10") if math.hypot(u - eu, v - ev) <= 0.3 * px else None))
+    if style == "star":
+        gem = circle(um, sh.grip_v + 0.2, 1.55, (hexc("ffffff"), hexc("9fd4ff"), hexc("3a6ad0")))
+        gem.proud = True
+        parts.append(gem)
+        parts.append(Fn(lambda u, v: hexc("ffffff") if (abs(u - um) < 0.3 * px and abs(v - sh.grip_v - 0.2) < 2.3)
+                        or (abs(v - sh.grip_v - 0.2) < 0.3 * px and abs(u - um) < 2.3) else None))
+    if style == "gale":
+        gem = circle(um, sh.grip_v + 0.15, 1.25, (hexc("ffffff"), hexc("7ff0dc"), hexc("1e8a78")))
+        gem.proud = True
+        parts.append(gem)
+    if draw > 0:
+        parts.extend(arrow_parts(sh.nock[1], spec))
+    return parts, sh
+
+
+ARROW_HEAD, ARROW_BARB, ARROW_HEAD_HALF = 3.9, 1.2, 1.8             # the head's length, its barbs' sweep, half its width
+ARROW_VANES = (0.8, 5.4, 1.65)                                    # the feathers: from, to (off the nock), height
+
+
+def arrow_parts(nock_v, spec):
+    """The nocked arrow: along v, pointing to +v (the upper-left of the picture)."""
+    px = 32.0 / S
+    um = BOW_MID
+    head_c = spec.get("head", STEEL)
+    shaft_c = spec.get("shaft", WOOD)
+    feather_c = spec.get("feather", FEATHER)
+    r = 0.6 * px if S < 64 else 0.3                               # the shaft's half width
+    v0, v_tip = nock_v, nock_v + ARROW_LEN
+    v_head = v_tip - ARROW_HEAD
+    fa, fb = v0 + ARROW_VANES[0], v0 + ARROW_VANES[1]             # the feathers
+
+    def vane(v):
+        """How far a feather stands off the shaft at v."""
+        if not fa <= v <= fb:
+            return 0.0
+        s = (v - fa) / (fb - fa)
+        return ARROW_VANES[2] * (1 - s) ** 0.75 * min(1.0, (s + 0.08) / 0.16)
+
+    def head_half(v):
+        if v_head <= v <= v_tip:
+            return ARROW_HEAD_HALF * (1 - (v - v_head) / (v_tip - v_head)) ** 0.9
+        return 0.0
+
+    def barb(u, v):
+        if v_head - ARROW_BARB <= v < v_head:
+            s = (v_head - v) / ARROW_BARB
+            return 0.5 + 1.0 * s <= abs(u - um) <= ARROW_HEAD_HALF - 0.1 * s
+        return False
+
+    def shaft_f(u, v):
+        if v0 - 0.5 <= v <= v_head + 0.4 and abs(u - um) <= r:
+            if v < v0 + 0.35:
+                return shade(shaft_c[2], -0.2)                    # the nock
+            return tone3(shaft_c, 0.55 if u > um else -0.45)
+        return None
+
+    def head_f(u, v):
+        hw = head_half(v)
+        if hw > 0 and abs(u - um) <= hw:
+            if abs(u - um) < 0.22 * px:
+                return tone3(head_c, 0.05)                        # the ridge down the middle
+            return tone3(head_c, 0.9 if u > um else -0.35)
+        if barb(u, v):
+            return tone3(head_c, 0.5 if u > um else -0.7)
+        return None
+
+    def feather_f(u, v):
+        d = abs(u - um)
+        if r < d <= r + vane(v):
+            rib = int((v + d * 0.9) * (1.6 / max(px, 0.5))) % 2
+            return tone3(feather_c, (0.75 if u > um else 0.1) - 0.7 * rib)
+        return None
+
+    def shaft_h(u, v, g):
+        if not (v0 - 0.5 - g <= v <= v_head + 0.4) or abs(u - um) > r + g:
             return None
-        k = (v / L) ** 2
-        arc = uc + bulge * (1 - k)
-        w = thick * (1 - 0.45 * k)
-        if abs(v) < 2.6:
-            w = thick + 0.5
-            if abs(u - arc) <= w:
-                return grip_c[1] if int(v + 10) % 2 else grip_c[2]
-            return None
-        d = u - arc
-        if abs(d) > w:
-            return None
-        if tips and abs(v) > L - 3:
-            return tips[0] if d > w * 0.3 else tips[2] if d < -w * 0.4 else tips[1]
-        return wood[0] if d > w * 0.3 else wood[2] if d < -w * 0.4 else wood[1]
+        h = math.sqrt(max(0.0, (r + g) ** 2 - (u - um) ** 2))
+        return max(h, 0.25 + 0.75 * vane(v))                      # the third feather stands up off the shaft
 
-    def string_u(v):
-        return uc - 0.4 - pull * (1 - abs(v) / L)
+    def head_h(u, v, g):
+        hw = head_half(min(max(v, v_head), v_tip)) if v_head - g <= v <= v_tip + g else 0.0
+        if hw > 0 and abs(u - um) <= hw + g:
+            return 0.14 + 0.34 * (1 - abs(u - um) / (hw + g))
+        return 0.16 if barb(u, v) else None
 
-    def string_f(u, v):
-        if abs(v) > L:
-            return None
-        return string if abs(u - string_u(v)) <= 0.5 else None
+    def feather_h(u, v, g):
+        return 0.14 if r < abs(u - um) <= r + vane(v) + g and fa - g <= v <= fb + g else None
 
-    layers = [Fn(string_f), Fn(wood_f)]
-    if pull > 0:
-        nock = string_u(0)
-        head_c, shaft_c = arrow_c
-
-        def arrow_f(u, v):
-            if nock - 0.5 <= u <= nock + 15 and abs(v) <= 0.55:
-                return shaft_c[1]
-            if nock + 14 <= u <= nock + 18:
-                t = (u - (nock + 14)) / 4
-                if abs(v) <= 1.9 * (1 - t):
-                    return head_c[0] if v > 0 else head_c[1]
-            if nock <= u <= nock + 3 and 0.55 < abs(v) <= 1.6:
-                return hexc("f0f0f0")
-            return None
-        layers.insert(1, Fn(arrow_f))
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    px = img.load()
-    for y in range(S):
-        for x in range(S):
-            u, v = uv(x, y)
-            c = None
-            for layer in layers:
-                c = layer.color_at(u, v) or c
-            if c is not None:
-                px[x, y] = c
-    # Drawn with the arrow towards the top-right; vanilla's bow (whose held and drawing poses every bow model uses)
-    # points it to the top-left, so flip it. Lit edges are added after this, so the light still comes from the left.
-    img = img.transpose(Image.FLIP_LEFT_RIGHT)
-    img = outline(img)
-    if glow:
-        img = add_rim(img, glow)
-    return img
+    arrow = [Fn(feather_f, relief=feather_h), Fn(shaft_f, relief=shaft_h), Fn(head_f, relief=head_h)]
+    for p in arrow:
+        p.geometry = True                                         # in the hand it is a real arrow (bow_geometry)
+    return arrow
 
 
-def add_rim(img, glow):
-    a = np.array(img)
-    solid = a[:, :, 3] > 0
-    grown = solid.copy()
-    grown[1:, :] |= solid[:-1, :]
-    grown[:-1, :] |= solid[1:, :]
-    grown[:, 1:] |= solid[:, :-1]
-    grown[:, :-1] |= solid[:, 1:]
-    a[grown & ~solid] = glow
-    return Image.fromarray(a)
+
+def bow_geometry(name, draw=0.0):
+    """What a held bow shows as real shapes instead of painted texels (tools/gen_weapon_models.py): the string's
+    line and, on a drawn bow, where the arrow's nock is. Design coordinates (u, v)."""
+    sh = BowShape(BOW_SPECS[name], draw)
+    lo, hi = sh.tips
+    return {"string": [lo, sh.nock, hi] if draw > 0 else [lo, hi], "nock": sh.nock if draw > 0 else None,
+            "grip": (BOW_MID, sh.grip_v)}
 
 
-def bow_set(name, **kw):
-    out = {name: bow(pull=0, **kw)}
-    for i, p in enumerate((1.6, 3.2, 4.6)):
-        out[f"{name}_pulling_{i}"] = bow(pull=p, **kw)
+def bow(name, draw=0.0):
+    spec = BOW_SPECS[name]
+    parts, _shape = bow_parts(spec, draw)
+    glow = None
+    if spec.get("glow"):
+        colour, alpha = spec["glow"].split("/")
+        glow = line_glow(colour, int(alpha))
+    return render(parts, glow=glow)
+
+
+def bow_grip(name):
+    """Where the hand holds a bow: item model units (16 to the sprite)."""
+    x, y = BowShape(BOW_SPECS[name]).grip_point()
+    return (round(x, 3), round(y, 3), 8.0)
+
+
+def bow_set(name):
+    """Builders for a bow and its pull frames."""
+    out = {name: lambda: bow(name)}
+    for i, d in enumerate(DRAWS):
+        out[f"{name}_pulling_{i}"] = (lambda d=d: bow(name, d))
     return out
 
 
@@ -263,6 +492,11 @@ def gauntlet(palette, claws=None, spikes=False):
 #
 # id: (grade, kind, sprite builder, english name, lore)
 
+def bow_entry(d, grade, name, title, lore):
+    for k, build in bow_set(name).items():
+        d[k] = (grade, "bow", build, title if k == name else None, lore if k == name else None)
+
+
 def designs():
     d = {}
 
@@ -290,10 +524,8 @@ def designs():
         Part(23, 30.5, const(5.4), STEEL), Part(24, 29.5, const(4.4), DARK_STEEL, fuller=True),
         Part(30.5, 34.5, lambda u: 1.6 * (34.5 - u) / 4, STEEL)]),
         "Ironclad Warhammer", "Plain iron, honest weight. Tanks swear by it for their first raids.")
-    d.update({k: ("common", "bow", (lambda img=v: lambda: img)(), None, None) for k, v in
-              bow_set("hunters_shortbow", wood=WOOD, string=hexc("e8e0d0"), tips=DARK_STEEL).items()})
-    d["hunters_shortbow"] = ("common", "bow", d["hunters_shortbow"][2], "Hunter's Shortbow",
-                             "Light, quick and forgiving. Every ranger starts somewhere.")
+    bow_entry(d, "common", "hunters_shortbow", "Hunter's Shortbow",
+              "Light, quick and forgiving. Every ranger starts somewhere.")
 
     # ---- rare
     d["knightsbane"] = ("rare", "dagger", lambda: render([
@@ -326,10 +558,8 @@ def designs():
         shaft(0, 32, PALE_WOOD), grip(6, 12, FROST_STEEL, 1.3), Part(30.5, 32.5, const(2.2), SILVER),
         diamond(31, 41, 3.2, ICE)], glow=line_glow("9ed8ff", 70)),
         "Staff of Winter Breath", "The crystal at its tip never melts, even in a fire gate.")
-    for k, v in bow_set("windrunner_longbow", wood=PALE_WOOD, string=hexc("ffffff"), tips=NAGA, grip_c=NAGA, bulge=5.5).items():
-        d[k] = ("rare", "bow", (lambda img=v: lambda: img)(), None, None)
-    d["windrunner_longbow"] = ("rare", "bow", d["windrunner_longbow"][2], "Windrunner Longbow",
-                               "Strung with wind-spider silk. Arrows from it barely seem to fall.")
+    bow_entry(d, "rare", "windrunner_longbow", "Windrunner Longbow",
+              "Strung with wind-spider silk. Arrows from it barely seem to fall.")
     d["mending_scepter"] = ("rare", "mace", lambda: render([
         pommel(2.5, 1.6, WHITE_GOLD), shaft(2.5, 29, GOLD), grip(5, 12, (hexc("fff6e0"), hexc("e8d8b0"), hexc("a89870")), 1.3),
         guard(28.5, 4.4, WHITE_GOLD, 0.9), circle(33.5, 0, 3.0, (hexc("ffffff"), hexc("fff0b0"), hexc("d8b050")))],
@@ -353,9 +583,9 @@ def designs():
     d["swarm_king_talons"] = ("epic", "claw", lambda: render([
         grip(4, 12, (hexc("5a3a6a"), hexc("3a2448"), hexc("1a0e24")), 1.5),
         Part(12, 16, const(4.5), (hexc("6a4a8a"), hexc("3e2a58"), hexc("1e1230"))),
-        blade(15, 33, 1.1, 6, VIOLET, bend=lambda u: 2.8 - 0.03 * (u - 15) ** 2, fuller=False),
-        blade(15, 37, 1.2, 6, VIOLET, bend=lambda u: -0.004 * (u - 15) ** 2, fuller=False),
-        blade(15, 33, 1.1, 6, VIOLET, bend=lambda u: -2.8 - 0.03 * (u - 15) ** 2, fuller=False)],
+        blade(15, 33, 1.1, 6, VIOLET, bend=lambda u: 2.8 - 0.03 * (u - 15) ** 2, fuller=False, relief="round"),
+        blade(15, 37, 1.2, 6, VIOLET, bend=lambda u: -0.004 * (u - 15) ** 2, fuller=False, relief="round"),
+        blade(15, 33, 1.1, 6, VIOLET, bend=lambda u: -2.8 - 0.03 * (u - 15) ** 2, fuller=False, relief="round")],
         glow=line_glow("7ccf3a", 70)),
         "Swarm King's Talons", "The claws of an insect king that ate its way through an island. They finish what they start.")
     d["frostbear_gauntlets"] = ("epic", "fist", lambda: gauntlet(
@@ -379,11 +609,8 @@ def designs():
         Fn(lambda u, v: LEAF[1] if u in (8.5, 16.5, 24.5) or (abs(u % 8 - 0.5) < 1.2 and 1.0 < v < 2.6 and u < 30) else None),
         circle(36, 0, 3.4, ROSE), circle(36, 0, 1.5, WHITE_GOLD)], glow=line_glow("8ce05a", 70)),
         "Lifebloom Staff", "A sapling that never stopped growing. Its flower opens wider the more it heals.")
-    for k, v in bow_set("serpentsting_bow", wood=(hexc("5a8a4a"), hexc("2e5226"), hexc("142812")), string=hexc("b8f07a"),
-                        tips=VENOM, grip_c=DUSK, glow=line_glow("7ccf3a", 70)).items():
-        d[k] = ("epic", "bow", (lambda img=v: lambda: img)(), None, None)
-    d["serpentsting_bow"] = ("epic", "bow", d["serpentsting_bow"][2], "Serpentsting Bow",
-                             "Its limbs are two coiled snakes. Every arrow it looses carries their venom.")
+    bow_entry(d, "epic", "serpentsting_bow", "Serpentsting Bow",
+              "Its limbs are two coiled snakes. Every arrow it looses carries their venom.")
 
     # ---- legendary
     d["stormlord_longsword"] = ("legendary", "sword", lambda: render([
@@ -415,11 +642,8 @@ def designs():
            and (math.atan2(v, u - 36) * 8 / math.pi) % 2 < 0.9 else None),
         circle(36, 0, 2.9, (hexc("ffffff"), hexc("ffe9a0"), hexc("ffb02e")))], glow=line_glow("ffe9a0", 120)),
         "Saint's Sunstaff", "Carried by a healer who walked out of an S-rank gate with every one of her party alive.")
-    for k, v in bow_set("galebreaker_warbow", wood=(hexc("ffffff"), hexc("c8f0e8"), hexc("4ab894")), string=hexc("a8f0e0"),
-                        tips=WHITE_GOLD, grip_c=NAVY, glow=line_glow("a8f0e0", 100), bulge=6.0, thick=1.7).items():
-        d[k] = ("legendary", "bow", (lambda img=v: lambda: img)(), None, None)
-    d["galebreaker_warbow"] = ("legendary", "bow", d["galebreaker_warbow"][2], "Galebreaker Warbow",
-                               "Draw it fully and the wind itself nocks two more arrows beside yours.")
+    bow_entry(d, "legendary", "galebreaker_warbow", "Galebreaker Warbow",
+              "Draw it fully and the wind itself nocks two more arrows beside yours.")
     d["nightveil_kris"] = ("legendary", "dagger", lambda: render([
         pommel(4.5, 1.8, VIOLET), grip(5, 12, OBSIDIAN), guard(12.8, 3.4, VIOLET, 1.1),
         blade(13.5, 31, 2.3, 7, OBSIDIAN, bend=lambda u: 1.0 * math.sin((u - 13.5) * 0.7), fuller=False),
@@ -438,7 +662,8 @@ def designs():
         pommel(4.5, 1.9, MAGMA), grip(5, 12, OBSIDIAN),
         Fn(lambda u, v: OBSIDIAN[0] if 11.5 <= u <= 14.5 and 2.5 <= abs(v) <= 3.2 + (u - 11.5) * 0.9 else None),
         guard(12.8, 3.6, OBSIDIAN, 1.2),
-        Part(13.5, 32, lambda u: 2.8 * (1 - ((u - 13.5) / 18.5) ** 1.8) + 0.6 * math.sin(u * 1.4), MAGMA, bend=lambda u: 0.4 * math.sin(u)),
+        Part(13.5, 32, lambda u: 2.8 * (1 - ((u - 13.5) / 18.5) ** 1.8) + 0.6 * math.sin(u * 1.4), MAGMA, bend=lambda u: 0.4 * math.sin(u),
+             relief="blade"),
         blade(14.5, 28, 0.7, 5, (hexc("ffffff"), hexc("fff0a0"), hexc("fff0a0")), fuller=False)],
         glow=line_glow("ff5a1e", 140)),
         "Hellsovereign's Fang", "One of a pair, forged in a sovereign's hellfire. Two in hand burn twice as bright.")
@@ -497,12 +722,8 @@ def designs():
         Fn(lambda u, v: LIVING_WOOD[1] if 32 <= u <= 40 and 2.6 <= math.hypot(u - 36, v) <= 3.6 else None),
         circle(36, 0, 2.0, (hexc("ffffff"), hexc("d8ffb0"), hexc("6ac03a")))], glow=line_glow("8ce05a", 170)),
         "Branch of the World Tree", "Every healer has heard the story. Few believe the branch is real.")
-    for k, v in bow_set("starfall_longbow", wood=WHITE_GOLD, string=hexc("fff6c8"), tips=(hexc("ffffff"), hexc("b8e2ff"), hexc("5a8ad8")),
-                        grip_c=NAVY, glow=line_glow("fff0a8", 170), bulge=6.0, thick=1.8,
-                        arrow_c=((hexc("ffffff"), hexc("fff0a8"), hexc("ffd84a")), WHITE_GOLD)).items():
-        d[k] = ("divine", "bow", (lambda img=v: lambda: img)(), None, None)
-    d["starfall_longbow"] = ("divine", "bow", d["starfall_longbow"][2], "Starfall Longbow",
-                             "Its string was spun from a falling star. Loose it fully and the sky follows the arrow down.")
+    bow_entry(d, "divine", "starfall_longbow", "Starfall Longbow",
+              "Its string was spun from a falling star. Loose it fully and the sky follows the arrow down.")
     return d
 
 
