@@ -32,7 +32,8 @@ import java.util.Set;
  * New effects pop in, the rest glide over when one ends, and an effect about to run out blinks like vanilla's.
  *
  * <p>Pieces that share the top-right corner ask {@link #bottom()} and {@link #left()} where the icons end; those
- * follow vanilla's icons while the System HUD is off.</p>
+ * follow vanilla's icons while the System HUD is off. Another mod's HUD that keeps this corner (Xaero's minimap, see
+ * {@link HudSpace}) counts as part of it: the System's icons start under it, and so does everything under them.</p>
  */
 public final class EffectsHud {
     private static final int CELL = 24;
@@ -67,14 +68,22 @@ public final class EffectsHud {
         left = Float.MAX_VALUE;
         if (mc.player == null) return;
         boolean system = VitalsHud.active();
+        // Xaero's minimap in this corner: what comes under the icons (pop-ups, gold, party frames) goes under it too
+        float corner = HudSpace.topRight();
+        if (corner > 0) {
+            bottom = corner;
+            left = HudSpace.topRightLeft();
+        }
         if (mc.screen instanceof EffectRenderingInventoryScreen<?> s && s.canSeeEffects()) {
             if (system) SLOTS.clear();
             return;
         }
         List<MobEffectInstance> effects = Ordering.natural().<MobEffectInstance>reverse().sortedCopy(mc.player.getActiveEffects());
         int w = g.guiWidth();
-        // the unread badge of hidden pop-ups sits in this corner too: the icons go under it
-        float top = (mc.isDemo() ? 15 : 0) + (system ? NotificationRenderer.badgeBottom() : 0);
+        // the System's icons start under the minimap, and under the unread badge of hidden pop-ups, which sits in this
+        // corner too (vanilla's stay at the top: Xaero moves its minimap under those itself)
+        float top = (mc.isDemo() ? 15 : 0) + (system ? corner + NotificationRenderer.badgeBottom() : 0);
+        if (system && corner > 0) bottom = Math.max(bottom, top);
         int good = 0;
         int bad = 0;
         Set<Holder<MobEffect>> seen = new HashSet<>();

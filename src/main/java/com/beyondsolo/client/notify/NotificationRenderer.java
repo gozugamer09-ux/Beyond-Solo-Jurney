@@ -10,6 +10,7 @@ import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.hud.EffectsHud;
+import com.beyondsolo.client.hud.HudSpace;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -96,13 +97,18 @@ public final class NotificationRenderer {
             }
             float timeLeft = keep || p.hiding() ? -1 : p.remaining();
             panel.draw(g, px, py, p, p == last ? key : null, timeLeft);
+            // pinned ones stack at the top centre: an overlay there (Jade's tooltip) goes under them
+            if (!floating) HudSpace.claimTop(px, py, PopupPanel.WIDTH, panel.height());
             // a pop-up that is leaving gives its space back gradually
             y += (panel.height() + GAP) * (1 - Anim.inOutCubic(p.exit()));
             index++;
         }
     }
 
-    /** How far down the unread badge reaches (0 while it is hidden), so the effect icons can sit under it. */
+    /**
+     * How far the unread badge reaches down from the top of its corner (0 while it is hidden), so the effect icons can
+     * sit under it. The corner starts under Xaero's minimap when that keeps it ({@link HudSpace#topRight()}).
+     */
     public static float badgeBottom() {
         return badge > 0.02f ? 30 * Anim.outCubic(Math.min(1, badge)) : 0;
     }
@@ -116,7 +122,8 @@ public final class NotificationRenderer {
         float w = 22 + tw + kw + 8;
         float h = 18;
         float x = guiW - w - 8 + (1 - badge) * 12;
-        float y = 8;
+        // under Xaero's minimap when it keeps this corner
+        float y = 8 + HudSpace.topRight();
         float old = Gfx.fade(badge);
         float pulse = Anim.pulse(1.8f);
         Shapes.pill(x, y, w, h).fillV(SystemTheme.GLASS_TOP, SystemTheme.GLASS_BOTTOM)

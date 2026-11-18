@@ -9,6 +9,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.gate.BossKind;
 import com.beyondsolo.key.DungeonKeys;
 import com.beyondsolo.system.PlayerRank;
@@ -65,6 +66,7 @@ public final class RunHud {
         float bh = 22;
         float x = (w - bw) / 2f;
         float old = Gfx.fade(in);
+        HudSpace.claimTop(x, y, bw, bh);
         float flash = done ? 1 - Anim.clamp01(KeyClient.sinceCleared() / 1.2f) : 0;
         Shapes.box(x, y, bw, bh).radius(bh / 2f).fillV(0xC00A1222, 0xC0050912)
                 .border(0.75f, Gfx.alpha(c, 0.75f + 0.25f * flash), Gfx.alpha(c, 0.3f))
