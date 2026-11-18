@@ -8,9 +8,13 @@ import com.beyondsolo.item.arsenal.Trait;
 import com.beyondsolo.item.arsenal.WeaponKind;
 import com.beyondsolo.system.PlayerClass;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -20,6 +24,9 @@ import java.util.List;
  * (see {@link com.beyondsolo.combat.ArsenalHits}), and the higher grades split full draws into a volley.
  */
 public class SystemBowItem extends BowItem implements ArsenalWeapon {
+    /** Ticks into a draw at which the string is heard: a tap on the button stays silent. */
+    private static final int DRAW_SOUND_TICK = 3;
+
     private final ItemGrade grade;
     private final float damageMultiplier;
     private final DamageElement element;
@@ -92,6 +99,16 @@ public class SystemBowItem extends BowItem implements ArsenalWeapon {
     @Override
     public int getEnchantmentValue() {
         return 10 + grade.tier() * 3;
+    }
+
+    /** The string creaks softly as the draw begins (the game's own bow is silent until it looses). */
+    @Override
+    public void onUseTick(Level level, LivingEntity user, ItemStack stack, int remaining) {
+        super.onUseTick(level, user, stack, remaining);
+        if (!level.isClientSide && getUseDuration(stack, user) - remaining == DRAW_SOUND_TICK) {
+            level.playSound(null, user.getX(), user.getY(), user.getZ(), SoundEvents.CROSSBOW_LOADING_START.value(),
+                    SoundSource.PLAYERS, 0.35f, 1.15f + level.random.nextFloat() * 0.15f);
+        }
     }
 
     @Override

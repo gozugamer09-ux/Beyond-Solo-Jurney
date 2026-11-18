@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:battlestaff"
+  "parent": "bettercombat:battlestaff",
+  "attributes": {
+    "pose": "beyondsolo:pose_staff"
+  }
 }

@@ -32,6 +32,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.ComputeFovModifierEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -91,6 +92,17 @@ public final class GradeVisuals {
 
     @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
     public static final class GameBus {
+        /** Drawing one of our bows narrows the view as the vanilla bow does: the game only does it for its own bow. */
+        @SubscribeEvent
+        static void bowZoom(ComputeFovModifierEvent event) {
+            var player = event.getPlayer();
+            if (!player.isUsingItem() || !(player.getUseItem().getItem() instanceof SystemBowItem)) return;
+            float pull = Math.min(1f, player.getTicksUsingItem() / 20f);
+            float zoom = 1f - pull * pull * 0.15f;
+            float scale = Minecraft.getInstance().options.fovEffectScale().get().floatValue();
+            event.setNewFovModifier(event.getNewFovModifier() * Mth.lerp(scale, 1f, zoom));
+        }
+
         /** Mythic and divine names ripple with their two colours. */
         @SubscribeEvent
         static void tooltip(ItemTooltipEvent event) {

@@ -63,7 +63,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "x": -0.05808
+          "x": 0.339
         }
       },
       {
@@ -71,7 +71,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "y": 0.1998
+          "y": 0.76393
         }
       },
       {
@@ -79,7 +79,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "z": 0.86109
+          "z": 2.49573
         }
       },
       {
@@ -159,7 +159,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "x": -0.05808
+          "x": 0.339
         }
       },
       {
@@ -167,7 +167,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "y": 0.1998
+          "y": 0.76393
         }
       },
       {
@@ -175,7 +175,7 @@
         "easing": "EASEINOUTQUAD",
         "turn": 0,
         "rightItem": {
-          "z": 0.86109
+          "z": 2.49573
         }
       },
       {

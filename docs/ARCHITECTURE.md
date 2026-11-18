@@ -313,15 +313,34 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
 - **Held and dropped weapon models** come from `tools/gen_weapon_models.py` (the other generators call it at the end;
-  run it alone after touching a weapon texture). Instead of `item/generated` it builds each weapon as a front and a
-  back face plus side walls coloured from the material just inside the outline (`textures/item/held/<name>_side.png`),
-  walls drawn first and faces after them so the grade glow blends over the edges. `PROFILES` sets each Better Combat
-  kind's size in the hand, in first person and on the ground; the inventory icon stays the flat sprite.
-  - Two-handed kinds (claymores, katana, spears, glaive, halberd, hammers, heavy axe, scythes) hold the weapon forward
-    at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
-    poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
-    on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
-  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling.
+  run it alone after touching a weapon texture). In the hand, on the ground and in item frames a weapon is a solid:
+  the sprite with a depth of its own under every texel. The painters build a weapon from parts along its axis
+  (blade, guard, grip, shaft, head...), and each part knows its shape, so `tools/weapon_relief.py` gives a blade a
+  ridge and a honed edge, a shaft a round bar, a hammer head a bevelled block, an orb a ball. `tools/gen_hd_gear.py`
+  writes that depth per texel to `tools/weapon_relief/<name>.png` (and each weapon's length and grip to
+  `meta.json`), and the model generator turns it into a mesh with smooth normals, a Wavefront OBJ read by NeoForge's
+  loader (`models/item/held/<name>.obj`; rim walls take their colour from `textures/item/held/<name>_side.png`). The
+  grade glow around a weapon is the sprite once more on a see-through plane inside the solid. The inventory icon
+  stays the flat sprite. `python3 tools/weapon_preview.py <name>...` draws a model alone and in first person in a
+  second, without the game.
+  - **Sizes and grips.** `PROFILES` gives each Better Combat kind a length in pixels of the player model and where
+    the hand closes (`LENGTHS` for single weapons); the model's scale follows from the sprite's own length, so a
+    dagger whose picture fills its icon is still a dagger in the hand. Every weapon is held at its grip, at the same
+    place in the fist, in vanilla's hand rotation: Better Combat's swings are made for that rotation, and one idle
+    pose per kind then fits every weapon of the kind. `FP_HOLDS` lays out the first-person view per kind in the
+    view's own space (where the grip is, where the tip points, which way the face looks).
+  - Every melee kind has an idle stance: `tools/weapon_stances.py` fits the arms to it (two hands on claymores,
+    katana, polearms, hammers, heavy axe and scythes) and writes the result as idle poses
+    (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose` on
+    top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
+  - **Bows** (`BOW_SPECS` in `tools/gen_arsenal_assets.py`) are drawn for six draw lengths each: at rest and five
+    pull frames whose limbs bend and shorten as the string comes back (`PULLS`: the seconds of drawing each frame
+    shows from). In the hand the string and the arrow are not the painted texels but real shapes
+    (`bow_extras`: a thin cord, a round shaft, a ridged broadhead, three feathers), so the bow looks right from
+    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). A bow has two
+    holds: at the side at rest, and raised with the arrow under the crosshair while drawn (the game's own bow-use
+    hand movement is undone in the pull frames' transforms). `GradeVisuals` narrows the view while a System bow is
+    drawn, which the game only does for its own bow.
   - Gauntlets (the `fist` kind) are worn, not held. `tools/gen_gauntlets.py` builds each as a few boxes in the arm's
     own space (cuff, vambrace, plated hand, knuckle guard, claws or spikes), painted with the armor art kit at four
     texels a pixel, and writes them as an item model (`models/item/worn/<name>.json`) whose hand transform undoes
@@ -1296,6 +1315,55 @@ the `citadel_sky` biome); the game-test server has no datapack dimensions, so th
   jump arrive|clear|climb|wake|kill|enrage|moon|fall|breather|leave|siege, leave, cancel, checkpoint <floor>, sigil,
   sigil dry <kills> (stages the pity), info, reset. All numbers are first guesses for the balancing pass.
 
+## The chronicle: titles, rankings and the journal
+
+Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
+`ChronicleModule.init` registers the hunter's chronicle (`ChronicleData`, attachment `beyondsolo:chronicle`, kept
+through death: titles earned with the game time, the chronicle's own counters, journal pages, what is not looked at
+yet, and whether the worn title was picked by hand) and four payloads (`ChronicleSyncPayload` the chronicle plus how far
+along each title is, `TitleEarnedPayload` the TITLE ACQUIRED moment, `RankingsPayload` the boards,
+`ChronicleActionPayload` the page's buttons: wear, take off, read, ask for the boards).
+
+- **Titles** (`title/Titles`, 52 of them in five categories: hunt, gates, citadel, system, mastery; five tiers from
+  common to mythic). A title with a `Feat` is earned when that number reaches its goal: the chronicle counts kills,
+  bosses, ascended bosses, clutch kills (a boss falling while the hunter is under 15% health), kills of far stronger
+  creatures, deaths, kills by creature family (`journal/CreatureFamily`), dungeon breaks held, hidden and trap rooms,
+  dailies, surprise quests, reactions and the longest combo itself; everything else is read from the record its own
+  feature keeps (gates cleared, red gates, keys, weaknesses, the Citadel and the rush, quests, the penalty zone, level,
+  gold earned, the shadow army, journal pages). `TitleService.check` runs every 2 s. A title without a feat is given by
+  its feature: `SystemAPI.setTitle(player, key)` fires `SystemEvent.TitleGranted` (cancellable) and the chronicle keeps
+  it. A new title is worn when nothing is worn or when the System picked the worn one and the new one is rarer; one the
+  hunter picked on the page stays on. Some titles are secret (shown as "???" until earned). Titles worn before the
+  chronicle existed are taken in quietly at login.
+- **Perks** (`TitlePerk`, only the worn title's): attribute ones as transient modifiers `beyondsolo:title_<perk>`
+  (attack, health, speed, armor, luck, elemental and spell power, mana efficiency, skill haste, exhaustion
+  resistance) put back on login, respawn and every change; event ones in `TitleService` (System XP on `XpGain`, gold
+  in `Economy.add` for kills, quests, gates and the Citadel, more damage to creatures, bosses, a family or far stronger
+  foes, less damage taken capped at 50%, and both below 30% health). Every number waits for the balancing pass.
+- **Rankings** (`ranking/`): the hunters' board by power (ten times `HiddenLevel.hunterLevel`), the Citadel (highest
+  floor, then the spire), the boss rush per tier (best time) and gates cleared. Players' standings are kept in the
+  saved data `beyondsolo_rankings` (taken at login, every minute and at logout); a fixed roster of 16 rival hunters
+  (`Rivals`, own names, guilds, ranks E to S) stands in for the national rankings and grows a little with the days of
+  the world. Climbing past someone on the hunters' board is announced with the next one to pass.
+- **The journal** (`journal/Journal`, about 107 pages: every gate creature by family, every boss and the Arbiter and
+  the lord, every realm plus the red gates' world, the Citadel and the Wastes, every graded weapon). `JournalService`
+  fills pages in from what the hunter sees within 24 blocks (every second), where they stand (a gate's realm or a
+  place) and what they carry (every 2 s); kills count on the page and a boss remembers each rank it was met at and
+  its ascended form. Another feature adds its pages with `Journal.register`. Lore lines are
+  `chronicle.beyondsolo.lore.<category>.<name>` (a weapon's own `.lore` line comes first).
+- **Client**: the CHRONICLE page (`ChronicleTab`, order 108) with three sections: `TitlesPage` (filters, every title
+  with its progress, the picked one's crest, goal, perks and WEAR / TAKE OFF), `RankingsPage` (the boards, the
+  hunter's place and who is next, the rush tiers) and `JournalPage` (a grid per section: creatures and bosses drawn
+  as themselves, weapons as their icons, realms as pictures, all dark shapes until known; the page with the creature
+  turning, its lore once one is slain, kills, the first day it was met and a boss's forms). `TitleOverlay` plays
+  TITLE ACQUIRED (the world dims to the tier's colour, the crest bursts in, the name types out on a band of light,
+  perks, worn or how to wear it; titles earned together share one moment) and a small card for each new page; both
+  wait while another System moment has the screen, and the hide key skips them. The worn title in the STATUS page
+  takes its tier's colour and opens the titles when clicked. Realm pictures (256x144) and icons come from
+  `tools/gen_chronicle_assets.py`.
+- **Commands** (`/system chronicle ...`, level 2): title grant|revoke|equip <id|all>, title check, count <feat>
+  <value>, journal reveal <all|section|page>, journal clear, rankings, info, reset.
+
 ## Operator commands: /solo
 
 `/solo` (package `command.solo`, permission level 2 like `/give`; in single player that means cheats on) is the one
@@ -1416,4 +1484,10 @@ checks use zombies.
 the Latin American copies matching it, and the argument check itself (reordered `%1$s`, `%%`, a stray `%`).
 `test/ArmoryGameTests` covers: a set for every class at every rank and a divine one each (counts, levels, grades, sources, perks), level and class gates (refusing, putting back, creative, bound divines), only the set's class drawing out bonuses (spell power, mana efficiency, skill haste, caps), slow drops from creatures, bosses, divine rolls and village requests, set perks changing hits (Tower Guard, Dragon's Blood, Warlord's Fury), and the six divine weapon passives.
 `test/BreakGameTests` covers: the clock running through its phases (and saving), waiting while hunters are inside and holding when nobody watches, cleared and trial gates never breaking, waves and the boss coming through with the third, the boss's fall suppressing the break (gate closed, the rest gone, the cache), the System's break quest (forced up to a rank above you, offered beyond that) and its reward, strays pulled back to the gate, Pulse Scan sensing gates in range (nearest first, closed and others' sealed gates left out), and vanilla particles kept out of the camera.
+`test/ChronicleGameTests` covers: titles a feature gives being kept and worn (a rarer one replacing one the System
+picked, one the hunter picked staying on, taking it off), feats giving their titles at the goal, the title table
+(categories, goals, perks), perks following the worn title (attributes on and off, damage to a family, System XP,
+gold, damage taken), the journal filling in from kills (counted by family) and a boss's forms, every creature and
+boss having a page, the rankings holding every rival and the player with every board sent, and every title, perk,
+family, guild and page having its English line.
 `test/TowerGameTests` covers: the floor table (kinds, wings, ranks, keepers, checkpoints, the spire's scaling, every name written in English and Spanish), the rush tiers (every boss once, the last ascended, the Sovereign rush and the lord, who may enter which), the records saving, the key (sold from D rank, binding once, every refusal at the door), a climb (the pull, the first hall's creatures being the System's own, the seal off the stair, the next hall on the other pad, out by the exit sigil), a gatekeeper (dormant and unharmed until woken, its cache and the checkpoint), the lord (untouchable until he has risen, the conquest, the Sigil by pity, the title), the spire's record and a fall (death cancelled, home weakened, the record kept), a whole E-rank boss rush with its breathers and clock, and each of the lord's moves landing, his enrage and the blood moon.

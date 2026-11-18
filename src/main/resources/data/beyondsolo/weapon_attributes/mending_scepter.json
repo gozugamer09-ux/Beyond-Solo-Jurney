@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:mace"
+  "parent": "bettercombat:mace",
+  "attributes": {
+    "pose": "beyondsolo:pose_blade"
+  }
 }
