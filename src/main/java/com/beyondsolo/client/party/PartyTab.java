@@ -447,11 +447,7 @@ public class PartyTab implements SystemTab {
     private static void act(int action, UUID target) {
         PartyClient.send(action, target);
         SystemScreen.playClick();
-        // regrouping means standing still out in the world: the window gets out of the way
-        if (action == PartyActionPayload.REGROUP) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.screen != null) mc.screen.onClose();
-        }
+        // (once a regroup starts the window gets out of the way: PartyClient; a refusal stays here, in the toast)
     }
 
     // ------------------------------------------------------------------ UI test driver

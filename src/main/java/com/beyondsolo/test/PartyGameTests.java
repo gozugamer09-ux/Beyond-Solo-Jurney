@@ -250,7 +250,11 @@ public final class PartyGameTests {
         helper.assertTrue(PartyActionPayload.STREAM_CODEC.decode(raw).equals(act), "a button");
         PartyEventPayload ev = new PartyEventPayload(PartyEventPayload.OUTCOME, 1, Component.translatable("party.beyondsolo.joined", Component.literal("Kael")));
         PartyEventPayload.STREAM_CODEC.encode(buf, ev);
-        helper.assertTrue(PartyEventPayload.STREAM_CODEC.decode(buf).equals(ev), "and its answer");
+        PartyEventPayload evBack = PartyEventPayload.STREAM_CODEC.decode(buf);
+        // (a plain name inside a translated line comes back as text, so compare what it says)
+        helper.assertTrue(evBack.kind() == ev.kind() && evBack.ticks() == ev.ticks()
+                && evBack.text().getContents() instanceof TranslatableContents t && t.getKey().equals("party.beyondsolo.joined")
+                && evBack.text().getString().equals(ev.text().getString()), "and its answer: " + evBack);
         helper.succeed();
     }
 

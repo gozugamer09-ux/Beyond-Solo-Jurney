@@ -73,6 +73,9 @@ import java.util.Deque;
  * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
  * gatesgo                              press the GATES page's TURN button
  * rerun                                press the re-run prompt's key (the accept key)
+ * partydemo [alone]                    stand in a made-up party (or, alone, two invitations) on the PARTY page and the HUD
+ * partygo &lt;action&gt; [name]              press a PARTY page button (invite, accept, decline, leave, kick, promote, disband, regroup)
+ * partyfx start|broken|done|joined     play a regroup moment on the HUD (with the first other member's name)
  * </pre>
  *
  * <p>When every command of a file has run, the log says {@code UITEST idle}. The scripts in {@code tools/uitest}
@@ -229,6 +232,19 @@ public final class UiTestDriver {
             // partydemo [alone]: a made-up party (or invitations) on the PARTY page and the HUD, for screenshots
             case "partydemo" -> com.beyondsolo.client.party.PartyClient.demo(com.beyondsolo.client.party.PartyClient.demoState(arg));
             // partygo <invite|accept|decline|leave|kick|promote|disband|regroup> [player name]: a button of the PARTY page
+            case "partyfx" -> {
+                var others = com.beyondsolo.client.party.PartyClient.others();
+                net.minecraft.network.chat.Component who = net.minecraft.network.chat.Component.literal(others.isEmpty() ? "Kael" : others.get(0).name());
+                int kind = switch (arg) {
+                    case "broken" -> com.beyondsolo.network.PartyEventPayload.REGROUP_CANCEL;
+                    case "done" -> com.beyondsolo.network.PartyEventPayload.REGROUP_DONE;
+                    case "joined" -> com.beyondsolo.network.PartyEventPayload.REGROUP_JOINED;
+                    default -> com.beyondsolo.network.PartyEventPayload.REGROUP_START;
+                };
+                net.minecraft.network.chat.Component text = kind == com.beyondsolo.network.PartyEventPayload.REGROUP_CANCEL
+                        ? net.minecraft.network.chat.Component.translatable("party.beyondsolo.regroup.moved") : who;
+                com.beyondsolo.client.party.PartyClient.onEvent(new com.beyondsolo.network.PartyEventPayload(kind, com.beyondsolo.party.Regroup.CHANNEL_TICKS, text));
+            }
             case "partygo" -> {
                 String[] a = arg.split(" ");
                 com.beyondsolo.client.party.PartyTab.press(com.beyondsolo.client.party.PartyClient.actionNamed(a[0]),

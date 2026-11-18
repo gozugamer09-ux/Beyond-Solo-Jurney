@@ -2,12 +2,14 @@ package com.beyondsolo.client.party;
 
 import com.beyondsolo.client.SystemTheme;
 import com.beyondsolo.client.combat.WorldProjector;
+import com.beyondsolo.client.economy.GoldHud;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.gfx.Gfx;
 import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.EffectsHud;
 import com.beyondsolo.network.PartySyncPayload;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
@@ -40,6 +42,8 @@ public final class PartyHud {
     private static final int REGROUP = 0xFFB98BFF;
 
     private static float shown;
+    /** The frames' top edge as drawn (it glides when something above them comes or goes). */
+    private static float top = Float.NaN;
     /** Per member: health as drawn (it slides). */
     private static final Map<UUID, Float> HEALTH = new HashMap<>();
 
@@ -63,7 +67,10 @@ public final class PartyHud {
 
     private static void frames(GuiGraphics g, Minecraft mc, List<PartySyncPayload.Member> others, int w, int h, float partial) {
         float x = w - 8 - FRAME_W + (1 - Anim.outCubic(shown)) * 18;
-        float y = Math.max(64, h * 0.42f);
+        // on the right edge, under the effect icons, stepping down while the gold capsule shows a change
+        float want = Math.max(Math.max(64, h * 0.42f), Math.max(EffectsHud.bottom() + 9, GoldHud.bottom() + 6));
+        top = Float.isNaN(top) ? want : Anim.approach(top, want, 8f);
+        float y = top;
         UUID leader = PartyClient.state().leader();
         for (PartySyncPayload.Member m : others) {
             if (y + FRAME_H > h - 40) break;
@@ -189,11 +196,14 @@ public final class PartyHud {
         SysFont.draw(g, dist, lx + nw + 5, ly + 0.4f, 4.4f, SystemTheme.TEXT_SOFT, true, 0f);
     }
 
-    /** Someone behind or off to the side: an arrow at that edge, with their name and how far. */
+    /**
+     * Someone behind or off to the side: an arrow at that edge, with their name and how far. On the right it stands
+     * just left of the party frames, which keep that edge.
+     */
     private static void edge(GuiGraphics g, PartySyncPayload.Member m, int c, float rel, int w, int h, int row, String dist) {
         boolean right = rel > 0;
         float y = h * 0.5f - 10 + row * 16;
-        float x = right ? w - 14 : 14;
+        float x = right ? w - 8 - FRAME_W - 12 : 14;
         g.pose().pushPose();
         g.pose().translate(x, y, 0);
         g.pose().mulPose(Axis.ZP.rotationDegrees(right ? 90 : -90));

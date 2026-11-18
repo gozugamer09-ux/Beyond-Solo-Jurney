@@ -55,6 +55,9 @@ public final class PartyClient {
                 channelTicks = Math.max(1, p.ticks());
                 channelTo = p.text();
                 sound(SoundEvents.AMETHYST_BLOCK_CHIME, 0.8f, 0.7f);
+                // regrouping means standing still out in the world: the System window gets out of the way
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.screen instanceof com.beyondsolo.client.screen.SystemScreen) mc.screen.onClose();
             }
             case PartyEventPayload.REGROUP_CANCEL -> {
                 channeling = false;
