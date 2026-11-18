@@ -15,9 +15,16 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * @param x        a second point the effect needs (bolt end, dash start, meteor landing...)
  * @param size     radius or length in blocks
  * @param duration how long a lasting effect stays (ticks); 0 for one-off bursts. A few one-off kinds use it to pick a look
+ * @param element  the element of the skill that showed it ({@code SkillElement} ordinal), which picks its skin (fire
+ *                 burns, water flows, shadow is dark with bright edges...); -1 when it belongs to no skill
  */
-public record SkillFxPayload(int entityId, Kind kind, int color, float x, float y, float z, float size, int duration)
+public record SkillFxPayload(int entityId, Kind kind, int color, float x, float y, float z, float size, int duration, int element)
         implements CustomPacketPayload {
+    /** An effect that belongs to no skill: its skin is guessed from its colour. */
+    public SkillFxPayload(int entityId, Kind kind, int color, float x, float y, float z, float size, int duration) {
+        this(entityId, kind, color, x, y, z, size, duration, -1);
+    }
+
     public enum Kind {
         /** The magic circle that flares under every cast. */
         CAST,
@@ -192,12 +199,13 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
                 f.writeFloat(p.z);
                 f.writeFloat(p.size);
                 f.writeVarInt(p.duration);
+                f.writeByte(p.element);
             },
             buf -> {
                 FriendlyByteBuf f = new FriendlyByteBuf(buf);
                 int id = f.readVarInt();
                 Kind kind = Kind.values()[Math.floorMod(f.readVarInt(), Kind.values().length)];
-                return new SkillFxPayload(id, kind, f.readInt(), f.readFloat(), f.readFloat(), f.readFloat(), f.readFloat(), f.readVarInt());
+                return new SkillFxPayload(id, kind, f.readInt(), f.readFloat(), f.readFloat(), f.readFloat(), f.readFloat(), f.readVarInt(), f.readByte());
             });
 
     @Override

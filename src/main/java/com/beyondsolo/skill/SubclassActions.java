@@ -1026,7 +1026,7 @@ public final class SubclassActions {
     static void fxAt(ServerLevel level, SkillFxPayload.Kind kind, int color, Vec3 at, float size, int duration) {
         SkillFx.note(kind, duration);
         PacketDistributor.sendToPlayersNear(level, null, at.x, at.y, at.z, 96,
-                new SkillFxPayload(-1, kind, color & 0xFFFFFF, (float) at.x, (float) at.y, (float) at.z, size, duration));
+                new SkillFxPayload(-1, kind, color & 0xFFFFFF, (float) at.x, (float) at.y, (float) at.z, size, duration, SkillFx.castElement()));
     }
 
     private static List<Player> allies(ServerPlayer p, double radius) {
