@@ -31,9 +31,20 @@ public final class StatusHud {
     private static float visible = 1;
     /** Where the HUD ended on the last frame, so the quest tracker can sit under it. */
     private static float bottom = 8;
+    /** The capsule's right edge and middle on the last frame (0 right when it isn't there), for the combat rail. */
+    private static float right;
+    private static float middle = 23;
 
     public static float bottom() {
         return bottom;
+    }
+
+    public static float right() {
+        return right;
+    }
+
+    public static float middle() {
+        return middle;
     }
 
     public static void setHidden(boolean value) {
@@ -54,13 +65,31 @@ public final class StatusHud {
         visible = Anim.approach(visible, hidden || !d.hasSystem() ? 0 : 1, d.hasSystem() ? 8f : 100f);
         if (!ClientConfig.SHOW_HUD.get() || mc.getDebugOverlay().showDebugScreen() || visible < 0.02f) {
             bottom = 8;
+            right = 0;
             return;
         }
         float old = Gfx.fade(visible);
         float x = 8;
         float y = 8;
+        right = 0;
 
-        if (d.isAwakened()) {
+        if (d.isAwakened() && VitalsHud.active()) {
+            // level, mana and fatigue are on the System HUD at the bottom: only rank and class up here
+            String className = d.playerClass().displayName().getString();
+            float tw = SysFont.width(className, 8f, true);
+            float h = 22;
+            float w = 27 + tw + 10;
+            int classColor = SystemTheme.playerClass(d.playerClass());
+            Shapes.box(x + 1, y + 2, w - 2, h - 2).radius(h / 2f).fill(0x00000000).glow(7, 0x50000000).draw(g);
+            Shapes.pill(x, y, w, h).fillV(Gfx.fade(SystemTheme.GLASS_TOP, 0.88f), Gfx.fade(SystemTheme.GLASS_BOTTOM, 0.88f))
+                    .border(0.75f, Gfx.alpha(SystemTheme.ACCENT, 0.75f), Gfx.alpha(SystemTheme.ACCENT, 0.22f))
+                    .glow(6, Gfx.alpha(SystemTheme.ACCENT, 0.12f)).draw(g);
+            Ui.rankEmblem(g, d.rank(), x + 11, y + h / 2f, 6.6f, 0f);
+            SysFont.title(g, className, x + 23, SysFont.centerY(y, h, 8f), 8f, Gfx.mix(classColor, 0xFFFFFFFF, 0.3f));
+            right = x + w;
+            middle = y + h / 2f;
+            y += h + 6;
+        } else if (d.isAwakened()) {
             float mana = d.maxMana() <= 0 ? 0 : d.mana() / d.maxMana();
             shownMana = shownMana < 0 ? mana : Anim.approach(shownMana, mana, 9f);
             shownFatigue = Anim.approach(shownFatigue, d.exhaustion() / 100f, 9f);
@@ -93,6 +122,8 @@ public final class StatusHud {
                         critical ? Gfx.mix(SystemTheme.HP_B, 0xFFFFFFFF, Anim.pulse(0.7f) * 0.5f) : SystemTheme.FATIGUE_B);
                 Gfx.setAlpha(oldBar);
             }
+            right = x + w;
+            middle = y + h / 2f;
             y += h + 6;
         }
 

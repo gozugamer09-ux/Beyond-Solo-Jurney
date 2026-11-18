@@ -36,10 +36,38 @@ public final class ForgeService {
         return n;
     }
 
-    static void take(Inventory inv, Item item, int amount) {
+    /** How many of {@code item} a stack list holds (System storage). */
+    public static int count(java.util.List<ItemStack> stacks, Item item) {
+        int n = 0;
+        for (ItemStack s : stacks) if (!s.isEmpty() && s.is(item)) n += s.getCount();
+        return n;
+    }
+
+    /**
+     * What the hunter has of a forge material: carried and in System storage together, the way crafting counts. On
+     * the client, {@code storage} is the copy the server sent ({@code CraftClient.storage()}).
+     */
+    public static int have(Inventory inv, java.util.List<ItemStack> storage, Item item) {
+        return count(inv, item) + count(storage, item);
+    }
+
+    public static int have(ServerPlayer p, Item item) {
+        return have(p.getInventory(), Economy.data(p).storage(), item);
+    }
+
+    /** Takes {@code amount}: from the inventory first, the rest from System storage. */
+    static void take(ServerPlayer p, Item item, int amount) {
+        Inventory inv = p.getInventory();
         for (int i = 0; i < inv.getContainerSize() && amount > 0; i++) {
             ItemStack s = inv.getItem(i);
             if (!s.is(item)) continue;
+            int t = Math.min(amount, s.getCount());
+            s.shrink(t);
+            amount -= t;
+        }
+        for (ItemStack s : Economy.data(p).storage()) {
+            if (amount <= 0) break;
+            if (s.isEmpty() || !s.is(item)) continue;
             int t = Math.min(amount, s.getCount());
             s.shrink(t);
             amount -= t;
@@ -59,7 +87,7 @@ public final class ForgeService {
         ItemGrade grade = ItemGrade.of(stack);
         if (grade == null) return "forge.beyondsolo.not_gear";
         if (!p.getAbilities().instabuild) {
-            if (count(p.getInventory(), GearModule.REFINING_STONE.get()) < Enhancement.stones(level)) return "forge.beyondsolo.no_stones";
+            if (have(p, GearModule.REFINING_STONE.get()) < Enhancement.stones(level)) return "forge.beyondsolo.no_stones";
             if (Economy.gold(p) < Enhancement.gold(grade, level)) return "forge.beyondsolo.no_gold";
         }
         return null;
@@ -75,13 +103,13 @@ public final class ForgeService {
         }
         int before = Enhancement.level(stack);
         ItemGrade grade = ItemGrade.of(stack);
-        boolean ward = useWard && (p.getAbilities().instabuild || count(p.getInventory(), GearModule.WARD_SEAL.get()) > 0);
+        boolean ward = useWard && (p.getAbilities().instabuild || have(p, GearModule.WARD_SEAL.get()) > 0);
         if (!p.getAbilities().instabuild) {
-            take(p.getInventory(), GearModule.REFINING_STONE.get(), Enhancement.stones(before));
+            take(p, GearModule.REFINING_STONE.get(), Enhancement.stones(before));
             Economy.spend(p, Enhancement.gold(grade, before), Economy.Reason.FORGE);
         }
         Enhancement.Outcome out = Enhancement.attempt(stack, p.getRandom(), ward);
-        if (out == Enhancement.Outcome.WARDED && !p.getAbilities().instabuild) take(p.getInventory(), GearModule.WARD_SEAL.get(), 1);
+        if (out == Enhancement.Outcome.WARDED && !p.getAbilities().instabuild) take(p, GearModule.WARD_SEAL.get(), 1);
         int after = Enhancement.level(stack);
         p.getInventory().setChanged();
         p.containerMenu.broadcastChanges();
@@ -111,7 +139,7 @@ public final class ForgeService {
         if (element == SkillElement.PHYSICAL || !GearModule.CRYSTALS.containsKey(element)) return "forge.beyondsolo.not_gear";
         if (Infusions.of(stack) == element) return "forge.beyondsolo.same_element";
         if (!p.getAbilities().instabuild) {
-            if (count(p.getInventory(), GearModule.CRYSTALS.get(element).get()) < 1) return "forge.beyondsolo.no_crystal";
+            if (have(p, GearModule.CRYSTALS.get(element).get()) < 1) return "forge.beyondsolo.no_crystal";
             ItemGrade grade = ItemGrade.of(stack);
             if (Economy.gold(p) < infusionGold(grade == null ? ItemGrade.COMMON : grade)) return "forge.beyondsolo.no_gold";
         }
@@ -129,7 +157,7 @@ public final class ForgeService {
         }
         SkillElement old = Infusions.of(stack);
         if (!p.getAbilities().instabuild) {
-            take(p.getInventory(), GearModule.CRYSTALS.get(element).get(), 1);
+            take(p, GearModule.CRYSTALS.get(element).get(), 1);
             ItemGrade grade = ItemGrade.of(stack);
             Economy.spend(p, infusionGold(grade == null ? ItemGrade.COMMON : grade), Economy.Reason.FORGE);
         }
@@ -144,6 +172,8 @@ public final class ForgeService {
 
     private static void send(ServerPlayer p, int action, Enhancement.Outcome out, int slot, int before, int after, String reason) {
         PacketDistributor.sendToPlayer(p, new ForgeResultPayload(action, out.ordinal(), slot, before, after, reason));
+        // what is left in storage, for the forge's counts
+        com.beyondsolo.crafting.CraftingService.sendStock(p);
     }
 
     private ForgeService() {}

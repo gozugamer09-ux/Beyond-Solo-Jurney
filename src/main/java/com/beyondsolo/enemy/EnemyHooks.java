@@ -116,6 +116,15 @@ public final class EnemyHooks {
         }
     }
 
+    /**
+     * Damage that is not a creature's blow: spells and sparks (magic), and the element statuses' own ticks and bursts.
+     * They never carry the affinity mark again; the mark's spark is magic too, so a spark can't set off another one.
+     */
+    static boolean notABlow(DamageSource source) {
+        return source.is(net.minecraft.world.damagesource.DamageTypes.INDIRECT_MAGIC) || source.is(net.minecraft.world.damagesource.DamageTypes.MAGIC)
+                || com.beyondsolo.combat.ElementalHits.isProc(source) || Affinity.inSpark();
+    }
+
     @SubscribeEvent
     static void damaged(LivingDamageEvent.Post event) {
         LivingEntity victim = event.getEntity();
@@ -123,7 +132,8 @@ public final class EnemyHooks {
         Entity src = event.getSource().getEntity();
         // a roster creature's melee hit (or an archer's arrow) carries its affinity (bolts and bursts apply their own)
         Entity direct = event.getSource().getDirectEntity();
-        if (src instanceof LivingEntity attacker && (direct == attacker || direct instanceof net.minecraft.world.entity.projectile.AbstractArrow)
+        if (src instanceof LivingEntity attacker && !notABlow(event.getSource())
+                && (direct == attacker || direct instanceof net.minecraft.world.entity.projectile.AbstractArrow)
                 && EnemyTraits.has(attacker)
                 && !(attacker instanceof com.beyondsolo.gate.GateBossEntity)) {
             EnemyTraits t = EnemyTraits.of(attacker);
