@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:glaive"
+  "parent": "bettercombat:glaive",
+  "attributes": {
+    "pose": "beyondsolo:pose_polearm"
+  }
 }

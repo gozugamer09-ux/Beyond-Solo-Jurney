@@ -55,6 +55,7 @@ public final class CombatHud {
     }
 
     private static final List<Slot> RAIL = new ArrayList<>();
+    private static float railEnd;
     private static float burnTint, venomTint, brandTint;
     private static double flashAt = -10;
     private static int flashColor;
@@ -103,6 +104,7 @@ public final class CombatHud {
         if (ClientConfig.ENEMY_METERS.get()) enemyMeters(g, mc, delta.getGameTimeDeltaPartialTick(true));
         FloatingNumbers.render(g);
         if (ClientConfig.SHOW_HUD.get() && !mc.getDebugOverlay().showDebugScreen()) rail(g, mc);
+        else railEnd = 0;
     }
 
     private static void screenEffects(GuiGraphics g, Minecraft mc) {
@@ -154,6 +156,9 @@ public final class CombatHud {
             Vec3 pos = e.getPosition(partial).add(0, e.getBbHeight() + 0.55, 0);
             float[] p = WorldProjector.project(pos);
             if (p == null) continue;
+            // over the creature's name, when it shows one
+            float[] name = com.beyondsolo.client.enemy.EnemyHud.above(living, partial);
+            if (name != null && name[1] < p[1]) p = name;
             float scale = (float) Math.max(0.75, Math.min(1.3, 9.0 / Math.max(1, dist)));
             float old = Gfx.fade(s.visible * (dist > 22 ? (float) (28 - dist) / 6f : 1f));
             drawMeters(g, s, p[0], p[1], scale);
@@ -211,6 +216,11 @@ public final class CombatHud {
 
     // ---- the player's own rail ----
 
+    /** Where the rail ends on the right, in GUI pixels (0 when it is empty), so other pieces along the top can keep clear of it. */
+    public static float railEnd() {
+        return railEnd;
+    }
+
     private static Slot slot(String key) {
         for (Slot s : RAIL) if (s.key.equals(key)) return s;
         Slot s = new Slot(key);
@@ -249,6 +259,7 @@ public final class CombatHud {
             Gfx.setAlpha(old);
             x += width * s.visible + 5 * s.visible;
         }
+        railEnd = RAIL.isEmpty() ? 0 : x;
     }
 
     /** Draws one rail slot with its left edge at x. Returns the width it took. */

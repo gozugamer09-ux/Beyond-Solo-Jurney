@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:scythe"
+  "parent": "bettercombat:scythe",
+  "attributes": {
+    "pose": "beyondsolo:pose_scythe"
+  }
 }

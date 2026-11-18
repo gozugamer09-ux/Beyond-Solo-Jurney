@@ -10,9 +10,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -107,6 +109,8 @@ public final class BreakClient {
     private static double brokeAt = -100;
     private static float brokeFelt;
     private static float dread;
+    /** The world the gates' statuses were heard in. */
+    @Nullable private static ResourceKey<Level> heardIn;
 
     // ------------------------------------------------------------------ messages
 
@@ -251,9 +255,16 @@ public final class BreakClient {
 
     /** Once a client tick: forgets gates not heard of lately, beats the heart in a break's last seconds. */
     static void tick() {
+        Minecraft mc = Minecraft.getInstance();
+        // the statuses come from gates in the world the player is in: gone to another (a gate's dungeon, the Citadel),
+        // they are left behind at once, not shown for seconds with the distance to a gate in another world
+        ResourceKey<Level> here = mc.level == null ? null : mc.level.dimension();
+        if (!java.util.Objects.equals(here, heardIn)) {
+            heardIn = here;
+            STATUS.clear();
+        }
         long now = gameTime();
         STATUS.values().removeIf(s -> now - s.heardAt > 60 || now < s.heardAt);
-        Minecraft mc = Minecraft.getInstance();
         float target = 0;
         if (mc.player != null) {
             for (Status st : STATUS.values()) {

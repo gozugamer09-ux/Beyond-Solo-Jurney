@@ -55,5 +55,31 @@ public final class DepthsTestAccess {
         TrapRooms.forget(p.getUUID());
     }
 
+    /**
+     * Hears what a player's screen is told about the cave it is in ({@code DepthsPayload.STATE}: the weather on the way
+     * in, -1 on the way out), since test players drop everything sent to them. Null stops listening.
+     */
+    public static void listen(ServerPlayer p, @org.jetbrains.annotations.Nullable java.util.function.Consumer<com.beyondsolo.network.DepthsPayload> listener) {
+        DepthsHooks.listen(p.getUUID(), listener);
+    }
+
+    /** One beat of what this player's screen is told about the cave they stand in, as the half-second tick does. */
+    public static void beat(ServerPlayer p) {
+        DepthsHooks.beat(p);
+    }
+
+    /**
+     * What happens when a player goes through to another dimension from {@code from}. The game test server has no gate
+     * dimension (caves are carved into its overworld), so a test plays the change the way out makes in the game.
+     */
+    public static void changedDimension(ServerPlayer p, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> from) {
+        DepthsHooks.changedDimension(p, from);
+    }
+
+    /** What happens when a player comes back from a fall (test players can't be respawned). */
+    public static void respawned(ServerPlayer p) {
+        DepthsHooks.respawned(p);
+    }
+
     private DepthsTestAccess() {}
 }

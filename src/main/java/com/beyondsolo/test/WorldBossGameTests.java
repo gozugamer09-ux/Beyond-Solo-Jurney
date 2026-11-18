@@ -1,6 +1,7 @@
 package com.beyondsolo.test;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.enemy.HiddenLevel;
 import com.beyondsolo.item.ArmorSets;
 import com.beyondsolo.item.ItemGrade;
 import com.beyondsolo.item.SystemArmorItem;
@@ -125,6 +126,20 @@ public final class WorldBossGameTests {
             helper.assertTrue(boss.phaseFloor() == 0f, kind + " has no floor in its last phase");
             boss.hurt(level.damageSources().generic(), boss.getMaxHealth() * 2);
             helper.assertTrue(boss.isDeadOrDying(), kind + " dies to a blow greater than its health in its last phase");
+            boss.discard();
+        }
+        helper.succeed();
+    }
+
+    /** Its name reads in the threat colours like every System creature's: far stronger than a hunter fresh from the crystal. */
+    @GameTest(template = ARENA)
+    public static void aGreatThreatReadsFarStronger(GameTestHelper helper) {
+        ServerPlayer p = hunter(helper, PlayerClass.WARRIOR);
+        for (WorldBossKind kind : WorldBossKind.values()) {
+            ColossalBoss boss = spawn(helper, kind);
+            helper.assertTrue(HiddenLevel.has(boss), kind + " has a hidden level");
+            helper.assertTrue(HiddenLevel.threat(boss, p) == HiddenLevel.Threat.FAR_STRONGER,
+                    kind + " is far stronger than a new S-rank hunter (level " + HiddenLevel.of(boss) + ")");
             boss.discard();
         }
         helper.succeed();

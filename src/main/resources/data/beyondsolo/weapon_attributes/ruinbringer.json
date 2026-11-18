@@ -1,3 +1,6 @@
 {
-  "parent": "bettercombat:claymore"
+  "parent": "bettercombat:claymore",
+  "attributes": {
+    "pose": "beyondsolo:pose_claymore"
+  }
 }

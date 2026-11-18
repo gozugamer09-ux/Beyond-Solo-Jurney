@@ -499,8 +499,11 @@ def main():
     write_json(os.path.join(GEO, "entity", "arbiter.geo.json"), arbiter_model(uvs, size))
     write_json(os.path.join(ANIM, "entity", "arbiter.animation.json"), arbiter_animations())
     sealed_gate_textures()
-    for name, img in legendary_weapons().items():
+    weapons = legendary_weapons()
+    for name, img in weapons.items():
         img.save(os.path.join(gc.ITEM_OUT, name + ".png"))
+    import gen_weapon_models
+    gen_weapon_models.build(set(weapons))
     print("awakening assets written")
 
 

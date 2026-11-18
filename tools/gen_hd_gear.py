@@ -11,7 +11,8 @@ High-detail (64x64) textures for System gear. Run AFTER the older generators: it
   armory's sets)
 - the refining stone and the ward seal
 
-Item models, Better Combat files and names are untouched (the older generators own them).
+Better Combat files and names are untouched (the older generators own them). The weapons' held and dropped
+models are rebuilt from the new textures by tools/gen_weapon_models.py at the end.
 
 Run from the repo root:  python3 tools/gen_hd_gear.py      Needs: pillow, numpy (and cairosvg for the imports).
 """
@@ -499,6 +500,9 @@ def main():
     os.makedirs(ITEM_OUT, exist_ok=True)
     only = set(sys.argv[1:]) or None
     n = weapons(only)
+    # the held and dropped 3D models are built from the finished textures
+    import gen_weapon_models
+    gen_weapon_models.build(only)
     refining_stone().save(os.path.join(ITEM_OUT, "refining_stone.png"))
     ward_seal().save(os.path.join(ITEM_OUT, "ward_seal.png"))
     # the armor sets' art (icons, worn layers, 3D parts) comes from tools/gen_armory_assets.py now

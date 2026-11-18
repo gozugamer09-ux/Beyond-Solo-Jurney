@@ -65,7 +65,8 @@ public final class EnemyModule {
     }
 
     private static void payloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar r = event.registrar("1");
+        // 2: the traits carry the creature's hidden level
+        PayloadRegistrar r = event.registrar("2");
         r.playToClient(EnemyFxPayload.TYPE, EnemyFxPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.enemy.EnemyClient.onFx(p)));
         r.playToClient(EnemyTraitsPayload.TYPE, EnemyTraitsPayload.STREAM_CODEC,

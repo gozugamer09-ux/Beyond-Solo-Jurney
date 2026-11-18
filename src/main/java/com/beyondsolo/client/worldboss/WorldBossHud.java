@@ -123,7 +123,9 @@ public final class WorldBossHud {
         Shapes.pill(x, y + 1.5f, tagW, 9).fill(Gfx.alpha(tc, 0.28f)).border(0.7f, Gfx.alpha(tc, 0.85f)).glow(4, Gfx.alpha(tc, 0.35f)).draw(g);
         SysFont.spaced(g, tag, x + tagW / 2f, SysFont.centerY(y + 1.5f, 9, 5f), 5f, Gfx.mix(tc, WHITE, 0.55f), true, 1.6f, 0.5f);
         float nx = x + tagW + 5;
-        SysFont.draw(g, k.bossName(), nx, y + 2, 8.5f, WHITE, true, 0f);
+        // its name in the colour of how it stands against this hunter (white, orange, red), like every System creature
+        int nameColor = boss != null ? com.beyondsolo.client.enemy.EnemyHud.nameColor(boss, WHITE) : WHITE;
+        SysFont.draw(g, k.bossName(), nx, y + 2, 8.5f, nameColor, true, 0f);
         float nameW = SysFont.width(k.bossName(), 8.5f, true);
         String title = SysFont.fit(k.title().getString(), 6f, false, Math.max(10, bw - tagW - nameW - 48));
         SysFont.draw(g, title, nx + nameW + 4, y + 4, 6f, Gfx.mix(kc, SystemTheme.TEXT_SOFT, 0.55f), false, 0f);
