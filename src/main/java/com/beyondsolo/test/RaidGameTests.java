@@ -455,6 +455,31 @@ public final class RaidGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = ARENA, timeoutTicks = 200)
+    public static void aRaidsQuestEndsWithIt(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        ServerPlayer a = GuildGameTests.hunter(helper, "raid_a", new BlockPos(1, 2, 1), PlayerClass.WARRIOR);
+        ServerPlayer b = GuildGameTests.hunter(helper, "raid_b", new BlockPos(3, 2, 1), PlayerClass.GUARDIAN);
+        GateInstance g = raidGate(helper, new BlockPos(5, 2, 5), PlayerRank.E, null);
+        Raids.join(a, g);
+        Raids.join(b, g);
+        Raids.startNow(a);
+        GateService.arrive(a, g);
+        GateService.arrive(b, g);
+        Quest held = raidQuest(b, g);
+        helper.assertTrue(raidQuest(a, g) != null && held != null, "both raiders hold the raid's quest");
+        Raids.dropStaleQuests(a);
+        helper.assertTrue(raidQuest(a, g) != null, "a raid underway keeps its quest for a raider who comes back");
+        Raids.fail(server, g);
+        helper.assertTrue(raidQuest(a, g) == null && raidQuest(b, g) == null, "a failed raid takes its quest off its raiders");
+        // a raider who was away when it ended still holds it: it goes once they are back
+        QuestEngine.start(b, held);
+        helper.assertTrue(raidQuest(b, g) != null, "b, away, still holds it");
+        Raids.dropStaleQuests(b);
+        helper.assertTrue(raidQuest(b, g) == null, "and loses it on coming back");
+        helper.succeed();
+    }
+
     // ------------------------------------------------------------------ saving
 
     @GameTest(template = ARENA)

@@ -614,6 +614,35 @@ public final class Raids {
         QuestEngine.start(player, q);
     }
 
+    /** Ends this player's quest for the raid at that gate (if they still hold it), saying why. */
+    private static void endQuest(ServerPlayer player, UUID gate, QuestEvent.FailReason reason, @Nullable Component outcome) {
+        for (Quest q : List.copyOf(QuestEngine.data(player).active())) {
+            if (QUEST_TEMPLATE.equals(q.template()) && gate.toString().equals(q.extra().getString("gate"))) QuestEngine.fail(player, q, reason, outcome);
+        }
+    }
+
+    /**
+     * A raid quest whose raid is over (it failed, or was cleared, while this player was away) or that the player is no
+     * longer on: dropped when they come back (and in tests), so it does not hang on the HUD for good.
+     */
+    public static void dropStaleQuests(ServerPlayer player) {
+        for (Quest q : List.copyOf(QuestEngine.data(player).active())) {
+            if (!QUEST_TEMPLATE.equals(q.template())) continue;
+            UUID id;
+            try {
+                id = UUID.fromString(q.extra().getString("gate"));
+            } catch (IllegalArgumentException e) {
+                id = null;
+            }
+            GateInstance g = id == null ? null : GateData.get(player.server).get(id);
+            RaidState s = g == null || !g.isRaid() ? null : g.raid();
+            boolean on = s != null && s.phase == RaidState.Phase.RUNNING && !g.bossDefeated()
+                    && s.raider(player.getUUID()) != null && s.raider(player.getUUID()).status != RaidState.Status.FALLEN
+                    && s.raider(player.getUUID()).status != RaidState.Status.LEFT;
+            if (!on) QuestEngine.fail(player, q, QuestEvent.FailReason.BROKEN, Component.translatable(KEY + "quest.ended"));
+        }
+    }
+
     /** How many lieutenants a raid of this gate's rank holds: two, three from B up (no more than its caverns allow). */
     public static int lieutenantCount(GateInstance g) {
         return Math.min(g.rank().tier() >= 3 ? 3 : 2, lieutenantRooms(g).size());
@@ -1381,6 +1410,7 @@ public final class Raids {
         }
         results.put("lines", list);
         for (ServerPlayer p : roster(server, s)) {
+            endQuest(p, g.id(), QuestEvent.FailReason.BROKEN, Component.translatable(KEY + "quest.failed"));
             Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT,
                     Component.translatable("notify.beyondsolo.raid.failed.title"), Component.translatable("notify.beyondsolo.raid.failed.body", g.rank().displayName())));
             PacketDistributor.sendToPlayer(p, new RaidEventPayload(RaidEventPayload.RESULTS, results, Component.translatable(KEY + "results.failed"), g.dungeonName()));
@@ -1693,11 +1723,7 @@ public final class Raids {
             if (r == null) return;
             r.status = RaidState.Status.FALLEN;
             dirty(server);
-            for (Quest q : List.copyOf(QuestEngine.data(p).active())) {
-                if (QUEST_TEMPLATE.equals(q.template()) && g.id().toString().equals(q.extra().getString("gate"))) {
-                    QuestEngine.fail(p, q, QuestEvent.FailReason.DIED);
-                }
-            }
+            endQuest(p, g.id(), QuestEvent.FailReason.DIED, null);
             for (ServerPlayer m : inside(level, g)) {
                 if (m != p) m.displayClientMessage(Component.translatable(KEY + "raider_down", r.name), true);
             }
@@ -1759,7 +1785,9 @@ public final class Raids {
 
     @SubscribeEvent
     static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p) sync(p);
+        if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        dropStaleQuests(p);
+        sync(p);
     }
 
     @SubscribeEvent

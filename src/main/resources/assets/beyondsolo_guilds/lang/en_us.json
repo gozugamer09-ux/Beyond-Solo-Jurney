@@ -15,6 +15,8 @@
   "quest.beyondsolo.raid_clear": "Clear the %s-Rank Raid",
   "quest.beyondsolo.raid_clear.desc": "The raid has entered the %s. Fell the lieutenants who seal the boss's chamber, then bring down %s together.",
   "quest_objective.beyondsolo.raid_lieutenants": "Fell the raid's lieutenants",
+  "raid.beyondsolo.quest.failed": "The raid failed.",
+  "raid.beyondsolo.quest.ended": "The raid ended without you.",
 
   "notify.beyondsolo.guild.title": "Guild",
   "notify.beyondsolo.guild.invite.title": "Guild Invitation",

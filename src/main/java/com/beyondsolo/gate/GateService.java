@@ -920,6 +920,8 @@ public final class GateService {
         ServerLevel world = player.server.overworld();
         BlockPos spawn = player.getRespawnPosition() != null && player.getRespawnDimension().equals(Level.OVERWORLD)
                 ? player.getRespawnPosition() : world.getSharedSpawnPos();
+        // load the chunk first: an unloaded one reads as empty to the bottom, and they would land under the world
+        world.getChunkAt(spawn);
         BlockPos top = world.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawn);
         player.teleportTo(world, top.getX() + 0.5, top.getY(), top.getZ() + 0.5, player.getYRot(), 0f);
     }

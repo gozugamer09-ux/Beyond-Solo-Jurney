@@ -15,6 +15,8 @@
   "quest.beyondsolo.raid_clear": "Supera el Asalto de Rango %s",
   "quest.beyondsolo.raid_clear.desc": "El asalto entró en %s. Abate a los lugartenientes que sellan la cámara del jefe y luego acaba con %s junto al resto del asalto.",
   "quest_objective.beyondsolo.raid_lieutenants": "Abate a los lugartenientes del asalto",
+  "raid.beyondsolo.quest.failed": "El asalto fracasó.",
+  "raid.beyondsolo.quest.ended": "El asalto terminó sin ti.",
 
   "notify.beyondsolo.guild.title": "Gremio",
   "notify.beyondsolo.guild.invite.title": "Invitación de Gremio",
