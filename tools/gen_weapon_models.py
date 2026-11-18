@@ -93,7 +93,7 @@ FP_HOLDS = {
     "scythe": dict(at=(0.70, -0.52, -0.88), tip=(-0.04, 0.88, -0.47), face=(-0.35, 0.10, 0.93), size=0.62, hold=0.40),
     "bow":    dict(at=(0.76, -0.50, -1.0), tip=(-0.22, 0.90, -0.38), face=(-0.66, 0.05, 0.75), size=0.74),
     # drawing: the arrow from beside the cheek to just under the crosshair, the bow canted a little
-    "bow_drawn": dict(at=(0.36, -0.10, -1.25), tip=(0.14, 0.98, -0.10), back=(-0.26, 0.03, -0.96), size=0.60),
+    "bow_drawn": dict(at=(0.30, -0.07, -1.25), tip=(0.14, 0.98, -0.10), back=(-0.26, 0.03, -0.96), size=0.60),
 }
 
 VANILLA_HAND = [0, -90, 55]            # item/handheld's rotation in the hand: Better Combat's swings are made for it
@@ -254,8 +254,9 @@ def displays(name, cat, drawn=False):
         # arrow along the arm
         third = ws.held_transform(ws.body(0.12, 0.99, 0.0), ws.body(0, 0, 1), p, s, arm_pitch=-90.0)
     elif cat == "bow":
-        # at rest: carried at the side, upper limb up and forward, turned so the bow shows from behind the player
-        third = ws.held_transform(ws.body(0.10, 0.90, 0.42), ws.body(0.55, 0.0, 0.83), p, s)
+        # at rest: carried at the side, upper limb up and forward, its back turned outwards so that the bow shows
+        # from behind the player, where the third-person camera is
+        third = ws.held_transform(ws.body(0.12, 0.74, 0.66), ws.body(0.75, -0.35, 0.56), p, s)
     else:
         R = _rot(*VANILLA_HAND)
         third = transform(R, ws.FIST_IN_DISPLAY - R @ ((p - 8.0) * s), s)
@@ -429,7 +430,7 @@ def bow_extras(mesh, name, a):
     for c0, c1 in zip(cuts, cuts[1:]):
         weapon_relief.tube(mesh, at(c0), at(c1), SHAFT_R, colour(0.17, (c0 + c1) / 2), sides=6, caps=(False, False))
     # head: a broadhead with a ridge down the middle and swept barbs
-    half, barb = ga.ARROW_HEAD_HALF, ga.ARROW_BARB
+    half, barb = ga.ARROW_HEAD_HALF * 0.72, ga.ARROW_BARB        # slimmer than the icon's, which has to read at 16 pixels
     tip = at(length)
     for side in (1, -1):
         c = colour(side * 0.75, neck + 1.0)
@@ -442,6 +443,7 @@ def bow_extras(mesh, name, a):
                                    at(neck, side * 0.5)], colour(side * 1.3, neck - 0.5), both=True)
     # three feathers: one standing off the bow's side, two leaning the other way
     f0, f1, fh = ga.ARROW_VANES
+    fh *= 0.85
     span = f1 - f0
     for turn, c in ((90.0, colour(0.9, f0 + 1.2)), (210.0, colour(-0.9, f0 + 1.2)), (330.0, colour(0.9, f0 + 1.2))):
         t = math.radians(turn)

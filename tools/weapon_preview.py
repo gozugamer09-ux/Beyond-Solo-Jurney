@@ -5,15 +5,15 @@ the way the game's entity shader does (two fixed lights and ambient, per-vertex 
 glow on top), so shapes, sizes and holds can be judged in a second instead of starting the game. The game itself
 has the last word.
 
-    python3 tools/weapon_preview.py knight_sword                 # build/preview/weapon_<name>.png: studio views,
-                                                                 # the first-person view and the mannequin
-    python3 tools/weapon_preview.py --sheet fp sword dagger      # one view of several weapons side by side
+    python3 tools/weapon_preview.py knight_sword starfall_longbow_pulling_4:1.0
+                                        # build/preview/weapons.png: a row per weapon, three studio views and the
+                                        # first-person view (":x" after a bow's pull frame: drawn that far, 0..1;
+                                        # "@L" after a name: in the left hand)
 
 Views:
-- studio: the model alone from the front, three quarters, nearly edge-on and the back
-- fp: first person, through the game's chain for a held item (ItemInHandRenderer + the model's first-person
+- studio: the model alone from the front, three quarters and nearly edge-on
+- first person: through the game's chain for a held item (ItemInHandRenderer + the model's first-person
   transform, 70 degree view, 16:9)
-- tp: on a mannequin's arm in third person (ItemInHandLayer + the third-person transform)
 Needs: numpy, pillow.
 """
 import math
@@ -282,3 +282,38 @@ def save(img, name):
     path = os.path.join(OUT_DIR, name)
     Image.fromarray(img).save(path)
     return path
+
+
+def weapon_model(name):
+    """The held model of a weapon as tools/gen_weapon_models.py builds it."""
+    import gen_weapon_models as gm
+    import weapon_relief
+    a, mesh, side, glow = gm.held_parts(name)
+    model = Model()
+    model.add(mesh, {"face": a, "side": side}, {})
+    if glow is True:
+        model.add(weapon_relief.flat_plane(a.shape[0]), {"glow": a}, {"glow": "translucent"})
+    elif glow:
+        model.add(weapon_relief.flat_runs(glow, a.shape[0]), {"glow": a}, {"glow": "translucent"})
+    return model
+
+
+def main(argv):
+    import gen_weapon_models as gm
+    rows = []
+    for arg in argv:
+        left = arg.endswith("@L")
+        name, _, drawn = (arg[:-2] if left else arg).partition(":")
+        model = weapon_model(name)
+        views = [studio(model, az=az, el=el, dist=34, size=(360, 360)) for az, el in ((0, 0), (35, 12), (78, 6))]
+        sky = np.zeros((360, 640, 3), np.uint8)
+        sky[:210], sky[210:] = (150, 185, 250), (70, 70, 76)
+        display = gm.displays(name, gm.category(name), "_pulling_" in name)
+        views.append(first_person(model, display, size=(640, 360), bg=sky, left=left, draw=float(drawn) if drawn else None))
+        rows.append(np.hstack([v[..., :3].astype(np.uint8) for v in views]))
+    if rows:
+        print(save(np.vstack(rows), "weapons.png"))
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

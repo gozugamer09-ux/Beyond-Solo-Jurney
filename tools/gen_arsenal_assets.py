@@ -3,7 +3,7 @@
 Generates the arsenal's assets (no hand-drawn files needed):
 
 - 39 weapon sprites (32x32 pixel art, built from parts along the item's diagonal like tools/gen_combat_assets.py),
-  bows with their three pull frames, gauntlet icons
+  bows with their five pull frames, gauntlet icons
 - a light sweep animation on legendary, mythic and divine sprites (.png strip + .mcmeta)
 - Better Combat weapon attribute files, and the English names and lore (the item models come from
   tools/gen_weapon_models.py, which this calls at the end)

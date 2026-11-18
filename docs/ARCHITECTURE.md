@@ -251,15 +251,34 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
 - **Adding a weapon:** add a line to `Arsenal`, a design (sprite, English name and lore) to
   `tools/gen_arsenal_assets.py`, and run it: it writes the texture, item model, Better Combat file and translations.
 - **Held and dropped weapon models** come from `tools/gen_weapon_models.py` (the other generators call it at the end;
-  run it alone after touching a weapon texture). Instead of `item/generated` it builds each weapon as a front and a
-  back face plus side walls coloured from the material just inside the outline (`textures/item/held/<name>_side.png`),
-  walls drawn first and faces after them so the grade glow blends over the edges. `PROFILES` sets each Better Combat
-  kind's size in the hand, in first person and on the ground; the inventory icon stays the flat sprite.
-  - Two-handed kinds (claymores, katana, spears, glaive, halberd, hammers, heavy axe, scythes) hold the weapon forward
-    at rest: `tools/weapon_stances.py` fits both arms to a forward-pointing weapon and writes the result as idle
-    poses (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose`
-    on top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
-  - Bows have two holds: carried upright at the side at rest, vanilla's drawing hold while pulling.
+  run it alone after touching a weapon texture). In the hand, on the ground and in item frames a weapon is a solid:
+  the sprite with a depth of its own under every texel. The painters build a weapon from parts along its axis
+  (blade, guard, grip, shaft, head...), and each part knows its shape, so `tools/weapon_relief.py` gives a blade a
+  ridge and a honed edge, a shaft a round bar, a hammer head a bevelled block, an orb a ball. `tools/gen_hd_gear.py`
+  writes that depth per texel to `tools/weapon_relief/<name>.png` (and each weapon's length and grip to
+  `meta.json`), and the model generator turns it into a mesh with smooth normals, a Wavefront OBJ read by NeoForge's
+  loader (`models/item/held/<name>.obj`; rim walls take their colour from `textures/item/held/<name>_side.png`). The
+  grade glow around a weapon is the sprite once more on a see-through plane inside the solid. The inventory icon
+  stays the flat sprite. `python3 tools/weapon_preview.py <name>...` draws a model alone and in first person in a
+  second, without the game.
+  - **Sizes and grips.** `PROFILES` gives each Better Combat kind a length in pixels of the player model and where
+    the hand closes (`LENGTHS` for single weapons); the model's scale follows from the sprite's own length, so a
+    dagger whose picture fills its icon is still a dagger in the hand. Every weapon is held at its grip, at the same
+    place in the fist, in vanilla's hand rotation: Better Combat's swings are made for that rotation, and one idle
+    pose per kind then fits every weapon of the kind. `FP_HOLDS` lays out the first-person view per kind in the
+    view's own space (where the grip is, where the tip points, which way the face looks).
+  - Every melee kind has an idle stance: `tools/weapon_stances.py` fits the arms to it (two hands on claymores,
+    katana, polearms, hammers, heavy axe and scythes) and writes the result as idle poses
+    (`player_animations/pose_<stance>.json`), which the weapon's Better Combat file names as `attributes.pose` on
+    top of its parent. Poses only cover standing and walking; attacks still use Better Combat's swings.
+  - **Bows** (`BOW_SPECS` in `tools/gen_arsenal_assets.py`) are drawn for six draw lengths each: at rest and five
+    pull frames whose limbs bend and shorten as the string comes back (`PULLS`: the seconds of drawing each frame
+    shows from). In the hand the string and the arrow are not the painted texels but real shapes
+    (`bow_extras`: a thin cord, a round shaft, a ridged broadhead, three feathers), so the bow looks right from
+    behind and along the arrow; their texels are left out of the solid (height 0 in the relief file). A bow has two
+    holds: at the side at rest, and raised with the arrow under the crosshair while drawn (the game's own bow-use
+    hand movement is undone in the pull frames' transforms). `GradeVisuals` narrows the view while a System bow is
+    drawn, which the game only does for its own bow.
   - Gauntlets (the `fist` kind) are worn, not held. `tools/gen_gauntlets.py` builds each as a few boxes in the arm's
     own space (cuff, vambrace, plated hand, knuckle guard, claws or spikes), painted with the armor art kit at four
     texels a pixel, and writes them as an item model (`models/item/worn/<name>.json`) whose hand transform undoes
