@@ -10,6 +10,7 @@ import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.hud.EffectsHud;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.raid.RaidRole;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
@@ -104,6 +105,7 @@ public final class RaidHud {
         SysFont.text(g, sub, x + 23, y + 12.5f, 5f, hot ? Gfx.mix(GOLD, 0xFFFFFFFF, 0.3f) : SystemTheme.TEXT_SOFT);
         SysFont.draw(g, count, x + tw - 8, SysFont.centerY(y, 22, 6f), 6f, Gfx.mix(RAID, 0xFFFFFFFF, 0.4f), true, 1f);
         Gfx.setAlpha(old);
+        HudSpace.claimTop(x, y, tw, 22);
     }
 
     // ------------------------------------------------------------------ frames
@@ -232,6 +234,7 @@ public final class RaidHud {
         Shapes.icon(icon, x + 8, y + 6, 6.5f).fill(Gfx.mix(c, 0xFFFFFFFF, 0.4f)).draw(g);
         SysFont.draw(g, text, x + 15, SysFont.centerY(y, 12, 5.4f), 5.4f, SystemTheme.TEXT, true, 0f);
         SysFont.draw(g, time, x + tw - 7, SysFont.centerY(y, 12, 4.6f), 4.6f, SystemTheme.TEXT_DIM, false, 1f);
+        HudSpace.claimTop(x, y, tw, 12);
     }
 
     // ------------------------------------------------------------------ moments
