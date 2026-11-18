@@ -20,6 +20,7 @@ import com.beyondsolo.job.JobTrial;
 import com.beyondsolo.key.DungeonKeys;
 import com.beyondsolo.penalty.PenaltyZone;
 import com.beyondsolo.quest.QuestEngine;
+import com.beyondsolo.quest.situation.Situations;
 import com.beyondsolo.redgate.RedGates;
 import com.beyondsolo.registry.ModAttachments;
 import com.beyondsolo.rune.Runes;
@@ -138,6 +139,7 @@ final class SoloWipe {
         ShadowService.reset(p);
         AwakeningService.reset(p);
         Exhaustion.recover(p, 0);
+        Situations.clear(p);
         // every record the mod keeps on the player back to its defaults (the System's own keeps "first join handled")
         List<AttachmentType<?>> ours = new ArrayList<>();
         for (var e : NeoForgeRegistries.ATTACHMENT_TYPES.entrySet()) {

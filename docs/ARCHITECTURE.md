@@ -380,8 +380,9 @@ On the client, `SituationMarkers` locks brackets onto a situation's target (a gr
 with its health as an arc, `NpcMarkers` shows a situation's marked spot as a waypoint, and the tracker draws health
 rows (heart, coloured bar) and rules (gold shield) of the new objective shapes (`QuestObjective.Display`).
 
-`/system situation list|start <situation>|follow [kind]|secret <id>|watch|clear` starts one from what is around you,
-brings a waiting follow-up forward, reveals a secret, shows what the System has noticed, or resets it all.
+`/system situation list|start <situation>|follow [kind]|secret <id>|watch|clear` (also `/solo dev situation ...`)
+starts one from what is around you, brings a waiting follow-up forward, reveals a secret, shows what the System has
+noticed, or resets it all. `/solo wipe` forgets it all too (`Situations.clear`).
 
 ## Villager requests
 
@@ -1333,7 +1334,7 @@ has added to `/system` by then).
 - **Ids:** items, quests and creatures take a resource id; one typed without a namespace is looked for in the mod's
   own after Minecraft's (`Solo.lookup`), and suggestions match by path too ("rune" offers `beyondsolo:rune_stone`).
 - **Wipe:** `system` cancels whatever is running for the player (Citadel run, Penalty Zone, job change trial, red
-  gate, shadows, the awakening, exhaustion), removes every data attachment in the `beyondsolo` namespace but the
+  gate, shadows, the awakening, exhaustion, situations), removes every data attachment in the `beyondsolo` namespace but the
   System's own (`SystemAPI.reset` keeps "first join handled"), clears the mod's marks in the persistent data, syncs
   every module and takes back the license and the ascension key. `all` also leaves any cave, empties the inventory and
   ender chest, clears effects and XP and sends the player to a new random start (`FirstSpawnHandler.startOver`). Both
