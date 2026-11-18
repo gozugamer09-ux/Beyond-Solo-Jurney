@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import gen_combat_assets as gc  # noqa: E402
 import gen_arsenal_assets as ga  # noqa: E402
 import hd_paint as hp  # noqa: E402
+import weapon_relief  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 ASSETS = os.path.join(ROOT, "src/main/resources/assets/beyondsolo")
@@ -107,6 +108,17 @@ def part_color(self, u, v):
         if band > 0.82:
             x = -0.9
         return tone(self.colors, x)
+    if self.kind == "scales":
+        # a snake's skin: dark saddles along the back, a pale belly, a bright line where the light catches it
+        saddle = math.sin(u * 2.6) + 0.5 * math.sin(u * 5.2 + 1.0)
+        x = t * 0.55 + 0.1 + n * 0.14
+        if t > -0.15 and saddle > 0.55:
+            x -= 0.85
+        elif 0.3 < t < 0.62:
+            x += 0.5
+        if t < -0.5:
+            x = 0.75 + n * 0.15 - (0.5 if int(u * 2.2) % 2 else 0)
+        return tone(self.colors, x)
     if mat == "wood":
         g = math.sin(u * 0.9 + 2.2 * math.sin(vv * 1.3 + u * 0.15))
         x = t * 0.7 + g * 0.22 + n * 0.12
@@ -139,6 +151,30 @@ def part_color(self, u, v):
     return tone(self.colors, x)
 
 
+def crescent_color(self, u, v):
+    """A scythe blade in full detail: a lit spine, a flat that darkens towards the edge, a bevel and a honed edge."""
+    hit = self.at(u, v)
+    if hit is None:
+        return None
+    t, half, k = hit
+    if t > 1:
+        return tone(self.thorns * 3 if len(self.thorns) == 1 else self.thorns, 0.6)
+    n = hp.hash2(int(u * 4), int(v * 4), 17) - 0.5
+    e_spine, e_edge = (1 - t) * half, (t + 1) * half
+    x = 0.1 + 0.45 * t + 0.4 * math.exp(-((t - 0.35) / 0.2) ** 2) + n * 0.12
+    if CTX.get("grade") in ("legendary", "mythic", "divine") and math.sin(k * 26 + t * 2.2) > 0.8:
+        x += 0.3                                   # pattern-welded waves
+    if e_spine < 0.5:
+        x = 0.95                                   # the spine catches the light
+    elif e_spine < 1.0:
+        x = min(x, 0.1)
+    if e_edge < 0.55:
+        x = 0.8                                    # the honed edge
+    elif e_edge < 1.25:
+        x = -0.8                                   # the bevel behind it
+    return tone(self.colors, x)
+
+
 CTX = {}
 
 
@@ -159,17 +195,15 @@ def render_weapon_hd(parts, glow=None):
                         w = p.width(u)
                         tmap[y, x] = (v - p.bend(u)) / w if w > 0 else 9
                         blade_score[i] = blade_score.get(i, 0) + 1
+                    elif isinstance(p, gc.Crescent):
+                        tmap[y, x] = p.at(u, v)[0]
+                        blade_score[i] = blade_score.get(i, 0) + 1
     CTX["glow"] = glow
     CTX["owner"] = owner
     CTX["tmap"] = tmap
     CTX["blade"] = max(blade_score, key=blade_score.get) if blade_score else None
     CTX["parts"] = parts
     return Image.fromarray(a)
-
-
-def add_rim_hd(img, glow):
-    CTX["glow"] = glow
-    return img
 
 
 def circle_hd(uc, vc, r, colors):
@@ -186,7 +220,7 @@ def circle_hd(uc, vc, r, colors):
         if d < 0.28 and dv > 0.2:
             x = 1.0
         return tone(colors, x)
-    return ga.Fn(f)
+    return ga.Fn(f, relief=ga.ball_relief(uc, vc, r))
 
 
 def flanged_hd(uc, r, colors, flanges=6):
@@ -201,7 +235,7 @@ def flanged_hd(uc, r, colors, flanges=6):
             x = face * 0.8 + (0.5 if k < 0.08 else -0.3 if k > 0.32 else 0)
             return tone(colors, x)
         return None
-    return ga.Fn(f)
+    return ga.Fn(f, relief=ga.flanged_relief(uc, r, flanges))
 
 
 def gauntlet_hd(palette, claws=None, spikes=False):
@@ -251,10 +285,11 @@ def apply_patches():
     gc.poly_mask = poly_hd
     ga.poly_mask = poly_hd
     gc.Part.color_at = part_color
+    gc.Crescent.color_at = crescent_color
     gc.render_weapon = render_weapon_hd
     gc.outline = outline_noop
     ga.outline = outline_noop
-    ga.add_rim = add_rim_hd
+    ga.tone3 = tone
     ga.circle = circle_hd
     ga.flanged = flanged_hd
     ga.gauntlet = gauntlet_hd
@@ -322,9 +357,27 @@ def dress_weapon(img, grade, seed):
         hp.outline(a)
         hp.aura(a, accent, (min(110, glow[3] + 30),))
         hp.sparkles(a, hp.GRADE_FX[grade][1], accent, seed)
-        return Image.fromarray(a)
+        return soften(Image.fromarray(a))
     accent2 = {"mythic": hp.hexc("ffb070"), "divine": hp.hexc("ffffff")}.get(grade)
-    return hp.finish(a, grade, accent, accent2, seed=seed)
+    return soften(hp.finish(a, grade, accent, accent2, seed=seed))
+
+
+def soften(img):
+    """Parts marked `soft_outline` (a bowstring) get an outline in their own colour, darker, instead of ink: a
+    one-pixel light line between two black ones reads as a row of beads, not as a cord."""
+    owner = CTX.get("owner")
+    soft = [i for i, p in enumerate(CTX.get("parts") or []) if getattr(p, "soft_outline", False)]
+    if owner is None or not soft:
+        return img
+    a = np.array(img)
+    mine = np.isin(owner, soft)
+    if not mine.any():
+        return img
+    ring = hp.grow(mine) & (owner == -1) & (a[..., 3] >= 200) & ~hp.grow((owner >= 0) & ~mine)
+    colour = a[mine][:, :3].astype(float).mean(axis=0)
+    a[ring, :3] = (colour * 0.5).astype(np.uint8)
+    a[mine, :3] = (a[mine][:, :3] * 0.4 + colour * 0.6).astype(np.uint8)
+    return Image.fromarray(a)
 
 
 COMBAT_GRADES = {
@@ -347,6 +400,57 @@ def write_tex(name, img, grade, animate):
             os.remove(meta)
 
 
+META = os.path.join(weapon_relief.HEIGHT_DIR, "meta.json")
+
+
+def write_relief(name, dressed):
+    """What the held model needs to know about a weapon (tools/gen_weapon_models.py): its depth under every texel
+    (tools/weapon_relief.py), from the parts it was painted from with the finished picture's outline and ornaments
+    filled in around them; how long it is; where its grip is."""
+    import gen_weapon_models as gm
+    body = gm.body_mask(np.array(dressed))
+    H = None
+    parts = CTX.get("parts") or []
+    # parts the held model builds as real shapes (a bow's string, its arrow) have no depth here
+    real = [i for i, p in enumerate(parts) if getattr(p, "geometry", False)]
+    solid_parts = [p for i, p in enumerate(parts) if i not in real]
+    if solid_parts:
+        H = weapon_relief.design_heights(solid_parts, uv_hd, S, SC)
+    reached = None if H is None else ~np.isnan(H)
+    H = weapon_relief.finalize(body, H)
+    show = None
+    owner = CTX.get("owner")
+    if real and owner is not None and reached is not None:
+        # height 0 leaves their texels, and the outline round them, out of the solid; where they are painted over
+        # the bow itself (the arrow across the grip) the solid shows the nearest texel of the bow instead
+        mine = np.isin(owner, real)
+        ring = hp.grow(mine) & (owner == -1) & ~hp.grow((owner >= 0) & ~mine)
+        H[((mine & ~reached) | ring) & body] = 0.0
+        show = np.full((S, S, 2), -1, int)
+        other = (owner >= 0) & ~mine
+        oy, ox = np.nonzero(other)
+        for y, x in zip(*np.nonzero(mine & reached & body)):
+            if len(ox):
+                k = int(np.argmin((ox - x) ** 2 + (oy - y) ** 2))
+                show[y, x] = (ox[k], oy[k])
+    weapon_relief.save_heights(name, H, show)
+    ys, xs = np.nonzero(body)
+    us = [uv_hd(x, y)[0] for x, y in zip(xs, ys)]
+    info = {"extent": [round(min(us) - 0.25, 2), round(max(us) + 0.25, 2)]}          # along the weapon, design units
+    grip = next((p for p in parts if getattr(p, "kind", "") == "grip"), None)
+    if grip is not None:
+        mid = (grip.u0 + grip.u1) / 2
+        info["grip"] = [round(grip.u0, 2), round(grip.u1, 2), round(grip.bend(mid), 3)]
+    meta = {}
+    if os.path.exists(META):
+        with open(META) as f:
+            meta = json.load(f)
+    meta[name] = info
+    with open(META, "w") as f:
+        json.dump(dict(sorted(meta.items())), f, indent=1)
+        f.write("\n")
+
+
 def weapons(only=None):
     apply_patches()
     count = 0
@@ -354,17 +458,24 @@ def weapons(only=None):
     for i, (name, img) in enumerate(_combat_weapons().items()):
         if only and name not in only:
             continue
-        write_tex(name, dress_weapon(img, COMBAT_GRADES[name], 100 + i), COMBAT_GRADES[name], False)
+        dressed = dress_weapon(img, COMBAT_GRADES[name], 100 + i)
+        write_tex(name, dressed, COMBAT_GRADES[name], False)
+        write_relief(name, dressed)
         count += 1
-    for i, (item, (grade, kind, build, _name, _lore)) in enumerate(ga.designs().items()):
+    todo = [(item, grade, build, 200 + i) for i, (item, (grade, _kind, build, _name, _lore)) in enumerate(ga.designs().items())]
+    # the awakening trial's four legendary weapons are designed in their own generator
+    import gen_awakening_assets
+    todo += [(item, "legendary", build, 300 + i) for i, (item, build) in enumerate(gen_awakening_assets.legendary_weapons().items())]
+    for item, grade, build, seed in todo:
         if only and item.split("_pulling_")[0] not in only:
             continue
         CTX.clear()
         CTX["grade"] = grade
         img = build()
-        img = dress_weapon(img, grade, 200 + i)
+        img = dress_weapon(img, grade, seed)
         animate = grade in ("legendary", "mythic", "divine") and "_pulling_" not in item
         write_tex(item, img, grade, animate)
+        write_relief(item, img)
         count += 1
     return count
 
@@ -383,29 +494,16 @@ def _combat_weapons():
         imgs = gc.weapons()
     finally:
         gc.render_weapon = orig
-    for name, img in imgs.items():
-        CTX.clear()
-        CTX.update(img.info.get("ctx", {}))
-        if not img.info.get("ctx"):
-            CTX["owner"] = None
-            CTX["blade"] = None
-        out[name] = img.copy()
-        out[name].info["ctx"] = img.info.get("ctx")
-    # dress_weapon reads CTX, so hand them over one at a time
-    return _CtxDict(out)
+    return _CtxDict(imgs)
 
 
 class _CtxDict(dict):
+    """dress_weapon reads CTX, so hand the weapons over one at a time, each with the context it was painted in."""
+
     def items(self):
         for k, v in super().items():
             CTX.clear()
-            ctx = v.info.get("ctx")
-            if ctx:
-                CTX.update(ctx)
-            else:
-                CTX["owner"] = None
-                CTX["blade"] = None
-                CTX["glow"] = {"crimson_reaper": (208, 42, 104, 70)}.get(k)
+            CTX.update(v.info.get("ctx") or {})
             yield k, v
 
 
