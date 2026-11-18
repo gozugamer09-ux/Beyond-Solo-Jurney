@@ -80,7 +80,22 @@ public final class SystemAPI {
         NeoForge.EVENT_BUS.post(new SystemEvent.RankChanged(player, old, rank));
     }
 
+    /**
+     * Gives the player a title (a lang key, e.g. {@code title.beyondsolo.relentless}). The chronicle keeps it among the
+     * titles they have earned, the System announces it, and it is worn unless they wear one they picked themselves
+     * ({@code chronicle.title.TitleService}). An empty title takes the worn one off.
+     */
     public static void setTitle(ServerPlayer player, String title) {
+        if (title == null || title.isEmpty()) {
+            equipTitle(player, "");
+            return;
+        }
+        if (NeoForge.EVENT_BUS.post(new SystemEvent.TitleGranted(player, title)).isCanceled()) return;
+        if (get(player).title().isEmpty()) equipTitle(player, title);
+    }
+
+    /** Wears a title ("" for none). Only the chronicle should call this: it checks the title was earned. */
+    public static void equipTitle(ServerPlayer player, String title) {
         get(player).setTitle(title);
         sync(player);
     }

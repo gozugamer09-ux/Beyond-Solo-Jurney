@@ -220,6 +220,7 @@ public final class UiTestDriver {
                     case "craft" -> SystemScreen.openOn(com.beyondsolo.client.crafting.CraftClientEvents.CRAFT_TAB);
                     case "gates" -> SystemScreen.openOn(com.beyondsolo.client.key.KeyClientEvents.GATES_TAB);
                     case "citadel" -> SystemScreen.openOn(com.beyondsolo.client.tower.TowerClientEvents.CITADEL_TAB);
+                    case "chronicle" -> SystemScreen.openOn(com.beyondsolo.client.chronicle.ChronicleClientEvents.CHRONICLE_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -344,6 +345,7 @@ public final class UiTestDriver {
                     moveMouse(mc, cs.getGuiLeft() + slot.x + 8, cs.getGuiTop() + slot.y + 8);
                 }
             }
+            case "chronicle" -> com.beyondsolo.client.chronicle.ChronicleTab.show(arg);
             case "npc" -> {
                 String[] a = arg.split(" ");
                 if (a[0].equals("scroll")) com.beyondsolo.client.npc.NpcBoardScreen.scrollBy(Float.parseFloat(a[1]));
