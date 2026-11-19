@@ -71,7 +71,7 @@ public final class SkillParticleLooks {
             case EXPLOSION, BIG_EXPLOSION -> {
                 float big = look == SkillParticlesPayload.Look.BIG_EXPLOSION ? 1.6f : 1f;
                 FxParticles.add(Tex.SMOKE, x, y, z, vx * 0.3, vy * 0.3 + 0.02, vz * 0.3).frame(RANDOM.nextInt(16)).blend()
-                        .life(FxParticles.rf(22, 36)).size(0.45f * big, FxParticles.rf(1.0f, 1.4f) * big).color(0x8E8680)
+                        .life(FxParticles.rf(22, 36)).size(0.45f * big, FxParticles.rf(1.0f, 1.4f) * big).color(0x4E4743)
                         .alpha(0.55f).fade(0.04f, 0.3f).drag(0.88f).spin(FxParticles.rf(-1, 1));
                 FxParticles.add(Tex.HOT, x, y, z, 0, 0, 0).life(6).size(0.6f * big, 0.9f * big).color(0xFFC890).alpha(0.5f).fade(0, 0.2f);
             }
@@ -98,7 +98,7 @@ public final class SkillParticleLooks {
             case POOF -> FxParticles.add(Tex.SMOKE, x, y, z, vx * 0.6, vy * 0.6, vz * 0.6).frame(RANDOM.nextInt(16)).blend()
                     .life(FxParticles.rf(14, 24)).size(0.2f, 0.5f).color(0xE6E2DC).alpha(0.5f).fade(0.05f, 0.3f).drag(0.88f);
             case SMOKE -> FxParticles.add(Tex.SMOKE, x, y, z, vx * 0.5, vy * 0.5 + 0.01, vz * 0.5).frame(RANDOM.nextInt(16)).blend()
-                    .life(FxParticles.rf(22, 36)).size(0.2f, 0.55f).color(0x5E5854).alpha(0.5f).fade(0.1f, 0.35f).drag(0.92f).swirl(0.004f);
+                    .life(FxParticles.rf(22, 36)).size(0.2f, 0.55f).color(0x2C2826).alpha(0.5f).fade(0.1f, 0.35f).drag(0.92f).swirl(0.004f);
             case INK -> FxParticles.add(Tex.SMOKE, x, y, z, vx * 0.5, vy * 0.5, vz * 0.5).frame(RANDOM.nextInt(16)).blend()
                     .life(FxParticles.rf(20, 32)).size(0.25f, 0.6f).color(0x101016).alpha(0.65f).fade(0.05f, 0.35f).drag(0.9f);
             case SPLASH -> FxParticles.add(Tex.DROP, x, y, z, vx + FxParticles.rnd(0.08), Math.abs(vy) + 0.12 + RANDOM.nextDouble() * 0.1, vz + FxParticles.rnd(0.08))

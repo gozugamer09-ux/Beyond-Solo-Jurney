@@ -24,42 +24,37 @@ final class SkinFx {
     // ---- blasts ----
 
     /**
-     * An explosion at {@code at}, {@code age} seconds after it went off: a white flash and hard spikes at once, a ball
-     * of the element swelling and burning away, a shockwave over the ground at {@code ground} (null: high in the air,
-     * none), a scorch mark and smoke where it burned. {@code size} is its reach in blocks. {@code fill} 1 is a solid
-     * fireball, 0 a hollow dome of force bright at its edges (a blast round the caster). Whatever is left of it (smoke,
-     * the scorch) is gone by {@code end} seconds.
+     * An explosion at {@code at}, {@code age} seconds after it went off, drawn the series' way: a hard white flash and
+     * long thin rays at once, a shell of the element that bursts and is gone in a moment (bright only at its edge: no
+     * ball of glow hangs there), a shockwave over the ground at {@code ground} (null: high in the air, none), a scorch
+     * mark, and smoke where it burned (black for fire, ink for shadow, dust for earth); the flames it throws are the
+     * caller's particles. {@code size} is its reach in blocks. {@code fill} 1 is a burst of fire, 0 a hollow ring of
+     * force (a blast round the caster). Whatever is left of it (smoke, the scorch) is gone by {@code end} seconds.
      */
     static void blast(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 at, Vec3 ground, float size, float age,
                       float end, float fill, Skins.Look look, int c, long seed, float strength) {
         strength *= Mth.clamp((end - age) / 0.2f, 0, 1);
         if (age < 0 || strength <= 0.01f || size <= 0.01f) return;
         int body = look.body(c), light = look.light(c);
-        float k = Mth.clamp(age / 0.6f, 0, 1);
-        float o = easeOut(k);
         if (ground != null) {
             if (scorches(look)) scorch(pose, buffers, ground, size * 0.7f, strength * fadeOut(age, 1.0f, 0.6f), seed);
-            shock(pose, buffers, camera, origin, ground, size * (0.3f + 1.0f * easeOut(age / 0.45f)), 0.35f + 0.3f * size,
+            shock(pose, buffers, camera, origin, ground, size * (0.3f + 1.0f * easeOut(age / 0.45f)), 0.35f + 0.3f * Math.min(size, 2.5f),
                     strength * fadeOut(age, 0.12f, 0.45f), light, seed);
         }
-        // the ball of the element
-        float r = size * (0.28f + 0.6f * o);
-        float a = strength * (1 - k) * (1 - 0.4f * k);
-        float rim = Mth.lerp(fill, 0.95f, 0.3f);
-        Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(look.skin()), at, r, 10, 18, a, body,
-                (seed & 15) * 0.07f + age * 0.3f, 2, -age * 0.7f, 1, rim);
-        if (fill > 0.3f) {
-            Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.PLASMA), at, r * 0.72f, 8, 14, a * fill * (1 - k) * 0.7f, body,
-                    age * 0.5f, 2, age * 0.4f, 1, -0.5f);
+        // the shell of the element, bursting: thin, bright at its edge, gone in a quarter of a second (it must never
+        // stand there long enough to read as a dome)
+        float ks = Mth.clamp(age / 0.25f, 0, 1);
+        float r = size * (0.25f + 0.55f * easeOut(ks));
+        float a = strength * (1 - ks) * (1 - ks) * (1 - ks);
+        Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(look.skin()), at, r, 10, 18, a * (0.4f + 0.3f * fill), body,
+                (seed & 15) * 0.07f + age * 0.3f, 2, -age * 0.7f, 1, 0.95f);
+        // the flash: a white-hot point and long thin rays, for a few frames
+        if (age < 0.18f) {
+            float f = 1 - age / 0.18f;
+            Skins.spikes(pose, buffers, camera, at, seed, 16, size * (1.1f + 1.0f * (1 - f)), 0.18f + size * 0.08f, light, strength * f);
+            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), at, size * (0.4f + 0.4f * (1 - f)), 0xFFFFFF, strength * f, seed % 90);
         }
-        Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.ORB), at, r * (0.5f + 0.3f * fill), light, a * (0.3f + 0.35f * fill) * (1 - k), age * 70);
-        // the flash
-        if (age < 0.15f) {
-            float f = 1 - age / 0.15f;
-            Skins.spikes(pose, buffers, camera, at, seed, 12, size * (0.9f + 0.9f * (1 - f)), 0.25f + size * 0.12f, light, strength * f);
-            Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), at, size * (0.6f + 0.5f * (1 - f)), 0xFFFFFF, strength * f, seed % 90);
-        }
-        if (smokes(look)) smoke(pose, buffers, camera, at, size, age, seed, look == Skins.Look.FIRE ? 0x5A4C40 : 0x9A8C78, strength);
+        if (smokes(look)) smoke(pose, buffers, camera, at, size, age, seed, smokeTint(look), strength);
     }
 
     /** A shockwave on the ground round {@code centre}: a short wall of light running out, a crisp line at its foot. */
@@ -307,15 +302,27 @@ final class SkinFx {
 
     // ---- shells, barriers, whirlwinds, swords ----
 
-    /** Sound made visible: {@code n} shells of moving air running out of {@code at} one after another, bright only at their edges. */
+    /**
+     * Sound made visible, the way the series shows pressure: {@code n} rings of bent air running out of {@code at} one
+     * after another at the height of the chest, the waist and the head (thin and bright at their front, no dome of glow).
+     */
     static void shells(PoseStack pose, MultiBufferSource buffers, Camera camera, Vec3 origin, Vec3 at, float reach, float age, int n, float gap,
                        Skins.Look look, int c, float strength) {
         for (int i = 0; i < n; i++) {
-            float k = Mth.clamp((age - i * gap) / 0.6f, 0, 1);
+            float k = Mth.clamp((age - i * gap) / 0.5f, 0, 1);
             if (k <= 0 || k >= 1) continue;
             float o = easeOut(k);
-            Skins.sphere(pose, buffers, camera, origin, ModRenderTypes.energy(Skins.WIND), at, 0.5f + reach * o, 10, 20,
-                    strength * (1 - k) * (1 - k * 0.3f), i % 2 == 0 ? look.light(c) : look.body(c), i * 0.37f + age * 0.2f, 3, 0.25f * i, 2, 1f);
+            float radius = 0.5f + reach * o;
+            float a = strength * (1 - k) * (1 - k * 0.3f);
+            int rgb = i % 2 == 0 ? look.light(c) : 0xFFFFFF;
+            // a ring just above and just below the one through the chest, lagging a little behind it: together one
+            // thick band of shuddering air running out, not a ball
+            for (int j = -1; j <= 1; j++) {
+                float lag = j == 0 ? 1f : 0.9f;
+                Vec3 centre = at.add(0, j * (0.16f + 0.05f * radius), 0);
+                Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), centre, radius * lag, 0.06f + 0.03f * radius, rgb,
+                        a * (j == 0 ? 1f : 0.55f), i * 0.37f + age * 2f, Math.max(2, radius * 1.5f));
+            }
         }
     }
 
@@ -419,7 +426,19 @@ final class SkinFx {
 
     /** Whether a blast of this element throws up smoke or dust. */
     static boolean smokes(Skins.Look look) {
-        return look == Skins.Look.FIRE || look == Skins.Look.EARTH || look == Skins.Look.PHYSICAL;
+        return look == Skins.Look.FIRE || look == Skins.Look.EARTH || look == Skins.Look.PHYSICAL || look == Skins.Look.SHADOW;
+    }
+
+    /**
+     * The colour of the smoke an element throws up: fire's is black, shadow's is ink (the series never draws dark power's
+     * smoke grey), rock and blows throw up dust.
+     */
+    static int smokeTint(Skins.Look look) {
+        return switch (look) {
+            case FIRE -> 0x1E1714;
+            case SHADOW -> 0x0C0B18;
+            default -> 0x9A8C78;
+        };
     }
 
     private SkinFx() {}
