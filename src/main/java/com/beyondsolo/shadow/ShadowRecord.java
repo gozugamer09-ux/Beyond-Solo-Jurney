@@ -54,6 +54,9 @@ public final class ShadowRecord {
     private long recoverUntil;
     private int kills;
     private long raisedAt;
+    /** Standing guard: the world it guards in and the spot it keeps to, or null while it follows its master. */
+    private @Nullable String postDimension;
+    private @Nullable net.minecraft.world.phys.Vec3 post;
 
     ShadowRecord() {}
 
@@ -89,6 +92,18 @@ public final class ShadowRecord {
     public boolean recovering(long now) { return recoverUntil > now; }
     public int kills() { return kills; }
     public long raisedAt() { return raisedAt; }
+
+    /** True while it stands guard somewhere instead of following its master. */
+    public boolean posted() { return post != null && postDimension != null; }
+    /** The spot it guards, or null. */
+    public @Nullable net.minecraft.world.phys.Vec3 post() { return post; }
+    /** The world it guards in ({@code minecraft:overworld}...), or null. */
+    public @Nullable ResourceLocation postDimension() { return postDimension == null ? null : ResourceLocation.tryParse(postDimension); }
+
+    /** True if it guards a spot in this world. */
+    public boolean postedIn(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
+        return posted() && dimension.location().toString().equals(postDimension);
+    }
 
     /** The shadow's name: its own if it has one, otherwise the creature it was. */
     public Component displayName() {
@@ -136,6 +151,17 @@ public final class ShadowRecord {
     void setRecoverUntil(long t) { this.recoverUntil = t; }
     void addKill() { kills++; }
 
+    /** Sets it to guard a spot ({@code at} null: back to following). */
+    void setPost(@Nullable net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension, @Nullable net.minecraft.world.phys.Vec3 at) {
+        if (dimension == null || at == null) {
+            this.postDimension = null;
+            this.post = null;
+        } else {
+            this.postDimension = dimension.location().toString();
+            this.post = at;
+        }
+    }
+
     /**
      * Adds XP, climbing no higher than {@code top}. Returns how many ranks it climbed (0 if none); levels inside a rank
      * are applied on the way.
@@ -177,6 +203,12 @@ public final class ShadowRecord {
         t.putLong("recover", recoverUntil);
         t.putInt("kills", kills);
         t.putLong("raised", raisedAt);
+        if (posted()) {
+            t.putString("postDim", postDimension);
+            t.putDouble("postX", post.x);
+            t.putDouble("postY", post.y);
+            t.putDouble("postZ", post.z);
+        }
         return t;
     }
 
@@ -197,6 +229,10 @@ public final class ShadowRecord {
         r.recoverUntil = t.getLong("recover");
         r.kills = t.getInt("kills");
         r.raisedAt = t.getLong("raised");
+        if (t.contains("postDim")) {
+            r.postDimension = t.getString("postDim");
+            r.post = new net.minecraft.world.phys.Vec3(t.getDouble("postX"), t.getDouble("postY"), t.getDouble("postZ"));
+        }
         return r;
     }
 }

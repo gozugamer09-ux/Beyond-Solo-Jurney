@@ -42,6 +42,16 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
     public Map<UUID, UUID> active() { return Collections.unmodifiableMap(active); }
     public int activeCount() { return active.size(); }
 
+    /** Shadows standing guard somewhere that are not in the world right now (their spot unloaded, or another world). */
+    public int awayPosts() {
+        int n = 0;
+        for (ShadowRecord r : shadows) if (r.posted() && !active.containsKey(r.id())) n++;
+        return n;
+    }
+
+    /** How many of the master's places for shadows out are taken: those out, and the guards away at their posts. */
+    public int used() { return active.size() + awayPosts(); }
+
     void add(ShadowRecord r) { shadows.add(r); }
 
     void remove(UUID id) {

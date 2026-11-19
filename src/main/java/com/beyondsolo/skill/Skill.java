@@ -32,6 +32,16 @@ public final class Skill {
         boolean cast(ServerPlayer player, Skill skill, int level);
     }
 
+    /**
+     * A second press of a skill whose first press is still working (Sovereign Hand: the first grabs, the second hurls).
+     * Return true if the press was taken as the recast: it costs no mana and starts no cooldown, the cooldown checks
+     * are skipped. Return false and the press is an ordinary cast.
+     */
+    @FunctionalInterface
+    public interface Recast {
+        boolean recast(ServerPlayer player, Skill skill, int level);
+    }
+
     /** The numbers filled into the skill's description, for a level and the player's rank tier (0 = E .. 5 = S). */
     @FunctionalInterface
     public interface Args {
@@ -59,6 +69,16 @@ public final class Skill {
     private @Nullable Boolean circle;
     /** A monarch's power: only a crown gives it ({@link MonarchPowers}). */
     private boolean monarch;
+    /** A second press while the first is still working ({@link Recast}), or null. */
+    private @Nullable Recast recast;
+    /** The buff that marks the window for the recast (the skill bar shows the skill ready again while it lasts), or null. */
+    private @Nullable String recastBuff;
+    /**
+     * Who may hold it beyond class and subclass (Umbral Exchange: only those who raise shadows), or null for anyone the
+     * class fits. Checked on the server: a gated skill is not taught by level, tome or command to anyone it shuts out,
+     * and is forgotten when its holder no longer passes.
+     */
+    private @Nullable java.util.function.Predicate<net.minecraft.world.entity.player.Player> gate;
 
     Skill(String path, Kind kind, @Nullable PlayerClass owner, PlayerRank grade, int unlockLevel, boolean advanced, int color,
           float mana, int cooldown, int cooldownAtMax, @Nullable Action action, Args args) {
@@ -110,6 +130,31 @@ public final class Skill {
         this.rune = rune;
         return this;
     }
+
+    /** What a second press does while the first is still working ({@link Recast}), and the buff that marks that window. */
+    public @Nullable Recast recast() { return recast; }
+
+    public @Nullable String recastBuff() { return recastBuff; }
+
+    Skill recast(Recast recast, String buff) {
+        this.recast = recast;
+        this.recastBuff = buff;
+        return this;
+    }
+
+    /** True if more than class and subclass decides who may hold it (see {@link #allows}). */
+    public boolean gated() { return gate != null; }
+
+    /** True if this player may hold it as far as its gate goes (always, for a skill without one). */
+    public boolean allows(net.minecraft.world.entity.player.Player player) {
+        return gate == null || gate.test(player);
+    }
+
+    Skill gate(java.util.function.Predicate<net.minecraft.world.entity.player.Player> gate) {
+        this.gate = gate;
+        return this;
+    }
+
     /** The class that learns it, or null for skills anyone can learn. */
     public @Nullable PlayerClass owner() { return owner; }
     /** How rare and strong the skill is (E..S). Shown as a chip; skill tomes roll better grades in higher gates. */

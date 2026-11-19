@@ -9,6 +9,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -31,6 +32,12 @@ public final class ShadowHooks {
         Entity by = event.getSource().getEntity();
         if (by instanceof ShadowEntity && event.getEntity() instanceof net.minecraft.world.entity.player.Player) event.setCanceled(true);
         if (event.getEntity() instanceof ShadowEntity s && by != null && s.isAlliedTo(by)) event.setCanceled(true);
+    }
+
+    /** A shadow taken out of the world without being sent away (nobody near its spot any more). */
+    @SubscribeEvent
+    static void onLeave(EntityLeaveLevelEvent event) {
+        if (!event.getLevel().isClientSide() && event.getEntity() instanceof ShadowEntity e) ShadowService.left(e);
     }
 
     @SubscribeEvent

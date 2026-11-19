@@ -175,6 +175,9 @@ public final class Runes {
     // ================================================================ who can absorb what
 
     public static @Nullable Refusal refusal(ServerPlayer p, ItemStack stack) {
+        Skill s = skillOf(stack);
+        // a skill only some may hold (the shadow raisers' Umbral Exchange) is as good as another class's to the rest
+        if (s != null && SystemAPI.get(p).isAwakened() && !s.allows(p)) return Refusal.CLASS;
         return refusal(SystemAPI.get(p), JobAPI.subclass(p), SkillAPI.get(p), stack);
     }
 
@@ -218,7 +221,7 @@ public final class Runes {
     public static List<Pick> pool(@Nullable PlayerClass c, @Nullable Subclass sub, SkillData skills, PlayerRank grade) {
         List<Pick> out = new ArrayList<>();
         for (Skill s : Skills.all()) {
-            if (s.grade().tier() > grade.tier() || s.advanced()) continue;
+            if (s.grade().tier() > grade.tier() || s.advanced() || s.gated()) continue;
             if (c == null ? s.owner() != null || s.subclass() != null : !s.fits(c, sub)) continue;
             if (skills.level(s.path()) >= Skill.MAX_LEVEL) continue;
             int w = s.rune() ? 3 : 2;

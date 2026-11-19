@@ -46,7 +46,7 @@ public final class TranslationGameTests {
             "beyondsolo_economy", "beyondsolo_enemies", "beyondsolo_gear", "beyondsolo_jobs", "beyondsolo_keys", "beyondsolo_penalty",
             "beyondsolo_party", "beyondsolo_redgates", "beyondsolo_runes", "beyondsolo_shadows", "beyondsolo_situations", "beyondsolo_tower", "beyondsolo_chronicle",
             "beyondsolo_worldboss", "beyondsolo_guilds", "beyondsolo_monarch", "beyondsolo_rulers", "beyondsolo_association",
-            "beyondsolo_boxes", "beyondsolo_mana", "beyondsolo_story");
+            "beyondsolo_boxes", "beyondsolo_mana", "beyondsolo_story", "beyondsolo_utility");
     /** Minecraft's own pattern for a translation argument ({@code TranslatableContents}). */
     private static final Pattern ARG = Pattern.compile("%(?:(\\d+)\\$)?([A-Za-z%]|$)");
 

@@ -81,7 +81,11 @@ public final class SkillGestures {
         return switch (kind) {
             case SLASH -> variant == 1 ? "slash_back" : "slash";
             case DASH -> "lunge";
-            case BLINK, VEIL -> "vanish";
+            case BLINK, VEIL, EXCHANGE -> "vanish";
+            // the hand nobody sees: reached out to take, thrown with the arm, pushed out with both palms
+            case GRASP -> "point";
+            case HURL -> "throw";
+            case FORCE -> "cast_both";
             case SLAM, CRACK -> melee ? "slam" : "ground";
             case QUAKE -> "stomp";
             case ROAR -> "roar";

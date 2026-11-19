@@ -98,7 +98,7 @@ final class SoloSkills {
         int n = 0;
         for (Skill s : Skills.all()) {
             // the monarch powers come with a crown (/solo monarch crown), not with "every skill"
-            if (s.monarch() || !s.fits(d.playerClass(), JobAPI.subclass(p))) continue;
+            if (s.monarch() || !s.fits(d.playerClass(), JobAPI.subclass(p)) || !s.allows(p)) continue;
             teach(p, s, level);
             n++;
         }
@@ -211,7 +211,10 @@ final class SoloSkills {
 
     // ---------------------------------------------------------------- shadows
 
-    /** {@code /solo shadow give <creature> [rank] [players]}: a shadow straight into the army. */
+    /**
+     * {@code /solo shadow give <creature> [rank] [players]}: a shadow straight into the army. {@code post} leaves every
+     * shadow out on guard where it stands, {@code unpost} takes every guard off its post, {@code posts} lists them.
+     */
     private static LiteralArgumentBuilder<CommandSourceStack> shadow() {
         RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> creature = Commands.argument("creature", ResourceLocationArgument.id())
                 .suggests((c, b) -> Solo.suggestIds(BuiltInRegistries.ENTITY_TYPE.keySet().stream(), b));
@@ -219,7 +222,46 @@ final class SoloSkills {
         for (ShadowRank rank : ShadowRank.values()) {
             creature.then(Solo.targets(Commands.literal(rank.key()), (ctx, p) -> giveShadow(ctx, p, rank)));
         }
-        return Commands.literal("shadow").then(Commands.literal("give").then(creature));
+        return Commands.literal("shadow").then(Commands.literal("give").then(creature))
+                .then(Solo.targets(Commands.literal("post"), (ctx, p) -> postAll(p)))
+                .then(Solo.targets(Commands.literal("unpost"), (ctx, p) -> unpostAll(p)))
+                .then(Solo.target(Commands.literal("posts"), (ctx, p) -> posts(p)));
+    }
+
+    private static Component postAll(ServerPlayer p) throws CommandSyntaxException {
+        if (!ShadowService.canRaise(p)) throw Solo.error("not_necromancer", p.getDisplayName());
+        if (!ShadowService.canGuardIn(p.serverLevel())) throw Solo.error("no_guard_here", p.getDisplayName());
+        int n = 0;
+        for (java.util.UUID rid : List.copyOf(ShadowService.army(p).active().keySet())) {
+            ShadowRecord r = ShadowService.army(p).get(rid);
+            if (r != null && !r.posted() && ShadowService.post(p, rid)) n++;
+        }
+        if (n == 0) throw Solo.error("no_shadows_out", p.getDisplayName());
+        return Solo.t("shadow.posted", p.getDisplayName(), n);
+    }
+
+    private static Component unpostAll(ServerPlayer p) throws CommandSyntaxException {
+        int n = 0;
+        for (ShadowRecord r : List.copyOf(ShadowService.army(p).shadows())) if (ShadowService.unpost(p, r.id())) n++;
+        if (n == 0) throw Solo.error("no_guards", p.getDisplayName());
+        return Solo.t("shadow.unposted", p.getDisplayName(), n);
+    }
+
+    private static Component posts(ServerPlayer p) throws CommandSyntaxException {
+        List<ShadowRecord> guards = new ArrayList<>();
+        for (ShadowRecord r : ShadowService.army(p).shadows()) if (r.posted()) guards.add(r);
+        if (guards.isEmpty()) throw Solo.error("no_guards", p.getDisplayName());
+        MutableComponent out = Solo.t("shadow.posts", p.getDisplayName(), guards.size());
+        for (ShadowRecord r : guards) {
+            net.minecraft.world.phys.Vec3 at = r.post();
+            boolean here = r.postedIn(p.level().dimension());
+            boolean standing = ShadowService.army(p).isActive(r.id());
+            out.append(Component.literal("\n  "))
+                    .append(Solo.t(standing ? "shadow.post.standing" : "shadow.post.away", r.displayName(),
+                            Math.round(at.x) + " " + Math.round(at.y) + " " + Math.round(at.z), String.valueOf(r.postDimension()),
+                            here ? Math.round(Math.sqrt(p.distanceToSqr(at))) : "-"));
+        }
+        return out;
     }
 
     private static Component giveShadow(CommandContext<CommandSourceStack> ctx, ServerPlayer p, @Nullable ShadowRank rank) throws CommandSyntaxException {

@@ -80,11 +80,13 @@ public final class SkillBar {
         }
         int level = ClientSkills.data().level(s.path());
         float cd = ClientSkills.cooldownFraction(s, partial);
-        boolean cooling = cd > 0;
+        // its first press still working (a hand holding what it grabbed): the next press is free, so it shows ready
+        boolean recast = SkillClientEvents.recasting(s);
+        boolean cooling = cd > 0 && !recast;
         if (wasCooling[i] && !cooling) readyAt[i] = Anim.now();
         wasCooling[i] = cooling;
         float mana = com.beyondsolo.rune.Runes.manaCost(com.beyondsolo.client.rune.RuneClient.data(), s, level);
-        boolean noMana = sys.mana() < mana && !Minecraft.getInstance().player.isCreative();
+        boolean noMana = !recast && sys.mana() < mana && !Minecraft.getInstance().player.isCreative();
 
         float cast = 1 - Anim.outCubic(Anim.progress(castAt[i], 0.35f));
         float ready = 1 - Anim.progress(readyAt[i], 0.7f);
@@ -116,6 +118,12 @@ public final class SkillBar {
             float secs = ClientSkills.cooldownSeconds(s, partial);
             String t = secs >= 10 ? String.valueOf(Math.round(secs)) : String.format(java.util.Locale.ROOT, "%.1f", secs);
             SysFont.draw(g, t, cx, SysFont.centerY(y, SIZE, 7.5f), 7.5f, SystemTheme.TEXT, true, 0.5f);
+        }
+        if (recast) {
+            // waiting for the second press: a beating ring round the gem
+            float beat = 0.5f + 0.5f * (float) Math.sin(Anim.now() * 9);
+            Shapes.ring(cx, cy, SIZE * (0.56f + 0.06f * beat), 1.3f).fill(Gfx.alpha(Gfx.mix(color, 0xFFFFFFFF, 0.5f), 0.55f + 0.45f * beat))
+                    .glow(3, Gfx.alpha(color, 0.6f)).draw(g);
         }
         if (ready > 0) {
             Shapes.box(x, y, SIZE, SIZE).radius(6).fill(Gfx.alpha(0xFFFFFFFF, 0.35f * ready * ready)).additive().draw(g);
