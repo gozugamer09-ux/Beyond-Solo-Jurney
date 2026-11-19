@@ -99,7 +99,7 @@ final class SoloSkills {
         int n = 0;
         for (Skill s : Skills.all()) {
             // the monarch powers come with a crown (/solo monarch crown), not with "every skill"
-            if (s.monarch() || !s.fits(d.playerClass(), JobAPI.subclass(p)) || !s.allows(p)) continue;
+            if (s.sovereign() || !s.fits(d.playerClass(), JobAPI.subclass(p)) || !s.allows(p)) continue;
             teach(p, s, level);
             n++;
         }
@@ -327,7 +327,9 @@ final class SoloSkills {
     private static Component giveShadow(CommandContext<CommandSourceStack> ctx, ServerPlayer p, @Nullable ShadowRank rank) throws CommandSyntaxException {
         ResourceLocation id = ResourceLocationArgument.getId(ctx, "creature");
         EntityType<?> type = Solo.lookup(BuiltInRegistries.ENTITY_TYPE, id).orElseThrow(() -> Solo.error("unknown_creature", id.toString()));
-        boolean boss = type == ModEntities.GATE_BOSS.get() || type == TowerModule.CITADEL_LORD.get();
+        // a boss (ours, the world's threats, the dragon, the wither, another mod's) rises as a named elite
+        boolean boss = type == ModEntities.GATE_BOSS.get() || type == TowerModule.CITADEL_LORD.get()
+                || com.beyondsolo.shadow.ShadowForm.probeBossRank(p.serverLevel(), type) >= 0;
         ShadowRecord r = ShadowService.give(p, type, rank, boss);
         return Solo.t("shadow.given", p.getDisplayName(), r.displayName(), r.rank().displayName());
     }

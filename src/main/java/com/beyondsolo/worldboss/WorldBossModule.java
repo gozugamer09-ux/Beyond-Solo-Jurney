@@ -111,6 +111,7 @@ public final class WorldBossModule {
             .displayItems((params, out) -> {
                 out.accept(MONARCH_SEAL.get());
                 out.accept(com.beyondsolo.ruler.RulerModule.MOTE.get());
+                out.accept(com.beyondsolo.light.LightModule.FEATHER.get());
                 for (List<DeferredItem<SystemArmorItem>> pieces : PIECES.values()) pieces.forEach(p -> out.accept(p.get()));
             })
             .build());

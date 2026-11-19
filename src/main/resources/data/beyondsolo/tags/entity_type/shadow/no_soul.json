@@ -1,7 +1,7 @@
 {
   "replace": false,
   "values": [
-    "minecraft:ender_dragon", "minecraft:armor_stand", "minecraft:giant", "minecraft:player",
-    "beyondsolo:shadow", "beyondsolo:traveler", "beyondsolo:arbiter", "beyondsolo:nest_heart"
+    "minecraft:armor_stand", "minecraft:player",
+    "beyondsolo:shadow", "beyondsolo:nest_heart", "beyondsolo:training_dummy", "beyondsolo:story_vision"
   ]
 }

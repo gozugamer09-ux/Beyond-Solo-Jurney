@@ -225,13 +225,13 @@ public final class Skills {
 
     /**
      * Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts (see {@link #runeArts}), the
-     * monarch powers (see {@link #monarchPowers}) and skills only some players may hold ({@link Skill#gated()}, such as
+     * monarch and ruler powers (see {@link #monarchPowers}, {@link #rulerPowers}) and skills only some players may hold ({@link Skill#gated()}, such as
      * the shadow raisers' Umbral Exchange) are not listed.
      */
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune() && !s.monarch() && !s.gated()) out.add(s);
-        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune() && !s.monarch() && !s.gated()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune() && !s.sovereign() && !s.gated()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune() && !s.sovereign() && !s.gated()) out.add(s);
         return out;
     }
 
@@ -239,6 +239,13 @@ public final class Skills {
     public static List<Skill> monarchPowers() {
         List<Skill> out = new ArrayList<>();
         for (Skill s : ALL.values()) if (s.monarch()) out.add(s);
+        return out;
+    }
+
+    /** The ruler powers: the three the light gives every ruler, then each mantle's authority. */
+    public static List<Skill> rulerPowers() {
+        List<Skill> out = new ArrayList<>();
+        for (Skill s : ALL.values()) if (s.ruler()) out.add(s);
         return out;
     }
 
@@ -311,6 +318,7 @@ public final class Skills {
         SubclassSkills.init();
         RuneArts.init();
         MonarchPowers.init();
+        RulerPowers.init();
     }
 
     private Skills() {}

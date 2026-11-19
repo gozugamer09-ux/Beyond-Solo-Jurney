@@ -230,6 +230,7 @@ public final class DepthsBuild {
                 level.setBlock(center.below(), realm.accent(r), FLAGS);
             }
             case SEALED -> dressSealed(level, g, room, center, r);
+            case CHAPEL -> dressChapel(level, g, room, center, r);
         }
     }
 
@@ -321,6 +322,125 @@ public final class DepthsBuild {
         hang(level, g, room, center, r, 4, Blocks.CHAIN.defaultBlockState());
         hang(level, g, room, center, r, 3, Blocks.SOUL_LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
     }
+
+    // ------------------------------------------------------------------ the chapel of the Envoy of Dawn
+
+    /**
+     * Where the Envoy of Dawn waits in its chapel ({@code light.Chapel}): over the altar at the far end from the way in,
+     * and the way it faces (towards whoever comes in).
+     */
+    public static Door chapelAltar(ServerLevel level, GateInstance g) {
+        DungeonLayout.Room room = g.layout().hidden();
+        BlockPos c = g.world(room.center());
+        Vec3 in = inward(g, room);
+        double along = room.reach() * 0.45;
+        BlockPos at = floorAt(level, Mth.floor(c.getX() + 0.5 + in.x * along), Mth.floor(c.getZ() + 0.5 + in.z * along), floorCenter(level, g, room).getY());
+        return new Door(at, Direction.getNearest(-in.x, 0, -in.z));
+    }
+
+    /**
+     * The chapel of the Envoy of Dawn, behind its wall off a temple's antechamber: the dark of the temple left behind for
+     * white stone and gold. A floor of calcite and quartz with a line of gold from the way in to the altar, a ring of
+     * gold round the altar's dais, two white columns either side of it up to the roof crowned with light, lit candles in
+     * a ring, lanterns on chains, and light everywhere (it is meant to be found by its light). In the antechamber, by
+     * the wall, a sign: the light waits behind the stone.
+     */
+    static void dressChapel(ServerLevel level, GateInstance g, DungeonLayout.Room room, BlockPos center, RandomSource r) {
+        BlockPos c = g.world(room.center());
+        Vec3 in = inward(g, room);
+        Vec3 side = new Vec3(-in.z, 0, in.x);
+        int rx = room.rx(), rz = room.rz();
+        double altar = room.reach() * 0.45;
+        for (int x = -rx; x <= rx; x++) {
+            for (int z = -rz; z <= rz; z++) {
+                double d = Math.sqrt(x * x / (double) (rx * rx) + z * z / (double) (rz * rz));
+                if (d > 0.92) continue;
+                BlockPos top = floorAt(level, c.getX() + x, c.getZ() + z, center.getY());
+                if (Math.abs(top.getY() - center.getY()) > 2 || open(level.getBlockState(top.below()))) continue;
+                double along = (x + 0.5) * in.x + (z + 0.5) * in.z, across = (x + 0.5) * side.x + (z + 0.5) * side.z;
+                double fromAltar = Math.sqrt((along - altar) * (along - altar) + across * across);
+                BlockState s;
+                if (fromAltar < 1.6) {
+                    s = fromAltar < 0.8 ? Blocks.CHISELED_QUARTZ_BLOCK.defaultBlockState() : Blocks.QUARTZ_BRICKS.defaultBlockState();
+                } else if (fromAltar < 2.6) {
+                    s = Blocks.GOLD_BLOCK.defaultBlockState();
+                } else if (Math.abs(across) < 0.75 && along < altar) {
+                    s = Blocks.GOLD_BLOCK.defaultBlockState();
+                } else if (d > 0.8) {
+                    s = Blocks.SMOOTH_QUARTZ.defaultBlockState();
+                } else {
+                    s = (Math.floorMod(x + z, 2) == 0 ? Blocks.CALCITE : Blocks.POLISHED_DIORITE).defaultBlockState();
+                }
+                level.setBlock(top.below(), s, FLAGS);
+                // nothing left lying on the stone (lichen, bone, a stalagmite stub)
+                if (!level.getBlockState(top).isAir() && !level.getBlockState(top).is(Blocks.LIGHT)) level.setBlock(top, Blocks.CAVE_AIR.defaultBlockState(), FLAGS);
+            }
+        }
+        // the altar's dais, a step up, and light over it where the Envoy hovers
+        Door a = chapelAltar(level, g);
+        level.setBlock(a.pos(), Blocks.QUARTZ_SLAB.defaultBlockState(), FLAGS);
+        for (int k = 3; k <= 5; k++) placeIfOpen(level, a.pos().above(k), Blocks.LIGHT.defaultBlockState());
+        // two white columns either side of the altar, up to the roof, crowned with light
+        for (int sideSign = -1; sideSign <= 1; sideSign += 2) {
+            double across = sideSign * 3.5;
+            int x = Mth.floor(c.getX() + 0.5 + in.x * altar + side.x * across);
+            int z = Mth.floor(c.getZ() + 0.5 + in.z * altar + side.z * across);
+            BlockPos base = floorAt(level, x, z, center.getY());
+            int k = 0;
+            for (; k < room.ry() * 2 + 4; k++) {
+                BlockPos p = base.above(k);
+                if (k > 1 && !open(level.getBlockState(p))) break;
+                level.setBlock(p, k == 0 ? Blocks.CHISELED_QUARTZ_BLOCK.defaultBlockState() : Blocks.QUARTZ_PILLAR.defaultBlockState(), FLAGS);
+            }
+            // a lamp of light at head height on the column's face, and an end rod over the top where it meets the roof
+            BlockPos face = base.above(3).relative(Direction.getNearest(-in.x, 0, -in.z));
+            placeIfOpen(level, face, Blocks.SEA_LANTERN.defaultBlockState());
+            // and one more column halfway back to the way in
+            double back = -room.reach() * 0.2;
+            int bx = Mth.floor(c.getX() + 0.5 + in.x * back + side.x * sideSign * rx * 0.6);
+            int bz = Mth.floor(c.getZ() + 0.5 + in.z * back + side.z * sideSign * rz * 0.6);
+            BlockPos b = floorAt(level, bx, bz, center.getY());
+            for (int j = 0; j < room.ry() * 2 + 4; j++) {
+                BlockPos p = b.above(j);
+                if (j > 1 && !open(level.getBlockState(p))) break;
+                level.setBlock(p, j == 0 || j % 4 == 3 ? Blocks.CHISELED_QUARTZ_BLOCK.defaultBlockState() : Blocks.QUARTZ_PILLAR.defaultBlockState(), FLAGS);
+            }
+        }
+        ring(level, a.pos(), 4.2f, 12, r, at -> Blocks.WHITE_CANDLE.defaultBlockState().setValue(CandleBlock.CANDLES, 1 + r.nextInt(4)).setValue(CandleBlock.LIT, true));
+        hang(level, g, room, center, r, 4, Blocks.CHAIN.defaultBlockState());
+        hang(level, g, room, center, r, 4, Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
+        // light everywhere: the chapel is bright as day after the temple's dark
+        for (int i = 0; i < 6; i++) {
+            float ang = i * Mth.TWO_PI / 6;
+            BlockPos at = floorAt(level, c.getX() + Math.round(Mth.cos(ang) * rx * 0.55f), c.getZ() + Math.round(Mth.sin(ang) * rz * 0.55f), center.getY()).above(2);
+            placeIfOpen(level, at, Blocks.LIGHT.defaultBlockState());
+        }
+        chapelSign(level, g);
+    }
+
+    /** By the chapel's wall, in the antechamber: a sign of glowing gold, the only word of what waits behind the stone. */
+    private static void chapelSign(ServerLevel level, GateInstance g) {
+        Mouth m = sealMouth(g);
+        if (m == null) return;
+        Vec3 flat = new Vec3(m.dir().x, 0, m.dir().z);
+        if (flat.lengthSqr() < 1.0E-4) return;
+        flat = flat.normalize();
+        // a little way back from the wall into the antechamber, and to one side so it never stands in the way
+        Vec3 spot = m.center().subtract(flat.scale(m.radius() + 2.2)).add(new Vec3(-flat.z, 0, flat.x).scale(m.radius() + 0.8));
+        BlockPos at = floorAt(level, Mth.floor(spot.x), Mth.floor(spot.z), Mth.floor(spot.y - m.radius()));
+        if (!level.getBlockState(at).isAir() || open(level.getBlockState(at.below()))) return;
+        int rotation = Mth.floor((Mth.atan2(-flat.x, flat.z) * Mth.RAD_TO_DEG + 180) * 16 / 360 + 0.5) & 15;
+        level.setBlock(at, Blocks.BIRCH_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, rotation), FLAGS);
+        if (!(level.getBlockEntity(at) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign)) return;
+        var text = new net.minecraft.world.level.block.entity.SignText().setColor(net.minecraft.world.item.DyeColor.YELLOW).setHasGlowingText(true)
+                .setMessage(0, net.minecraft.network.chat.Component.literal("\u2726"));
+        for (int i = 1; i <= 3; i++) text = text.setMessage(i, net.minecraft.network.chat.Component.translatable(CHAPEL_SIGN + i));
+        sign.setText(text, true);
+        sign.setWaxed(true);
+    }
+
+    /** Lang keys of the sign by the chapel's wall ({@code .1} to {@code .3}). */
+    public static final String CHAPEL_SIGN = "trial.beyondsolo.chapel_sign.";
 
     /** A reward cache of the hidden chamber. {@code droppedAt} -1: already standing there. */
     static void placeCache(ServerLevel level, BlockPos at, PlayerRank rank, long droppedAt) {

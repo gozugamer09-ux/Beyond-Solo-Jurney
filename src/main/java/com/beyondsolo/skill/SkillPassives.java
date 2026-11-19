@@ -45,7 +45,9 @@ public final class SkillPassives {
         SubclassPassives.apply(player, data);
         // a monarch's strength rides along with the passives (put back on login, respawn and every change)
         com.beyondsolo.monarch.MonarchAPI.applyBonuses(player);
-        SystemAPI.setManaBonus(player, font * 8f + SubclassPassives.manaBonus(data) + com.beyondsolo.monarch.MonarchAPI.manaBonus(player));
+        com.beyondsolo.light.LightAPI.applyBonuses(player);
+        SystemAPI.setManaBonus(player, font * 8f + SubclassPassives.manaBonus(data) + com.beyondsolo.monarch.MonarchAPI.manaBonus(player)
+                + com.beyondsolo.light.LightAPI.manaBonus(player));
     }
 
     /** Once a second: mana flow and life bloom. */

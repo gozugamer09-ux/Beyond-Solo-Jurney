@@ -151,6 +151,7 @@ public final class WorldBossWorldFx {
         any |= threat(buffers, time, partial);
         any |= regalia(buffers, partial);
         any |= monarchs(buffers, time, partial);
+        any |= lightRulers(buffers, time, partial);
         if (any) for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
     }
 
@@ -748,6 +749,92 @@ public final class WorldBossWorldFx {
             drew = true;
         }
         return drew;
+    }
+
+    // ================================================================ the hunters sworn to the light
+
+    /** The land under each hunter ruler's sanctum (each follows its own ruler). */
+    private static final java.util.Map<Integer, Terrain> LIGHT_LANDS = new java.util.HashMap<>();
+    /** The land under each vigil's ring. */
+    private static final java.util.Map<Integer, Terrain> VIGIL_LANDS = new java.util.HashMap<>();
+
+    /**
+     * A hunter ruler of light's sanctum and seraph form ({@link com.beyondsolo.client.light.LightClient}). The sanctum
+     * is a ruler's from beyond the gates in the hunter's own light, following them, with the ground inside it lit and a
+     * sun of light turning under their feet; in seraph form the light burns off them like a crowned monarch's aura (its
+     * wings and halo are a model of their own, {@code client.light.SeraphLayer}). The ring of a hunter's vigil before
+     * the Investiture is drawn here too.
+     */
+    private static boolean lightRulers(MultiBufferSource buffers, float time, float partial) {
+        var sanctums = com.beyondsolo.client.light.LightClient.sanctums();
+        var seraphs = com.beyondsolo.client.light.LightClient.seraphs();
+        var rings = com.beyondsolo.client.light.LightClient.rings();
+        if (sanctums.isEmpty() && seraphs.isEmpty() && rings.isEmpty()) {
+            LIGHT_LANDS.clear();
+            VIGIL_LANDS.clear();
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        double now = com.beyondsolo.client.light.LightClient.now(partial);
+        boolean drew = false;
+        for (var r : rings) {
+            float in = r.strength(now);
+            if (in <= 0.005f) continue;
+            vigilRing(buffers, VIGIL_LANDS.computeIfAbsent(r.id, id -> new Terrain((float) r.y)), r, in, time);
+            drew = true;
+        }
+        VIGIL_LANDS.keySet().removeIf(id -> rings.stream().noneMatch(r -> r.id == id));
+        for (var g : sanctums) {
+            Entity owner = mc.level.getEntity(g.entity);
+            float in = g.strength(now);
+            if (owner == null || in <= 0.005f) continue;
+            Terrain land = LIGHT_LANDS.computeIfAbsent(g.entity, id -> new Terrain((float) owner.getY()));
+            Vec3 at = owner.getPosition(partial);
+            int c = g.color;
+            sanctum(buffers, land, at, g.size, c, in, time);
+            float breath = 0.85f + 0.15f * Mth.sin(time * 0.07f);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 3.0f, (time * 0.8f) % 360, 0.07f, c, 0.5f * in);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 1.8f, (-time * 1.5f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.5f), 0.4f * in);
+            flatOnLand(buf(buffers, GLOW), land, at.x, at.z, 4.2f, 0, 0.06f, c, 0.3f * in * breath);
+            drew = true;
+        }
+        LIGHT_LANDS.keySet().removeIf(id -> sanctums.stream().noneMatch(g -> g.entity == id));
+        Entity viewer = mc.getCameraEntity();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        for (var f : seraphs) {
+            Entity e = mc.level.getEntity(f.entity);
+            float k = f.strength(now);
+            if (!(e instanceof LivingEntity ruler) || k <= 0.005f || ruler.isInvisible()) continue;
+            if (e == viewer && firstPerson) continue;
+            aura(buf(buffers, GLOW), ruler, e.getPosition(partial), time, f.color, 6, k);
+            drew = true;
+        }
+        return drew;
+    }
+
+    /**
+     * A vigil's ring: a line of gold on the land with a white core, the light spilling a little way inside it, a low wall
+     * of light standing on it and four small circles turning round it (the four mantles waiting), so the hunter always
+     * sees where the ring ends, by day too.
+     */
+    private static void vigilRing(MultiBufferSource buffers, Terrain land, com.beyondsolo.client.light.LightClient.Ring g, float in, float time) {
+        land.around((float) g.y);
+        int c = g.color;
+        int white = GateFx.mix(c, 0xFFFFFF, 0.6f);
+        float r = g.radius * (0.9f + 0.1f * outCubic(in));
+        float pulse = 0.82f + 0.18f * Mth.sin(time * 0.08f);
+        annulus(buf(buffers, BAND), land, g.x, g.z, r - 0.5f, r + 0.5f, 0, Mth.TWO_PI, 0.05f, c, 0.9f * pulse * in);
+        annulus(buf(buffers, BAND), land, g.x, g.z, r - 0.14f, r + 0.14f, 0, Mth.TWO_PI, 0.06f, white, 0.85f * in);
+        annulus(buf(buffers, FILL), land, g.x, g.z, Math.max(0, r - 2.4f), r, 0, Mth.TWO_PI, 0.04f, c, 0.16f * pulse * in);
+        wall(buf(buffers, BEAM), land, g.x, g.z, r, 1.6f, c, 0.4f * pulse * in);
+        wall(buf(buffers, BEAM), land, g.x, g.z, r, 0.7f, white, 0.3f * in);
+        float turn = (time % 7200) * 0.003f;
+        for (int i = 0; i < 4; i++) {
+            float ang = turn + i * Mth.HALF_PI;
+            double sx = g.x + Mth.cos(ang) * r, sz = g.z + Mth.sin(ang) * r;
+            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 1.7f, (time * 1.4f + i * 90) % 360, 0.07f, white, 0.6f * in);
+            flatOnLand(buf(buffers, GLOW), land, sx, sz, 2.6f, 0, 0.06f, c, 0.35f * in);
+        }
     }
 
     // ================================================================ drawing

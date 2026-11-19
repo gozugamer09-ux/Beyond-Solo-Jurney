@@ -96,9 +96,9 @@
   "skill.beyondsolo.monarch_thousand_thunders.flavour": "La tormenta tiene dueño.",
   "skill.beyondsolo.monarch_thousand_thunders.desc": "El cielo te responde: %s rayos caen uno tras otro sobre los enemigos en un radio de %s bloques, con %s de daño cada uno; aturden a quien alcanzan y saltan a uno más.",
 
-  "key.beyondsolo.crown_1": "Corona: Dominio",
-  "key.beyondsolo.crown_2": "Corona: Pavor",
-  "key.beyondsolo.crown_3": "Corona: Forma Coronada",
+  "key.beyondsolo.crown_1": "Corona: Dominio / Santuario",
+  "key.beyondsolo.crown_2": "Corona: Pavor / Juicio",
+  "key.beyondsolo.crown_3": "Corona: Forma Coronada / Forma de Serafín",
   "key.beyondsolo.crown_4": "Corona: Autoridad",
 
   "ui.beyondsolo.monarch.authority.header": "[ AUTORIDAD ]",

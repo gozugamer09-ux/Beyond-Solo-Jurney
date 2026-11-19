@@ -32,8 +32,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Client wiring for the monarch path: the crown keys (Alt + the skill keys by default), the crown bar, the monarch HUD
- * and the coronation, the Arbiter Unchained's renderer and the camera's shudder.
+ * Client wiring for the monarch path: the crown keys (Alt + the skill keys by default; a hunter sworn to the light uses
+ * them for the light's powers instead), the crown bar, the monarch HUD and the coronation, the Arbiter Unchained's
+ * renderer and the camera's shudder.
  */
 public final class MonarchClientEvents {
     public static final ResourceLocation CROWN_BAR_LAYER = BeyondSolo.id("monarch_crown_bar");
@@ -52,8 +53,15 @@ public final class MonarchClientEvents {
                 ClientEvents.KEY_CATEGORY);
     }
 
-    /** The crown key a monarch power sits on (the domain, dread, the crown form, then any authority), or -1. */
+    /**
+     * The crown key a monarch's or a ruler's power sits on (the domain or sanctum, dread or judgement, the crown or seraph
+     * form, then any authority), or -1.
+     */
     public static int crownKeyOf(Skill s) {
+        if (s.ruler()) {
+            return s == com.beyondsolo.skill.RulerPowers.SANCTUM ? 0 : s == com.beyondsolo.skill.RulerPowers.JUDGEMENT ? 1
+                    : s == com.beyondsolo.skill.RulerPowers.SERAPH ? 2 : 3;
+        }
         if (!s.monarch()) return -1;
         return s == MonarchPowers.DOMAIN ? 0 : s == MonarchPowers.DREAD ? 1 : s == MonarchPowers.CROWN ? 2 : 3;
     }
@@ -129,6 +137,11 @@ public final class MonarchClientEvents {
     static void press(int key) {
         Minecraft mc = Minecraft.getInstance();
         Dominion d = MonarchClient.dominion();
+        // a hunter sworn to the light walks the other road: the same keys hold the light's powers
+        if (d == null && com.beyondsolo.client.light.LightClient.sworn()) {
+            com.beyondsolo.client.light.LightClient.press(key);
+            return;
+        }
         if (d == null || mc.player == null || !ClientSystemData.get().isAwakened()) return;
         Skill s = MonarchPowers.onKey(d, key);
         if (s == null || !ClientSkills.data().knows(s.path())) return;

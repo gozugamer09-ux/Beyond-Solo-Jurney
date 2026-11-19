@@ -1,11 +1,9 @@
 package com.beyondsolo.shadow;
 
-import com.beyondsolo.gate.GateBossEntity;
 import com.beyondsolo.network.SkillFxPayload;
 import com.beyondsolo.skill.SkillCombat;
 import com.beyondsolo.skill.SkillElement;
 import com.beyondsolo.skill.SkillFx;
-import com.beyondsolo.system.PlayerRank;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -21,11 +19,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.PlayerRideableJumping;
@@ -33,16 +33,20 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.FlyingMoveControl;
+import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.target.TargetGoal;
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +62,11 @@ import java.util.UUID;
  * <p>It rises out of the ground when called ({@link #RISE_TICKS}) and sinks back into it when dismissed
  * ({@link #SINK_TICKS}). Mounts carry their master. Boss shadows hit the ground around them every few seconds and
  * make the shadows near them hit harder.</p>
+ *
+ * <p>It takes the shape of whatever creature it was, from any mod ({@link ShadowForm}, synced to the client whole):
+ * that creature's size (a giant's shadow rises smaller, {@link ShadowForm#fit}), its look ({@link ShadowLook}), and how
+ * it got about. A shadow of a flier flies, hovering over its master's head; one of a swimmer swims through water and
+ * air alike, low over the ground; neither falls, drowns or chokes in a wall.</p>
  */
 public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping, OwnableEntity {
     public static final int RISE_TICKS = 30;
@@ -73,6 +82,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     private static final EntityDataAccessor<Integer> BOSS_RANK = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
     /** 0, or how many ticks it has been sinking. */
     private static final EntityDataAccessor<Integer> SINK = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.INT);
+    /** The shape of the creature it was ({@link ShadowForm#save}, look and all), or empty (the kind's own size). */
+    private static final EntityDataAccessor<CompoundTag> FORM = SynchedEntityData.defineId(ShadowEntity.class, EntityDataSerializers.COMPOUND_TAG);
 
     private static final net.minecraft.core.particles.DustParticleOptions WISP =
             new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.32f, 0.2f, 0.55f), 0.9f);
@@ -83,10 +94,19 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     private int skillCooldown = 80;
     private int boltCooldown = 20;
     private float jumpPending;
+    /** Flying or swimming (server side): no gravity, flies to where it goes. */
+    private boolean airborne;
+    /** Where an airborne shadow is flying straight to (its place over its master or its post), or null. */
+    private @Nullable Vec3 station;
+    private double stationSpeed = 1;
+    /** The form read from {@link #FORM} (both sides), and the tag it was read from. */
+    private @Nullable ShadowForm form;
+    private @Nullable CompoundTag formTag;
 
-    /** Client only: the creature it looks like, posed like it each tick. */
-    private @Nullable LivingEntity look;
+    /** Client only: the creature it looks like, posed like it each tick, and what it was made from. */
+    private @Nullable ShadowLook look;
     private String lookSource = "";
+    private @Nullable CompoundTag lookForm;
     /** Client only: shown in a screen, not in the world (no rising out of the ground). */
     public boolean preview;
 
@@ -105,7 +125,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
                 .add(Attributes.ARMOR, 0)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0)
                 .add(Attributes.JUMP_STRENGTH, 0.6)
-                .add(Attributes.STEP_HEIGHT, 0.6);
+                .add(Attributes.STEP_HEIGHT, 0.6)
+                .add(Attributes.FLYING_SPEED, 0.13);
     }
 
     @Override
@@ -118,11 +139,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         b.define(ROLE, 0);
         b.define(BOSS_RANK, -1);
         b.define(SINK, 0);
+        b.define(FORM, new CompoundTag());
     }
 
     @Override
     protected void registerGoals() {
-        goalSelector.addGoal(0, new FloatGoal(this));
+        goalSelector.addGoal(0, new FloatGoal(this) {
+            @Override
+            public boolean canUse() {
+                return !airborne && super.canUse();
+            }
+        });
         goalSelector.addGoal(1, new BossSkillGoal());
         goalSelector.addGoal(2, new CasterGoal());
         goalSelector.addGoal(3, new MeleeGoal());
@@ -144,10 +171,32 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         entityData.set(LEVEL, r.level());
         entityData.set(ROLE, r.role().ordinal());
         entityData.set(BOSS_RANK, r.boss() ? r.bossRank() : -1);
+        ShadowForm f = r.form();
+        entityData.set(FORM, f == null ? new CompoundTag() : f.save(true));
+        applyMovement(r.isMount() ? ShadowForm.Movement.WALK : r.movement());
         applyStats(r, com.beyondsolo.system.SystemAPI.get(owner));
         setHealth(getMaxHealth());
         nameFrom(r);
         refreshDimensions();
+    }
+
+    /** Takes to the air (a flier or a swimmer) or to its feet: how it moves, and how it finds its way. */
+    private void applyMovement(ShadowForm.Movement m) {
+        boolean air = m.airborne();
+        if (air == airborne) return;
+        airborne = air;
+        setNoGravity(air);
+        if (air) {
+            moveControl = new FlyingMoveControl(this, 20, true);
+            FlyingPathNavigation nav = new FlyingPathNavigation(this, level());
+            nav.setCanOpenDoors(false);
+            nav.setCanFloat(true);
+            nav.setCanPassDoors(true);
+            navigation = nav;
+        } else {
+            moveControl = new MoveControl(this);
+            navigation = createNavigation(level());
+        }
     }
 
     /** A named shadow shows its name over its head; one its master named shows it in its rank's colour. */
@@ -178,6 +227,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         getAttribute(Attributes.MAX_HEALTH).setBaseValue(ShadowService.maxHealth(r, master));
         getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(ShadowService.damage(r, master));
         getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(ShadowService.speed(r));
+        // in the air it keeps the pace it would have on its feet
+        getAttribute(Attributes.FLYING_SPEED).setBaseValue(ShadowService.speed(r) * 0.45);
         getAttribute(Attributes.ARMOR).setBaseValue(2 * r.rank().ordinal() + (r.boss() ? 4 : 0));
         getAttribute(Attributes.KNOCKBACK_RESISTANCE).setBaseValue(r.boss() ? 0.8 : 0.1 * r.rank().ordinal());
         getAttribute(Attributes.STEP_HEIGHT).setBaseValue(r.isMount() ? 1.1 : 0.6);
@@ -205,6 +256,26 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     public int sinkTicks() { return entityData.get(SINK); }
     public boolean isSinking() { return sinkTicks() > 0; }
 
+    /** The shape of the creature it was, or null (the kind's own size, on its feet). */
+    public @Nullable ShadowForm form() {
+        if (entityData == null) return null;
+        CompoundTag t = entityData.get(FORM);
+        if (t != formTag) {
+            formTag = t;
+            form = t.isEmpty() ? null : ShadowForm.load(t);
+        }
+        return form;
+    }
+
+    /** How it gets about: walks, flies or swims (a steed always walks). */
+    public ShadowForm.Movement movement() {
+        ShadowForm f = form();
+        return f == null || isMount() ? ShadowForm.Movement.WALK : f.move();
+    }
+
+    /** In the air (server side): a flier's or a swimmer's shadow. */
+    public boolean airborne() { return airborne; }
+
     public int riseTicks() {
         return isMount() ? MOUNT_RISE_TICKS : RISE_TICKS;
     }
@@ -225,10 +296,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
     /** Client-side previews set their look directly. */
     public void setLook(String source, ShadowRank rank, int bossRank, ShadowRecord.Role role) {
+        setLook(source, rank, bossRank, role, null);
+    }
+
+    /** Client-side previews set their look directly, in the creature's own shape ({@code form} null: the kind's). */
+    public void setLook(String source, ShadowRank rank, int bossRank, ShadowRecord.Role role, @Nullable ShadowForm form) {
         entityData.set(SOURCE, source);
         entityData.set(RANK, rank.ordinal());
         entityData.set(BOSS_RANK, bossRank);
         entityData.set(ROLE, role.ordinal());
+        // (an equal form leaves the one it has: no new stand-in each frame)
+        entityData.set(FORM, form == null ? new CompoundTag() : form.save(true));
         refreshDimensions();
     }
 
@@ -250,15 +328,25 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
-        if (SOURCE.equals(key) || RANK.equals(key) || BOSS_RANK.equals(key)) refreshDimensions();
+        if (SOURCE.equals(key) || RANK.equals(key) || BOSS_RANK.equals(key) || FORM.equals(key)) refreshDimensions();
     }
 
-    /** It has the size of the creature it was, a little bigger for each rank. */
+    /**
+     * It has the size of the creature it was (its size roll too), a little bigger for each rank; anything larger than a
+     * shadow stands rises smaller, in proportion ({@link ShadowForm#fit}).
+     */
     @Override
     protected EntityDimensions getDefaultDimensions(Pose pose) {
+        ShadowForm f = shape();
+        return f == null ? super.getDefaultDimensions(pose) : f.dimensions().scale(sizeScale());
+    }
+
+    /** Its form, or for a shadow without one, its kind's registered size on its feet (null: no kind known). */
+    private @Nullable ShadowForm shape() {
+        ShadowForm f = form();
+        if (f != null || entityData == null) return f;
         EntityType<?> t = EntityType.byString(source()).orElse(null);
-        if (t == null || t == getType()) return super.getDefaultDimensions(pose);
-        return t.getDimensions().scale(sizeScale());
+        return t == null || t == getType() ? null : ShadowForm.ofKind(t);
     }
 
     public float sizeScale() {
@@ -293,32 +381,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     }
 
     private void clientTick() {
-        LivingEntity l = look();
-        if (l != null) {
-            l.xo = l.getX();
-            l.yo = l.getY();
-            l.zo = l.getZ();
-            l.setPos(getX(), getY(), getZ());
-            l.calculateEntityAnimation(false);
-            l.tickCount = tickCount;
-            l.setYRot(getYRot());
-            l.yRotO = yRotO;
-            l.setXRot(getXRot());
-            l.xRotO = xRotO;
-            l.yBodyRot = yBodyRot;
-            l.yBodyRotO = yBodyRotO;
-            l.yHeadRot = yHeadRot;
-            l.yHeadRotO = yHeadRotO;
-            l.attackAnim = attackAnim;
-            l.oAttackAnim = oAttackAnim;
-            l.swinging = swinging;
-            l.swingTime = swingTime;
-            l.swingingArm = swingingArm;
-            l.hurtTime = hurtTime;
-            l.hurtDuration = hurtDuration;
-            l.setOnGround(onGround());
-            if (l instanceof Mob m) m.setAggressive(isAggressive());
-        }
+        if (look() != null && look != null) look.follow(this);
         if (preview || isSinking() || isDeadOrDying()) return;
         // wisps of violet dark always drift off it
         if (tickCount % (isBoss() ? 3 : 6) == 0) {
@@ -328,25 +391,30 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         }
     }
 
-    /** Client only: the creature this shadow looks like (made once, posed every tick). */
+    /**
+     * Client only: the creature this shadow looks like, made from its form ({@link ShadowLook}) once and posed every
+     * tick; a stand-in of its size for a creature that can't be drawn as itself.
+     */
     public @Nullable LivingEntity look() {
         String src = source();
-        if (look == null || !lookSource.equals(src)) {
+        CompoundTag f = entityData.get(FORM);
+        if (look == null || !lookSource.equals(src) || lookForm != f || look.stale()) {
             lookSource = src;
-            look = null;
-            try {
-                EntityType<?> t = EntityType.byString(src).orElse(null);
-                if (t != null && t != getType() && t.create(level()) instanceof LivingEntity le) {
-                    if (le instanceof GateBossEntity boss && bossRank() >= 0) boss.displayAs(PlayerRank.values()[Mth.clamp(bossRank(), 0, PlayerRank.values().length - 1)]);
-                    if (le instanceof Mob m) m.setNoAi(true);
-                    le.setPos(getX(), getY(), getZ());
-                    look = le;
-                }
-            } catch (RuntimeException ignored) {
-                // a creature that can't be made on its own: the renderer draws only the aura
-            }
+            lookForm = f;
+            look = ShadowLook.make(level(), src, form(), bossRank());
+            look.body().setPos(getX(), getY(), getZ());
         }
-        return look;
+        return look.body();
+    }
+
+    /**
+     * Client only: how much larger than the creature in {@link #look()} is (itself) it is drawn, before its rank's
+     * growth: its fit for a creature larger than a shadow stands, and a stand-in's growth to the creature's size.
+     */
+    public float lookScale() {
+        if (look() == null || look == null) return 1f;
+        ShadowForm f = shape();
+        return (f == null ? 1f : f.fit()) * look.scale();
     }
 
     // ------------------------------------------------------------------ fighting
@@ -404,9 +472,112 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (isRising() || isSinking()) return false;
+        // shadows pass through the dark: a wall or a crowd doesn't choke them
+        if (source.is(DamageTypes.IN_WALL) || source.is(DamageTypes.CRAMMING) || source.is(DamageTypes.DROWN)) return false;
         Entity by = source.getEntity();
         if (by != null && isAlliedTo(by)) return false;
         return super.hurt(source, amount);
+    }
+
+    // ------------------------------------------------------------------ flying and swimming
+
+    /**
+     * A flier's or a swimmer's shadow flies where its move control sends it, as the vanilla fliers do: its own pace in
+     * the air, slower through water for a flier and through lava for both. Ridden or on its feet, as usual.
+     */
+    @Override
+    public void travel(Vec3 input) {
+        if (!airborne || getControllingPassenger() != null) {
+            super.travel(input);
+            return;
+        }
+        if (isControlledByLocalInstance()) {
+            boolean swimmer = movement() == ShadowForm.Movement.SWIM;
+            float drag = isInLava() ? 0.5f : isInWater() && !swimmer ? 0.8f : 0.91f;
+            moveRelative(isInLava() || isInWater() && !swimmer ? getSpeed() * 0.6f : getSpeed(), input);
+            move(MoverType.SELF, getDeltaMovement());
+            setDeltaMovement(getDeltaMovement().scale(drag));
+        }
+        calculateEntityAnimation(false);
+    }
+
+    @Override
+    public boolean isPushedByFluid() {
+        return !airborne && super.isPushedByFluid();
+    }
+
+    @Override
+    public boolean canDrownInFluidType(net.neoforged.neoforge.fluids.FluidType type) {
+        return false; // a shadow doesn't breathe
+    }
+
+    /**
+     * Sends an airborne shadow to its place: straight there when it is near and nothing is in the way (a path keeps to
+     * the blocks' grid and would leave a large flier well off to one side), along a path otherwise.
+     */
+    private void flyTo(Vec3 spot, double speed) {
+        Vec3 from = getBoundingBox().getCenter();
+        Vec3 to = spot.add(0, getBbHeight() * 0.5, 0);
+        boolean clear = distanceToSqr(spot) < 16 * 16 && level().clip(new net.minecraft.world.level.ClipContext(from, to,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, this))
+                .getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+        if (clear) {
+            getNavigation().stop();
+            station = spot;
+            stationSpeed = speed;
+        } else {
+            station = null;
+            getNavigation().moveTo(spot.x, spot.y, spot.z, speed);
+        }
+    }
+
+    /**
+     * Each tick on its way: straight on toward its place (the move control forgets a wanted spot after one tick),
+     * slowing as it comes in so it doesn't shoot past.
+     */
+    private void keepFlying() {
+        if (station == null || arrived()) return;
+        double slow = Mth.clamp(Math.sqrt(distanceToSqr(station)) / 3, 0.3, 1);
+        getMoveControl().setWantedPosition(station.x, station.y, station.z, stationSpeed * slow);
+    }
+
+    /** At its place: near the spot it flies straight to, or at the end of its path. */
+    private boolean arrived() {
+        return station != null ? distanceToSqr(station) < 0.7 * 0.7 : getNavigation().isDone();
+    }
+
+    /** Stops flying to its place: it hangs where it got to. */
+    private void land() {
+        if (station != null) setDeltaMovement(getDeltaMovement().scale(0.25));
+        station = null;
+        getNavigation().stop();
+    }
+
+    /**
+     * A flier or a swimmer that is not in its place over this spot (looked at every half second, not every tick): it
+     * goes there, rather than sitting on the ground where it rose.
+     */
+    private boolean offStation(Vec3 over) {
+        if (!airborne || (tickCount + getId()) % 10 != 0) return false;
+        return distanceToSqr(hoverOver(over)) > 1.5 * 1.5;
+    }
+
+    /**
+     * Where an airborne shadow keeps to over a spot: a flier a couple of blocks over it, a swimmer just over the ground,
+     * each a little off to its own side so they don't crowd one spot; lower under a ceiling, and right over the spot
+     * when its side is walled in. A walker: the spot itself.
+     */
+    Vec3 hoverOver(Vec3 at) {
+        if (!airborne) return at;
+        double up = movement() == ShadowForm.Movement.FLY ? 2.2 : 0.6;
+        double a = getId() * 2.39996;
+        double side = 1.2 + getBbWidth() * 0.5;
+        Vec3 off = new Vec3(at.x + Math.cos(a) * side, at.y, at.z + Math.sin(a) * side);
+        EntityDimensions size = getDimensions(getPose());
+        for (Vec3 to : new Vec3[]{off.add(0, up, 0), off.add(0, up * 0.5, 0), at.add(0, up, 0), at.add(0, up * 0.5, 0), off}) {
+            if (level().noCollision(this, size.makeBoundingBox(to))) return to;
+        }
+        return at;
     }
 
     // ------------------------------------------------------------------ riding
@@ -671,14 +842,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             ServerPlayer m = master();
             if (m == null || isBusy() || m.isSpectator() || post != null) return false;
             if (getTarget() != null && distanceToSqr(m) < 20 * 20) return false;
-            return distanceToSqr(m) > (isMount() ? 4 * 4 : 5 * 5);
+            // a flier keeps its place over its master's head, however close it rose
+            return distanceToSqr(m) > (isMount() ? 4 * 4 : 5 * 5) || offStation(m.position());
         }
 
         @Override
         public boolean canContinueToUse() {
             ServerPlayer m = master();
-            return m != null && post == null && !isBusy() && !getNavigation().isDone() && distanceToSqr(m) > 2.5 * 2.5
-                    && (getTarget() == null || distanceToSqr(m) > 20 * 20);
+            if (m == null || post != null || isBusy()) return false;
+            if (getTarget() != null && distanceToSqr(m) <= 20 * 20) return false;
+            // a flier goes all the way to its place; one on its feet stops at its master's side
+            return airborne ? !arrived() : !getNavigation().isDone() && distanceToSqr(m) > 2.5 * 2.5;
         }
 
         @Override
@@ -688,7 +862,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public void stop() {
-            getNavigation().stop();
+            land();
         }
 
         @Override
@@ -696,13 +870,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             ServerPlayer m = master();
             if (m == null) return;
             getLookControl().setLookAt(m, 10, getMaxHeadXRot());
-            if (--recompute > 0) return;
-            recompute = 10;
-            if (distanceToSqr(m) > 22 * 22) {
-                ShadowService.slipTo(ShadowEntity.this, m);
-            } else {
-                getNavigation().moveTo(m, m.isSprinting() ? 1.5 : 1.2);
+            if (--recompute <= 0) {
+                recompute = 10;
+                if (distanceToSqr(m) > 22 * 22) {
+                    ShadowService.slipTo(ShadowEntity.this, m);
+                } else if (airborne) {
+                    flyTo(hoverOver(m.position()), m.isSprinting() ? 1.5 : 1.2);
+                } else {
+                    getNavigation().moveTo(m, m.isSprinting() ? 1.5 : 1.2);
+                }
             }
+            keepFlying();
         }
     }
 
@@ -716,12 +894,13 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public boolean canUse() {
-            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > 2.5 * 2.5;
+            return post != null && !isBusy() && getTarget() == null && (distanceToSqr(post) > (airborne ? 4.0 * 4.0 : 2.5 * 2.5) || offStation(post));
         }
 
         @Override
         public boolean canContinueToUse() {
-            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > 1.2 * 1.2;
+            if (post == null || isBusy() || getTarget() != null) return false;
+            return airborne ? !arrived() : distanceToSqr(post) > 1.2 * 1.2;
         }
 
         @Override
@@ -731,23 +910,29 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public void stop() {
-            getNavigation().stop();
+            land();
         }
 
         @Override
         public void tick() {
             Vec3 at = post;
-            if (at == null || --recompute > 0) return;
-            recompute = 10;
-            if (distanceToSqr(at) > GUARD_SLIP * GUARD_SLIP || getNavigation().isStuck()) {
-                ServerLevel level = (ServerLevel) level();
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 10, 0.3, 0.4, 0.3, 0.01);
-                teleportTo(at.x, at.y, at.z);
-                getNavigation().stop();
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 10, 0.3, 0.4, 0.3, 0.01);
-            } else {
-                getNavigation().moveTo(at.x, at.y, at.z, 1.1);
+            if (at == null) return;
+            if (--recompute <= 0) {
+                recompute = 10;
+                if (distanceToSqr(at) > GUARD_SLIP * GUARD_SLIP || getNavigation().isStuck()) {
+                    ServerLevel level = (ServerLevel) level();
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 10, 0.3, 0.4, 0.3, 0.01);
+                    teleportTo(at.x, at.y, at.z);
+                    station = null;
+                    getNavigation().stop();
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 10, 0.3, 0.4, 0.3, 0.01);
+                } else if (airborne) {
+                    flyTo(hoverOver(at), 1.1);
+                } else {
+                    getNavigation().moveTo(at.x, at.y, at.z, 1.1);
+                }
             }
+            keepFlying();
         }
     }
 

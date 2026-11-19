@@ -1,17 +1,24 @@
 package com.beyondsolo.client.shadow;
 
+import com.beyondsolo.network.ShadowActionPayload;
 import com.beyondsolo.network.ShadowFxPayload;
+import com.beyondsolo.network.ShadowLookPayload;
 import com.beyondsolo.network.ShadowSyncPayload;
+import com.beyondsolo.shadow.ShadowForm;
 import com.beyondsolo.shadow.ShadowRank;
 import com.beyondsolo.shadow.ShadowRecord;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +32,9 @@ public final class ShadowClient {
     private static ShadowRank top = ShadowRank.MARSHAL;
     private static int essence;
     private static int slots;
+    /** Shadows' looks, asked of the server once each when the Shadows tab first shows them (a look never changes). */
+    private static final Map<UUID, CompoundTag> LOOKS = new HashMap<>();
+    private static final Set<UUID> ASKED = new HashSet<>();
 
     public static List<ShadowRecord> shadows() { return SHADOWS; }
     public static boolean isActive(UUID id) { return ACTIVE.contains(id); }
@@ -81,6 +91,29 @@ public final class ShadowClient {
         ShadowsTab.synced(before, essence);
     }
 
+    /**
+     * A shadow's whole form, look and all, for the Shadows tab's portrait: its form as synced, with its look once the
+     * server has sent it (asked for here the first time). Null: no form known (the kind's own shape).
+     */
+    public static @Nullable ShadowForm form(ShadowRecord r) {
+        ShadowForm f = r.form();
+        if (f == null) return null;
+        CompoundTag look = LOOKS.get(r.id());
+        if (look == null) {
+            if (ASKED.add(r.id())) PacketDistributor.sendToServer(new ShadowActionPayload(ShadowActionPayload.LOOK, r.id().toString()));
+            return f;
+        }
+        return look.isEmpty() ? f : new ShadowForm(f.move(), f.width(), f.height(), f.eye(), f.scale(), look);
+    }
+
+    public static void onLook(ShadowLookPayload p) {
+        try {
+            LOOKS.put(UUID.fromString(p.shadow()), p.look());
+        } catch (IllegalArgumentException ignored) {
+            // not a shadow's id
+        }
+    }
+
     public static void onFx(ShadowFxPayload p) {
         ShadowWorldFx.handle(p);
         ShadowHud.handle(p);
@@ -95,6 +128,8 @@ public final class ShadowClient {
         top = ShadowRank.MARSHAL;
         essence = 0;
         slots = 0;
+        LOOKS.clear();
+        ASKED.clear();
         ShadowWorldFx.clear();
         ShadowHud.reset();
     }

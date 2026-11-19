@@ -7,6 +7,7 @@ import com.beyondsolo.evaluation.EvaluationManager;
 import com.beyondsolo.gate.GateService;
 import com.beyondsolo.home.HomeWorld;
 import com.beyondsolo.job.JobAPI;
+import com.beyondsolo.light.LightAPI;
 import com.beyondsolo.monarch.MonarchAPI;
 import com.beyondsolo.quest.Quest;
 import com.beyondsolo.quest.QuestBuilder;
@@ -127,13 +128,15 @@ public final class MainStory {
                 .custom(LORD_KEY, 1, Component.translatable("quest_objective.beyondsolo.story.main.lord"))
                 .xp(2500).statPoints(3)
                 .build());
+        // a hunter sworn to the light never sits on the throne: their fourth chapter is the light's Investiture
         QuestTemplates.register(THRONE_QUEST, (p, c) -> QuestBuilder.of(THRONE_QUEST, QuestCategory.STORY, p)
-                .text("story.main.throne", MonarchAPI.minLevel())
-                .custom(CROWN_KEY, 1, Component.translatable("quest_objective.beyondsolo.story.main.crown"))
+                .text(LightAPI.sworn(p) ? "story.main.throne_light" : "story.main.throne", LightAPI.sworn(p) ? LightAPI.minLevel() : MonarchAPI.minLevel())
+                .custom(CROWN_KEY, 1, Component.translatable(LightAPI.sworn(p) ? "quest_objective.beyondsolo.story.main.mantle"
+                        : "quest_objective.beyondsolo.story.main.crown"))
                 .xp(4000).statPoints(3)
                 .build());
         QuestTemplates.register(FATHER_QUEST, (p, c) -> QuestBuilder.of(FATHER_QUEST, QuestCategory.STORY, p)
-                .text("story.main.father")
+                .text(LightAPI.sworn(p) ? "story.main.father_light" : "story.main.father")
                 .custom(HUNGER_KEY, 1, monarchObjective(WorldBossKind.HUNGER))
                 .xp(5000).statPoints(3)
                 .build());
@@ -252,7 +255,7 @@ public final class MainStory {
             case PLAYER -> set(p, q, GATES_KEY, Math.min(PLAYER_GATES, Economy.data(p).totalClears()));
             case ARISE -> set(p, q, JOB_KEY, JobAPI.hasChangedJob(p) ? 1 : 0);
             case CITADEL -> set(p, q, LORD_KEY, TowerAPI.data(p).lordKills > 0 ? 1 : 0);
-            case THRONE -> set(p, q, CROWN_KEY, MonarchAPI.crowned(p) ? 1 : 0);
+            case THRONE -> set(p, q, CROWN_KEY, MonarchAPI.crowned(p) || LightAPI.invested(p) ? 1 : 0);
             case FATHER -> set(p, q, HUNGER_KEY, r.warWon(2) ? 1 : 0);
             case LAST_WAR -> {
                 set(p, q, STILLNESS_KEY, r.warWon(0) ? 1 : 0);

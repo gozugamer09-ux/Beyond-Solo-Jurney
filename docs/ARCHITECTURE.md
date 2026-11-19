@@ -618,6 +618,10 @@ lists themselves crashed the server in the 0.1.0 playtest. 1500 health, heavy ar
 that holds one `ModItems.LEGENDARIES` weapon (`LegendaryWeaponItem`), then the awakening plays with
 `arbiterSlain` set, which also gives the title `title.beyondsolo.arbiter_slayer`.
 
+The light's way: a temple opened since the light came also hides the chapel of the Envoy of Dawn off its antechamber.
+A hunter who finds it and swears to the light never faces the Arbiter: `beginLight` plays the awakening in the light
+on the same clock and they wake sworn to it (see "The light: a hunter's road to ruler").
+
 Its model, animations and textures, the sealed gate's texture and the legendary weapons' icons come from
 `tools/gen_awakening_assets.py`. The server's timings (wind-ups, `INTRO_TICKS`, `DEATH_TICKS`) and the animation
 lengths in that script must be changed together. In GeckoLib files a positive x rotation pitches a bone forward
@@ -828,16 +832,36 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
 (`data/beyondsolo/tags/entity_type/shadow/`) and lang namespace (`assets/beyondsolo_shadows/lang`).
 **Only a necromancer** (`Subclass.canRaiseShadows()`, checked by `ShadowService.canRaise`) gets any of it.
 
-- **Souls.** A creature killed by a necromancer or one of their shadows leaves a soul for 20 s (a boss's for 60 s),
-  only for that player. Tag `shadow/no_soul` leaves none. The raise key (H) next to a soul starts the extraction
+- **Souls.** Any living creature, ours, vanilla's or another mod's, killed by a necromancer or one of their shadows
+  leaves a soul for 20 s (a boss's for 60 s), only for that player. One that dies of what came after their blow (it
+  burned, fell, drowned, or their pet finished it) counts as theirs, as Minecraft gives them the kill
+  (`getKillCredit`). Tag `shadow/no_soul` leaves none (players, the training dummy, visions). A creature that died in
+  the air leaves its soul on the ground or the water under it, in reach (`ShadowService.soulSpot`). A death that
+  can't be read (a broken mod creature) leaves no soul and is logged once (`ShadowHooks.onDeath`). The raise key (H) next to a soul starts the extraction
   ritual (2 s); each soul has 3 tries. The chance (`ShadowService.chance`) falls with the creature's health against
   the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
-- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (warrior; caster from tag `shadow/casters`,
-  bolts at range; mount from tag `shadow/mounts`), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
+- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (`ShadowForm.roleOf`: tags
+  `shadow/mounts`, `shadow/casters`, `shadow/warriors` first; then a steed carries, a creature that shoots or throws
+  casts, bolts at range, unless it holds a blade; the rest fight up close), its form (below), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
   Commander, Marshal, and Regent for a monarch's), level 1-10 inside the rank, and the health, damage and speed it was
   extracted with. Weak
-  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`) and tag `shadow/bosses` become named
+  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`), the world's great threats
+  (`ColossalBoss`) and tags `shadow/bosses` and `c:bosses` (the dragon, the wither, other mods' bosses) become named
   elites (`ShadowNames`) that start at Knight to Commander, use Dread Slam and give nearby shadows +15% damage.
+  Health always follows the army's curve (`ShadowService.maxHealth` with `Balance.summonHealth`), whatever the
+  creature was.
+- **Any creature's shape** (`ShadowForm`, kept in the record and saved). How it gets about (`Movement`): tags
+  `shadow/fliers`, `shadow/swimmers`, `shadow/walkers` first, then a water creature or water-bound navigation swims,
+  a flying navigation or move control or a flier's body (bats, ghasts, phantoms, the dragon, the wither, vexes, the
+  magus) flies, the rest walk; a steed always walks. Its size: the creature's own with its size roll (a baby, a big
+  slime); anything wider than 4 or taller than 6 blocks rises smaller, in proportion (`fit`: the dragon at a quarter,
+  the giant at half). Its look (`lookOf`): what the creature saved less what only mattered while it lived (`DROP`:
+  where and who it was, health, mind, loot, owner, anger, asleep or hanging), so a skeleton's shadow holds its bow, a
+  sheep's keeps its colour and a mod's creature its variant; over 4 KB only its gear is kept. Shadows raised before
+  forms, and those given by command, take a fresh one of their kind's shape (`ShadowForm.probe`, at login and when
+  called). The army sent to the client with every change leaves the looks out (`ShadowData.save(false)`); the
+  Shadows page asks for a shadow's look when it shows it (`ShadowActionPayload.LOOK`, answered by
+  `ShadowLookPayload`).
 - **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
   nearby; filling level 10 climbs a rank by itself up to Knight (`ShadowService.addXp`, rank-up moment and pop-up).
   A new rank never makes a shadow weaker: it comes in at the lowest level as strong as it was (`ShadowRank.entryLevel`;
@@ -866,7 +890,10 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (`LEAD`); a boss shadow's +15% still counts first (`ShadowService.auraBonus`).
 - **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
   left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
-  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. Never saved with
+  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. A flier's shadow
+  flies (`FlyingMoveControl`, `FlyingPathNavigation`, no gravity), hovers over its master's head (`hoverOver`) and
+  swoops on what it fights; a swimmer's swims through water and air alike, low over the ground. Neither drowns or
+  is carried off by water, and no shadow chokes in a wall or a crowd. Never saved with
   the world; it goes away when its master logs out, and follows through dimension changes. A fallen shadow rests
   30 s (boss 90 s). Calling one costs mana (`summonCost`). Army size `capacity` and shadows out at once
   `activeLimit` grow with level and INT.
@@ -884,17 +911,27 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
 - **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring. The rank shows: from Knight a moving energy shell in the rank's
+  violet-black), burning eyes, aura and a ring. The creature is made on the client from the shadow's look
+  (`ShadowLook`: any kind, with its own renderer, vanilla's, GeckoLib's or another mod's), takes the shadow's place
+  and pose every tick and runs its own tick with its particles held back (a bat's wings, a slime's squish; a
+  swimmer and the dragon are posed by hand, the dragon's wings and neck kept as Minecraft keeps them). `ShadowDraw`
+  keeps whatever goes wrong in a renderer inside the shadow: it draws on its own copy of the pose and finishes any
+  vertex or quad a failing renderer left half written. A kind that can't be made or drawn is told in the log once and
+  drawn from then on as a stand-in of its size and way of moving (a zombie or a spider, a vex or a phantom, a
+  dolphin); one whose own tick fails is only posed. The rank shows: from Knight a moving energy shell in the rank's
   colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
   `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
   bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
   Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
   recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
   ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
-  (necromancers only): filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
+  (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
   portrait that opens the name field (Enter keeps, Escape cancels).
 - **Keys**: H extract / call the army, U recall, Y mount.
+- **Tests**: `ShadowGameTests`, and `ShadowFormGameTests`, which raises a shadow of every living kind in the game
+  (whatever mods are loaded) and checks its soul, shape, health and flight, besides looks, roles, fliers, swimmers
+  and sizes.
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
   next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index] (a promotion's rank is staged as a free promotion),
   kill, reset. `/solo shadow post|unpost [players]` leaves every shadow out on guard or takes the guards off,
@@ -1770,6 +1807,44 @@ sanctum's shelter, a sentence overturned, a war's blessing, the mote, the comman
 ruler's assets and lines with the other great threats. In the headless client, `/solo ruler call <ruler>` then
 `/solo ruler land` brings one down in front of you.
 
+## The light: a hunter's road to ruler
+
+The other side of a hunter's choice: instead of a crown, the light. It isn't picked at the job change: it is found.
+Every awakening temple hides a chapel where the Envoy of Dawn waits, and a hunter who finds it before the Arbiter takes
+them can swear to the light and wake in it. Sworn, they can never take a crown; at level 80 the light calls them to
+the Investiture, and the mantle they take up makes them a ruler of light, a monarch's equal and counterpart. Code in
+`light/` (server), `client/light/` (client) and `skill/RulerPowers` (the powers); text in
+`assets/beyondsolo_light/lang`. Names are the mod's own.
+
+| Piece | What it does |
+|---|---|
+| `Chapel` | The secret way in. A temple opened since the light came (`GateInstance.chapel`, set when `light.chapel` is on) is planned with a second room off its antechamber (`DungeonLayout.temple(seed, chapel)`), walled off like a hidden chamber (`HiddenKind.CHAPEL`, never rolled anywhere else; `GateDepths`). It is meant to be found: golden light seeps from the wall, a hum comes from behind it when a hunter without the System comes near, a gold sign by it says the light waits behind the stone (`DepthsBuild.chapelSign`, `trial.beyondsolo.chapel_sign.*`), and three knocks bring it down with a bell each (`HiddenRooms`; no HIDDEN DUNGEON moment, no XP). Inside, a chapel bright as day after the temple's dark (`DepthsBuild.dressChapel`): white and gold, pillars of light, the altar at the far end (`DepthsBuild.chapelAltar`) and the Envoy of Dawn over it (`EnvoyEntity`, put back whenever the room loads without it) |
+| `Covenant` | Speaking to the Envoy opens `CovenantScreen`: its words, then the answer. **Swear to the light**: the Envoy lays its hand on them (`bless`) and `AwakeningService.beginLight` plays the awakening on the same clock, in the light (`AwakeningPayload.AWAKEN` with 2: no Arbiter, no fall), and `bind` makes them sworn (`LightAPI.awoken`: Judgement, the title Dawnsworn). **Turn away**: the Envoy lets them go; the Arbiter waits, and the way back stays open while the temple stands. A party: each member answers for themselves |
+| `LightData` | The hunter's road in the light (the `beyondsolo:light` attachment, kept through death): sworn (and when), turned away, called, tries at the vigil and when they may try again, the mantle (and when they took it up), monarchs slain, foes judged, authorities used |
+| `LightAPI` | The one entry point: `sworn`, `invested`, `mantle`, `awoken`/`swear`/`unswear`, `eligible` (sworn, job changed, level `light.minLevel`, no mantle) and `callIfReady`/`call` (the light's notice, the Envoy's feather, the quest `beyondsolo:light/investiture`), `invest` (the mantle: its sanctum and authority, the strength, the mantle's title; takes a crown back), `divest`, `reset`, the strength (`applyBonuses`, transient modifiers put back with the skill passives: `light.healthBonus` 25% max health, `light.damageBonus` 12% attack damage, `light.manaBonus` 150 mana, a third of it while only sworn), and the record. Calls are checked on login, level up and job change |
+| `Vigil` | The Investiture. Raising the Envoy's feather (`EnvoyFeatherItem`, never used up) in the overworld begins it where the hunter stands: a ring of light (radius 11) and the Envoy coming down over it. The light gathers (5 s), then three waves of the gates' creatures of the hunter's rank rise round the ring, each bigger than the last, the last led by a champion; whoever leaves the ring for 5 s, logs out or falls has failed and may keep it again after `light.retryMinutes`. Then the Envoy lays the four mantles before them (`MantleScreen`; after `light.choiceSeconds` the light takes the one their class leans to, `Mantle.leaning`) and invests them. Other hunters may fight beside them. Nothing is saved: a vigil cut short by a restart is simply kept again |
+| `Mantle` | The light's answer to a crown, each the way of one of the rulers who came down from the sky (and the Envoy's own): **Verdict** (judgement: everyone inside the sanctum stands judged; Blade of Heaven), **Wings** (the open sky: foes slowed, fliers most, allies faster and falling like feathers; Choir of Wings), **Unseen Hand** (what no one can lift: foes pressed down and pinned; Hand of Heaven), **Dawn** (the light that heals: foes catch fire, allies mend twice as fast and shed harmful effects; Daybreak). Each colours the ruler's light and has its title (Ruler of the Verdict, of Wings, of the Unseen Hand, of Dawn, mythic) |
+| `RulerPowers` | Four powers on the crown keys (the two roads never meet, so a ruler uses the keys a monarch would), never on the skill bar, never from level, tome or rune stone; `SkillAPI.cast` refuses them to anyone not sworn. They level like any skill (to 10). **Sanctum** (Investiture; 60 mana, 90 s to 60 s): a dome of light (`light.sanctumRadius` 14) that goes where the ruler goes for 14 + level s; they and every other hunter inside (and their shadows) hit 12 + level % harder, take 12% less and mend 1% a second, foes burn each second and suffer the mantle's law, and the domain of a monarch from beyond the gates doesn't touch whoever it shelters (`LightSanctum.shelters`, a clash). **Judgement** (as they wake; 40 mana, 45 s to 30 s): a sigil over every foe within 12 + level/2 blocks and a lance of light onto each; the judged are stunned and take 15 + level % more from every blow for 8 s (bosses half). **Seraph form** (`light.seraphLevel` 45; 80 mana, 3 min to 2 min): wings of light and a halo for 18 + level s, blows 20 + 2 x level % heavier, 15 + level % less taken, faster, falling like a feather; never untouchable. **Authority** (Investiture; 100 mana, 2 min to 80 s): Blade of Heaven (a sword of light the size of a tower comes down where they look: a blast of 8 blocks and burning light where it stands for 5 s), Choir of Wings (wings of light at their back and 12 + level feathers like spears on foes within 20 blocks over 6 s), Hand of Heaven (a hand of light comes down out of the sky, closes on everything within 7 blocks, holds them 1.5 s and slams them down), Daybreak (a sun rises over the fight for 8 s: foes within 16 blocks burn, allies mend 3% a second, and it flares as it sets). Every hit goes through the hunter's power like a skill's; none touches players, villagers, tamed animals or shadows |
+| `LightSanctum` | What the powers leave running (server only, never saved; it ends when the ruler leaves, falls or changes worlds): sanctums, seraph forms and the judged; read by `LightHooks` (might, guard, the judged's extra share, the light's weight against monarchs) and `ShadowService.auraBonus` |
+| Against the monarchs | A hunter sworn to the light hits monarchs from beyond the gates `light.versusMonarch` (1.2) times harder; a ruler of light is never weighed down by a monarch's presence (`MonarchBoss`). A share in a monarch's kill while sworn earns Dawn Over Crowns (mythic); a sanctum holding a monarch's domain back earns Unbroken Light (mythic, secret). The throne never calls one sworn to the light (`MonarchAPI.eligible`) and the Sigil of Dominion stays dark for them; a crown (a command) sets them free of the light, and a mantle takes a crown back |
+| `LightConstruct` | The light's greater shapes made real for a moment: Judgement's lances, the Blade of Heaven, the Hand of Heaven, Daybreak's sun, the choir and its feathers. Only something to see (never touches, never saves); drawn from the world's clock so they fall the same for a hunter who only now came near. `LightConstructRenderer`: a body of light you can half see through, white at the heart, tinted with the mantle's colour, its edges burning (glow mask) and a bloom round it |
+| Sync | `LightSyncPayload` (the player's road: sworn, called, the mantle, the level the Investiture asks for), `LightFxPayload` (sanctums and seraph forms near the player, authorities, judgement, clashes, the chapel's hum, the call, the vigil and the Investiture), `LightActionPayload` (a crown key, the covenant's answer, a mantle picked) |
+| `client.light` | `CovenantScreen`, `MantleScreen` (the four mantles side by side with their sanctum's law and authority, the class's leaning marked; 1-4 or a click picks, Enter takes it up, Esc looks away and the System key brings it back), `LightBar` (the ruler's keys over the skill bar with cooldowns and what is left of a sanctum or seraph form; a key not given yet is locked), `LightHud` (an authority's name across the screen of everyone near, a clash, judgement's gold edges and bell, the ruler's light at the edges in seraph form and a warm tint inside any sanctum, the chapel's words, the call, the vigil's waves and ring, the Investiture's title), `SeraphLayer` (wings and halo on a ruler in seraph form, for everyone who can see them), `EnvoyRenderer`; `WorldBossWorldFx.lightRulers` draws sanctums on the land (a ring of gold, seals and a dome) |
+
+Config: `beyondsolo-light.toml` (`light.chapel` true, `light.judgementLevel` 1, `light.seraphLevel` 45,
+`light.minLevel` 80, `light.retryMinutes` 20, `light.choiceSeconds` 90, `light.healthBonus` 0.25,
+`light.damageBonus` 0.12, `light.manaBonus` 150, `light.versusMonarch` 1.2, `light.sanctumRadius` 14); every number,
+the powers' included, is a first guess for the final balancing pass: a ruler of light stands where a monarch stands,
+far above every other hunter and still someone a monarch can beat. The main story follows the road: for a sworn hunter
+chapter IV is the Investiture and is done when they take up a mantle (`MainStory`). Art: `tools/gen_light_assets.py`
+(the Envoy of Dawn, the seraph's wings and halo, the six shapes of light, their animations, skins and glow masks, the
+power and mantle icons, the feather). Operators: `/solo light swear/unswear/invest <mantle>/divest/call/vigil
+[next|stop]/chapel [wall]/power <power>/reset` (`SoloLight`); `/solo info` shows the road and the record.
+
+Testing: `LightGameTests`; in the headless client, `/system trial call` and `/system trial enter` take a new player into a
+temple, `/solo light chapel wall` stands them before the chapel's wall and `/solo light chapel` before the Envoy, `/solo light swear` and `/solo light invest <mantle>` skip ahead, `/solo light vigil` (then `next`)
+walks the Investiture and `/solo light power <power>` fires a power.
+
 ## The Hunter Association and the gate broker
 
 The hunters' own institution, as in the series: an office at every Evaluation Zone that pays bounties for closing
@@ -2122,6 +2197,7 @@ has added to `/system` by then).
 | guilds | `guild create <player> <tag> <name>`, `guild level/gold <n>`, `guild hunter <rank> [class]`, `guild heal hunters`, `guild disband`, `raid open <rank>`, `raid make`, `raid start now`, `raid phase barrier/cataclysm` | `SoloGuilds` |
 | monarchs | `monarch crown <crown>`, `monarch uncrown`, `monarch call`, `monarch reset`, `monarch jump 1/2/arbiter/throne/<crown>`, `monarch power domain/dread/crown/authority` | `SoloMonarch` |
 | rulers | `ruler call [verdict/wings/hand/random]`, `ruler war [ruler]`, `ruler sentence [ruler] on [player]`, `ruler land`, `ruler stop`, `ruler status`, `ruler phase <1-3>`, `ruler move <move>`, `ruler kill`, `ruler next <minutes>`, `ruler bless [players]`, `ruler mote [count]`, `ruler record [player]` | `SoloRulers` |
+| light | `light swear`, `light unswear`, `light invest verdict/wings/hand/dawn`, `light divest`, `light call`, `light vigil [next/stop]`, `light chapel [wall]`, `light power sanctum/judgement/seraph/authority`, `light reset` | `SoloLight` |
 | association | `association open [contracts/permits/exam/standing/hire/guilds]`, `association broker`, `association post`, `association merit add/set <merit> [players]`, `association exam start/pass/fail [player]`, `association contract [player]`, `association record [player]`, `association reset [players]` | `SoloAssociation` |
 | rivals | `rival send [guild/random] [ranked]`, `rival arrive/enter`, `rival finish clear/retreat`, `rival list`, `rival forget`, `rival record [player]`, `hire porter [e/d] [players]`, `hire hunter [rank] [class] [players]`, `hire dismiss [players]`, `hire list [player]` | `SoloRivals` |
 | scouting | `scout offer <guild>/all [players]`, `scout send [players]`, `scout talk [player]`, `scout lapse [players]`, `scout list [player]`, `scout reset [players]`, `contract sign <guild> [players]`, `contract expire [players]`, `contract end [players]`, `contract info [player]`, `news ambient [count]`, `news rankup [player]`, `news list`, `news clear` | `SoloScouting` |
@@ -2280,6 +2356,7 @@ family, guild and page having its English line.
 `test/GuildGameTests` covers: founding a guild (every refusal: no System, gold, name and tag rules, taken names and tags, one guild at a time; the tidied name, the founder's title, nothing paid for a refusal, the treasury going to the master on disbanding), members (invitations sent, again and used up, declining, officers inviting and removing only plain members, the lead handed on, a master unable to walk out by joining another guild while a member can, a leaving master's successor, the last one out ending it), the treasury and levels (deposits counting as guild XP, the master's withdrawals, several levels at once, what levels give, a member's gate clear, the top level), hiring (the day's recruits, ranks and prices, the roster's cap, hurt hunters staying home, what a raid teaches them, letting go), a guild saved and loaded, what the GUILD page is sent, `/solo wipe`, the raid permit's refusals, and the `/solo guild` and `/solo raid` commands.
 `test/RaidGameTests` covers: the muster (only hunters with the System, roles by class, the leader, the countdown, one raid at a time, the lead passing on, the gate sealing once it starts, a failed raid shutting its gate), a raid's cave (lieutenants in their caverns sealing the boss's chamber and counted by the raid's quest, none of them clearing the gate, the boss grown and controlled, its barrier and its pylons breaking only to raiders' blows one at a time, the boss reeling, the cataclysm's lights, the clear and its titles), a guild's raid (the leader bringing its hunters, their bodies stepping in beside the leader in their roles, the light sheltering one and the open floor hurting the other, the best raider of four singled out, the guild's XP, the hunters' levels), strikers hitting harder and vanguards taking less only while a raid runs, a raid waiting while its raiders are offline (and failing once they have all fallen), a raid's quest ending with it (for raiders away too, once they are back), and a raid saved with its gate.
 `test/MonarchGameTests` covers: a crown (its powers, the strength, the title, the aura's colour), powers only with a crown (refused when not crowned, never on the skill bar, never from "every skill"), the throne calling a ready hunter (sigil, job change, level), a monarch's shadows becoming regents and the army growing, the crown form never making a monarch untouchable, the domain and dread on the fallen court (allies sheltered and stronger, foes weakened and taking more), each crown's authority striking the court, the whole throne trial run to the end (court, Arbiter, the choice, the coronation, home, titles, the quest), jumping straight to the throne, falling in the hall, logging out at the throne (crowned) or in the court (not), and the `/solo monarch` commands.
+`test/LightGameTests` covers: the temple hiding the chapel (a second room, walled off), turning the Envoy away and coming back to swear (the light's awakening, the System, Judgement on a crown key, the title, evaluation keeping it), the powers coming only from the light (no class lists them, the crown keys' order, refused when not sworn), Judgement marking and striking, the sanctum's might, guard and burning, seraph form never making a ruler untouchable, the Blade of Heaven falling, the light calling the ready (the feather, the quest, once), the whole vigil to a mantle, leaving the ring failing it, a mantle or a crown never both, and every model's geometry, skin, glow and animations.
 `test/WorldBossGameTests` covers: every kind's model, skins and each animation its moves play, every name the HUD and pop-ups ask for (names, titles, phases, domains, authorities, regalia), a phase not skipped by one huge blow (it stops at the line, the phase begins, nothing heals it), a monarch dying in its last phase, every kind reading far stronger than a new S-rank hunter, monarch armor taking its wearer's aura (grade, tier, level, the violet when unworn or classless), each monarch leaving its own regalia (the missing piece first), and every kind's journal page and kill titles (the rarest worn).
 `test/RewardBoxGameTests` covers: a plain box opening into one thing and being used up (only for a hunter with the System, one a second), a blessed box showing the same three offers until one is taken and giving that one (refusing another seed, hand or offer), every roll keeping its promises (three kinds, nothing empty, a seed rolling the same, cursed boxes never the small stuff), the Wardens holding the box's things until the last one falls or taking them away, Hex of Frailty until purified, Greed and Backlash, caches holding boxes by where they stand, the daily training's box, and `/solo box`.
 `test/ManaPoisonGameTests` covers: the stages weakening and slowing, only A and S gates being thick enough, the rate by rank in an A gate (a rank below, at the gate's rank, above it) and the mana thinning once the boss is down, purifying crystals growing in rooms of their own and drawing the poisoning out, the burst at 100, poisoned blows losing their share, the purifying draught, and `/solo mana`.
