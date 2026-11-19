@@ -93,7 +93,7 @@ public final class Association {
     /** The windows. */
     public static final int OFFICE = 0, BROKER = 1;
     /** The office's tabs. */
-    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3;
+    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3, TAB_HIRE = 4;
     /** Contract kinds: a gate holding, one coming apart, one that has broken. */
     public static final int CLEAR = 0, UNSTABLE = 1, BREAK = 2;
     /** How far a hunter may stray from the one they talk to before the window stops answering. */
@@ -228,6 +228,8 @@ public final class Association {
         CompoundTag args = a.args();
         PlayerRank rank = args.contains("rank") ? PlayerRank.values()[Mth.clamp(args.getInt("rank"), 0, PlayerRank.values().length - 1)] : null;
         UUID gate = args.hasUUID("gate") ? args.getUUID("gate") : null;
+        UUID offer = args.hasUUID("offer") ? args.getUUID("offer") : null;
+        UUID hire = args.hasUUID("hire") ? args.getUUID("hire") : null;
         // each desk does its own business: the officer's buttons at the office, the broker's at the broker
         boolean broker = s.screen() == BROKER;
         Outcome o = switch (a.action()) {
@@ -237,6 +239,9 @@ public final class Association {
             case AssociationActionPayload.EXAM -> broker ? null : startExam(p, s);
             case AssociationActionPayload.TIP -> !broker || rank == null ? null : Broker.tip(p, s, rank);
             case AssociationActionPayload.SCOUT -> !broker || gate == null ? null : Broker.scout(p, s, gate);
+            // hands for hire ({@code rival.Hires})
+            case AssociationActionPayload.HIRE -> broker || offer == null ? null : com.beyondsolo.rival.Hires.hire(p, s.office(), offer);
+            case AssociationActionPayload.DISMISS -> broker || hire == null ? null : com.beyondsolo.rival.Hires.dismiss(p, hire);
             default -> null;
         };
         if (s.screen() == BROKER) Broker.open(p, s, o);
@@ -259,6 +264,8 @@ public final class Association {
     public static boolean contractable(MinecraftServer server, GateInstance g) {
         if (g.state() != GateInstance.State.OPEN || g.isTrial() || g.isKeyed() || g.isRaid()) return false;
         if (g.breakState().phase() == BreakState.Phase.SUPPRESSED || !g.gateDimension().equals(Level.OVERWORLD)) return false;
+        // a gate a rival party went into first is theirs to clear
+        if (com.beyondsolo.rival.RivalParties.holds(server, g.id())) return false;
         return AssociationData.get(server).claim(g.id()) == null;
     }
 
@@ -583,6 +590,16 @@ public final class Association {
         if (now == Standing.NATIONAL) SystemAPI.setTitle(p, "title.beyondsolo.pride_of_the_association");
     }
 
+    /**
+     * Takes merit away (a gate forced from a rival party that held it). The standing follows the merit down if it
+     * drops under the standing's mark (and isn't announced again when it is earned back).
+     */
+    public static void takeMerit(ServerPlayer p, long amount) {
+        if (amount <= 0) return;
+        AssociationRecord r = record(p);
+        r.merit = Math.max(0, r.merit - amount);
+    }
+
     /** Sets merit outright (commands); the standing follows without a word. */
     public static void setMerit(ServerPlayer p, long merit) {
         AssociationRecord r = record(p);
@@ -595,6 +612,11 @@ public final class Association {
         return (long) rival.gatesOn(day) * AssociationConfig.clearMerit(rival.rank());
     }
 
+    /** As {@link #rivalMerit(Rival, long)}, with the gates their parties cleared in this world on top. */
+    public static long rivalMerit(MinecraftServer server, Rival rival, long day) {
+        return (long) (rival.gatesOn(day) + com.beyondsolo.rival.RivalData.get(server).clears(rival.id())) * AssociationConfig.clearMerit(rival.rank());
+    }
+
     /** One line of the national merit board. */
     public record Row(String name, PlayerRank rank, long merit, boolean player, boolean me, Component guild) {}
 
@@ -602,7 +624,7 @@ public final class Association {
     public static List<Row> national(ServerPlayer me) {
         long day = Rankings.day(me.server);
         List<Row> rows = new ArrayList<>();
-        for (Rival r : Rivals.ALL) rows.add(new Row(r.name(), r.rank(), rivalMerit(r, day), false, false, Rivals.guildName(r.guild())));
+        for (Rival r : Rivals.ALL) rows.add(new Row(r.name(), r.rank(), rivalMerit(me.server, r, day), false, false, Rivals.guildName(r.guild())));
         List<ServerPlayer> players = new ArrayList<>(me.server.getPlayerList().getPlayers());
         if (!players.contains(me)) players.add(me);
         for (ServerPlayer o : players) {
@@ -718,6 +740,8 @@ public final class Association {
         t.put("national", national);
         t.putInt("place", place);
         t.putInt("hunters", rows.size());
+        // hands for hire, and how the hunter has fared against the other parties
+        t.put("hire", com.beyondsolo.rival.Hires.officeTag(p, s.office()));
         return t;
     }
 
