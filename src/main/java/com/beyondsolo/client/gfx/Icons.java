@@ -75,6 +75,11 @@ public final class Icons {
     public static final ResourceLocation HOME = icon("home");
     public static final ResourceLocation BED = icon("bed");
     public static final ResourceLocation CITY = icon("city");
+    public static final ResourceLocation TRAIL = icon("trail");
+    public static final ResourceLocation RACE = icon("race");
+    /** The rival guilds' emblems, in {@code rival.RivalGuild} order (the last: independents). */
+    public static final ResourceLocation[] GUILDS = {icon("guild_azure_tide"), icon("guild_iron_bastion"), icon("guild_sunfall"),
+            icon("guild_red_lantern"), icon("guild_independent")};
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

@@ -85,13 +85,15 @@ public final class ShadowService {
         final float speed;
         final boolean boss;
         final int bossRank;
+        /** The shape of the creature that fell (how it moved, its size, its look). */
+        final ShadowForm form;
         int tries = TRIES;
         long expires;
         /** Game time the running ritual ends, or 0. */
         long ritualEnd;
 
         Soul(int id, ResourceKey<Level> dimension, Vec3 pos, UUID owner, ResourceLocation type, ShadowRecord.Role role, ShadowRank rank,
-             float health, float damage, float speed, boolean boss, int bossRank, long expires) {
+             float health, float damage, float speed, boolean boss, int bossRank, ShadowForm form, long expires) {
             this.id = id;
             this.dimension = dimension;
             this.pos = pos;
@@ -104,6 +106,7 @@ public final class ShadowService {
             this.speed = speed;
             this.boss = boss;
             this.bossRank = bossRank;
+            this.form = form;
             this.expires = expires;
         }
 
@@ -112,6 +115,12 @@ public final class ShadowService {
         public Vec3 pos() { return pos; }
         public ResourceLocation type() { return type; }
         public boolean boss() { return boss; }
+        /** What the shadow would do (fight, cast, carry). */
+        public ShadowRecord.Role role() { return role; }
+        /** The rank the shadow would rise at. */
+        public ShadowRank rank() { return rank; }
+        /** The shape the shadow would take. */
+        public ShadowForm form() { return form; }
         /** The health the shadow would be built on (and the essence the soul leaves if it fades). */
         public float health() { return health; }
         public int tries() { return tries; }
@@ -255,29 +264,81 @@ public final class ShadowService {
         return List.copyOf(SOULS);
     }
 
-    /** A creature fell to a necromancer (or one of their shadows): its soul lingers for them. */
+    /**
+     * A creature fell to a necromancer (or one of their shadows): its soul lingers for them. Any living creature leaves
+     * one, ours, vanilla's or another mod's, but those tagged {@code shadow/no_soul} (a player, a training dummy, a
+     * vision): its shadow takes its shape and look ({@link ShadowForm#of}), how it got about, and what it did (steeds
+     * carry, archers cast). Bosses (ours, the world's threats, and any tagged {@code shadow/bosses} or {@code c:bosses})
+     * rise as named elites.
+     */
     public static @Nullable Soul leaveSoul(ServerPlayer owner, LivingEntity victim) {
         if (!canRaise(owner) || victim instanceof Player || victim instanceof ShadowEntity) return null;
         EntityType<?> type = victim.getType();
-        if (type.is(ShadowModule.NO_SOUL)) return null;
-        boolean boss = victim instanceof DungeonBoss || type.is(ShadowModule.BOSSES);
-        // the hive's king is the swarm's last and greatest child: his shadow rises a commander
-        int bossRank = victim instanceof DungeonBoss db ? db.rank().ordinal()
-                : victim instanceof com.beyondsolo.worldboss.ColossalBoss c && c.kind() == com.beyondsolo.worldboss.WorldBossKind.KING ? 5 : boss ? 3 : -1;
-        float[] size = soulSize(victim);
-        float hp = size[0];
-        float dmg = size[1];
+        if (type.is(ShadowModule.NO_SOUL) || !(victim.level() instanceof ServerLevel level)) return null;
+        boolean boss = ShadowForm.isBoss(victim);
+        int bossRank = boss ? ShadowForm.bossRank(victim) : -1;
+        float[] size = sizeOf(victim);
         float speed = victim.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)
                 ? (float) victim.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) : 0.25f;
-        return addSoul(owner, (ServerLevel) victim.level(), victim.position(), type, hp, dmg, speed, boss, bossRank);
+        return addSoul(owner, level, soulSpot(level, victim, owner), type, size[0], size[1], speed, boss, bossRank,
+                ShadowForm.roleOf(type, victim), ShadowForm.of(victim));
     }
 
-    /** Puts a soul down directly (used by {@link #leaveSoul} and the staging command). */
+    /** {@link #soulSize}, or for a creature whose numbers can't be read the usual way, its health and blows to match. */
+    private static float[] sizeOf(LivingEntity victim) {
+        try {
+            return soulSize(victim);
+        } catch (RuntimeException | LinkageError e) {
+            float hp = victim.getMaxHealth();
+            return new float[]{hp, 2 + hp * 0.08f};
+        }
+    }
+
+    /**
+     * Where a fallen creature's soul lingers: where it fell, or, for one that died in the air (a bat, a ghast shot
+     * down), on the ground or the water under it, where its master can reach it. Over nothing at all (the void, the
+     * End's sky), at its master's side.
+     */
+    static Vec3 soulSpot(ServerLevel level, LivingEntity victim, ServerPlayer owner) {
+        Vec3 at = victim.position();
+        if (victim.onGround() || victim.isInWater() || victim.isInLava()) return at;
+        BlockPos.MutableBlockPos p = BlockPos.containing(at).mutable();
+        int floor = level.getMinBuildHeight();
+        for (int i = 0; i < 96 && p.getY() > floor; i++) {
+            BlockPos below = p.below();
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(below);
+            if (!state.getCollisionShape(level, below).isEmpty() || !state.getFluidState().isEmpty()) {
+                // on the block, or on the water's face
+                double top = state.getFluidState().isEmpty() ? below.getY() + state.getCollisionShape(level, below).max(net.minecraft.core.Direction.Axis.Y)
+                        : p.getY();
+                return new Vec3(at.x, Math.min(at.y, top), at.z);
+            }
+            p.move(net.minecraft.core.Direction.DOWN);
+        }
+        return owner.position();
+    }
+
+    /** Puts a soul down directly (the staging command and tests): its role and form those of a fresh one of its kind. */
     public static Soul addSoul(ServerPlayer owner, ServerLevel level, Vec3 pos, EntityType<?> type, float hp, float dmg, float speed,
                                boolean boss, int bossRank) {
+        return addSoul(owner, level, pos, type, hp, dmg, speed, boss, bossRank, null, null);
+    }
+
+    /**
+     * Puts a soul down: the shadow it would raise is built on these numbers (see {@link #leaveSoul}), does what
+     * {@code role} says and takes {@code form}'s shape (null: those of a fresh one of its kind). A steed walks, whatever
+     * it was: its master rides it.
+     */
+    public static Soul addSoul(ServerPlayer owner, ServerLevel level, Vec3 pos, EntityType<?> type, float hp, float dmg, float speed,
+                               boolean boss, int bossRank, @Nullable ShadowRecord.Role role, @Nullable ShadowForm form) {
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-        ShadowRecord.Role role = type.is(ShadowModule.MOUNTS) ? ShadowRecord.Role.MOUNT
-                : type.is(ShadowModule.CASTERS) ? ShadowRecord.Role.CASTER : ShadowRecord.Role.WARRIOR;
+        if (role == null) role = ShadowForm.probeRole(level, type);
+        if (form == null) form = ShadowForm.probe(level, type);
+        if (role == ShadowRecord.Role.MOUNT) form = form.withMove(ShadowForm.Movement.WALK);
+        // a creature with odd numbers (none, or broken ones) still makes a shadow
+        if (!Float.isFinite(hp) || hp <= 0) hp = 20;
+        if (!Float.isFinite(dmg) || dmg < 0) dmg = 2;
+        if (!Float.isFinite(speed) || speed <= 0) speed = 0.25f;
         ShadowRank rank;
         if (boss) rank = bossRank >= 4 ? ShadowRank.COMMANDER : bossRank >= 2 ? ShadowRank.CAPTAIN : ShadowRank.KNIGHT;
         else rank = hp <= 20 ? ShadowRank.HUSK : hp <= 40 ? ShadowRank.SOLDIER : hp <= 80 ? ShadowRank.VANGUARD : ShadowRank.KNIGHT;
@@ -286,7 +347,7 @@ public final class ShadowService {
         float damage = Math.min(boss ? 30 : 20, dmg);
         long now = level.getGameTime();
         Soul s = new Soul(nextSoulId++, level.dimension(), pos, owner.getUUID(), id, role, rank, health, damage, speed, boss, bossRank,
-                now + (boss ? BOSS_SOUL_TICKS : SOUL_TICKS));
+                form, now + (boss ? BOSS_SOUL_TICKS : SOUL_TICKS));
         SOULS.add(s);
         MASTERS.put(owner.getUUID(), owner);
         soulFx(level, s, ShadowFxPayload.Kind.SOUL, s.tries, id.toString());
@@ -324,6 +385,19 @@ public final class ShadowService {
         return true;
     }
 
+    /**
+     * Tests and staging: the ritual on this soul ends now, and works. Returns the shadow it raised (null if the soul is
+     * gone or the army is full); it rises where the soul was if there is room in the field.
+     */
+    public static @Nullable ShadowRecord extractNow(ServerPlayer p, Soul s) {
+        ShadowData army = army(p);
+        if (!SOULS.contains(s) || army.size() >= capacity(p)) return null;
+        int before = army.size();
+        FORCED.put(p.getUUID(), true);
+        finishRitual(p, s);
+        return army.size() > before ? army.byIndex(army.size() - 1) : null;
+    }
+
     private static void finishRitual(ServerPlayer p, Soul s) {
         ServerLevel level = p.serverLevel();
         s.ritualEnd = 0;
@@ -345,6 +419,7 @@ public final class ShadowService {
         }
         SOULS.remove(s);
         ShadowRecord r = new ShadowRecord(UUID.randomUUID(), s.type, s.role, s.rank, s.health, s.damage, s.speed, level.getGameTime());
+        r.setForm(s.form);
         if (s.boss) {
             r.setBoss(s.bossRank);
             r.setName(ShadowNames.boss(p.getRandom()));
@@ -442,6 +517,7 @@ public final class ShadowService {
         ShadowEntity e = ShadowModule.SHADOW.get().create(level);
         if (e == null) return null;
         MASTERS.put(p.getUUID(), p);
+        ensureForm(level, r);
         e.configure(r, p);
         if (r.postedIn(level.dimension())) e.setPost(r.post());
         e.moveTo(at.x, at.y, at.z, p.getYRot() + (float) (p.getRandom().nextGaussian() * 20), 0);
@@ -612,6 +688,9 @@ public final class ShadowService {
             case com.beyondsolo.network.ShadowActionPayload.PROMOTE -> {
                 if (id != null) ShadowPromotions.promote(p, id);
             }
+            case com.beyondsolo.network.ShadowActionPayload.LOOK -> {
+                if (id != null) sendLook(p, id);
+            }
             default -> {
             }
         }
@@ -674,8 +753,11 @@ public final class ShadowService {
         if (!(victim.level() instanceof ServerLevel level) || victim instanceof Player) return;
         ServerPlayer owner = null;
         ShadowEntity byShadow = null;
-        if (killer instanceof ServerPlayer sp) owner = sp;
-        else if (killer instanceof ShadowEntity s) {
+        // what struck the last blow; failing that (it burned, fell, drowned, or something else finished it), whoever
+        // fought it last, as Minecraft gives the kill to for its experience
+        Entity by = killer instanceof ServerPlayer || killer instanceof ShadowEntity ? killer : victim.getKillCredit();
+        if (by instanceof ServerPlayer sp) owner = sp;
+        else if (by instanceof ShadowEntity s) {
             byShadow = s;
             owner = s.master();
         }
@@ -683,7 +765,7 @@ public final class ShadowService {
         if (victim instanceof ShadowEntity) return;
         leaveSoul(owner, victim);
         // shadows learn by their own sizes, not by what the System grew the creature to
-        int xp = Math.max(1, Math.round(soulSize(victim)[0]));
+        int xp = Math.max(1, Math.round(sizeOf(victim)[0]));
         ShadowData army = army(owner);
         if (byShadow != null && byShadow.recordId() != null) {
             ShadowRecord r = army.get(byShadow.recordId());
@@ -974,6 +1056,7 @@ public final class ShadowService {
     static void login(ServerPlayer p) {
         MASTERS.put(p.getUUID(), p);
         army(p).clearActive();
+        for (ShadowRecord r : army(p).shadows()) ensureForm(p.serverLevel(), r);
         sync(p);
     }
 
@@ -1049,27 +1132,34 @@ public final class ShadowService {
         sync(p);
     }
 
-    /** Puts a shadow straight into the army (staging and tests). */
+    /** Puts a shadow straight into the army (staging and tests): it has the shape and role of a fresh one of its kind. */
     public static ShadowRecord give(ServerPlayer p, EntityType<?> type, @Nullable ShadowRank rank, boolean boss) {
         MASTERS.put(p.getUUID(), p);
-        ShadowRecord.Role role = type.is(ShadowModule.MOUNTS) ? ShadowRecord.Role.MOUNT
-                : type.is(ShadowModule.CASTERS) ? ShadowRecord.Role.CASTER : ShadowRecord.Role.WARRIOR;
+        ShadowRecord.Role role = ShadowForm.probeRole(p.serverLevel(), type);
         float hp = 20, dmg = 3, speed = 0.25f;
-        Entity probe = type.create(p.serverLevel());
-        if (probe instanceof LivingEntity le) {
-            hp = le.getMaxHealth();
-            if (le.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)) dmg = (float) le.getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
-            if (le.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)) speed = (float) le.getAttributeBaseValue(Attributes.MOVEMENT_SPEED);
-            if (probe instanceof com.beyondsolo.gate.GateBossEntity) {
-                // an old C-rank boss's numbers (see soulSize)
-                hp = 120f * (1 + 0.9f * PlayerRank.C.tier());
-                dmg = 7f + 3.5f * PlayerRank.C.tier();
+        Entity probe = null;
+        try {
+            probe = type.create(p.serverLevel());
+            if (probe instanceof LivingEntity le) {
+                hp = le.getMaxHealth();
+                if (le.getAttributes().hasAttribute(Attributes.ATTACK_DAMAGE)) dmg = (float) le.getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
+                if (le.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)) speed = (float) le.getAttributeBaseValue(Attributes.MOVEMENT_SPEED);
+                if (probe instanceof com.beyondsolo.gate.GateBossEntity) {
+                    // an old C-rank boss's numbers (see soulSize)
+                    hp = 120f * (1 + 0.9f * PlayerRank.C.tier());
+                    dmg = 7f + 3.5f * PlayerRank.C.tier();
+                }
             }
+        } catch (RuntimeException | LinkageError ignored) {
+            // a kind that can't be made on its own: plain numbers
+        } finally {
+            if (probe != null) probe.discard();
         }
-        if (probe != null) probe.discard();
+        if (!Float.isFinite(hp) || hp <= 0) hp = 20;
         ShadowRank rk = rank != null ? rank : boss ? ShadowRank.CAPTAIN : ShadowRank.SOLDIER;
         ShadowRecord r = new ShadowRecord(UUID.randomUUID(), BuiltInRegistries.ENTITY_TYPE.getKey(type), role, rk,
                 boss ? Math.min(400, hp * 0.5f) : Math.min(200, hp), Math.min(boss ? 30 : 20, dmg), speed, p.level().getGameTime());
+        ensureForm(p.serverLevel(), r);
         if (boss) {
             r.setBoss(2);
             r.setName(ShadowNames.boss(p.getRandom()));
@@ -1079,11 +1169,22 @@ public final class ShadowService {
         return r;
     }
 
+    /**
+     * Gives a shadow raised before forms were kept the shape of a fresh one of its kind (a steed's walks). Done as its
+     * master comes in and before it is called out.
+     */
+    static void ensureForm(ServerLevel level, ShadowRecord r) {
+        if (r.form() != null) return;
+        ShadowForm f = ShadowForm.probe(level, r.entityType());
+        r.setForm(r.isMount() ? f.withMove(ShadowForm.Movement.WALK) : f);
+    }
+
     // ================================================================ talking to the client
 
     public static void sync(ServerPlayer p) {
         ShadowData army = army(p);
-        CompoundTag tag = army.serializeNBT(p.registryAccess());
+        // the looks stay behind: the Shadows tab asks for one when it shows that shadow (sendLook)
+        CompoundTag tag = army.save(false);
         ListTag active = new ListTag();
         for (UUID id : army.active().keySet()) active.add(StringTag.valueOf(id.toString()));
         tag.put("active", active);
@@ -1094,6 +1195,14 @@ public final class ShadowService {
         tag.putInt("slots", ShadowPromotions.nameSlots(p));
         tag.putLong("time", p.level().getGameTime());
         PacketDistributor.sendToPlayer(p, new ShadowSyncPayload(tag));
+    }
+
+    /** How one shadow looks, for its master's Shadows tab. */
+    static void sendLook(ServerPlayer p, UUID recordId) {
+        ShadowRecord r = army(p).get(recordId);
+        if (r == null) return;
+        ensureForm(p.serverLevel(), r);
+        PacketDistributor.sendToPlayer(p, new com.beyondsolo.network.ShadowLookPayload(recordId.toString(), r.form().look()));
     }
 
     private static void soulFx(ServerLevel level, Soul s, ShadowFxPayload.Kind kind, int extra, String text) {
@@ -1111,6 +1220,7 @@ public final class ShadowService {
         SOULS.clear();
         MASTERS.clear();
         FORCED.clear();
+        ShadowForm.forget();
     }
 
     static ResourceLocation id(String path) {

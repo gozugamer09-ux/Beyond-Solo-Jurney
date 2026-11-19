@@ -454,6 +454,11 @@ public final class DepthsHud {
         }
     }
 
+    /** How much of the top of the screen the weather and trap chips take (a rival party's race chip goes under them). */
+    public static float shownHeight() {
+        return 16 * Anim.outCubic(stripIn) + 16 * Anim.outCubic(Math.min(1f, trapIn));
+    }
+
     static void reset() {
         stripIn = 0;
         trapIn = 0;

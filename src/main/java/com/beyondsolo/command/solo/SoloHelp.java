@@ -166,6 +166,18 @@ final class SoloHelp {
                 new Line("home rest [players]", "home.rest"),
                 new Line("home ready [players]", "home.ready"),
                 new Line("home trophies <count> [players]", "home.trophies")));
+        TOPICS.put("rivals", List.of(
+                new Line("rival send [guild|random] [ranked]", "rival.send"),
+                new Line("rival arrive", "rival.arrive"),
+                new Line("rival enter", "rival.enter"),
+                new Line("rival finish clear|retreat", "rival.finish"),
+                new Line("rival list", "rival.list"),
+                new Line("rival forget", "rival.forget"),
+                new Line("rival record [player]", "rival.record"),
+                new Line("hire porter [e|d] [players]", "hire.porter"),
+                new Line("hire hunter [rank] [class] [players]", "hire.hunter"),
+                new Line("hire dismiss [players]", "hire.dismiss"),
+                new Line("hire list [player]", "hire.list")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

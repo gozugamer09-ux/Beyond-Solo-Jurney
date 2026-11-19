@@ -378,7 +378,15 @@ public class ShadowsTab implements SystemTab {
         celebration(g, r, bx, by, boxW, boxH, true);
         drawPreview(g, r, (int) bx, (int) by, (int) (bx + boxW), (int) (by + boxH));
         celebration(g, r, bx, by, boxW, boxH, false);
+        // over the creature, however large it is drawn (a ghast fills its box)
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 200);
         nameTag(g, r, bx + boxW - 8, by + 8, mouseX, mouseY);
+        // a flier's or a swimmer's shadow says so, on its portrait (the line of chips is often full)
+        if (r.movement().airborne() && !r.isMount()) {
+            Ui.chip(g, bx + 4, by + boxH - 14, 10, r.movement().displayName().getString(), 6f, 0xFF8FC8FF, false);
+        }
+        g.pose().popPose();
 
         float tx = bx + boxW + 8;
         float tw = x + w - 10 - tx;
@@ -484,9 +492,12 @@ public class ShadowsTab implements SystemTab {
         }
         // what it does (and whether it leads the shadows round it), in the lines that are left
         String what = r.boss() ? "shadows.beyondsolo.does.boss" : "shadows.beyondsolo.does." + r.role().key();
-        Component does = r.rank().ordinal() >= ShadowRank.COMMANDER.ordinal()
-                ? Component.translatable(what).append(" ").append(Component.translatable("shadows.beyondsolo.leads", Math.round((ShadowPromotions.LEAD - 1) * 100)))
-                : Component.translatable(what);
+        net.minecraft.network.chat.MutableComponent does = Component.translatable(what);
+        if (r.rank().ordinal() >= ShadowRank.COMMANDER.ordinal()) {
+            does.append(" ").append(Component.translatable("shadows.beyondsolo.leads", Math.round((ShadowPromotions.LEAD - 1) * 100)));
+        }
+        // and how it gets about, if not on its feet
+        if (r.movement().airborne() && !r.isMount()) does.append(" ").append(Component.translatable("shadows.beyondsolo.moves." + r.movement().key()));
         List<SysFont.Line> lines = SysFont.wrap(does, 6.4f, false, pw);
         int fit = 0;
         while (fit < Math.min(3, lines.size()) && dy + (fit + 1) * 6.4f * SysFont.LINE <= bottom + 1) fit++;
@@ -689,7 +700,7 @@ public class ShadowsTab implements SystemTab {
             if (preview == null) return;
             preview.preview = true;
         }
-        preview.setLook(r.type().toString(), r.rank(), r.boss() ? r.bossRank() : -1, r.role());
+        preview.setLook(r.type().toString(), r.rank(), r.boss() ? r.bossRank() : -1, r.role(), ShadowClient.form(r));
         preview.tickCount = (int) (Anim.now() * 20);
         float big = Math.max(preview.getBbHeight(), preview.getBbWidth() * 0.9f);
         int scale = (int) Mth.clamp((y1 - y0) * 0.6f / Math.max(0.5f, big * ShadowRenderer.tierScale(r.rank())), 6, 60);

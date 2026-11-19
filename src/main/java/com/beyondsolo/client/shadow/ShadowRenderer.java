@@ -115,13 +115,18 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             }
             pose.pushPose();
             pose.translate(0, -down, 0);
-            pose.scale(grow, grow, grow);
+            // its size, its rank's growth, and the creature's own fit to it (a dragon's shadow is a quarter of it)
+            float s = grow * e.lookScale();
+            pose.scale(s, s, s);
             try {
-                @SuppressWarnings("unchecked")
-                EntityRenderer<LivingEntity> r = (EntityRenderer<LivingEntity>) Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(look);
+                // any mod's renderer: ShadowDraw keeps whatever goes wrong in it inside the shadow
+                EntityRenderer<LivingEntity> r = ShadowDraw.renderer(look);
                 float brightness = e.isBoss() ? 1.25f : 1f;
                 outline = Outline.begin();
-                r.render(look, yaw, partial, pose, outline.tap(ShadowTint.ink(buffers, brightness, Aura.mix(color, 0xFFFFFF, 0.25f))), light);
+                if (!ShadowDraw.render(r, look, yaw, partial, pose, outline.tap(ShadowTint.ink(buffers, brightness, Aura.mix(color, 0xFFFFFF, 0.25f))),
+                        light)) {
+                    outline = null;
+                }
             } catch (RuntimeException ignored) {
                 // a creature whose renderer can't draw a stand-in: its eyes alone show where it is
                 outline = null;

@@ -85,9 +85,14 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
 
     @Override
     public @UnknownNullability CompoundTag serializeNBT(HolderLookup.Provider provider) {
+        return save(true);
+    }
+
+    /** The army saved; without the shadows' looks for what is sent to the client with every change (they can be large). */
+    public CompoundTag save(boolean withLooks) {
         CompoundTag tag = new CompoundTag();
         ListTag list = new ListTag();
-        for (ShadowRecord r : shadows) list.add(r.save());
+        for (ShadowRecord r : shadows) list.add(r.save(withLooks));
         tag.put("shadows", list);
         tag.putInt("essence", essence);
         return tag;
