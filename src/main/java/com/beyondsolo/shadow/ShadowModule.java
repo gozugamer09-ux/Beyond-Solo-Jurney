@@ -43,6 +43,8 @@ public final class ShadowModule {
     public static final TagKey<EntityType<?>> MOUNTS = tag("shadow/mounts");
     /** Creatures whose shadows fight from range with bolts. */
     public static final TagKey<EntityType<?>> CASTERS = tag("shadow/casters");
+    /** Creatures whose shadows fight up close, whatever they could shoot (a wither skeleton swings its blade). */
+    public static final TagKey<EntityType<?>> WARRIORS = tag("shadow/warriors");
     /** Creatures that become named elite shadows (dungeon bosses always do). */
     public static final TagKey<EntityType<?>> BOSSES = tag("shadow/bosses");
     /** Creatures that leave no soul to extract. Anything else that lives does, whatever mod it comes from. */

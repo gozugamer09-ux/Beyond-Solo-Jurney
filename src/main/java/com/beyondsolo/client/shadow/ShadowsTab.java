@@ -377,7 +377,15 @@ public class ShadowsTab implements SystemTab {
         celebration(g, r, bx, by, boxW, boxH, true);
         drawPreview(g, r, (int) bx, (int) by, (int) (bx + boxW), (int) (by + boxH));
         celebration(g, r, bx, by, boxW, boxH, false);
+        // over the creature, however large it is drawn (a ghast fills its box)
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 200);
         nameTag(g, r, bx + boxW - 8, by + 8, mouseX, mouseY);
+        // a flier's or a swimmer's shadow says so, on its portrait (the line of chips is often full)
+        if (r.movement().airborne() && !r.isMount()) {
+            Ui.chip(g, bx + 4, by + boxH - 14, 10, r.movement().displayName().getString(), 6f, 0xFF8FC8FF, false);
+        }
+        g.pose().popPose();
 
         float tx = bx + boxW + 8;
         float tw = x + w - 10 - tx;
@@ -387,9 +395,7 @@ public class ShadowsTab implements SystemTab {
         chipX += Ui.chip(g, chipX, cy, 10, r.rank().displayName().getString().toUpperCase(), 6f, rc, true) + 4;
         if (r.boss()) chipX = chipIfRoom(g, chipX, cy, tx + tw, Component.translatable("shadows.beyondsolo.elite").getString(), SystemTheme.GOLD, true);
         if (r.bonded()) chipX = chipIfRoom(g, chipX, cy, tx + tw, Component.translatable("shadows.beyondsolo.named").getString(), 0xFFE2CCFF, false);
-        chipX = chipIfRoom(g, chipX, cy, tx + tw, r.role().displayName().getString(), SystemTheme.TEXT_SOFT, false);
-        // a flier's or a swimmer's shadow says so
-        if (r.movement().airborne() && !r.isMount()) chipIfRoom(g, chipX, cy, tx + tw, r.movement().displayName().getString(), 0xFF8FC8FF, false);
+        chipIfRoom(g, chipX, cy, tx + tw, r.role().displayName().getString(), SystemTheme.TEXT_SOFT, false);
         cy += 14;
 
         if (r.id().equals(naming)) {

@@ -277,18 +277,21 @@ public final class ShadowService {
         if (type.is(ShadowModule.NO_SOUL) || !(victim.level() instanceof ServerLevel level)) return null;
         boolean boss = ShadowForm.isBoss(victim);
         int bossRank = boss ? ShadowForm.bossRank(victim) : -1;
-        float[] size;
-        try {
-            size = soulSize(victim);
-        } catch (RuntimeException e) {
-            // a creature whose numbers can't be read the usual way: its health, and blows to match
-            float hp = victim.getMaxHealth();
-            size = new float[]{hp, 2 + hp * 0.08f};
-        }
+        float[] size = sizeOf(victim);
         float speed = victim.getAttributes().hasAttribute(Attributes.MOVEMENT_SPEED)
                 ? (float) victim.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) : 0.25f;
         return addSoul(owner, level, soulSpot(level, victim, owner), type, size[0], size[1], speed, boss, bossRank,
                 ShadowForm.roleOf(type, victim), ShadowForm.of(victim));
+    }
+
+    /** {@link #soulSize}, or for a creature whose numbers can't be read the usual way, its health and blows to match. */
+    private static float[] sizeOf(LivingEntity victim) {
+        try {
+            return soulSize(victim);
+        } catch (RuntimeException | LinkageError e) {
+            float hp = victim.getMaxHealth();
+            return new float[]{hp, 2 + hp * 0.08f};
+        }
     }
 
     /**
@@ -380,6 +383,19 @@ public final class ShadowService {
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.EVOKER_PREPARE_SUMMON, SoundSource.PLAYERS, 0.9f, 0.6f);
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.SCULK_CATALYST_BLOOM, SoundSource.PLAYERS, 1.2f, 0.5f);
         return true;
+    }
+
+    /**
+     * Tests and staging: the ritual on this soul ends now, and works. Returns the shadow it raised (null if the soul is
+     * gone or the army is full); it rises where the soul was if there is room in the field.
+     */
+    public static @Nullable ShadowRecord extractNow(ServerPlayer p, Soul s) {
+        ShadowData army = army(p);
+        if (!SOULS.contains(s) || army.size() >= capacity(p)) return null;
+        int before = army.size();
+        FORCED.put(p.getUUID(), true);
+        finishRitual(p, s);
+        return army.size() > before ? army.byIndex(army.size() - 1) : null;
     }
 
     private static void finishRitual(ServerPlayer p, Soul s) {
@@ -749,7 +765,7 @@ public final class ShadowService {
         if (victim instanceof ShadowEntity) return;
         leaveSoul(owner, victim);
         // shadows learn by their own sizes, not by what the System grew the creature to
-        int xp = Math.max(1, Math.round(soulSize(victim)[0]));
+        int xp = Math.max(1, Math.round(sizeOf(victim)[0]));
         ShadowData army = army(owner);
         if (byShadow != null && byShadow.recordId() != null) {
             ShadowRecord r = army.get(byShadow.recordId());

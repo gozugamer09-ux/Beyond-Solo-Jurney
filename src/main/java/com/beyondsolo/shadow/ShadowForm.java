@@ -45,8 +45,8 @@ import java.util.Map;
  * variant. The client builds the stand-in it draws in ink from that ({@link ShadowLook}).
  *
  * <p>Tags {@code shadow/fliers}, {@code shadow/swimmers} and {@code shadow/walkers} settle how a kind moves when the
- * guess from its navigation is wrong; {@code shadow/mounts}, {@code shadow/casters} and {@code shadow/bosses} its
- * role, before the guesses in {@link #roleOf} and {@link #isBoss}.</p>
+ * guess from its navigation is wrong; {@code shadow/mounts}, {@code shadow/casters}, {@code shadow/warriors} and
+ * {@code shadow/bosses} its role, before the guesses in {@link #roleOf} and {@link #isBoss}.</p>
  *
  * @param move   how it gets about
  * @param width  the creature's width (blocks), its size roll included
@@ -85,7 +85,7 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
     /** The tallest a shadow stands; a taller creature rises smaller (a titan, the giant). */
     public static final float MAX_HEIGHT = 6f;
     /** A look bigger than this (NBT bytes) keeps only the creature's gear; one bigger still, nothing. */
-    static final int MAX_LOOK_BYTES = 4096;
+    public static final int MAX_LOOK_BYTES = 4096;
 
     /**
      * What a creature saved that has nothing to do with how it looks, or must not come back on a stand-in: where it
@@ -120,6 +120,8 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
     private static final Map<EntityType<?>, ShadowForm> PROBED = new HashMap<>();
     /** And what a fresh one of each kind would do as a shadow. */
     private static final Map<EntityType<?>, ShadowRecord.Role> PROBED_ROLE = new HashMap<>();
+    /** And the rank its shadow would be counted at as a boss (-1: not a boss). */
+    private static final Map<EntityType<?>, Integer> PROBED_BOSS = new HashMap<>();
     /** The form of a shadow whose kind is gone (a mod taken out of the pack): a body of a man's size, on its feet. */
     public static final ShadowForm UNKNOWN = new ShadowForm(Movement.WALK, 0.6f, 1.95f, 1.74f, 1f, new CompoundTag());
 
@@ -140,7 +142,7 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
         EntityDimensions d;
         try {
             d = creature.getDimensions(Pose.STANDING);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             d = creature.getType().getDimensions();
         }
         return new ShadowForm(movementOf(creature), d.width(), d.height(), d.eyeHeight(), creature.getScale(),
@@ -157,12 +159,14 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
         if (known != null) return known;
         ShadowForm form = null;
         ShadowRecord.Role role = null;
+        int boss = type.is(ShadowModule.BOSSES) || type.is(Tags.EntityTypes.BOSSES) ? 3 : -1;
         Entity probe = null;
         try {
             probe = type.create(level);
             if (probe instanceof LivingEntity le) {
                 form = of(le, false);
                 role = roleOf(type, le);
+                boss = bossRank(le);
             }
         } catch (RuntimeException | LinkageError ignored) {
             // a kind that can't be made on its own: its registered size will do
@@ -172,6 +176,7 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
         if (form == null) form = ofKind(type);
         PROBED.put(type, form);
         PROBED_ROLE.put(type, role != null ? role : roleOf(type, null));
+        PROBED_BOSS.put(type, boss);
         return form;
     }
 
@@ -188,9 +193,17 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
         return PROBED_ROLE.getOrDefault(type, ShadowRecord.Role.WARRIOR);
     }
 
+    /** The rank a shadow of this kind is counted at as a boss, going by a fresh one of it; -1 for a kind that isn't one. */
+    public static int probeBossRank(ServerLevel level, @Nullable EntityType<?> type) {
+        if (type == null) return -1;
+        probe(level, type);
+        return PROBED_BOSS.getOrDefault(type, -1);
+    }
+
     static void forget() {
         PROBED.clear();
         PROBED_ROLE.clear();
+        PROBED_BOSS.clear();
     }
 
     // ================================================================ what kind of creature it was
@@ -224,6 +237,7 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
     public static ShadowRecord.Role roleOf(EntityType<?> type, @Nullable LivingEntity creature) {
         if (type.is(ShadowModule.MOUNTS)) return ShadowRecord.Role.MOUNT;
         if (type.is(ShadowModule.CASTERS)) return ShadowRecord.Role.CASTER;
+        if (type.is(ShadowModule.WARRIORS)) return ShadowRecord.Role.WARRIOR;
         if (creature instanceof AbstractHorse) return ShadowRecord.Role.MOUNT;
         if (creature instanceof RangedAttackMob) {
             Item held = creature.getMainHandItem().getItem();
@@ -256,7 +270,7 @@ public record ShadowForm(Movement move, float width, float height, float eye, fl
         CompoundTag all;
         try {
             all = e.saveWithoutId(new CompoundTag());
-        } catch (RuntimeException ex) {
+        } catch (RuntimeException | LinkageError ex) {
             return new CompoundTag();
         }
         for (String key : DROP) all.remove(key);

@@ -96,6 +96,9 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     private float jumpPending;
     /** Flying or swimming (server side): no gravity, flies to where it goes. */
     private boolean airborne;
+    /** Where an airborne shadow is flying straight to (its place over its master or its post), or null. */
+    private @Nullable Vec3 station;
+    private double stationSpeed = 1;
     /** The form read from {@link #FORM} (both sides), and the tag it was read from. */
     private @Nullable ShadowForm form;
     private @Nullable CompoundTag formTag;
@@ -509,8 +512,60 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     }
 
     /**
+     * Sends an airborne shadow to its place: straight there when it is near and nothing is in the way (a path keeps to
+     * the blocks' grid and would leave a large flier well off to one side), along a path otherwise.
+     */
+    private void flyTo(Vec3 spot, double speed) {
+        Vec3 from = getBoundingBox().getCenter();
+        Vec3 to = spot.add(0, getBbHeight() * 0.5, 0);
+        boolean clear = distanceToSqr(spot) < 16 * 16 && level().clip(new net.minecraft.world.level.ClipContext(from, to,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, this))
+                .getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+        if (clear) {
+            getNavigation().stop();
+            station = spot;
+            stationSpeed = speed;
+        } else {
+            station = null;
+            getNavigation().moveTo(spot.x, spot.y, spot.z, speed);
+        }
+    }
+
+    /**
+     * Each tick on its way: straight on toward its place (the move control forgets a wanted spot after one tick),
+     * slowing as it comes in so it doesn't shoot past.
+     */
+    private void keepFlying() {
+        if (station == null || arrived()) return;
+        double slow = Mth.clamp(Math.sqrt(distanceToSqr(station)) / 3, 0.3, 1);
+        getMoveControl().setWantedPosition(station.x, station.y, station.z, stationSpeed * slow);
+    }
+
+    /** At its place: near the spot it flies straight to, or at the end of its path. */
+    private boolean arrived() {
+        return station != null ? distanceToSqr(station) < 0.7 * 0.7 : getNavigation().isDone();
+    }
+
+    /** Stops flying to its place: it hangs where it got to. */
+    private void land() {
+        if (station != null) setDeltaMovement(getDeltaMovement().scale(0.25));
+        station = null;
+        getNavigation().stop();
+    }
+
+    /**
+     * A flier or a swimmer that is not in its place over this spot (looked at every half second, not every tick): it
+     * goes there, rather than sitting on the ground where it rose.
+     */
+    private boolean offStation(Vec3 over) {
+        if (!airborne || (tickCount + getId()) % 10 != 0) return false;
+        return distanceToSqr(hoverOver(over)) > 1.5 * 1.5;
+    }
+
+    /**
      * Where an airborne shadow keeps to over a spot: a flier a couple of blocks over it, a swimmer just over the ground,
-     * each a little off to its own side so they don't crowd one spot; lower under a ceiling. A walker: the spot itself.
+     * each a little off to its own side so they don't crowd one spot; lower under a ceiling, and right over the spot
+     * when its side is walled in. A walker: the spot itself.
      */
     Vec3 hoverOver(Vec3 at) {
         if (!airborne) return at;
@@ -518,9 +573,9 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         double a = getId() * 2.39996;
         double side = 1.2 + getBbWidth() * 0.5;
         Vec3 off = new Vec3(at.x + Math.cos(a) * side, at.y, at.z + Math.sin(a) * side);
-        for (double dy : new double[]{up, up * 0.5, 0}) {
-            AABB box = getDimensions(getPose()).makeBoundingBox(off.add(0, dy, 0));
-            if (level().noCollision(this, box)) return off.add(0, dy, 0);
+        EntityDimensions size = getDimensions(getPose());
+        for (Vec3 to : new Vec3[]{off.add(0, up, 0), off.add(0, up * 0.5, 0), at.add(0, up, 0), at.add(0, up * 0.5, 0), off}) {
+            if (level().noCollision(this, size.makeBoundingBox(to))) return to;
         }
         return at;
     }
@@ -787,14 +842,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             ServerPlayer m = master();
             if (m == null || isBusy() || m.isSpectator() || post != null) return false;
             if (getTarget() != null && distanceToSqr(m) < 20 * 20) return false;
-            return distanceToSqr(m) > (isMount() ? 4 * 4 : 5 * 5);
+            // a flier keeps its place over its master's head, however close it rose
+            return distanceToSqr(m) > (isMount() ? 4 * 4 : 5 * 5) || offStation(m.position());
         }
 
         @Override
         public boolean canContinueToUse() {
             ServerPlayer m = master();
-            return m != null && post == null && !isBusy() && !getNavigation().isDone() && distanceToSqr(m) > (airborne ? 3.2 * 3.2 : 2.5 * 2.5)
-                    && (getTarget() == null || distanceToSqr(m) > 20 * 20);
+            if (m == null || post != null || isBusy()) return false;
+            if (getTarget() != null && distanceToSqr(m) <= 20 * 20) return false;
+            // a flier goes all the way to its place; one on its feet stops at its master's side
+            return airborne ? !arrived() : !getNavigation().isDone() && distanceToSqr(m) > 2.5 * 2.5;
         }
 
         @Override
@@ -804,7 +862,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public void stop() {
-            getNavigation().stop();
+            land();
         }
 
         @Override
@@ -812,16 +870,17 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             ServerPlayer m = master();
             if (m == null) return;
             getLookControl().setLookAt(m, 10, getMaxHeadXRot());
-            if (--recompute > 0) return;
-            recompute = 10;
-            if (distanceToSqr(m) > 22 * 22) {
-                ShadowService.slipTo(ShadowEntity.this, m);
-            } else if (airborne) {
-                Vec3 at = hoverOver(m.position());
-                getNavigation().moveTo(at.x, at.y, at.z, m.isSprinting() ? 1.5 : 1.2);
-            } else {
-                getNavigation().moveTo(m, m.isSprinting() ? 1.5 : 1.2);
+            if (--recompute <= 0) {
+                recompute = 10;
+                if (distanceToSqr(m) > 22 * 22) {
+                    ShadowService.slipTo(ShadowEntity.this, m);
+                } else if (airborne) {
+                    flyTo(hoverOver(m.position()), m.isSprinting() ? 1.5 : 1.2);
+                } else {
+                    getNavigation().moveTo(m, m.isSprinting() ? 1.5 : 1.2);
+                }
             }
+            keepFlying();
         }
     }
 
@@ -835,12 +894,13 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public boolean canUse() {
-            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > (airborne ? 4.0 * 4.0 : 2.5 * 2.5);
+            return post != null && !isBusy() && getTarget() == null && (distanceToSqr(post) > (airborne ? 4.0 * 4.0 : 2.5 * 2.5) || offStation(post));
         }
 
         @Override
         public boolean canContinueToUse() {
-            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > (airborne ? 3.0 * 3.0 : 1.2 * 1.2);
+            if (post == null || isBusy() || getTarget() != null) return false;
+            return airborne ? !arrived() : distanceToSqr(post) > 1.2 * 1.2;
         }
 
         @Override
@@ -850,24 +910,29 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
 
         @Override
         public void stop() {
-            getNavigation().stop();
+            land();
         }
 
         @Override
         public void tick() {
             Vec3 at = post;
-            if (at == null || --recompute > 0) return;
-            recompute = 10;
-            if (distanceToSqr(at) > GUARD_SLIP * GUARD_SLIP || getNavigation().isStuck()) {
-                ServerLevel level = (ServerLevel) level();
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 10, 0.3, 0.4, 0.3, 0.01);
-                teleportTo(at.x, at.y, at.z);
-                getNavigation().stop();
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 10, 0.3, 0.4, 0.3, 0.01);
-            } else {
-                Vec3 to = hoverOver(at);
-                getNavigation().moveTo(to.x, to.y, to.z, 1.1);
+            if (at == null) return;
+            if (--recompute <= 0) {
+                recompute = 10;
+                if (distanceToSqr(at) > GUARD_SLIP * GUARD_SLIP || getNavigation().isStuck()) {
+                    ServerLevel level = (ServerLevel) level();
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 10, 0.3, 0.4, 0.3, 0.01);
+                    teleportTo(at.x, at.y, at.z);
+                    station = null;
+                    getNavigation().stop();
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 10, 0.3, 0.4, 0.3, 0.01);
+                } else if (airborne) {
+                    flyTo(hoverOver(at), 1.1);
+                } else {
+                    getNavigation().moveTo(at.x, at.y, at.z, 1.1);
+                }
             }
+            keepFlying();
         }
     }
 
