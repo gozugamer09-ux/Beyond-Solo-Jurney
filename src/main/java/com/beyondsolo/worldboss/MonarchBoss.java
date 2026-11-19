@@ -3,7 +3,7 @@ package com.beyondsolo.worldboss;
 import com.beyondsolo.enemy.Habitat;
 import com.beyondsolo.network.WorldBossPayload;
 import com.beyondsolo.system.SystemAPI;
-import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -143,7 +143,7 @@ public abstract class MonarchBoss extends ColossalBoss {
     protected void introTick(ServerLevel level, int t) {
         int land = introLength() - 30;
         if (t < land && t % 3 == 0) {
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY() + getBbHeight() / 2, getZ(), 8, 0.6, 1.2, 0.6, 0.05);
+            level.sendParticles(ink(), getX(), getY() + getBbHeight() / 2, getZ(), 8, 0.6, 1.2, 0.6, 0.05);
         }
         if (t == land - 1) touchDown(level);
     }
@@ -261,13 +261,31 @@ public abstract class MonarchBoss extends ColossalBoss {
             shake(1.0f, 80);
         }
         if (t % 5 == 0) {
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY() + getBbHeight() / 2, getZ(), 12, 0.5, 1, 0.5, 0.1);
+            level.sendParticles(ink(), getX(), getY() + getBbHeight() / 2, getZ(), 12, 0.5, 1, 0.5, 0.1);
         }
     }
 
     @Override
     protected void leaveTick(ServerLevel level, int t) {
-        if (t % 3 == 0) level.sendParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY() + getBbHeight() / 2, getZ(), 10, 0.5, 1, 0.5, 0.08);
+        if (t % 3 == 0) level.sendParticles(ink(), getX(), getY() + getBbHeight() / 2, getZ(), 10, 0.5, 1, 0.5, 0.08);
+    }
+
+    private DustParticleOptions ink() {
+        return ink(kind().color);
+    }
+
+    @Override
+    protected net.minecraft.core.particles.ParticleOptions remains() {
+        return ink();
+    }
+
+    /**
+     * Specks of ink, dark in the colour {@code rgb}, as the server sends them: the series draws dark power as ink, never
+     * as a portal's pastel glitter.
+     */
+    public static DustParticleOptions ink(int rgb) {
+        float k = 0.22f / 255f;
+        return new DustParticleOptions(new org.joml.Vector3f((rgb >> 16 & 255) * k, (rgb >> 8 & 255) * k, (rgb & 255) * k), 1.4f);
     }
 
     @Nullable

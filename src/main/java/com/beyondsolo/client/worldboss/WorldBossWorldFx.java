@@ -474,6 +474,66 @@ public final class WorldBossWorldFx {
         return drew;
     }
 
+    // ================================================================ its breath
+
+    /** Smoke off dark power is ink, never grey. */
+    private static final int INK_SMOKE = 0x0C0B18;
+
+    /**
+     * Every tick: the breath round the great threat abroad, where it can be seen (its flame burns off its outline, see
+     * {@link ColossalBossRenderer}): the frost queen's cold mist and frost motes, the wolf king's blood mist, sparks
+     * crackling off the storm lord; in a world boss's last phase, embers and black smoke off the flame giant and dark
+     * blood smoking off the beast. Ink smoke pours off a monarch as it dies, black smoke off a world boss.
+     */
+    public static void breathe() {
+        Minecraft mc = Minecraft.getInstance();
+        WorldBossClient.Tracked t = WorldBossClient.tracked();
+        if (mc.level == null || mc.player == null || mc.isPaused() || t == null) return;
+        ColossalBoss boss = t.boss();
+        if (boss == null || !boss.isAwake() || boss.isInvisible() || boss.distanceToSqr(mc.player) > 64 * 64) return;
+        long tick = mc.level.getGameTime();
+        RandomSource rnd = mc.level.random;
+        double x = boss.getX(), y = boss.getY(), z = boss.getZ();
+        float h = boss.getBbHeight(), w = boss.getBbWidth();
+        int c = boss.fxColor();
+        boolean last = boss.phase() >= 3;
+        if (boss.deathTime > 0) {
+            if (t.kind.monarch() && tick % 2 == 0) {
+                com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * (0.2 + 0.6 * rnd.nextDouble()), z, w * 0.5, 1, INK_SMOKE, 0.9f, 0.03f);
+            } else if (!t.kind.sovereign() && tick % 3 == 0) {
+                com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.5 * rnd.nextDouble(), z, w * 0.5, 1, INK_SMOKE, 1.4f, 0.03f);
+            }
+            return;
+        }
+        switch (t.kind) {
+            case STILLNESS -> {
+                if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + 0.1, z, 0.9, 1, 0xCFEFFF, 0.8f, 0.004f);
+                if (tick % 2 == 0) com.beyondsolo.client.skill.FxParticles.motes(x, y + h * 0.5, z, w * 0.6, last ? 2 : 1, c, 0.025f);
+            }
+            case HUNGER -> {
+                if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + 0.1, z, 0.9, 1, 0x3A0612, 0.75f, 0.006f);
+            }
+            case STORMS -> {
+                if (tick % (last ? 2 : 4) == 0) {
+                    double sy = y + h * (0.2 + 0.7 * rnd.nextDouble());
+                    com.beyondsolo.client.skill.FxParticles.sparks(x + (rnd.nextDouble() - 0.5) * w, sy, z + (rnd.nextDouble() - 0.5) * w, 3, 0.2f, c,
+                            0.02f);
+                }
+            }
+            case TITAN -> {
+                if (last) {
+                    com.beyondsolo.client.skill.FxParticles.embers(x, y + h * 0.75, z, w * 0.6, 2, 0xFF5A1E);
+                    if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.95, z, w * 0.4, 1, INK_SMOKE, 1.6f, 0.05f);
+                }
+            }
+            case BEHEMOTH -> {
+                if (last && tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.7, z, w * 0.4, 1, 0x2A040C, 1.2f, 0.03f);
+            }
+            default -> {
+            }
+        }
+    }
+
     // ================================================================ an aura of light
 
     /**
@@ -595,7 +655,7 @@ public final class WorldBossWorldFx {
         float r = radius * outCubic(in);
         if (r < 0.5f) return;
         float pulse = 0.8f + 0.2f * Mth.sin(time * 0.1f);
-        inkLand(buffers.getBuffer(ModRenderTypes.energy(Aura.VEIN)), land, at.x, at.z, r, 7f, 0.04f, Aura.dark(c, 0.88f), 0.85f * in);
+        inkLand(buffers.getBuffer(ModRenderTypes.energy(Aura.VEIN)), land, at.x, at.z, r, 12f, 0.04f, Aura.dark(c, 0.88f), 0.85f * in);
         annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.22f, r + 0.22f, 0, Mth.TWO_PI, 0.05f, c, 0.55f * pulse * in);
         flameRim(buffers, land, at, r, c, in, time, Float.floatToIntBits((float) at.x) ^ radius);
     }

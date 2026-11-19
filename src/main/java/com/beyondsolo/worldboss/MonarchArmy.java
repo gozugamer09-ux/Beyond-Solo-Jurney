@@ -64,7 +64,7 @@ public final class MonarchArmy {
             if (monarch.home() != null) mob.restrictTo(monarch.home(), 48);
             if (target != null) mob.setTarget(target);
             WorldBossFx.pillar(level, mob.position(), 0.9f, 4.5f, monarch.fxColor());
-            level.sendParticles(ParticleTypes.REVERSE_PORTAL, mob.getX(), mob.getY() + 1, mob.getZ(), 30, 0.4, 0.8, 0.4, 0.15);
+            level.sendParticles(MonarchBoss.ink(monarch.fxColor()), mob.getX(), mob.getY() + 1, mob.getZ(), 30, 0.4, 0.8, 0.4, 0.15);
             out.add(mob);
         }
         return out;
@@ -88,7 +88,7 @@ public final class MonarchArmy {
         for (UUID id : ids) {
             Entity e = level.getEntity(id);
             if (e == null || !e.isAlive()) continue;
-            level.sendParticles(ParticleTypes.LARGE_SMOKE, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 16, 0.3, 0.5, 0.3, 0.02);
+            level.sendParticles(MonarchBoss.ink(0x2A2440), e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 16, 0.3, 0.5, 0.3, 0.02);
             level.sendParticles(ParticleTypes.SOUL, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 6, 0.3, 0.5, 0.3, 0.02);
             e.discard();
         }

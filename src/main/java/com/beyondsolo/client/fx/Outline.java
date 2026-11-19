@@ -5,9 +5,11 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import org.joml.Vector3f;
 
 import java.util.Arrays;
+import java.util.function.Predicate;
 
 /**
  * The outline of a model, read off it while it is drawn: the edges on its silhouette, where the series draws the
@@ -78,6 +80,17 @@ public final class Outline {
         return type -> {
             VertexConsumer out = inner.getBuffer(type);
             return type.format() == DefaultVertexFormat.NEW_ENTITY ? new Tap(out) : out;
+        };
+    }
+
+    /**
+     * Like {@link #tap(MultiBufferSource)}, keeping only the quads drawn in the render types {@code keep} takes: a model's
+     * own body, not the copies of it its glowing layers draw over it.
+     */
+    public MultiBufferSource tap(MultiBufferSource inner, Predicate<RenderType> keep) {
+        return type -> {
+            VertexConsumer out = inner.getBuffer(type);
+            return type.format() == DefaultVertexFormat.NEW_ENTITY && keep.test(type) ? new Tap(out) : out;
         };
     }
 

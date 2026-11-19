@@ -15,8 +15,7 @@ For each set this writes (the armor rig, painters and icon renderer are the armo
 tools/armor_icons.py):
 - textures/models/armor/<set>_layer_1.png and _layer_2.png: the plate, its channels dark;
 - textures/models/armor/<set>_aura_1.png and _aura_2.png: the channels as white light, drawn over the plate in the
-  wearer's colour by client/worldboss/MonarchAuraLayer (breathing, under a current of light,
-  textures/models/armor/monarch_current.png from tools/gen_worldboss_assets.py fx);
+  wearer's colour by client/worldboss/MonarchAuraLayer (breathing; the outline of the wearer burns there too);
 - models/armor/<set>.json: the extra parts, read by client/armor/ArmorModels;
 - each piece's icon in two layers, textures/item/<item>.png (the plate) and <item>_aura.png (its light, the halo and
   the sparkles in white: the item colour handler tints that layer with the aura of the piece's last wearer), and the
@@ -150,12 +149,27 @@ def build(name):
         plate[mask, 0] = np.round(ch[mask] * 0.96).astype(np.uint8)
         plate[mask, 1] = np.round(ch[mask] * 0.94).astype(np.uint8)
         plate[mask, 2] = np.round(ch[mask] * 1.1).astype(np.uint8)
-        res[layer] = plate
+        res[layer] = night_plate(plate, mask)
         res["aura%d" % layer] = light
     return res
 
 
 HOLLOW_DEPTH = 2
+
+
+def night_plate(img, channels):
+    """Presses the plate down to the series' blue-black (/mnt/project-files/art-style/STYLE-GUIDE.md, rule 1: darks
+    #07080F to #1A1D29, never grey): its sheen kept low and cold, a brightest edge no lighter than about #3A4268. The
+    channels under the light are left as they are."""
+    out = img.copy()
+    rgb = out[..., :3].astype(np.float32)
+    lum = rgb.mean(-1)
+    target = 8 + 0.42 * np.maximum(lum - 8, 0)
+    k = np.where(lum > 1, target / np.maximum(lum, 1), 1.0)
+    rgb = rgb * k[..., None] * np.array([0.9, 0.96, 1.18], np.float32)
+    sel = (out[..., 3] > 0) & ~channels
+    out[sel, 0:3] = np.clip(np.round(rgb[sel]), 0, 255).astype(np.uint8)
+    return out
 
 
 def _inside(cv, mask, depth):
