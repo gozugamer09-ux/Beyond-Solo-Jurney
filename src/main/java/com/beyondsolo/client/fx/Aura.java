@@ -862,6 +862,101 @@ public final class Aura {
         flatQuad(vc, pose.last().pose(), y, radius / 0.86f, degrees, r, g, b, Mth.clamp(Math.round(alpha * 255), 0, 255));
     }
 
+    // ------------------------------------------------------------------ the light (rulers, heralds, the light's hunters)
+
+    /**
+     * A broken halo (thin rings, segments, spokes) standing upright at (x, y, z) of the pose, square to the way a figure
+     * facing {@code yaw} (degrees, as an entity's) looks, so it stands behind its head; {@code radius} blocks, turned
+     * {@code turn} degrees in its own plane. Light, never a disc: the picture is all heat and no cover.
+     */
+    public static void halo(PoseStack pose, MultiBufferSource buffers, float x, float y, float z, float yaw, float radius, float turn, int hue,
+                            float alpha) {
+        if (alpha <= 0.01f || radius <= 0.01f) return;
+        pose.pushPose();
+        pose.translate(x, y, z);
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-yaw));
+        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(turn));
+        quad(buffers.getBuffer(ModRenderTypes.energy(HALO)), pose.last().pose(), radius, hue, alpha);
+        pose.popPose();
+    }
+
+    /** A broken halo lying level at height y of the pose (a ruler's seal on the ground), turned {@code turn} degrees. */
+    public static void seal(PoseStack pose, MultiBufferSource buffers, float y, float radius, float turn, int hue, float alpha) {
+        if (alpha <= 0.01f || radius <= 0.01f) return;
+        int r = hue >> 16 & 0xFF, g = hue >> 8 & 0xFF, b = hue & 0xFF;
+        flatQuad(buffers.getBuffer(ModRenderTypes.energy(HALO)), pose.last().pose(), y, radius, turn, r, g, b, Mth.clamp(Math.round(alpha * 255), 0, 255));
+    }
+
+    /**
+     * Wings of light on a figure facing {@code yaw} (degrees, as an entity's): on each side a fan of {@code n} long
+     * blade-like feathers of light (a white spine, the hue at their edges, fading to nothing at the tips), rooted
+     * between its shoulders at height {@code y} of the pose and {@code back} blocks behind it. {@code span} is the
+     * longest feather; {@code open} runs from 0 (folded down its back) to 1 (spread wide); {@code beat} (-1..1) lifts
+     * and lowers them a little.
+     */
+    public static void wings(PoseStack pose, MultiBufferSource buffers, float y, float back, float yaw, float span, int n, float open, float beat,
+                             int hue, float alpha) {
+        if (alpha <= 0.01f || span <= 0.01f || n <= 0) return;
+        pose.pushPose();
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-yaw));
+        Matrix4f m = pose.last().pose();
+        VertexConsumer vc = buffers.getBuffer(ModRenderTypes.energy(FEATHER));
+        int r = hue >> 16 & 0xFF, g = hue >> 8 & 0xFF, b = hue & 0xFF;
+        for (int side = -1; side <= 1; side += 2) {
+            for (int j = 0; j < n; j++) {
+                float k = n == 1 ? 1 : j / (float) (n - 1);
+                // spread: from a little below level (the lowest) to high over the shoulder (the longest, the
+                // primaries); folded, they all lie down along the back
+                float spread = Mth.lerp(k, -18f, 68f), folded = -78f + 6f * k;
+                float elev = (Mth.lerp(open, folded, spread) + 7f * beat * (0.4f + 0.6f * k)) * Mth.DEG_TO_RAD;
+                float sweep = (16f + 22f * (1 - open) + 10f * (1 - k)) * Mth.DEG_TO_RAD;
+                float dx = side * Mth.cos(elev) * Mth.cos(sweep), dy = Mth.sin(elev), dz = -Mth.cos(elev) * Mth.sin(sweep);
+                float len = span * (0.55f + 0.45f * k) * (0.92f + 0.08f * hash(j, side + 7));
+                float half = len * 0.13f;
+                // the roots run along the arm of the wing, out and up from between the shoulders
+                float rx = side * (0.12f + 0.07f * j), ry = y + 0.04f * j, rz = -back - 0.03f * j;
+                // across the feather, in the wing's plane
+                float wx = dy, wy = -dx, wl = Mth.sqrt(wx * wx + wy * wy);
+                if (wl < 1e-4f) continue;
+                wx *= half / wl;
+                wy *= half / wl;
+                float tx = rx + dx * len, ty = ry + dy * len, tz = rz + dz * len;
+                int a = Mth.clamp(Math.round(alpha * (0.75f + 0.25f * k) * 255), 0, 255);
+                vc.addVertex(m, rx - wx, ry - wy, rz).setUv(0, 1).setColor(r, g, b, a);
+                vc.addVertex(m, rx + wx, ry + wy, rz).setUv(1, 1).setColor(r, g, b, a);
+                vc.addVertex(m, tx + wx, ty + wy, tz).setUv(1, 0).setColor(r, g, b, a);
+                vc.addVertex(m, tx - wx, ty - wy, tz).setUv(0, 0).setColor(r, g, b, a);
+            }
+        }
+        pose.popPose();
+    }
+
+    /**
+     * A glint of light at (x, y, z) of the pose facing the camera: a hot point with four short rays, {@code size} blocks
+     * across (a mote of light, a herald's light leaving it). Never a soft ball.
+     */
+    public static void glint(PoseStack pose, MultiBufferSource buffers, float x, float y, float z, float size, int hue, float alpha, float roll) {
+        if (alpha <= 0.01f || size <= 0.001f) return;
+        var cam = Minecraft.getInstance().gameRenderer.getMainCamera();
+        pose.pushPose();
+        pose.translate(x, y, z);
+        pose.mulPose(cam.rotation());
+        pose.mulPose(com.mojang.math.Axis.ZP.rotation(roll));
+        quad(buffers.getBuffer(ModRenderTypes.energy(SPARK)), pose.last().pose(), size * 0.5f, hue, alpha);
+        pose.popPose();
+    }
+
+    /** A square picture in the pose's XY plane, centred on its origin, {@code half} to each side. */
+    private static void quad(VertexConsumer vc, Matrix4f m, float half, int hue, float alpha) {
+        int a = Mth.clamp(Math.round(alpha * 255), 0, 255);
+        if (a <= 2) return;
+        int r = hue >> 16 & 0xFF, g = hue >> 8 & 0xFF, b = hue & 0xFF;
+        vc.addVertex(m, -half, -half, 0).setUv(0, 1).setColor(r, g, b, a);
+        vc.addVertex(m, half, -half, 0).setUv(1, 1).setColor(r, g, b, a);
+        vc.addVertex(m, half, half, 0).setUv(1, 0).setColor(r, g, b, a);
+        vc.addVertex(m, -half, half, 0).setUv(0, 0).setColor(r, g, b, a);
+    }
+
     private static void flatQuad(VertexConsumer vc, Matrix4f m, float y, float half, float degrees, int r, int g, int b, int a) {
         float rad = degrees * Mth.DEG_TO_RAD;
         float c = Mth.cos(rad) * half, s = Mth.sin(rad) * half;

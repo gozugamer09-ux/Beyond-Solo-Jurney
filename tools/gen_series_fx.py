@@ -15,8 +15,10 @@ edge, energy is thin and sharp (flame tongues, slits, threads), never a soft bal
   edge.png        the burning edge laid along a silhouette: a hot thread with a short bloom, across v
   trail.png       a comet tail (an eye's streak): hot at the head (u = 0), thinning to nothing at the tail
   spark.png       a hot point with four short glints: an eye, a mote of light
-  feather.png     a feather of light (a ruler's wing): a white spine, a blade of light fading to nothing at the tip
-  halo.png        a broken halo: segments, spokes and thin rings, to be turned slowly
+  feather.png     a feather of light (a ruler's wing): a white spine, a blade of light fading to nothing at the tip,
+                  with a faint body of the light so it reads by day
+  halo.png        a broken halo: segments, spokes and thin rings, to be turned slowly (a ruler's halo, its seals, a
+                  rift's rings); its lines have a little body, the space between them none
   vein.png        veins of light running through ink, tiling both ways: a domain's ground
   shaft.png       a column of ink pouring down with a burning edge each side, tiling along v (a monarch's gate)
 
@@ -262,7 +264,8 @@ def feather():
     vane = inside * (0.38 + 0.22 * barbs) * (1 - along) ** 0.6
     edge_l = smooth(0.70, 0.95, d) * inside * 0.55
     heat = np.clip(spine + vane + edge_l, 0, 1) * smooth(0.0, 0.04, along) * smooth(1.0, 0.82, along)
-    cover = inside * 0.18 * (1 - along)
+    # a body of the light too (the vertex colour), so the feather still reads against a bright sky
+    cover = inside * (0.22 + 0.2 * spine) * (1 - along) ** 0.8
     save("feather", heat, cover)
 
 
@@ -297,7 +300,8 @@ def halo():
         cx, cy = math.cos(a) * 0.92, math.sin(a) * 0.92
         dd = (np.abs(x - cx) + np.abs(y - cy)) / 0.05
         heat += smooth(1.0, 0.5, dd) * 0.9
-    save("halo", np.clip(heat, 0, 1), np.zeros((s, s)))
+    # its lines have a little body of the light (never the space between them), so it reads by day
+    save("halo", np.clip(heat, 0, 1), np.clip(heat, 0, 1) * 0.45)
 
 
 def veins():

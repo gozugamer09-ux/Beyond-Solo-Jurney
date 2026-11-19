@@ -19,6 +19,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 
@@ -31,15 +32,14 @@ import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
  *   its head; as it dies, black flame takes it and its ink is thrown out over the land.</li>
  *   <li>A <b>world boss</b> shows its element only in its own seams until its last phase opens them: its edges and seams
  *   burn, the flame giant's magma breaks out of it in tongues of fire under black smoke. As it dies they go dark.</li>
- *   <li>A <b>ruler</b> wears a halo of light, walks on a sigil of light, and a pillar of light takes it as it dies.</li>
+ *   <li>A <b>ruler</b> is a body of light: flame of light off its outline, a broken halo turning behind its head,
+ *   wings of light (the Verdict's), its seal on the ground in its last phase; as it dies, glints of light gather on it
+ *   and a pillar of light takes it.</li>
  * </ul>
  * The breath of each round it (mist, sparks, embers, smoke) is {@link WorldBossWorldFx#breathe}'s.
  */
 public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRenderer<T> {
-    private static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
-    private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
     private static final ResourceLocation BEAM = BeyondSolo.id("textures/effect/beam.png");
-    private static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
 
     private final WorldBossKind kind;
     /** Its own outline: a shadow's stand-in may be drawing this very model into the shared one. */
@@ -73,6 +73,8 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
             case HUNGER -> new Aura.Style().hue(c).rim(0.5f, 0.07f).seams(0.25f).flame(0.32f).crest(1.6f).glow(0.5f).wisps(1.4f, 0.8f);
             // the storm lord: black flame, the light in his seams crackling
             case STORMS -> new Aura.Style().hue(c).rim(0.5f, 0.065f).seams(0.35f).flame(0.3f).crest(1.5f).glow(0.45f).wisps(0.8f, 0.7f);
+            // a ruler: a body of light, its edges softening into flame of light, white-gold and no ink at all
+            case VERDICT, WINGS, HAND -> new Aura.Style().hue(c).light().rim(0.45f, 0.05f).seams(0.3f).flame(0.2f).crest(1.5f).glow(0.45f).lean(0.3f);
             default -> null;
         };
     }
@@ -93,10 +95,24 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
             case BEHEMOTH -> new Aura.Style().hue(c).rim(0.8f, 0.06f).seams(0.6f).flame(0.15f).crest(1.4f).glow(0.55f).wisps(1.6f, 1f);
             // the hive's royalty: venom along their edges and in their seams
             case QUEEN, KING -> new Aura.Style().hue(c).rim(0.6f, 0.05f).seams(0.45f).flame(0f);
-            // a ruler's light is drawn below
+            // a ruler in its last phase: its light burns hard, a crown of it standing on its head
+            case VERDICT, WINGS, HAND -> new Aura.Style().hue(c).light().rim(0.7f, 0.06f).seams(0.45f).flame(0.32f).crest(1.9f).crown(0.5f).glow(0.7f)
+                    .lean(0.3f);
             default -> null;
         };
     }
+
+    @Override
+    public void preRender(PoseStack pose, T boss, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer, boolean isReRender,
+                          float partial, int light, int overlay, int colour) {
+        super.preRender(pose, boss, model, buffers, buffer, isReRender, partial, light, overlay, colour);
+        // the Verdict's wings are light ({@link Aura#wings}), not the feathers of its model
+        if (kind == WorldBossKind.VERDICT) {
+            for (String wing : VERDICT_WINGS) model.getBone(wing).ifPresent(b -> b.setHidden(true));
+        }
+    }
+
+    private static final String[] VERDICT_WINGS = {"right_wing", "right_wing2", "left_wing", "left_wing2"};
 
     @Override
     protected float getDeathMaxRotation(T boss) {
@@ -154,7 +170,7 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
                 Aura.splash(pose, buffers, 0.07f, 1.5f + 7f * (1 - (1 - k) * (1 - k) * (1 - k)), rgb, 0.9f * (1 - k * k), boss.getId() * 37f);
             }
         } else if (kind.ruler() && boss.isAwake()) {
-            ruler(boss, pose, buffers, rgb, time, h, dying, last);
+            ruler(boss, pose, buffers, rgb, time, h, w, partial, dying, last);
         }
 
         if (dying > 0 && kind.ruler()) {
@@ -163,14 +179,14 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
             float gather = Mth.clamp(dying * 1.6f, 0f, 1f);
             float pillar = Mth.clamp((dying - 0.5f) / 0.5f, 0f, 1f);
             int hot = GateFx.mix(rgb, 0xFFFFFF, 0.55f);
-            GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, h * 0.45f, 0, w * 0.6f + h * 0.4f * gather, hot, 0.6f * gather);
+            // glints of light drawn in to it from all round, brighter the closer they come (no ball of glow)
             for (int i = 0; i < 24; i++) {
                 float u = (time * 0.035f + i / 24f) % 1f;
                 float far = 1 - u * u;
                 float ang = i * 2.4f + u * 2f;
                 float rad = (w * 1.2f + 2f) * far;
-                GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, Mth.cos(ang) * rad, h * (0.15f + 0.8f * (i % 5) / 5f) * far + h * 0.3f * u,
-                        Mth.sin(ang) * rad, 0.12f + 0.02f * h, hot, gather * u);
+                Aura.glint(pose, buffers, Mth.cos(ang) * rad, h * (0.15f + 0.8f * (i % 5) / 5f) * far + h * 0.3f * u, Mth.sin(ang) * rad,
+                        0.35f + 0.05f * h, hot, gather * u, i * 0.7f);
             }
             if (pillar > 0) {
                 VertexConsumer b = buffers.getBuffer(ModRenderTypes.lightTexture(BEAM));
@@ -181,30 +197,33 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
     }
 
     /**
-     * A ruler of light: a halo over its head (a second, fainter, in its last phase), the sigil it walks on once it has
-     * landed, a haze of its light round it, and a trail of light above it as it comes down.
+     * A ruler of light, beside the light burning off its outline: a broken halo turning behind its head (a second, wider
+     * and slower, in its last phase), the Verdict's wings of light, its seal on the ground in its last phase, and a thin
+     * column of light over it as it comes down. Nothing round it glows like a ball.
      */
-    private void ruler(T boss, PoseStack pose, MultiBufferSource buffers, int rgb, float time, float h, float dying, boolean last) {
+    private void ruler(T boss, PoseStack pose, MultiBufferSource buffers, int rgb, float time, float h, float w, float partial, float dying,
+                       boolean last) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         float landed = boss.introTicks() > 0 ? Mth.clamp((31 - boss.introTicks()) / 10f, 0, 1) : 1;
-        float a = landed * (1 - dying) * (boss.leaving() ? 0 : 1);
+        float a = (1 - dying) * (boss.leaving() ? 0 : 1);
+        float yaw = Mth.rotLerp(partial, boss.yBodyRotO, boss.yBodyRot);
+        float fx = -Mth.sin(yaw * Mth.DEG_TO_RAD), fz = Mth.cos(yaw * Mth.DEG_TO_RAD);
+        int white = GateFx.mix(rgb, 0xFFFFFF, 0.6f);
         if (a > 0.01f) {
-            float hy = h + 0.35f + 0.08f * Mth.sin(time * 0.07f);
-            int white = GateFx.mix(rgb, 0xFFFFFF, 0.6f);
-            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, hy, 0.75f, 0, white, 0.9f * a);
-            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, hy - 0.02f, 1.3f, 0, rgb, 0.4f * a);
-            if (last) GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(RING)), pose, hy + 0.25f, 1.1f, 0, rgb, 0.45f * a);
-            float r = 2.6f + (last ? 0.6f : 0);
-            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.06f, r, time * (last ? 2.6f : 1.2f), rgb, 0.6f * a);
-            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(CIRCLE)), pose, 0.07f, r * 0.6f, -time * 2f, GateFx.mix(rgb, 0xFFFFFF, 0.4f), 0.4f * a);
-            GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, 0.08f, r * 1.5f, 0, rgb, 0.35f * a);
+            float back = w * 0.32f;
+            float hy = h * 0.93f + 0.05f * Mth.sin(time * 0.07f);
+            Aura.halo(pose, buffers, -fx * back, hy, -fz * back, yaw, h * 0.19f, time * 0.35f, white, 0.95f * a);
+            if (last) Aura.halo(pose, buffers, -fx * (back + 0.05f), hy, -fz * (back + 0.05f), yaw, h * 0.3f, -time * 0.2f + 20, rgb, 0.6f * a);
+            if (kind == WorldBossKind.VERDICT) {
+                // wings of light, raised while it fights, wide open in its last phase; folded while it comes down
+                float open = (0.75f + 0.25f * (last ? 1 : 0)) * (0.3f + 0.7f * landed);
+                Aura.wings(pose, buffers, h * 0.74f, w * 0.18f, yaw, h * 0.66f, 7, open, Mth.sin(time * 0.06f), rgb, 0.95f * a);
+            }
+            if (last) Aura.seal(pose, buffers, 0.06f, 3.4f * landed, time * 0.6f, rgb, 0.7f * a * landed);
         }
-        float pulse = 0.8f + 0.2f * Mth.sin(time * 0.12f);
-        GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, h * 0.55f, 0, h * (last ? 1.0f : 0.8f),
-                rgb, (last ? 0.2f : 0.12f) * pulse * (1 - dying));
         if (boss.introTicks() > 31) {
             VertexConsumer b = buffers.getBuffer(ModRenderTypes.lightTexture(BEAM));
-            GateFx.column(b, pose, camera, boss.getX(), boss.getZ(), 1.2f, MonarchBoss.GATE_HEIGHT * 0.5f, rgb, 0.4f);
+            GateFx.column(b, pose, camera, boss.getX(), boss.getZ(), 0.5f, MonarchBoss.GATE_HEIGHT * 0.5f, white, 0.45f);
         }
     }
 

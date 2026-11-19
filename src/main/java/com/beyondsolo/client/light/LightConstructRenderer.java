@@ -117,37 +117,32 @@ public class LightConstructRenderer extends GeoEntityRenderer<LightConstruct> {
         pose.popPose();
     }
 
-    /** Soft light round it: where it burns brightest, and on the ground it strikes. */
+    /**
+     * Its light on the ground where it strikes, a flash that dies in half a second, and a sun's white heart. Nothing
+     * else glows round it like a ball: its own edges burn (the glow mask), which is the series' way.
+     */
     private static void bloom(LightConstruct c, float partial, PoseStack pose, MultiBufferSource buffers, float a) {
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         VertexConsumer glow = buffers.getBuffer(ModRenderTypes.lightTexture(GLOW));
-        int col = c.color();
-        int white = GateFx.mix(col, 0xFFFFFF, 0.6f);
+        int white = GateFx.mix(c.color(), 0xFFFFFF, 0.6f);
         float t = c.age(partial);
         float pulse = 0.85f + 0.15f * Mth.sin(t * 0.3f);
         float landed = c.landing(partial) >= 1 ? 1 : 0;
         float impact = landed * Math.max(0, 1 - (t - c.fall()) / 10f);
         switch (c.form()) {
             case SPEAR, FEATHER -> {
-                GateFx.dot(glow, pose, camera, 0, 1.2f, 0, 1.4f, col, 0.35f * a * pulse);
-                if (landed > 0) GateFx.dot(glow, pose, camera, 0, 0.15f, 0, 1.6f + 2.5f * impact, white, (0.3f + 0.6f * impact) * a);
+                if (impact > 0) GateFx.dot(glow, pose, camera, 0, 0.15f, 0, 1.6f + 2.5f * impact, white, 0.9f * impact * a);
             }
             case BLADE -> {
-                GateFx.dot(glow, pose, camera, 0, 6f, 0, 5f, col, 0.3f * a * pulse);
-                GateFx.dot(glow, pose, camera, 0, 11f, 0, 3f, white, 0.35f * a * pulse);
-                if (landed > 0) GateFx.dot(glow, pose, camera, 0, 0.3f, 0, 5f + 8f * impact, white, (0.35f + 0.6f * impact) * a);
+                if (impact > 0) GateFx.dot(glow, pose, camera, 0, 0.3f, 0, 5f + 8f * impact, white, 0.95f * impact * a);
             }
             case HAND -> {
-                GateFx.dot(glow, pose, camera, 0, 3f, 0, 5f, col, 0.3f * a * pulse);
-                if (landed > 0) GateFx.dot(glow, pose, camera, 0, 0.3f, 0, 4f + 5f * impact, white, (0.3f + 0.5f * impact) * a);
+                if (impact > 0) GateFx.dot(glow, pose, camera, 0, 0.3f, 0, 4f + 5f * impact, white, 0.8f * impact * a);
             }
-            case SUN -> {
-                // a short bloom round its heart (the rays and rings carry the rest)
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 2.6f * pulse, white, 0.6f * a);
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 6f, col, 0.28f * a);
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 12f, col, 0.07f * a);
+            // a white heart (the rays and rings carry the rest)
+            case SUN -> GateFx.dot(glow, pose, camera, 0, 0, 0, 2.2f * pulse, white, 0.6f * a);
+            case CHOIR -> {
             }
-            case CHOIR -> GateFx.dot(glow, pose, camera, 0, 1.4f, 0.4f, 3.2f, col, 0.25f * a * pulse);
         }
     }
 

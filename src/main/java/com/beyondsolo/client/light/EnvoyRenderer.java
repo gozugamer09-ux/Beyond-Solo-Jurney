@@ -1,13 +1,10 @@
 package com.beyondsolo.client.light;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.fx.Aura;
 import com.beyondsolo.client.gate.GateFx;
-import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.light.EnvoyEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -21,11 +18,10 @@ import software.bernie.geckolib.util.Color;
 
 /**
  * The Envoy of Dawn (made by tools/gen_light_assets.py): its model lit by its own light (it is never in shadow), its
- * halo, mask lines and the edges of its wings burning, a soft sun of light behind it and motes rising round it. As it
+ * halo, mask lines and the edges of its wings burning, broken rings of light turning behind it and glints rising round it. As it
  * goes back up into the light it grows brighter and fades away.
  */
 public class EnvoyRenderer extends GeoEntityRenderer<EnvoyEntity> {
-    private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
     private static final int LIGHT = 0xFFE9A8;
 
     public EnvoyRenderer(EntityRendererProvider.Context context) {
@@ -62,23 +58,21 @@ public class EnvoyRenderer extends GeoEntityRenderer<EnvoyEntity> {
     public void render(EnvoyEntity envoy, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
         // it is lit by its own light
         super.render(envoy, yaw, partial, pose, buffers, LightTexture.FULL_BRIGHT);
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
         float time = (envoy.tickCount + partial) % 7200;
         float h = envoy.getBbHeight();
         float here = presence(envoy, partial);
         float rising = envoy.leaving() ? Mth.clamp((envoy.leftFor() + partial) / EnvoyEntity.LEAVE_TICKS, 0, 1) : 0;
-        float pulse = 0.85f + 0.15f * Mth.sin(time * 0.08f);
-        VertexConsumer glow = buffers.getBuffer(ModRenderTypes.lightTexture(GLOW));
         int white = GateFx.mix(LIGHT, 0xFFFFFF, 0.6f);
-        // a soft sun behind it, and its halo's light
-        GateFx.dot(glow, pose, camera, 0, h * 0.62f, 0, h * 0.75f * pulse, LIGHT, (0.16f + 0.4f * rising) * here);
-        GateFx.dot(glow, pose, camera, 0, h * 0.86f, 0, h * 0.3f, white, (0.35f + 0.4f * rising) * here);
-        // motes of light drifting up round it
+        // broken rings of light turning slowly behind it (its halo is its model's), brighter as it rises; no soft sun
+        float bodyYaw = Mth.rotLerp(partial, envoy.yBodyRotO, envoy.yBodyRot);
+        float bx = Mth.sin(bodyYaw * Mth.DEG_TO_RAD) * 0.35f, bz = -Mth.cos(bodyYaw * Mth.DEG_TO_RAD) * 0.35f;
+        Aura.halo(pose, buffers, bx, h * 0.62f, bz, bodyYaw, h * 0.5f, time * 0.3f, LIGHT, (0.45f + 0.4f * rising) * here);
+        // glints of light drifting up round it
         for (int i = 0; i < 8; i++) {
             float u = ((time * 0.012f) + i / 8f) % 1f;
             float ang = i * 2.39f + time * 0.01f;
             float r = 0.6f + 0.35f * Mth.sin(i * 1.7f);
-            GateFx.dot(glow, pose, camera, Mth.cos(ang) * r, h * (0.05f + 1.0f * u), Mth.sin(ang) * r, 0.09f, white, 0.8f * Mth.sin(u * Mth.PI) * here);
+            Aura.glint(pose, buffers, Mth.cos(ang) * r, h * (0.05f + 1.0f * u), Mth.sin(ang) * r, 0.3f, white, 0.9f * Mth.sin(u * Mth.PI) * here, i);
         }
     }
 }
