@@ -143,9 +143,12 @@ public final class MonarchHud {
         domainTint = 0;
     }
 
-    /** An authority's or a clash's banner is across the screen: new pop-ups wait for it (they would cover it). */
+    /**
+     * An authority's or a clash's banner is across the screen (a monarch's, or the light's and its Investiture,
+     * {@code LightHud}): new pop-ups wait for it (they would cover it).
+     */
     public static boolean bannerUp() {
-        return Anim.since(authorityAt) < BANNER || Anim.since(clashAt) < BANNER;
+        return Anim.since(authorityAt) < BANNER || Anim.since(clashAt) < BANNER || com.beyondsolo.client.light.LightHud.bannerUp();
     }
 
     // ================================================================ drawing

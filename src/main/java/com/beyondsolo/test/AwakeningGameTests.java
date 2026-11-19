@@ -241,16 +241,21 @@ public final class AwakeningGameTests {
         helper.assertTrue(AwakeningService.stage(p) == AwakeningData.Stage.TRIAL, "in the trial");
         helper.assertTrue(dungeon.getBlockEntity(doorPos) instanceof GateBlockEntity shut && shut.isClosing(), "the door closes behind them");
 
-        // the antechamber: the Arbiter's tenets on a stele
+        // the antechamber: the Arbiter's tenets on a stele (and, by the chapel's wall, the light's own sign)
         DungeonLayout.Room ante = trial.layout().rooms().get(1);
         BlockPos ac = trial.world(ante.center());
-        int signs = 0, tenets = 0;
+        int signs = 0, tenets = 0, light = 0;
         for (BlockPos q : BlockPos.betweenClosed(ac.offset(-ante.rx(), -ante.ry(), -ante.rz()), ac.offset(ante.rx(), ante.ry(), ante.rz()))) {
             if (!(dungeon.getBlockEntity(q) instanceof SignBlockEntity sign)) continue;
+            if (sign.getFrontText().getMessage(1, false).getContents() instanceof TranslatableContents t && t.getKey().startsWith(DepthsBuild.CHAPEL_SIGN)) {
+                light++;
+                continue;
+            }
             signs++;
             if (sign.getFrontText().getMessage(1, false).getContents() instanceof TranslatableContents t && t.getKey().startsWith(DungeonBuilder.TENET)) tenets++;
         }
         helper.assertTrue(signs == 4 && tenets == 3, "a heading and three tenets: " + signs + " signs, " + tenets + " tenets");
+        helper.assertTrue(light <= (trial.chapel() ? 1 : 0), "no more than the light's one sign: " + light);
 
         // walking down wakes nothing: the Arbiter is all there is
         p.moveTo(ac.getX() + 0.5, trial.world(new BlockPos(0, ante.floorY(), 0)).getY(), ac.getZ() + 0.5);

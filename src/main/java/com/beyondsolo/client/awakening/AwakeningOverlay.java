@@ -32,15 +32,23 @@ import net.minecraft.world.phys.Vec3;
  *   words. Then a line of blue light cuts the dark and opens into the first System window there has ever been for
  *   this player; it finds them, binds (a bar fills), and collapses into the System's sigil, which bursts into rings
  *   and rays under THE SYSTEM HAS AWAKENED. The light fades and they are outside, and the HUD is there.</li>
+ *   <li><b>The awakening in the light</b> (sworn to the light in the hidden chapel, {@code light.Covenant}): no fall.
+ *   Gold light closes in instead of the dark, a bell instead of a heartbeat; the words are the light's, and the window,
+ *   its bar and the sigil burn gold. The System is the same System: only the light it binds in is not.</li>
  * </ul>
  */
 public final class AwakeningOverlay {
     private static final int PALE = 0xFFF2D58A;
+    /** The light's gold, for an awakening in the light. */
+    private static final int DAWN = 0xFFFFD27A;
+    private static final int DAWN_BRIGHT = 0xFFFFF0C4;
     private static final float AWAKEN_LENGTH = 14.6f;
 
     private static int kind = -1;
     private static double startedAt;
     private static boolean slain;
+    /** Sworn to the light: the System binds in the light. */
+    private static boolean light;
     private static Vec3 focus;
     private static int cue;
 
@@ -57,7 +65,8 @@ public final class AwakeningOverlay {
                 GateOverlay.addTrauma(0.45f);
             }
             case AwakeningPayload.AWAKEN -> {
-                slain = p.value() > 0.5f;
+                slain = p.value() > 0.5f && p.value() < 1.5f;
+                light = p.value() > 1.5f;
                 start(p);
                 NotificationManager.setHeld(true);
             }
@@ -131,7 +140,10 @@ public final class AwakeningOverlay {
         float[] at = {0.0f, 0.9f, 1.9f, 5.6f, 6.3f, 8.3f, 9.9f, 10.25f, 10.9f, 12.5f};
         while (cue < at.length && t >= at[cue]) {
             switch (cue) {
-                case 0, 1, 2 -> sound(SoundEvents.WARDEN_HEARTBEAT, 0.8f - 0.12f * cue, 1f);
+                case 0, 1, 2 -> {
+                    if (light) sound(SoundEvents.BELL_RESONATE, 1.1f - 0.15f * cue, 0.7f);
+                    else sound(SoundEvents.WARDEN_HEARTBEAT, 0.8f - 0.12f * cue, 1f);
+                }
                 case 3 -> sound(SoundEvents.BEACON_POWER_SELECT, 1.8f, 0.5f);
                 case 4 -> sound(SoundEvents.BEACON_ACTIVATE, 1.5f, 0.6f);
                 case 5 -> sound(SoundEvents.AMETHYST_BLOCK_RESONATE, 0.6f, 1f);
@@ -168,7 +180,7 @@ public final class AwakeningOverlay {
 
     /** Extra camera roll and pitch (degrees) while the player goes down. */
     public static float[] cameraFall() {
-        if (kind != AwakeningPayload.AWAKEN) return null;
+        if (kind != AwakeningPayload.AWAKEN || light) return null;
         float t = Anim.since(startedAt);
         if (t > 4.2f) return null;
         float k = Anim.inOutCubic(Anim.window(t, 0.15f, 2.3f));
@@ -289,10 +301,19 @@ public final class AwakeningOverlay {
 
     private static void awaken(GuiGraphics g, int w, int h, float t) {
         float cx = w / 2f, cy = h / 2f;
-        int blue = SystemTheme.ACCENT;
+        int blue = light ? DAWN : SystemTheme.ACCENT;
+        int bright = light ? DAWN_BRIGHT : SystemTheme.ACCENT_BRIGHT;
 
+        // in the light: no fall. Gold closes in from the edges, slowly, like a hand laid over the eyes
+        if (light && t < 3.2f) {
+            float close = Anim.inOutCubic(Anim.window(t, 0.2f, 2.6f));
+            float shimmer = 0.5f + 0.5f * Mth.sin(t * 2.4f);
+            Shapes.vignette(0, 0, w, h, 0.75f - 0.75f * close, 1.25f - 0.9f * close).fill(Gfx.alpha(DAWN, 0.45f + 0.25f * shimmer)).additive().draw(g);
+            Shapes.box(0, 0, w, h).fill(Gfx.alpha(0xFFFFF4D8, 0.35f * close)).draw(g);
+            Shapes.rays(cx, cy, Math.max(w, h) * 0.8f, 20).fill(Gfx.alpha(DAWN, 0.12f * (1 - close * 0.5f))).rotation(t * 0.02f).additive().draw(g);
+        }
         // going down: a heartbeat in red, closing in
-        if (t < 3.2f) {
+        if (!light && t < 3.2f) {
             float close = Anim.inOutCubic(Anim.window(t, 0.2f, 2.6f));
             float beat = (float) Math.pow(Math.max(0, Mth.sin(t * (5.2f - 1.1f * t))), 6);
             Shapes.vignette(0, 0, w, h, 0.75f - 0.75f * close, 1.25f - 0.9f * close).fill(Gfx.alpha(0xFF6E0812, 0.55f + 0.35f * beat)).draw(g);
@@ -300,11 +321,11 @@ public final class AwakeningOverlay {
         }
         // the dark
         float dark = Anim.inCubic(Anim.window(t, 1.5f, 2.7f)) * (1 - Anim.window(t, 12.5f, 12.9f));
-        if (dark > 0.001f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(0xFF000000, dark)).draw(g);
+        if (dark > 0.001f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(light ? 0xFF0B0803 : 0xFF000000, dark)).draw(g);
 
         // a few words in the dark, nobody's voice yet
-        line(g, cx, cy - 4, tr(slain ? "dark.slain1" : "dark.1"), t, 3.0f, 4.3f, 0xFFB8BCC4);
-        line(g, cx, cy - 4, tr(slain ? "dark.slain2" : "dark.2"), t, 4.3f, 5.6f, 0xFFFFFFFF);
+        line(g, cx, cy - 4, tr(light ? "dark.light1" : slain ? "dark.slain1" : "dark.1"), t, 3.0f, 4.3f, light ? 0xFFE8D8B0 : 0xFFB8BCC4);
+        line(g, cx, cy - 4, tr(light ? "dark.light2" : slain ? "dark.slain2" : "dark.2"), t, 4.3f, 5.6f, 0xFFFFFFFF);
 
         // the line of light, and the first window
         float cut = Anim.outQuint(Anim.window(t, 5.6f, 6.2f));
@@ -335,6 +356,10 @@ public final class AwakeningOverlay {
         float gone = Anim.window(t, 12.5f, 13.9f);
         if (born > 0 && gone < 1) {
             float sy = cy - 16;
+            if (light) {
+                // the light's own halo round the sigil, and its rays standing out
+                Shapes.rays(cx, sy, 120 * born, 16).fill(Gfx.alpha(DAWN_BRIGHT, 0.18f * (1 - gone))).rotation(-t * 0.02f).additive().draw(g);
+            }
             float a = 1 - Anim.inCubic(gone);
             float old = Gfx.fade(a);
             float burst = Anim.window(t, 10.2f, 10.5f);
@@ -349,7 +374,7 @@ public final class AwakeningOverlay {
             Shapes.circle(cx, sy, r * 1.15f).fill(Gfx.alpha(0xFF061226, 0.85f)).glow(40, Gfx.alpha(blue, 0.55f)).draw(g);
             Shapes.ring(cx, sy, r * 1.5f, 1.2f).fill(Gfx.alpha(blue, 0.8f)).dashes(36, 0.5f).rotation(t * 0.06f).draw(g);
             Shapes.ring(cx, sy, r * 1.28f, 2f).fill(Gfx.mix(blue, 0xFFFFFFFF, 0.4f)).dashes(6, 0.82f).rotation(-t * 0.1f).draw(g);
-            Shapes.ring(cx, sy, r * 1.78f, 0.8f).fill(Gfx.alpha(SystemTheme.ACCENT_BRIGHT, 0.6f)).dashes(3, 0.7f).rotation(t * 0.16f).draw(g);
+            Shapes.ring(cx, sy, r * 1.78f, 0.8f).fill(Gfx.alpha(bright, 0.6f)).dashes(3, 0.7f).rotation(t * 0.16f).draw(g);
             Shapes.icon(Icons.HEXAGON, cx, sy, r * 1.9f).fill(Gfx.mix(blue, 0xFFFFFFFF, 0.25f)).glow(10, Gfx.alpha(blue, 0.9f)).draw(g);
             Shapes.icon(Icons.SPARKLE, cx, sy, r * 0.95f).fill(0xFFFFFFFF).glow(8, Gfx.alpha(blue, 0.9f)).draw(g);
 
@@ -366,14 +391,14 @@ public final class AwakeningOverlay {
                 float o3 = Gfx.fade(sub);
                 Minecraft mc = Minecraft.getInstance();
                 String name = mc.player == null ? "" : mc.player.getGameProfile().getName();
-                SysFont.draw(g, tr(slain ? "awakened.body_slain" : "awakened.body", name), cx, sy + 87, 8f, SystemTheme.ACCENT_BRIGHT, false, 0.5f);
+                SysFont.draw(g, tr(light ? "awakened.body_light" : slain ? "awakened.body_slain" : "awakened.body", name), cx, sy + 87, 8f, bright, false, 0.5f);
                 Gfx.setAlpha(o3);
             }
             Gfx.setAlpha(old);
         }
         // out into the world through light
         float white = Anim.window(t, 12.3f, 12.8f) * (1 - Anim.outCubic(Anim.window(t, 12.8f, 14.4f)));
-        if (white > 0.001f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(0xFFEAF6FF, white)).draw(g);
+        if (white > 0.001f) Shapes.box(0, 0, w, h).fill(Gfx.alpha(light ? 0xFFFFF6E2 : 0xFFEAF6FF, white)).draw(g);
     }
 
     /** What the first window says. */
@@ -381,16 +406,17 @@ public final class AwakeningOverlay {
         float top = cy - ph / 2f;
         float headIn = Anim.outCubic(Anim.window(t, 6.9f, 7.3f));
         float old = Gfx.fade(headIn);
-        SysFont.spaced(g, tr("window.header"), cx, top + 9, 7f, SystemTheme.ACCENT_BRIGHT, true, 3.2f, 0.5f);
+        int bright = light ? DAWN_BRIGHT : SystemTheme.ACCENT_BRIGHT;
+        SysFont.spaced(g, tr("window.header"), cx, top + 9, 7f, bright, true, 3.2f, 0.5f);
         Ui.divider(g, cx - pw / 2f + 18, top + 22, pw - 36, Gfx.alpha(blue, 0.6f));
         Gfx.setAlpha(old);
         typed(g, tr("window.found"), cx, top + 30, 8f, SystemTheme.TEXT, Anim.window(t, 7.2f, 8.1f));
         float condIn = Anim.window(t, 8.1f, 8.3f);
         if (condIn > 0) {
             float o2 = Gfx.fade(condIn);
-            String label = tr(slain ? "window.hidden_condition" : "window.condition");
-            String cond = tr(slain ? "window.cond_slain" : "window.cond_fallen");
-            int c = slain ? SystemTheme.GOLD : SystemTheme.ACCENT_BRIGHT;
+            String label = tr(slain || light ? "window.hidden_condition" : "window.condition");
+            String cond = tr(light ? "window.cond_light" : slain ? "window.cond_slain" : "window.cond_fallen");
+            int c = light ? DAWN_BRIGHT : slain ? SystemTheme.GOLD : SystemTheme.ACCENT_BRIGHT;
             SysFont.draw(g, label, cx, top + 46, 6.5f, SystemTheme.TEXT_SOFT, false, 0.5f);
             Gfx.setAlpha(o2);
             typed(g, "[ " + cond + " ]", cx, top + 56, 9.5f, c, Anim.window(t, 8.3f, 8.9f));
@@ -400,9 +426,11 @@ public final class AwakeningOverlay {
             float bw = pw - 60, bx = cx - bw / 2f, by = top + ph - 22;
             float k = Anim.inOutCubic(bar);
             boolean done = t > 9.85f;
-            SysFont.spaced(g, done ? tr("window.bound") : tr("window.binding"), bx, by - 9, 6f, done ? 0xFFFFFFFF : SystemTheme.TEXT_SOFT, true, 1.8f, 0f);
-            SysFont.draw(g, Math.round(k * 100) + "%", bx + bw, by - 9, 6f, SystemTheme.ACCENT_BRIGHT, true, 1f);
-            Ui.bar(g, bx, by, bw, 5, k, SystemTheme.MP_A, SystemTheme.MP_B);
+            SysFont.spaced(g, done ? tr("window.bound") : tr(light ? "window.binding_light" : "window.binding"), bx, by - 9, 6f,
+                    done ? 0xFFFFFFFF : SystemTheme.TEXT_SOFT, true, 1.8f, 0f);
+            SysFont.draw(g, Math.round(k * 100) + "%", bx + bw, by - 9, 6f, bright, true, 1f);
+            if (light) Ui.bar(g, bx, by, bw, 5, k, 0xFFB07A1E, DAWN_BRIGHT);
+            else Ui.bar(g, bx, by, bw, 5, k, SystemTheme.MP_A, SystemTheme.MP_B);
             if (done) Shapes.box(cx - pw / 2f, top, pw, ph).radius(10).fill(Gfx.alpha(0xFFFFFFFF, 0.5f * (1 - Anim.window(t, 9.85f, 10f)))).draw(g);
         }
     }
@@ -425,7 +453,8 @@ public final class AwakeningOverlay {
         SysFont.draw(g, SysFont.truncate(line, shown), cx - full / 2f, y, color, 0f);
         if (k < 1f) {
             float caret = cx - full / 2f + SysFont.truncate(line, shown).width() + 1;
-            Shapes.box(caret, y, 1.2f, size * 0.8f).fill(Gfx.alpha(SystemTheme.ACCENT_BRIGHT, 0.9f)).glow(4, SystemTheme.ACCENT).draw(g);
+            Shapes.box(caret, y, 1.2f, size * 0.8f).fill(Gfx.alpha(light ? DAWN_BRIGHT : SystemTheme.ACCENT_BRIGHT, 0.9f))
+                    .glow(4, light ? DAWN : SystemTheme.ACCENT).draw(g);
         }
     }
 

@@ -82,6 +82,10 @@ import java.util.UUID;
  *
  * <p>The hidden way: the Arbiter can be killed. Then its cache holds one random legendary weapon, and the System
  * binds all the same.</p>
+ *
+ * <p>The light's way: a temple opened since the light came hides the Envoy of Dawn's chapel off its antechamber
+ * ({@code light.Chapel}). A hunter who finds it and takes the covenant never faces the Arbiter: the System binds to
+ * them in the light ({@link #beginLight}), on the same clock, and they wake sworn to it ({@code light.LightAPI#awoken}).</p>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class AwakeningService {
@@ -94,7 +98,7 @@ public final class AwakeningService {
     private static final ResourceLocation FREEZE = BeyondSolo.id("awakening_freeze");
     private static final String LEGENDARY_TAG = "beyondsolo_legendary_for";
 
-    private record Sequence(long started, boolean slain) {}
+    private record Sequence(long started, boolean slain, boolean light) {}
 
     private static final Map<UUID, Sequence> SEQUENCES = new HashMap<>();
     private static final Map<UUID, Long> SHIELDED = new HashMap<>();
@@ -564,7 +568,7 @@ public final class AwakeningService {
         d.setStage(Stage.AWAKENING);
         d.setArbiterSlain(slain);
         if (d.trial() == null) d.setSealedGate(g.id(), g.gateDimension(), g.gatePos());
-        SEQUENCES.put(player.getUUID(), new Sequence(level.getGameTime(), slain));
+        SEQUENCES.put(player.getUUID(), new Sequence(level.getGameTime(), slain, false));
         freeze(player, true);
         player.setHealth(Math.max(1f, player.getHealth()));
         player.setDeltaMovement(Vec3.ZERO);
@@ -575,6 +579,24 @@ public final class AwakeningService {
         }
         level.playSound(null, player.blockPosition(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 2f, 0.6f);
         PacketDistributor.sendToPlayer(player, AwakeningPayload.of(AwakeningPayload.AWAKEN, slain ? 1 : 0));
+    }
+
+    /**
+     * Starts the awakening in the light for a hunter who took the Envoy's covenant in the temple's chapel (they are
+     * sworn already): no Arbiter, no fall; the same clock, and the light's own moment on their screen.
+     */
+    public static void beginLight(ServerPlayer player, GateInstance g) {
+        if (inSequence(player) || SystemAPI.hasSystem(player) && stage(player) == Stage.DONE) return;
+        ServerLevel level = player.serverLevel();
+        AwakeningData d = data(player);
+        d.setStage(Stage.AWAKENING);
+        d.setArbiterSlain(false);
+        if (d.trial() == null) d.setSealedGate(g.id(), g.gateDimension(), g.gatePos());
+        SEQUENCES.put(player.getUUID(), new Sequence(level.getGameTime(), false, true));
+        freeze(player, true);
+        player.setDeltaMovement(Vec3.ZERO);
+        level.playSound(null, player.blockPosition(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 2f, 0.8f);
+        PacketDistributor.sendToPlayer(player, AwakeningPayload.of(AwakeningPayload.AWAKEN, 2));
     }
 
     private static void freeze(ServerPlayer player, boolean on) {
@@ -594,7 +616,7 @@ public final class AwakeningService {
         long t = player.level().getGameTime() - seq.started;
         player.setDeltaMovement(player.getDeltaMovement().multiply(0, 1, 0));
         if (t == TELEPORT_TICK) wakeOutside(player);
-        if (t == GRANT_TICK) bind(player, seq.slain);
+        if (t == GRANT_TICK) bind(player, seq.slain, seq.light);
         if (t >= END_TICK) {
             SEQUENCES.remove(player.getUUID());
             freeze(player, false);
@@ -647,12 +669,14 @@ public final class AwakeningService {
         closeSealedGate(server, d);
     }
 
-    private static void bind(ServerPlayer player, boolean slain) {
+    private static void bind(ServerPlayer player, boolean slain, boolean light) {
         AwakeningData d = data(player);
         d.setStage(Stage.DONE);
         d.setSealedGate(d.trial(), null, null);
         SystemAPI.grantSystem(player);
         if (slain) SystemAPI.setTitle(player, SLAYER_TITLE);
+        // sworn to the light: the light's first power comes with the System
+        if (light) com.beyondsolo.light.LightAPI.awoken(player);
         player.level().playSound(null, player.blockPosition(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1f, 1.4f);
     }
 
@@ -662,7 +686,7 @@ public final class AwakeningService {
         SEQUENCES.remove(player.getUUID());
         freeze(player, false);
         wakeOutside(player);
-        bind(player, d.arbiterSlain());
+        bind(player, d.arbiterSlain(), !d.arbiterSlain() && com.beyondsolo.light.LightAPI.sworn(player));
     }
 
     // ------------------------------------------------------------------ the hidden way

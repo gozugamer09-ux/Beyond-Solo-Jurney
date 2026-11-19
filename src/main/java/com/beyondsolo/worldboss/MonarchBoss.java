@@ -213,13 +213,15 @@ public abstract class MonarchBoss extends ColossalBoss {
             landed = true;
             if (tickCount % 20 == 0) {
                 for (LivingEntity e : near(position(), DOMAIN)) {
-                    // a hunter monarch's domain, or a ruler's sanctum, holds this one back from whoever it shelters
-                    if (!com.beyondsolo.monarch.MonarchDomain.shelters(e) && !com.beyondsolo.ruler.Rulers.shelters(e)) domainTick(server, e);
+                    // a hunter monarch's domain, or a ruler's sanctum (or a hunter ruler's), holds this one back from whoever it shelters
+                    if (!com.beyondsolo.monarch.MonarchDomain.shelters(e) && !com.beyondsolo.ruler.Rulers.shelters(e)
+                            && !com.beyondsolo.light.LightSanctum.shelters(e)) domainTick(server, e);
                 }
                 for (Player p : server.getEntitiesOfClass(Player.class, getBoundingBox().inflate(PRESSURE_RANGE), this::canHit)) {
-                    if (SystemAPI.get(p).level() >= PRESSURE_LEVEL || com.beyondsolo.monarch.MonarchAPI.crowned(p)) continue;
+                    if (SystemAPI.get(p).level() >= PRESSURE_LEVEL || com.beyondsolo.monarch.MonarchAPI.crowned(p)
+                            || com.beyondsolo.light.LightAPI.invested(p)) continue;
                     // the light's favour lifts its weight
-                    if (com.beyondsolo.ruler.Rulers.shelters(p) || com.beyondsolo.ruler.Rulers.blessed(p)) continue;
+                    if (com.beyondsolo.ruler.Rulers.shelters(p) || com.beyondsolo.ruler.Rulers.blessed(p) || com.beyondsolo.light.LightSanctum.shelters(p)) continue;
                     p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, true, false), this);
                     p.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 0, true, false), this);
                 }

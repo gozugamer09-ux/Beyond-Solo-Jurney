@@ -18,7 +18,8 @@ import org.jetbrains.annotations.Nullable;
  * <p>A skill belongs to a class ({@code owner}) or to everyone ({@code owner == null}). Class skills unlock at a
  * player level, earlier the higher the player's rank. {@code advanced} skills never unlock by level or from books:
  * they are for the job change (see {@link SkillAPI#grantAdvanced}). The {@code monarch} powers come only with a crown
- * ({@link MonarchPowers}) and sit on the crown keys, not the skill bar.</p>
+ * ({@link MonarchPowers}), the {@code ruler} powers only with the light ({@link RulerPowers}), and both sit on the crown
+ * keys, not the skill bar.</p>
  */
 public final class Skill {
     public enum Kind { ACTIVE, PASSIVE }
@@ -69,6 +70,8 @@ public final class Skill {
     private @Nullable Boolean circle;
     /** A monarch's power: only a crown gives it ({@link MonarchPowers}). */
     private boolean monarch;
+    /** A ruler of light's power: only the light gives it ({@link RulerPowers}). */
+    private boolean ruler;
     /** A second press while the first is still working ({@link Recast}), or null. */
     private @Nullable Recast recast;
     /** The buff that marks the window for the recast (the skill bar shows the skill ready again while it lasts), or null. */
@@ -125,6 +128,17 @@ public final class Skill {
         this.monarch = monarch;
         return this;
     }
+
+    /** A ruler of light's power: only the light gives it, and only a hunter sworn to it can use it ({@link RulerPowers}). */
+    public boolean ruler() { return ruler; }
+
+    Skill ruler(boolean ruler) {
+        this.ruler = ruler;
+        return this;
+    }
+
+    /** A monarch's or a ruler's power: it sits on the crown keys, never on the skill bar, and no tome or level gives it. */
+    public boolean sovereign() { return monarch || ruler; }
 
     Skill rune(boolean rune) {
         this.rune = rune;

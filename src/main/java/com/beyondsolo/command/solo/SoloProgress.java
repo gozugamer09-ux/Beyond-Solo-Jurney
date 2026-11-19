@@ -133,6 +133,12 @@ final class SoloProgress {
         } else if (m.called()) {
             out.append("\n").append(Solo.t("info.monarch_called", m.attempts()));
         }
+        com.beyondsolo.light.LightData light = com.beyondsolo.light.LightAPI.get(p);
+        if (light.invested()) {
+            out.append("\n").append(Solo.t("info.light", light.mantle().title(), light.monarchsSlain(), light.judged(), light.authorities()));
+        } else if (light.sworn()) {
+            out.append("\n").append(Solo.t("info.light_sworn", light.called() ? Solo.t("info.light_called", light.attempts()) : Solo.t("info.light_not_called")));
+        }
         com.beyondsolo.ruler.RulerRecord r = p.getData(com.beyondsolo.ruler.RulerModule.RECORD.get());
         if (r.rulers() + r.sentences() + r.alliedWars() + r.heralds() + r.blessings() > 0) {
             out.append("\n").append(Solo.t("info.rulers", r.rulers(), r.sentences(), r.overturned(), r.alliedWars(), r.heralds()));

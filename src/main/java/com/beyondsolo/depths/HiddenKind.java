@@ -17,13 +17,19 @@ import java.util.Locale;
  * forced into the first gate of rank D or higher that a player without the System walks into, off the boss's hall.
  * Knocks and Pulse Scan get nothing from its wall; it breaks by itself once the boss falls, and the sealed gate that
  * opens behind it leads to the Ashen Threshold.</p>
+ *
+ * <p>{@link #CHAPEL} is never rolled either: it is the chapel of the Envoy of Dawn ({@code light.Chapel}), walled off
+ * the antechamber of every awakening temple opened since the light came. Its wall gives to knocks like any other, and
+ * golden light seeps out of it; behind it the Envoy waits with the covenant.</p>
  */
 public enum HiddenKind {
     VAULT(0xFFD36A, 40),
     SHRINE(0x9FE8FF, 25),
     LAIR(0xFF5A6A, 35),
     /** The awakening's sealed door (weight 0: only ever forced). */
-    SEALED(0xF2D58A, 0);
+    SEALED(0xF2D58A, 0),
+    /** The Envoy of Dawn's chapel in an awakening temple (weight 0: only ever planned there). */
+    CHAPEL(0xFFE9A8, 0);
 
     public final int color;
     final int weight;

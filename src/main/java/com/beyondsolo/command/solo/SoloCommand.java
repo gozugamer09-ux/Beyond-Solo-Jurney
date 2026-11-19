@@ -25,6 +25,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /solo guild|raid ...                                           guilds and raids       (SoloGuilds)
  * /solo monarch ...                                              monarchs               (SoloMonarch)
  * /solo ruler ...                                                rulers of light        (SoloRulers)
+ * /solo light ...                                                a hunter sworn to the light (SoloLight)
  * /solo association ...                                          the Hunter Association (SoloAssociation)
  * /solo rival|hire ...                                           rival parties, hands for hire (SoloRivals)
  * /solo box|mana ...                                             random boxes, mana poisoning (SoloBoxes)
@@ -53,6 +54,7 @@ public final class SoloCommand {
         SoloGuilds.register(root);
         SoloMonarch.register(root);
         SoloRulers.register(root);
+        SoloLight.register(root);
         SoloAssociation.register(root);
         SoloRivals.register(root);
         SoloBoxes.register(root);
