@@ -832,16 +832,36 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
 (`data/beyondsolo/tags/entity_type/shadow/`) and lang namespace (`assets/beyondsolo_shadows/lang`).
 **Only a necromancer** (`Subclass.canRaiseShadows()`, checked by `ShadowService.canRaise`) gets any of it.
 
-- **Souls.** A creature killed by a necromancer or one of their shadows leaves a soul for 20 s (a boss's for 60 s),
-  only for that player. Tag `shadow/no_soul` leaves none. The raise key (H) next to a soul starts the extraction
+- **Souls.** Any living creature, ours, vanilla's or another mod's, killed by a necromancer or one of their shadows
+  leaves a soul for 20 s (a boss's for 60 s), only for that player. One that dies of what came after their blow (it
+  burned, fell, drowned, or their pet finished it) counts as theirs, as Minecraft gives them the kill
+  (`getKillCredit`). Tag `shadow/no_soul` leaves none (players, the training dummy, visions). A creature that died in
+  the air leaves its soul on the ground or the water under it, in reach (`ShadowService.soulSpot`). A death that
+  can't be read (a broken mod creature) leaves no soul and is logged once (`ShadowHooks.onDeath`). The raise key (H) next to a soul starts the extraction
   ritual (2 s); each soul has 3 tries. The chance (`ShadowService.chance`) falls with the creature's health against
   the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
-- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (warrior; caster from tag `shadow/casters`,
-  bolts at range; mount from tag `shadow/mounts`), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
+- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (`ShadowForm.roleOf`: tags
+  `shadow/mounts`, `shadow/casters`, `shadow/warriors` first; then a steed carries, a creature that shoots or throws
+  casts, bolts at range, unless it holds a blade; the rest fight up close), its form (below), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
   Commander, Marshal, and Regent for a monarch's), level 1-10 inside the rank, and the health, damage and speed it was
   extracted with. Weak
-  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`) and tag `shadow/bosses` become named
+  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`), the world's great threats
+  (`ColossalBoss`) and tags `shadow/bosses` and `c:bosses` (the dragon, the wither, other mods' bosses) become named
   elites (`ShadowNames`) that start at Knight to Commander, use Dread Slam and give nearby shadows +15% damage.
+  Health always follows the army's curve (`ShadowService.maxHealth` with `Balance.summonHealth`), whatever the
+  creature was.
+- **Any creature's shape** (`ShadowForm`, kept in the record and saved). How it gets about (`Movement`): tags
+  `shadow/fliers`, `shadow/swimmers`, `shadow/walkers` first, then a water creature or water-bound navigation swims,
+  a flying navigation or move control or a flier's body (bats, ghasts, phantoms, the dragon, the wither, vexes, the
+  magus) flies, the rest walk; a steed always walks. Its size: the creature's own with its size roll (a baby, a big
+  slime); anything wider than 4 or taller than 6 blocks rises smaller, in proportion (`fit`: the dragon at a quarter,
+  the giant at half). Its look (`lookOf`): what the creature saved less what only mattered while it lived (`DROP`:
+  where and who it was, health, mind, loot, owner, anger, asleep or hanging), so a skeleton's shadow holds its bow, a
+  sheep's keeps its colour and a mod's creature its variant; over 4 KB only its gear is kept. Shadows raised before
+  forms, and those given by command, take a fresh one of their kind's shape (`ShadowForm.probe`, at login and when
+  called). The army sent to the client with every change leaves the looks out (`ShadowData.save(false)`); the
+  Shadows page asks for a shadow's look when it shows it (`ShadowActionPayload.LOOK`, answered by
+  `ShadowLookPayload`).
 - **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
   nearby; filling level 10 climbs a rank by itself up to Knight (`ShadowService.addXp`, rank-up moment and pop-up).
   A new rank never makes a shadow weaker: it comes in at the lowest level as strong as it was (`ShadowRank.entryLevel`;
@@ -870,7 +890,10 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (`LEAD`); a boss shadow's +15% still counts first (`ShadowService.auraBonus`).
 - **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
   left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
-  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. Never saved with
+  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. A flier's shadow
+  flies (`FlyingMoveControl`, `FlyingPathNavigation`, no gravity), hovers over its master's head (`hoverOver`) and
+  swoops on what it fights; a swimmer's swims through water and air alike, low over the ground. Neither drowns or
+  is carried off by water, and no shadow chokes in a wall or a crowd. Never saved with
   the world; it goes away when its master logs out, and follows through dimension changes. A fallen shadow rests
   30 s (boss 90 s). Calling one costs mana (`summonCost`). Army size `capacity` and shadows out at once
   `activeLimit` grow with level and INT.
@@ -888,17 +911,27 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
 - **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring. The rank shows: from Knight a moving energy shell in the rank's
+  violet-black), burning eyes, aura and a ring. The creature is made on the client from the shadow's look
+  (`ShadowLook`: any kind, with its own renderer, vanilla's, GeckoLib's or another mod's), takes the shadow's place
+  and pose every tick and runs its own tick with its particles held back (a bat's wings, a slime's squish; a
+  swimmer and the dragon are posed by hand, the dragon's wings and neck kept as Minecraft keeps them). `ShadowDraw`
+  keeps whatever goes wrong in a renderer inside the shadow: it draws on its own copy of the pose and finishes any
+  vertex or quad a failing renderer left half written. A kind that can't be made or drawn is told in the log once and
+  drawn from then on as a stand-in of its size and way of moving (a zombie or a spider, a vex or a phantom, a
+  dolphin); one whose own tick fails is only posed. The rank shows: from Knight a moving energy shell in the rank's
   colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
   `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
   bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
   Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
   recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
   ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
-  (necromancers only): filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
+  (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
   portrait that opens the name field (Enter keeps, Escape cancels).
 - **Keys**: H extract / call the army, U recall, Y mount.
+- **Tests**: `ShadowGameTests`, and `ShadowFormGameTests`, which raises a shadow of every living kind in the game
+  (whatever mods are loaded) and checks its soul, shape, health and flight, besides looks, roles, fliers, swimmers
+  and sizes.
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
   next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index] (a promotion's rank is staged as a free promotion),
   kill, reset. `/solo shadow post|unpost [players]` leaves every shadow out on guard or takes the guards off,
@@ -2023,6 +2056,40 @@ the rooms kept: a stranger's block, the walls; a night's rest; the dummies' mete
 hall; the mother moving in and out; a fall caught). In the headless client: `/solo home give penthouse`, `/solo home
 go`, `/solo home trophies 1`, and the driver's `screen home` and `homego go|leave|buy|stay` for the page.
 
+## Rival parties and hands for hire
+
+In the series the hunter is never the only one going for a gate: guild parties race each other to the good ones, the
+association gives a gate to whoever gets in first, and a hunter short of help hires porters and freelance hunters for
+the day. Here a gate that opens near a hunter now and then draws another party of the gate's rank, and every
+association office has hands looking for work. Code in `rival/` (server) and `client/rival/` (client); text in
+`assets/beyondsolo_rivals/lang`. Names are the mod's own.
+
+| Piece | What it does |
+|---|---|
+| `RivalParties` | **Setting out:** `gateOpened` (from `GateSpawner`'s random gates, never a hunter's very first gate) sends a party for a fresh open gate with `rivals.dispatchChance` (35%) if it is `eligible` (open, in the overworld, no trial, key, raid, red gate in waiting, broken gate or association claim, no other party on it). `dispatch` makes three to five hunters of the gate's rank (a leader, someone to stand in front, a healer for four or more), led half the time by a free hunter of the national rankings (`Rivals`) with their guild's people, else for one of the four guilds or a band of independents. Awakened hunters within 160 blocks are told (direction, distance, the time they need: `etaMin/MaxSeconds` 75 to 150) and see them on the HUD. **The clocks:** every second each party moves on: EN_ROUTE until it arrives, GATHERING in front of the gate (`gatherSeconds` 10), then INSIDE. First in, it holds the gate (`holds`): the association posts no contract on it and a hunter walking up is turned away (`refusal`, `refuse.held`) unless they crouch to force their way in, which costs `trespassMerit` merit once (`Association.takeMerit`) and starts a race. A hunter who got in first beats them to it: most parties stand down, a bold one (its guild's nerve: Red Lantern 60%, independents 30%, the others 8 to 15%, scaled by `followInScale`) follows them in, and it is a race. A gate cleared before they got in, or claimed by a permit or an exam while they gather, sends them home. **Inside, unseen:** their progress runs on `clearMinutes` by rank; they clear it (`guildSuccess` 85%, `independentSuccess` 70%, rolled as they go in), taking the boss and closing the gate, or are beaten back halfway and leave it open. **The race:** `onDamage` tallies what the party and what the hunters (and everything on their side: shadows, summons, guild and hired hunters) dealt the boss; when it falls (`bossFell`, from `GateService.bossDefeated`) whoever dealt more takes it: the party's win means no reward cache, a hunter's win the cache and a race won on their record. A ranked leader's clears count on the national rankings and merit board |
+| Their hunters | `RivalHunterEntity` (`beyondsolo:rival_hunter`, a `GuildHunterEntity`: class armour and weapon, the guild's name in its colour over their head, never fights a hunter and can't be hurt by one) is only there while a hunter is within 96 blocks to see them: walking a loose file from where they set out to the gate (each paced to reach their place as the clock runs out, `keepPace`: a mob walks about 2.16 x (speed x pace)² blocks a tick, so the walk is set from the distance left and the ticks left), standing in an arc in front of it, walking into it. In a cave with a hunter in it they step out where the party has got to on its way to the boss (`route`: room by room along the passages, never through a hidden chamber; the caverns behind them emptied) and walk on (`march`/`marchFrom`), waking what waits ahead and drawing what idles near them; their feet are then the clock (80% of the way at the boss's door). One who falls is out for good; all of them down, the run is over. Right-clicking one gets a line for where the party is at (`talk`, three each), the leader named by the others |
+| `Hires` | **The list:** each office has two porters (an E and a D) and `hire.offers` (4) freelance hunters of the hunter's rank or one below, the same faces all day for that hunter (`offers`, seeded by office, day and hunter); the hired ones leave it. Fees up front (`Economy.Reason.HIRE`): a porter `hire.porterFee` (40/90), a hunter `hunterFee` (0.6) of their rank's gate gold, more deeper into the rank. One porter and `hire.maxHunters` (2) hunters at a time, a hunter of a rank above yours refuses. **The job:** `hire.minutes` (20), or until a gate cleared together is behind them (`gateCleared`); dismissing is free and refunds nothing. They step out beside their hunter wherever they go in the world and into gate caves (not a trial or an exam), and beside them again when left 40 blocks behind. A hired hunter is a guild hunter fighting for the hunter (`CAUSE`, kills counted). **The porter** (`PorterEntity`, `beyondsolo:porter`) never fights, keeps out of creatures' way and picks up what falls within 10 blocks (not what a player threw down) into a pack of `hire.porterSlots` (27); their hunter opens it by talking to them; at the end of the job it goes into the inventory, then the System's storage, then at their feet; a porter who falls drops it where they fell |
+| `RivalRecord` | `beyondsolo:rivalry` attachment (kept through death, cleared by `/solo wipe`, which lets every hand go and hands the pack over): races won and lost, gates forced, the hands on the job (a porter's pack with them), who was hired today. Titles: **Gate Racer** (three races won) and **Claim Jumper** (a boss taken from a party that held its gate; hidden until earned) |
+| Sync | `RivalSyncPayload` every second: the parties a hunter watches or shares a gate with (four at most, theirs first), each with its guild, leader, state, clock, progress, standing members and the race's share (a hunter who knows of none is told once, not every second). The hire tab rides on the office's own data (`Hires.officeTag`) |
+| `client.rival` | `RivalHud`: a chip at the top centre for the nearest party (the guild's emblem in a ring that turns while they move; a clock to their arrival or to their going in, with the gate's distance and an arrow; the percent through a gate they hold; in a race a split bar YOU / THEM by damage, or their way to the boss with a skull at its end; how it ended, gold with a crown when the hunter beat them; "+N more"), and a mark over each gate a party is after (its emblem, a ring filling as they clear it, "Here in 1:20" / "In in 0:08" / "Held · 43%"), fading out beyond 72 blocks and kept under the top-centre bars when the gate is close (`HudSpace.topClaimedLately`). A party is named by whoever leads it, as in the System's messages. `RivalHunterRenderer` (a guild hunter with an armband in the guild's colour, runtime-baked), `PorterRenderer` (three porter skins, the pack: a sack with flap and pocket, a bedroll, a frame, straps, a swinging lantern that glows at night and a pot). The office's **HIRE** tab (`AssociationScreen`): today's hands as tiles (porter or class, rank, level or slots, fee; why one can't be hired), the hands on the job with their time, carried stacks or kills and a LET GO button, and the hunter's record against the other parties |
+
+Config: `beyondsolo-rivals.toml` (`rivals.*`, `hire.*`); every number is a first guess for the final balancing pass.
+Art: `tools/gen_rival_assets.py` (`--preview` renders the three porters and the armband to `build/preview/rivals.png`)
+and the guild emblems, race and trail icons in `tools/gen_ui_assets.py`. Operators: `/solo rival send
+[guild|random] [ranked]` (the nearest free gate within 128 blocks, a new one if there is none), `arrive`, `enter`,
+`finish clear|retreat` (the nearest party), `list`, `forget`, `record [player]`; `/solo hire porter [e|d] [players]`,
+`hunter [rank] [class] [players]` (for nothing), `dismiss [players]`, `list [player]` (`SoloRivals`).
+
+Testing: `RivalGameTests` (a party setting out, told to the hunters near, holding a gate it went into first: no
+contract, hunters turned away unless crouching; standing down when beaten to it or too late, the bold following in for
+a race; leaving a gate a permit claimed; clearing alone or beaten back, the gate open again; the race going to whoever
+dealt the boss most, three wins bringing Gate Racer; forcing a way in costing merit once and Claim Jumper; a party
+gathering in sight standing in front of its gate in its guild's colour; the office's list the same all day; a porter
+picking up what fell and handing it over; hired hunters up to the limit, following their hunter, gone with the gate;
+the commands and `/solo wipe`). The tests' gates have no block, their parties are kept out of sight
+(`RivalTestAccess.unseen`) and the hunter "in" a gate stands at its cave's origin. In the headless client: `/solo
+rival send red_lantern ranked`, `/solo rival arrive`, `/solo hire porter d` and the office's HIRE tab.
+
 ## The chronicle: titles, rankings and the journal
 
 Code in `chronicle/` (server) and `client/chronicle/` (client); lang in `assets/beyondsolo_chronicle/lang`.
@@ -2095,6 +2162,7 @@ has added to `/system` by then).
 | rulers | `ruler call [verdict/wings/hand/random]`, `ruler war [ruler]`, `ruler sentence [ruler] on [player]`, `ruler land`, `ruler stop`, `ruler status`, `ruler phase <1-3>`, `ruler move <move>`, `ruler kill`, `ruler next <minutes>`, `ruler bless [players]`, `ruler mote [count]`, `ruler record [player]` | `SoloRulers` |
 | light | `light swear`, `light unswear`, `light invest verdict/wings/hand/dawn`, `light divest`, `light call`, `light vigil [next/stop]`, `light chapel [wall]`, `light power sanctum/judgement/seraph/authority`, `light reset` | `SoloLight` |
 | association | `association open [contracts/permits/exam/standing]`, `association broker`, `association post`, `association merit add/set <merit> [players]`, `association exam start/pass/fail [player]`, `association contract [player]`, `association record [player]`, `association reset [players]` | `SoloAssociation` |
+| rivals | `rival send [guild/random] [ranked]`, `rival arrive/enter`, `rival finish clear/retreat`, `rival list`, `rival forget`, `rival record [player]`, `hire porter [e/d] [players]`, `hire hunter [rank] [class] [players]`, `hire dismiss [players]`, `hire list [player]` | `SoloRivals` |
 | home | `home info`, `home give studio/family/hall/penthouse/none`, `home go`, `home visit <host>`, `home leave`, `home build`, `home rebuild`, `home rest`, `home ready`, `home trophies <count>` | `SoloHome` |
 
 - **Who it is for:** most commands end in optional players (`[players]`, or `[player]` when it takes them somewhere):

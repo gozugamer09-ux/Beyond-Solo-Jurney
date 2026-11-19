@@ -74,14 +74,16 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             }
             pose.pushPose();
             pose.translate(0, -down, 0);
-            float s = e.sizeScale() * tierScale(e.rank());
+            // its size, its rank's growth, and the creature's own fit to it (a dragon's shadow is a quarter of it)
+            float s = e.sizeScale() * tierScale(e.rank()) * e.lookScale();
             pose.scale(s, s, s);
             try {
-                @SuppressWarnings("unchecked")
-                EntityRenderer<LivingEntity> r = (EntityRenderer<LivingEntity>) Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(look);
+                // any mod's renderer: ShadowDraw keeps whatever goes wrong in it inside the shadow
+                EntityRenderer<LivingEntity> r = ShadowDraw.renderer(look);
                 float brightness = e.isBoss() ? 1.25f : 1f;
-                r.render(look, yaw, partial, pose, ShadowTint.ink(buffers, brightness), light);
-                if (presence > 0.02f) shell(r, look, e.rank(), yaw, partial, pose, buffers, light, time, presence);
+                if (ShadowDraw.render(r, look, yaw, partial, pose, ShadowTint.ink(buffers, brightness), light) && presence > 0.02f) {
+                    shell(r, look, e.rank(), yaw, partial, pose, buffers, light, time, presence);
+                }
             } catch (RuntimeException ignored) {
                 // a creature whose renderer can't draw a stand-in: the aura alone shows where it is
             }
@@ -123,7 +125,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
         pose.translate(0, mid, 0);
         pose.scale(grow, grow, grow);
         pose.translate(0, -mid, 0);
-        r.render(look, yaw, partial, pose, shell, light);
+        ShadowDraw.render(r, look, yaw, partial, pose, shell, light);
         pose.popPose();
     }
 

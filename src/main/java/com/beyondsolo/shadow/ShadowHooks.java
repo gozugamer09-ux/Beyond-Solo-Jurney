@@ -19,11 +19,23 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /** Wires the shadow army into the game's events. */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class ShadowHooks {
-    /** After other modules (the trial cancels some deaths): only real deaths leave a soul. */
+    /** Kinds whose death a necromancer couldn't read (told once each). */
+    private static final java.util.Set<net.minecraft.world.entity.EntityType<?>> UNREAD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * After other modules (the trial cancels some deaths): only real deaths leave a soul. Any creature may die here,
+     * any mod's: one whose death can't be read leaves no soul, and the game goes on.
+     */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     static void onDeath(LivingDeathEvent event) {
         if (event.isCanceled()) return;
-        ShadowService.creatureDied(event.getEntity(), event.getSource().getEntity());
+        try {
+            ShadowService.creatureDied(event.getEntity(), event.getSource().getEntity());
+        } catch (RuntimeException | LinkageError e) {
+            if (UNREAD.add(event.getEntity().getType())) {
+                BeyondSolo.LOGGER.warn("The death of a {} left no soul: it could not be read", event.getEntity().getType(), e);
+            }
+        }
     }
 
     /** A master can't hurt their own shadows, and shadows never hurt players. */

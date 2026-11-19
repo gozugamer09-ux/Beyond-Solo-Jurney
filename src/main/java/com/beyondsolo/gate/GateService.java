@@ -264,6 +264,8 @@ public final class GateService {
                 : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated"
                 // an exam gate is its examinee's; a permit's gate, its holder's and their party's
                 : com.beyondsolo.association.Association.refusal(player, g);
+        // a gate a rival party went into first is theirs to clear: a hunter who wants it anyway forces their way in
+        if (refusal == null) refusal = com.beyondsolo.rival.RivalParties.refusal(player, g);
         if (refusal != null) {
             if (COOLDOWN.getOrDefault(player.getUUID(), 0L) <= level.getGameTime()) {
                 player.displayClientMessage(Component.translatable(refusal), true);
@@ -400,6 +402,8 @@ public final class GateService {
         // a raid gives its own quest (the lieutenants, then the boss)
         else if (!com.beyondsolo.raid.Raids.arrived(player, g)) giveQuest(player, g);
         com.beyondsolo.party.Parties.wentIn(player, g);
+        // a rival party on its way to this gate was beaten to it; one that holds it has a trespasser
+        com.beyondsolo.rival.RivalParties.arrived(player, g);
         return true;
     }
 
@@ -535,7 +539,17 @@ public final class GateService {
         if (!g.built()) return;
         // a raid's lieutenants wake as raiders come near, and keep the boss's chamber shut while one stands
         if (g.isRaid()) com.beyondsolo.raid.Raids.watch(player, g);
-        BlockPos at = player.blockPosition();
+        stir(dungeon, g, player.blockPosition());
+    }
+
+    /**
+     * Wakes what waits in a cave near {@code at}: a cavern's pack as someone comes near it, the boss once someone is
+     * in its room (and the trial's checkpoints). Players stir it ({@link #watch}), and so do the rival parties walking
+     * through it ({@code rival.RivalParties}).
+     */
+    public static void stir(ServerLevel dungeon, GateInstance g, BlockPos at) {
+        if (!g.built() || g.state() == GateInstance.State.CLOSED) return;
+        GateData data = GateData.get(dungeon.getServer());
         for (DungeonLayout.Room room : g.layout().rooms()) {
             BlockPos c = g.world(room.center());
             double dx = at.getX() - c.getX(), dz = at.getZ() - c.getZ();
@@ -734,6 +748,9 @@ public final class GateService {
         data.setDirty();
 
         List<ServerPlayer> players = playersIn(level, g);
+        // a rival party racing for the boss: whoever dealt it most takes its cache; hired hands' job is done
+        boolean rivalsTookIt = com.beyondsolo.rival.RivalParties.bossFell(level, g, source);
+        com.beyondsolo.rival.Hires.gateCleared(level, g, players);
         // a raid's own spoils: a cache for each raider, guild renown, its hunters' growth, the results board
         if (g.isRaid()) com.beyondsolo.raid.Raids.bossDefeated(level, g, boss, players);
         com.beyondsolo.awakening.AwakeningService.gateCleared(level, g, players);
@@ -753,9 +770,11 @@ public final class GateService {
 
         // the reward cache comes down once the death animation is over, then the way out opens
         com.beyondsolo.util.ServerScheduler.schedule(GateBossEntity.DEATH_TICKS - 6, () -> {
-            BlockPos cachePos = ground(level, center.relative(facing, 3));
-            level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
-            if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
+            if (!rivalsTookIt) {
+                BlockPos cachePos = ground(level, center.relative(facing, 3));
+                level.setBlock(cachePos, ModBlocks.REWARD_CACHE.get().defaultBlockState().setValue(RewardCacheBlock.FACING, facing), 3);
+                if (level.getBlockEntity(cachePos) instanceof RewardCacheBlockEntity cache) cache.setup(g.rank(), g.bossKind(), g.bossAscended(), level.getGameTime());
+            }
             // a chain of keyed runs pays a little more for each run in it, and so does a cave with weather
             float bonus = com.beyondsolo.key.KeyedRuns.bonus(g) * com.beyondsolo.depths.WeatherService.rewardBonus(g)
                     * com.beyondsolo.raid.Raids.rewardBonus(g);
