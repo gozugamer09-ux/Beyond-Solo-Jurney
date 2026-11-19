@@ -32,6 +32,7 @@ public final class QuestText {
             case GATE -> Icons.DIAMOND;
             case SECRET -> Icons.KEY;
             case ASSOCIATION -> Icons.ID_CARD;
+            case STORY -> Icons.HEART;
         };
     }
 

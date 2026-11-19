@@ -177,6 +177,8 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
                 && (hidden || server.random.nextFloat() < 0.5f)) {
             loot.add(new ItemStack(com.beyondsolo.manapoison.ManaPoisonModule.DRAUGHT.get(), hidden ? 2 : 1));
         }
+        // a high gate's hidden chamber keeps Elder Root Dew for the hunter looking for a cure
+        if (hidden) loot.addAll(com.beyondsolo.story.LongSleep.dew(server, worldPosition, rank));
         for (int i = 0; i < loot.size(); i++) {
             double a = i * Math.PI * 2 / loot.size() + server.random.nextDouble() * 0.4;
             ItemEntity item = new ItemEntity(server, x, y, z, loot.get(i).copy());

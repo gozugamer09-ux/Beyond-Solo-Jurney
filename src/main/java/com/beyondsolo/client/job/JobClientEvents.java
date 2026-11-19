@@ -55,9 +55,11 @@ public final class JobClientEvents {
         /** While the camera is away, only the cutscene's own layers are drawn. */
         @SubscribeEvent
         static void hideHud(RenderGuiLayerEvent.Pre event) {
-            if (!CutsceneCamera.active() && !JobRevealOverlay.active() && !com.beyondsolo.client.monarch.CoronationOverlay.active()) return;
+            if (!CutsceneCamera.active() && !JobRevealOverlay.active() && !com.beyondsolo.client.monarch.CoronationOverlay.active()
+                    && !com.beyondsolo.client.story.StoryOverlay.cinematic()) return;
             ResourceLocation name = event.getName();
             if (name.equals(TRIAL_LAYER) || name.equals(REVEAL_LAYER)) return;
+            if (com.beyondsolo.client.story.StoryClient.ownLayer(name)) return; // the story's lines
             if (com.beyondsolo.client.monarch.MonarchClientEvents.ownLayer(name)) return; // the throne's question and the coronation
             if (name.getPath().equals("gate_moments")) return; // camera shake and the boss intro title
             if (name.getPath().equals("penalty")) return; // the Penalty Zone's arrival card

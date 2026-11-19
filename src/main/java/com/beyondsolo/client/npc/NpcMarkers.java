@@ -245,6 +245,7 @@ public final class NpcMarkers {
                 case "break" -> 0xFFFF5D6C;
                 case "exam" -> SystemTheme.GOLD;
                 case "tip" -> 0xFFB98BFF;
+                case "home" -> 0xFFFFB38A;
                 default -> q.category().color();
             };
         }
@@ -262,6 +263,7 @@ public final class NpcMarkers {
                 case "exam" -> Icons.ID_CARD;
                 case "tip" -> Icons.COMPASS;
                 case "permit" -> Icons.FLAG;
+                case "home" -> Icons.HEART;
                 default -> Icons.SEAL;
             };
         }

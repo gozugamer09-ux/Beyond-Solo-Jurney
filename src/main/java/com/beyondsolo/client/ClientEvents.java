@@ -140,6 +140,7 @@ public final class ClientEvents {
         if (EvaluationOverlay.skip()) return;
         if (com.beyondsolo.client.job.JobRevealOverlay.skip()) return;
         if (com.beyondsolo.client.monarch.CoronationOverlay.skip()) return;
+        if (com.beyondsolo.client.story.StoryOverlay.skip()) return;
         if (QuestOverlay.skip()) return;
         if (com.beyondsolo.client.skill.SkillOverlay.skip()) return;
         if (com.beyondsolo.client.gate.GateOverlay.skip()) return;

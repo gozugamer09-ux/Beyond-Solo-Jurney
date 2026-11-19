@@ -392,6 +392,8 @@ public final class EvaluationManager {
             return;
         }
 
+        // the village of the first evaluation is home (the hunter's mother sleeps in one of its beds)
+        com.beyondsolo.story.Kin.evaluatedAt(player, s.crystal);
         Notifications.send(player, new SystemNotification(SystemNotification.Kind.LEVEL_UP,
                 Component.translatable("notify.beyondsolo.evaluated.title"),
                 Component.translatable("notify.beyondsolo.evaluated.body", rank.displayName(), playerClass.displayName()), 200));

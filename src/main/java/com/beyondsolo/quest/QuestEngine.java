@@ -125,7 +125,7 @@ public final class QuestEngine {
     /** Gives up an active quest. Story quests can't be abandoned; the rest fail with half their penalty. */
     public static boolean abandon(ServerPlayer player, UUID id) {
         Quest q = data(player).find(id);
-        if (q == null || !q.isTaken() || q.category() == QuestCategory.SET) return false;
+        if (q == null || !q.isTaken() || q.category() == QuestCategory.SET || q.category() == QuestCategory.STORY) return false;
         fail(player, q, QuestEvent.FailReason.ABANDONED);
         return true;
     }
@@ -339,6 +339,11 @@ public final class QuestEngine {
         }
         sync(player);
         if (quest.status() == Quest.Status.ACTIVE && quest.isComplete()) finish(player, quest);
+    }
+
+    /** Takes a quest away without it completing or failing (an operator command moving a story along). */
+    public static void drop(ServerPlayer player, Quest quest) {
+        if (data(player).all().remove(quest)) sync(player);
     }
 
     /** Wipes every quest and the quest line (used by /system reset). */

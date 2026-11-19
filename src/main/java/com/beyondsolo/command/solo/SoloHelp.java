@@ -119,6 +119,15 @@ final class SoloHelp {
                 new Line("mana crystal", "mana.crystal"),
                 new Line("mana crystals [player]", "mana.crystals"),
                 new Line("mana info [player]", "mana.info")));
+        TOPICS.put("story", List.of(
+                new Line("story info [player]", "story.info"),
+                new Line("story step untold|visit|visited|cure|brewed|awake [players]", "story.step"),
+                new Line("story souls <amount> [players]", "story.souls"),
+                new Line("story give dew|chalice|elixir|stew [players]", "story.give"),
+                new Line("story home [player]", "story.home"),
+                new Line("story mother [player]", "story.mother"),
+                new Line("story scene visit|waking|meal|reveal [player]", "story.scene"),
+                new Line("story reset [players]", "story.reset")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }
