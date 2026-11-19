@@ -121,7 +121,7 @@ public final class SkillAPI {
         if (!sys.isAwakened()) return learned;
         Subclass sub = JobAPI.subclass(player);
         for (Skill s : Skills.all()) {
-            if (!s.fits(sys.playerClass(), sub)) continue;
+            if (!s.fits(sys.playerClass(), sub) || !s.allows(player)) continue;
             int at = s.unlockLevel(sys.rank());
             if (at < 1 || at > sys.level() || knows(player, s)) continue;
             if (learn(player, s, 1, SkillEvent.Source.LEVEL)) learned.add(s);
@@ -160,11 +160,30 @@ public final class SkillAPI {
         SystemData sys = SystemAPI.get(player);
         Subclass sub = JobAPI.subclass(player);
         for (Skill s : new ArrayList<>(Skills.known(get(player)))) {
-            if (!s.fits(sys.playerClass(), sub)) get(player).forget(s.path());
+            if (!s.fits(sys.playerClass(), sub) || !s.allows(player)) get(player).forget(s.path());
         }
         SkillPassives.apply(player);
         sync(player);
         grantUnlocked(player);
+    }
+
+    /**
+     * After something a gated skill asks for came or went (a crown put on or taken off): forgets the gated skills the
+     * player no longer may hold and teaches the ones they now may. Returns what was learned.
+     */
+    public static List<Skill> refreshGated(ServerPlayer player) {
+        boolean forgot = false;
+        for (Skill s : new ArrayList<>(Skills.known(get(player)))) {
+            if (s.gated() && !s.allows(player)) {
+                get(player).forget(s.path());
+                forgot = true;
+            }
+        }
+        if (forgot) {
+            SkillPassives.apply(player);
+            sync(player);
+        }
+        return grantUnlocked(player);
     }
 
     // ---------- the skill bar ----------
@@ -201,6 +220,22 @@ public final class SkillAPI {
             return false;
         }
         long now = player.level().getGameTime();
+        // a second press while the first is still working (a hand still holding what it grabbed): free, no cooldown
+        if (skill.recast() != null) {
+            boolean taken;
+            SkillFx.beginCast(player, skill);
+            try {
+                taken = skill.recast().recast(player, skill, level);
+            } finally {
+                SkillFx.endCast();
+            }
+            if (taken) {
+                player.swing(InteractionHand.MAIN_HAND, true);
+                SkillFx.gesture(player, skill);
+                sync(player);
+                return true;
+            }
+        }
         if (data.cooldownLeft(skill.path(), now) > 0) {
             refuse(player, skill, SkillMomentPayload.COOLDOWN);
             return false;

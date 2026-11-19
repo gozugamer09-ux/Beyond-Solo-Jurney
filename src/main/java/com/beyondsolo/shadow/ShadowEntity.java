@@ -78,6 +78,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.32f, 0.2f, 0.55f), 0.9f);
 
     private @Nullable UUID recordId;
+    /** Where it stands guard, if it was left to (server side; the record keeps it too). */
+    private @Nullable Vec3 post;
     private int skillCooldown = 80;
     private int boltCooldown = 20;
     private float jumpPending;
@@ -125,6 +127,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         goalSelector.addGoal(2, new CasterGoal());
         goalSelector.addGoal(3, new MeleeGoal());
         goalSelector.addGoal(5, new FollowMasterGoal());
+        goalSelector.addGoal(5, new GuardPostGoal());
         goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 8f));
         goalSelector.addGoal(8, new RandomLookAroundGoal(this));
         targetSelector.addGoal(1, new MasterTargetGoal());
@@ -173,6 +176,14 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
     // ------------------------------------------------------------------ state
 
     public @Nullable UUID recordId() { return recordId; }
+    /** The spot it guards, or null while it follows its master. */
+    public @Nullable Vec3 post() { return post; }
+    public boolean posted() { return post != null; }
+    /** Leaves it to guard a spot (null: back to following its master). */
+    public void setPost(@Nullable Vec3 post) {
+        this.post = post;
+        if (post == null) getNavigation().stop();
+    }
     public String source() { return entityData.get(SOURCE); }
     public ShadowRank rank() { return ShadowRank.byOrdinal(entityData.get(RANK)); }
     public int shadowLevel() { return entityData.get(LEVEL); }
@@ -647,7 +658,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         @Override
         public boolean canUse() {
             ServerPlayer m = master();
-            if (m == null || isBusy() || m.isSpectator()) return false;
+            if (m == null || isBusy() || m.isSpectator() || post != null) return false;
             if (getTarget() != null && distanceToSqr(m) < 20 * 20) return false;
             return distanceToSqr(m) > (isMount() ? 4 * 4 : 5 * 5);
         }
@@ -655,7 +666,7 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         @Override
         public boolean canContinueToUse() {
             ServerPlayer m = master();
-            return m != null && !isBusy() && !getNavigation().isDone() && distanceToSqr(m) > 2.5 * 2.5
+            return m != null && post == null && !isBusy() && !getNavigation().isDone() && distanceToSqr(m) > 2.5 * 2.5
                     && (getTarget() == null || distanceToSqr(m) > 20 * 20);
         }
 
@@ -684,8 +695,59 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         }
     }
 
+    /** Stands at the spot it guards: walks back to it after a fight, slips through the dark when far from it. */
+    private final class GuardPostGoal extends Goal {
+        private int recompute;
+
+        GuardPostGoal() {
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > 2.5 * 2.5;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return post != null && !isBusy() && getTarget() == null && distanceToSqr(post) > 1.2 * 1.2;
+        }
+
+        @Override
+        public void start() {
+            recompute = 0;
+        }
+
+        @Override
+        public void stop() {
+            getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            Vec3 at = post;
+            if (at == null || --recompute > 0) return;
+            recompute = 10;
+            if (distanceToSqr(at) > GUARD_SLIP * GUARD_SLIP || getNavigation().isStuck()) {
+                ServerLevel level = (ServerLevel) level();
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 0.5, getZ(), 10, 0.3, 0.4, 0.3, 0.01);
+                teleportTo(at.x, at.y, at.z);
+                getNavigation().stop();
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 10, 0.3, 0.4, 0.3, 0.01);
+            } else {
+                getNavigation().moveTo(at.x, at.y, at.z, 1.1);
+            }
+        }
+    }
+
+    /** How far from its post a guard goes after something. */
+    public static final double GUARD_REACH = 14;
+    /** How far from its post a guard can be before it slips back through the dark. */
+    private static final double GUARD_SLIP = 24;
+
     /**
      * Picks what to fight: whatever hurt its master, then whatever its master hurt, then monsters near its master.
+     * A guard picks from around its post instead.
      */
     private final class MasterTargetGoal extends TargetGoal {
         private int scan;
@@ -711,6 +773,8 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         private @Nullable LivingEntity pick() {
             ServerPlayer m = master();
             if (m == null) return null;
+            Vec3 guard = post;
+            if (guard != null) return guarding(m, guard);
             LivingEntity by = m.getLastHurtByMob();
             if (canFight(by) && m.tickCount - m.getLastHurtByMobTimestamp() < 200) return by;
             LivingEntity hit = m.getLastHurtMob();
@@ -724,6 +788,19 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
             return level().getNearestEntity(Mob.class, cond, ShadowEntity.this, getX(), getY(), getZ(), getBoundingBox().inflate(12, 5, 12));
         }
 
+        /** What a guard fights: whatever hurts it, whatever hurts its master near the post, then monsters near the post. */
+        private @Nullable LivingEntity guarding(ServerPlayer m, Vec3 guard) {
+            double reach = GUARD_REACH * GUARD_REACH;
+            LivingEntity ownBy = getLastHurtByMob();
+            if (canFight(ownBy) && ownBy.distanceToSqr(guard) < reach) return ownBy;
+            LivingEntity by = m.getLastHurtByMob();
+            if (canFight(by) && m.tickCount - m.getLastHurtByMobTimestamp() < 200 && by.distanceToSqr(guard) < reach) return by;
+            TargetingConditions cond = TargetingConditions.forCombat().range(GUARD_REACH + 4).ignoreLineOfSight()
+                    .selector(e -> e instanceof Enemy && canFight(e) && e.distanceToSqr(guard) < reach);
+            return level().getNearestEntity(Mob.class, cond, ShadowEntity.this, guard.x, guard.y, guard.z,
+                    new net.minecraft.world.phys.AABB(guard, guard).inflate(GUARD_REACH, 6, GUARD_REACH));
+        }
+
         @Override
         public void start() {
             setTarget(targetMob);
@@ -734,7 +811,10 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         public boolean canContinueToUse() {
             LivingEntity t = getTarget();
             ServerPlayer m = master();
-            return !isBusy() && t != null && t.isAlive() && canFight(t) && m != null && t.distanceToSqr(m) < 28 * 28;
+            if (isBusy() || t == null || !t.isAlive() || !canFight(t) || m == null) return false;
+            Vec3 guard = post;
+            if (guard != null) return t.distanceToSqr(guard) < (GUARD_REACH + 6) * (GUARD_REACH + 6);
+            return t.distanceToSqr(m) < 28 * 28;
         }
     }
 }

@@ -102,7 +102,7 @@ public class SkillTomeItem extends Item {
             player.displayClientMessage(Component.translatable("skills.beyondsolo.tome.nothing"), true);
             return false;
         }
-        if (s.advanced() || !s.fits(sys.playerClass())) {
+        if (s.advanced() || !s.fits(sys.playerClass()) || !s.allows(player)) {
             player.displayClientMessage(Component.translatable("skills.beyondsolo.tome.wrong_class"), true);
             return false;
         }

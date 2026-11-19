@@ -117,6 +117,8 @@ public final class MonarchAPI {
         data.setCalled(true);
         MonarchPowers.grant(player, dominion);
         SkillPassives.apply(player);
+        // the Night's monarch raises shadows: the skills only shadow raisers hold come with it
+        com.beyondsolo.skill.SkillAPI.refreshGated(player);
         SystemAPI.setTitle(player, dominion.titleKey());
         com.beyondsolo.worldboss.MonarchArmor.retint(player);
         ShadowService.sync(player);
@@ -129,6 +131,7 @@ public final class MonarchAPI {
         get(player).crown(null, 0);
         MonarchPowers.forgetAll(player);
         SkillPassives.apply(player);
+        com.beyondsolo.skill.SkillAPI.refreshGated(player);
         com.beyondsolo.worldboss.MonarchArmor.retint(player);
         ShadowService.sync(player);
         sync(player);

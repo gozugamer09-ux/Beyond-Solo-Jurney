@@ -141,6 +141,10 @@ public final class SkillWorldFx {
                 case ROPE -> Math.max(0.4f, lasting);
                 case CLOUD -> Math.max(1f, lasting);
                 case BALL -> Math.max(0.1f, lasting) + 0.15f;
+                case GRASP -> Math.max(0.3f, lasting);
+                case HURL -> p.duration() > 0 ? lasting : 0.9f;
+                case FORCE -> 0.7f;
+                case EXCHANGE -> Math.max(0.6f, lasting);
             };
         }
     }
@@ -180,6 +184,16 @@ public final class SkillWorldFx {
             // one line of sight follows a hunter's gaze at a time, and a negative size only puts it out
             ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.SIGHT && f.p.entityId() == p.entityId() && f.p.size() < 0.5f);
             if (p.size() < -0.5f) return;
+        }
+        if (p.kind() == SkillFxPayload.Kind.GRASP) {
+            // one hand on a creature at a time: a new grip replaces the old one, and size 0 only takes it off
+            ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.GRASP && f.p.entityId() == p.entityId());
+            if (Math.abs(p.size()) < 0.05f) return;
+        }
+        if (p.kind() == SkillFxPayload.Kind.HURL && p.duration() == 0) {
+            // it came down: the air stops tearing round it, and size 0 was only that
+            ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.HURL && f.p.entityId() == p.entityId() && f.p.duration() > 0);
+            if (p.size() < 0.05f) return;
         }
         boolean settled = false;
         if (p.kind() == SkillFxPayload.Kind.QUIVER) {
@@ -455,8 +469,69 @@ public final class SkillWorldFx {
                     FxParticles.flash(p.x(), p.y() + 0.3, p.z(), 0.5f, 0xFFE8C0);
                 }
             }
+            case GRASP -> {
+                if (e == null) break;
+                if (p.size() > 0) {
+                    // torn off the ground: the dust it stood in, and the hand's light snapping shut round it
+                    FxParticles.dust(level, e.getX(), e.getY(), e.getZ(), 0.6f + e.getBbWidth() * 0.5f, 6, 0.3f);
+                    FxParticles.motesBurst(e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 10, 0.12f, c);
+                } else {
+                    // pressed into the ground
+                    float r = -p.size() * 1.5f;
+                    FxParticles.shockwave(e.getX(), e.getY(), e.getZ(), r * 1.4f, 12, pale, 0.7f);
+                    FxParticles.dust(level, e.getX(), e.getY(), e.getZ(), r, 10, 0.4f);
+                    SkillShake.hit(e.position(), 0.3f, 18, SkillShake.SLAM);
+                }
+            }
+            case HURL -> {
+                if (p.duration() > 0) {
+                    // thrown: a clap of air where it leaves the hand
+                    if (e != null) FxParticles.smokeRing(e.getX(), e.getY() + e.getBbHeight() * 0.5, e.getZ(), 10, 0xDDE6F2, 0.3f, 0.22f);
+                    break;
+                }
+                Vec3 at = fx.target();
+                slamBurst(level, at, 1f + p.size() * 0.8f, c, 0.4f + 0.3f * p.size());
+                SkillShake.hit(at, 0.18f + 0.1f * p.size(), 22, SkillShake.SLAM);
+            }
+            case FORCE -> {
+                // the ground under the push gives up its dust, motes are blown on ahead of it
+                Vec3 dir = fx.target().subtract(o);
+                dir = dir.lengthSqr() < 1.0e-4 ? Vec3.directionFromRotation(0, fx.yaw) : dir.normalize();
+                FxParticles.dust(level, o.x + dir.x * 1.5, o.y, o.z + dir.z * 1.5, 1.2f, 8, 0.32f);
+                for (int i = 0, n = FxParticles.count(14); i < n; i++) {
+                    double sp = 0.35 + FxParticles.RANDOM.nextDouble() * 0.3;
+                    Vec3 v = dir.add(rnd(0.35), rnd(0.2), rnd(0.35)).normalize().scale(sp);
+                    FxParticles.add(FxParticles.Tex.HOT, o.x + dir.x * 0.8, o.y + 1.2 + rnd(0.3), o.z + dir.z * 0.8, v.x, v.y, v.z)
+                            .life(FxParticles.rf(10, 18)).size(0.07f, 0.02f).color(0xFFFFFF, c).alpha(0.9f).fade(0.05f, 0.4f).drag(0.9f);
+                }
+                SkillShake.hit(o, 0.16f, 14, SkillShake.BLAST);
+            }
+            case EXCHANGE -> {
+                // the dark breaks open: smoke rolling up out of the pool, wisps of the colour
+                Vec3 at = fx.target();
+                FxParticles.smoke(at.x, at.y + 0.4, at.z, p.size() * 0.5, 12, 0x140C22, 0.55f, 0.05f);
+                FxParticles.wisps(at.x, at.y + 0.6, at.z, p.size() * 0.5, 10, c, 0.28f);
+                SkillShake.hit(at, 0.12f, 10, SkillShake.SWEEP);
+            }
             default -> {}
         }
+    }
+
+    /** The holder of a {@link SkillFxPayload.Kind#GRASP}: their entity id, split over x (high bits) and y (low twelve). */
+    static int holderId(SkillFxPayload p) {
+        return ((int) p.x() << 12) | ((int) p.y() & 0xFFF);
+    }
+
+    /** Where a hand reaching out is: the right hand thrust forward, or in the hunter's own view low right of the eye. */
+    private static Vec3 handOf(Entity holder, float partial, boolean ownView, Camera camera) {
+        if (ownView) {
+            Vec3 look = new Vec3(camera.getLookVector()), up = new Vec3(camera.getUpVector()), left = new Vec3(camera.getLeftVector());
+            return camera.getPosition().add(look.scale(0.7)).subtract(left.scale(0.32)).subtract(up.scale(0.26));
+        }
+        float yaw = bodyYaw(holder, partial) * Mth.DEG_TO_RAD;
+        Vec3 fwd = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
+        Vec3 right = new Vec3(-Mth.cos(yaw), 0, -Mth.sin(yaw));
+        return holder.getPosition(partial).add(0, holder.getBbHeight() * 0.74, 0).add(right.scale(0.36)).add(fwd.scale(0.6));
     }
 
     /**
@@ -774,6 +849,41 @@ public final class SkillWorldFx {
                     if (RANDOM.nextFloat() > 0.15f || self) break;
                     Vec3 cc = e != null ? e.position() : target;
                     FxParticles.sparks(cc.x + rnd(0.4), cc.y + RANDOM.nextDouble() * (e != null ? e.getBbHeight() : 1), cc.z + rnd(0.4), 1, 0.15f, c, 0.01f);
+                }
+                case GRASP -> {
+                    if (e == null) break;
+                    if (p.size() > 0) {
+                        // the hand's light drawn in round it, bits of earth falling off it
+                        if (RANDOM.nextFloat() < 0.35f) {
+                            double a = RANDOM.nextDouble() * Math.PI * 2, b = (RANDOM.nextDouble() - 0.5) * Math.PI;
+                            double r = p.size() * 1.7;
+                            Vec3 mid = e.position().add(0, e.getBbHeight() * 0.5, 0);
+                            Vec3 from = mid.add(Math.cos(a) * Math.cos(b) * r, Math.sin(b) * r, Math.sin(a) * Math.cos(b) * r);
+                            Vec3 v = mid.subtract(from).scale(0.07);
+                            FxParticles.add(FxParticles.Tex.HOT, from.x, from.y, from.z, v.x, v.y, v.z)
+                                    .life(FxParticles.rf(10, 14)).size(0.06f, 0.02f).color(0xFFFFFF, c).alpha(0.85f).fade(0.2f, 0.3f);
+                        }
+                        if (RANDOM.nextFloat() < 0.12f) FxParticles.dust(level, e.getX() + rnd(0.3), e.getY(), e.getZ() + rnd(0.3), 0.2f, 1, 0.18f);
+                    } else if (RANDOM.nextFloat() < 0.3f) {
+                        double a = RANDOM.nextDouble() * Math.PI * 2;
+                        double r = -p.size() * 1.5;
+                        FxParticles.dust(level, e.getX() + Math.cos(a) * r, e.getY(), e.getZ() + Math.sin(a) * r, 0.4f, 1, 0.3f);
+                    }
+                }
+                case HURL -> {
+                    if (p.duration() <= 0 || e == null || RANDOM.nextFloat() > 0.6f) break;
+                    // the air it tears through, left behind it
+                    FxParticles.add(FxParticles.Tex.SMOKE, e.getX() + rnd(0.3), e.getY() + e.getBbHeight() * 0.5 + rnd(0.3), e.getZ() + rnd(0.3), 0, 0.01, 0)
+                            .frame(RANDOM.nextInt(16)).blend().life(FxParticles.rf(8, 14)).size(0.3f, 0.7f).color(mix(c, 0xEEF2F6, 0.75f))
+                            .alpha(0.3f).fade(0.05f, 0.5f).drag(0.9f);
+                }
+                case EXCHANGE -> {
+                    if (RANDOM.nextFloat() > 0.45f) break;
+                    double a = RANDOM.nextDouble() * Math.PI * 2;
+                    double r = Math.sqrt(RANDOM.nextDouble()) * p.size() * 0.8;
+                    FxParticles.add(FxParticles.Tex.SMOKE, target.x + Math.cos(a) * r, target.y + 0.1, target.z + Math.sin(a) * r, 0, 0.06, 0)
+                            .frame(RANDOM.nextInt(16)).blend().life(FxParticles.rf(14, 22)).size(0.3f, 0.7f).color(0x120A1C)
+                            .alpha(0.55f).fade(0.1f, 0.5f).drag(0.94f);
                 }
                 case UPDRAFT -> {
                     if (RANDOM.nextFloat() > 0.5f) break;
@@ -2408,6 +2518,205 @@ public final class SkillWorldFx {
                         spark(pose, buffers, camera, at, p1, p2, arcs.nextLong(), 0.09f, c, seen);
                     }
                     dot(pose, buffers, camera, 0, tall * 0.5f, 0, rad * 1.6f, c, seen * (0.1f + 0.05f * Mth.sin(time * 0.7f)));
+                }
+                case GRASP -> {
+                    if (e == null) break;
+                    float h = e.getBbHeight();
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    // the hand closes in a fifth of a second, and opens again only by letting go
+                    float close = SkinFx.easeOut(Mth.clamp(age / 0.22f, 0, 1));
+                    float a = Mth.clamp(age / 0.1f, 0, 1) * Mth.clamp((life - age) / 0.25f, 0, 1);
+                    Entity holder = mc.level.getEntity(holderId(p));
+                    Vec3 up = new Vec3(0, 1, 0);
+                    if (p.size() > 0) {
+                        Vec3 mid = new Vec3(0, h * 0.5, 0);
+                        Vec3 toward = holder != null ? holder.getPosition(partial).subtract(at) : Vec3.directionFromRotation(0, fx.yaw).scale(-1);
+                        Vec3 f = new Vec3(toward.x, 0, toward.z);
+                        f = f.lengthSqr() < 1.0e-4 ? new Vec3(0, 0, 1) : f.normalize();
+                        Vec3 side = f.cross(up);
+                        float r = p.size() * 1.08f;
+                        // the hold: a shell of force it hangs in, churning
+                        Skins.sphere(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WIND), mid, r * (0.92f + 0.08f * close), 10, 18, a * 0.3f, glow,
+                                time * 0.01f, 2, -time * 0.013f, 1, 0.9f);
+                        // four fingers curl from the palm (the holder's side) over and round it, the thumb comes up from under it
+                        for (int i = 0; i < 5; i++) {
+                            boolean thumb = i == 4;
+                            float beta = (thumb ? 180 : -40 + i * 26.7f) * Mth.DEG_TO_RAD;
+                            float curl = thumb ? 115 : 205;
+                            Vec3 w = up.scale(Mth.cos(beta)).add(side.scale(Mth.sin(beta)));
+                            int n = 12;
+                            Vec3[] pts = new Vec3[n + 1];
+                            float[] wd = new float[n + 1], al = new float[n + 1], core = new float[n + 1];
+                            for (int j = 0; j <= n; j++) {
+                                float k = j / (float) n;
+                                float phi = (-20 + (curl + 20) * k * close) * Mth.DEG_TO_RAD;
+                                float rr = r * (1.04f + 0.05f * Mth.sin(time * 0.35f + i * 1.7f + k * 4));
+                                pts[j] = mid.add(f.scale(Mth.cos(phi) * rr)).add(w.scale(Mth.sin(phi) * rr));
+                                wd[j] = r * (0.24f - 0.13f * k) * (thumb ? 1.15f : 1f);
+                                core[j] = wd[j] * 0.32f;
+                                al[j] = a * (1 - 0.35f * k);
+                            }
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), pts, wd, al, body, time * 0.02f + i * 0.31f, 1.4f);
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, glow, 0, 0);
+                        }
+                        Vec3 palm = mid.add(f.scale(r));
+                        dot(pose, buffers, camera, (float) palm.x, (float) palm.y, (float) palm.z, r * 0.8f, c, a * 0.4f);
+                        // the arm of force: from the holder's hand out to the palm, ripples running down it
+                        if (holder != null) {
+                            Vec3 hand = handOf(holder, partial, holder == mc.player && firstPerson, camera).subtract(at);
+                            Vec3 run = palm.subtract(hand);
+                            double len = run.length();
+                            if (len > 0.3) {
+                                Vec3 d = run.scale(1 / len);
+                                Vec3 s1 = d.cross(up);
+                                s1 = s1.lengthSqr() < 1.0e-4 ? new Vec3(1, 0, 0) : s1.normalize();
+                                Vec3 s2 = d.cross(s1);
+                                int n = 18;
+                                Vec3[] pts = new Vec3[n + 1];
+                                float[] wd = new float[n + 1], al = new float[n + 1], core = new float[n + 1];
+                                for (int j = 0; j <= n; j++) {
+                                    float k = j / (float) n;
+                                    float wave = Mth.sin(k * 9 - time * 0.9f) * 0.07f * Mth.sin(Mth.PI * k);
+                                    pts[j] = hand.add(run.scale(k * close)).add(s1.scale(wave)).add(s2.scale(wave * 0.6f));
+                                    wd[j] = 0.08f + 0.14f * k * k + 0.04f * k * Mth.sin(k * 14 - time * 1.2f);
+                                    core[j] = wd[j] * 0.35f;
+                                    // fading in from the hand, so it does not sit on the hunter's own fist as a blot
+                                    al[j] = a * 0.75f * Mth.clamp(k * 4, 0, 1);
+                                }
+                                Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), pts, wd, al, body, -time * 0.05f, 1.2f);
+                                Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, glow, 0, 0);
+                            }
+                        }
+                    } else {
+                        // pinned: a hand pressing down from above, its fingers spread down to the ground round it
+                        float r = -p.size() * 1.5f;
+                        Vec3 palm = new Vec3(0, h + 0.7 + 0.7 * (1 - close), 0);
+                        pose.pushPose();
+                        pose.translate(palm.x, palm.y, palm.z);
+                        pose.mulPose(Axis.XP.rotationDegrees(90));
+                        Skins.disk(pose, buffers, ModRenderTypes.energy(Skins.PLASMA), r * 0.55f, body, a * 0.75f, 0.25f, 1.5f, time * 0.01f, 0);
+                        pose.popPose();
+                        for (int i = 0; i < 5; i++) {
+                            float th = (i * 72 + (fx.seed & 63)) * Mth.DEG_TO_RAD;
+                            Vec3 spread = new Vec3(Mth.cos(th), 0, Mth.sin(th));
+                            Vec3 foot = spread.scale(r).add(0, 0.05, 0);
+                            int n = 10;
+                            Vec3[] pts = new Vec3[n + 1];
+                            float[] wd = new float[n + 1], al = new float[n + 1], core = new float[n + 1];
+                            for (int j = 0; j <= n; j++) {
+                                float k = j / (float) n * close;
+                                pts[j] = palm.add(spread.scale(r * 0.3f)).lerp(foot, k).add(spread.scale(Mth.sin(Mth.PI * k) * r * 0.45f));
+                                wd[j] = r * (0.2f - 0.1f * k);
+                                core[j] = wd[j] * 0.32f;
+                                al[j] = a;
+                            }
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), pts, wd, al, body, time * 0.02f + i * 0.4f, 1.4f);
+                            Skins.ribbon(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), pts, core, al, glow, 0, 0);
+                        }
+                        // where they press: a line of force round it on the ground
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.05, 0), r, 0.18f, glow,
+                                a * (0.6f + 0.2f * Mth.sin(time * 0.8f)), time * 0.02f, 3);
+                    }
+                }
+                case HURL -> {
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    if (p.duration() > 0) {
+                        if (e == null) break;
+                        Vec3 v = new Vec3(e.getX() - e.xo, e.getY() - e.yo, e.getZ() - e.zo);
+                        double sp = v.length();
+                        if (sp < 0.08) break;
+                        Vec3 dir = v.scale(1 / sp);
+                        float w = Math.max(0.5f, p.size());
+                        float a = Mth.clamp(age / 0.08f, 0, 1);
+                        Vec3 mid = new Vec3(0, e.getBbHeight() * 0.5, 0);
+                        Vec3 tail = mid.subtract(dir.scale(Math.min(7, 1.2 + sp * 3.5)));
+                        Vec3 nose = mid.add(dir.scale(w * 0.55f));
+                        // the air torn open round it, wide behind it
+                        Skins.tube(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WIND), nose, tail, 12, 6, k -> w * (0.5f + 0.55f * k), k -> 1 - k,
+                                a * 0.55f, glow, time * 0.04f, 1, 0.6f, -time * 0.25f, 0.6f, 0.7f);
+                        // the trail of force it drags after it
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.PLASMA), mid, tail, 8, w * 0.75f, k -> 1 - 0.7f * k, a * 0.8f,
+                                k -> 1 - k, body, -time * 0.05f, 1f);
+                        Skins.line(pose, buffers, camera, at, ModRenderTypes.energy(Skins.BEAM), mid, mid.lerp(tail, 0.75), 6, w * 0.28f, Skins.FLAT, a,
+                                k -> 1 - k, 0xFFFFFF, 0, 0);
+                    } else {
+                        // the crash: a blow of light, and the air it throws out
+                        Vec3 hit = fx.target().subtract(at);
+                        float size = 0.7f + p.size() * 0.55f;
+                        impact(pose, buffers, camera, at, hit, age, fx, size, 1f);
+                        if (age < 0.6f) SkinFx.shells(pose, buffers, camera, at, hit, size * 2.2f, age, 2, 0.08f, fx.look, c, 0.8f);
+                    }
+                }
+                case FORCE -> {
+                    // out of the caster's hands to where it ends: a funnel of force, and ripples running out along it
+                    Vec3 hand = (e != null ? e.getPosition(partial).add(0, e.getBbHeight() * 0.62, 0) : fx.origin.add(0, 1.2, 0)).subtract(at);
+                    Vec3 run = fx.target().subtract(at).subtract(hand);
+                    double len = run.length();
+                    if (len < 0.5) break;
+                    Vec3 dir = run.scale(1 / len);
+                    float reach = p.size();
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    float k0 = SkinFx.easeOut(Mth.clamp(age / 0.45f, 0, 1));
+                    float a = 1 - Mth.clamp((age - 0.2f) / 0.5f, 0, 1);
+                    Vec3 start = hand.add(dir.scale(0.6));
+                    Vec3 head = start.add(dir.scale((len - 0.6) * k0));
+                    Skins.tube(pose, buffers, camera, at, ModRenderTypes.energy(Skins.WIND), start, head, 14, 8, q -> 0.25f + reach * 0.3f * q * k0,
+                            q -> Mth.sin(Mth.PI * Math.min(1, 0.15f + q)), a * 0.5f * (self ? 0.5f : 1f), glow, time * 0.03f, 2, 0.4f, -time * 0.3f, 0.4f, 0.8f);
+                    for (int i = 0; i < 3; i++) {
+                        float q = Mth.clamp((age - i * 0.08f) / 0.42f, 0, 1);
+                        if (q <= 0 || q >= 1) continue;
+                        float o = SkinFx.easeOut(q);
+                        Vec3 cpos = start.add(dir.scale((len - 0.6) * o));
+                        float rad = 0.35f + reach * 0.3f * o;
+                        pose.pushPose();
+                        pose.translate(cpos.x, cpos.y, cpos.z);
+                        // turned to face the way it runs
+                        pose.mulPose(new Quaternionf().rotationTo(0, 1, 0, (float) dir.x, (float) dir.y, (float) dir.z));
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), Vec3.ZERO, rad, 0.1f + rad * 0.1f, glow, (1 - q) * 0.9f, time * 0.03f, 2);
+                        Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.WIND), Vec3.ZERO, rad * 0.8f, rad * 0.45f, body, (1 - q) * 0.45f, -time * 0.02f, 2);
+                        pose.popPose();
+                    }
+                }
+                case EXCHANGE -> {
+                    // a pool of shadow on the ground, its rim burning, tendrils of it licking up and a dark column where a
+                    // body goes down into it and another comes up out of it
+                    Vec3 base = fx.target();
+                    Vec3 g = base.subtract(at);
+                    pose.pushPose();
+                    pose.translate(g.x, g.y, g.z);
+                    float r = p.size();
+                    float open = SkinFx.easeOut(Mth.clamp(age / 0.18f, 0, 1));
+                    float shut = Mth.clamp((life - age) / 0.35f, 0, 1);
+                    float a = open * shut;
+                    int body = fx.look.body(c), glow = fx.look.light(c);
+                    pose.pushPose();
+                    pose.translate(0, 0.03, 0);
+                    pose.mulPose(Axis.XP.rotationDegrees(90));
+                    Skins.disk(pose, buffers, ModRenderTypes.energy(Skins.PLASMA), r * open * (0.85f + 0.15f * shut), body, a * 0.95f, 0.6f, 2f,
+                            time * 0.01f, -time * 0.007f);
+                    pose.popPose();
+                    Skins.ring(pose, buffers, ModRenderTypes.energy(Skins.BEAM), new Vec3(0, 0.05, 0), r * open, 0.16f, glow, a * 0.8f, time * 0.02f, 3);
+                    RandomSource rs = RandomSource.create(fx.seed);
+                    for (int i = 0; i < 7; i++) {
+                        double ang = rs.nextDouble() * Math.PI * 2;
+                        double rad = r * (0.25 + rs.nextDouble() * 0.6);
+                        float tall = (1.1f + rs.nextFloat() * 1.3f) * open * (0.4f + 0.6f * shut);
+                        float sway = rs.nextFloat() * 6;
+                        int n = 8;
+                        Vec3[] pts = new Vec3[n + 1];
+                        float[] wd = new float[n + 1], al = new float[n + 1];
+                        for (int j = 0; j <= n; j++) {
+                            float k = j / (float) n;
+                            double bend = Mth.sin(time * 0.2f + sway + k * 3) * 0.12 * k;
+                            pts[j] = new Vec3(Math.cos(ang) * rad * (1 - 0.3 * k) + bend, k * tall, Math.sin(ang) * rad * (1 - 0.3 * k) - bend);
+                            wd[j] = 0.18f * (1 - k) + 0.02f;
+                            al[j] = a * (1 - k);
+                        }
+                        Skins.ribbon(pose, buffers, camera, base, ModRenderTypes.energy(Skins.PLASMA), pts, wd, al, body, time * 0.03f + i, 1f);
+                    }
+                    Skins.tube(pose, buffers, camera, base, ModRenderTypes.energy(Skins.WIND), Vec3.ZERO, new Vec3(0, 2.2 * open, 0), 12, 6,
+                            q -> r * (0.55f - 0.3f * q), q -> 1 - q, a * 0.55f, body, time * 0.02f, 1, 0.3f, time * 0.15f, 0.5f, 0.6f);
+                    pose.popPose();
                 }
                 case VEIL -> {
                     // the shadow itself: dark smoke rolling off where they stood, and a dark breath running out over the ground

@@ -44,6 +44,8 @@ ICONS = {
     "skill_pulse_scan": "broadcast",
     "skill_appraising_gaze": "magnifying-glass",
     "skill_phantom_shroud": "ghost",
+    "skill_sovereign_hand": "hand-grabbing",
+    "skill_umbral_exchange": "arrows-left-right",
     "skill_unbroken_will": "barbell",
     "skill_mana_flow": "waves",
     "skill_rending_arc": "axe",

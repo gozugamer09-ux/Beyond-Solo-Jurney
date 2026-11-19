@@ -36,6 +36,14 @@ public final class Skills {
             (l, t) -> a(f(l * 3)));
     public static final Skill MANA_FLOW = passive("mana_flow", null, PlayerRank.D, 8, 0x6FA8FF,
             (l, t) -> a(f(SkillActions.manaFlow(l))));
+    /** Telekinesis: take a creature and hold it, then hurl it (the second press); pin what is too big; shove the rest. */
+    public static final Skill SOVEREIGN_HAND = active("sovereign_hand", null, PlayerRank.B, 30, 0x9CB8FF, 18, 260, 140,
+            SovereignHand::cast, (l, t) -> a(f(SovereignHand.reach(l)), f(SovereignHand.holdSeconds(l)), f(SovereignHand.hurlDamage(l, t))))
+            .recast(SovereignHand::hurl, SovereignHand.BUFF_HOLD);
+    /** Trade places with one of your shadows, however far away it stands guard. Only for those who raise shadows. */
+    public static final Skill UMBRAL_EXCHANGE = active("umbral_exchange", null, PlayerRank.A, 22, 0x7A5CFF, 25, 700, 240,
+            UmbralExchange::cast, (l, t) -> a(f(UmbralExchange.sight(l))))
+            .gate(com.beyondsolo.shadow.ShadowService::canRaise);
 
     // ---------------------------------------------------------------- warrior
     public static final Skill RENDING_ARC = active("rending_arc", PlayerClass.WARRIOR, PlayerRank.E, 1, 0xFF7A5C, 10, 120, 60,
@@ -153,6 +161,8 @@ public final class Skills {
         PHANTOM_SHROUD.element(SkillElement.SHADOW);
         UNBROKEN_WILL.element(SkillElement.EARTH);
         MANA_FLOW.element(SkillElement.WATER);
+        SOVEREIGN_HAND.element(SkillElement.ARCANE);
+        UMBRAL_EXCHANGE.element(SkillElement.SHADOW);
         RENDING_ARC.element(SkillElement.PHYSICAL);
         WAR_CRY.element(SkillElement.FIRE);
         BATTLE_HARDENED.element(SkillElement.PHYSICAL);
@@ -214,13 +224,14 @@ public final class Skills {
     }
 
     /**
-     * Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts (see {@link #runeArts}) and the
-     * monarch powers (see {@link #monarchPowers}) are not listed.
+     * Skills a class can ever hold: the shared ones and its own, advanced last. Rune arts (see {@link #runeArts}), the
+     * monarch powers (see {@link #monarchPowers}) and skills only some players may hold ({@link Skill#gated()}, such as
+     * the shadow raisers' Umbral Exchange) are not listed.
      */
     public static List<Skill> forClass(PlayerClass c) {
         List<Skill> out = new ArrayList<>();
-        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune() && !s.monarch()) out.add(s);
-        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune() && !s.monarch()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && !s.advanced() && s.subclass() == null && !s.rune() && !s.monarch() && !s.gated()) out.add(s);
+        for (Skill s : ALL.values()) if (s.fits(c) && s.advanced() && s.subclass() == null && !s.rune() && !s.monarch() && !s.gated()) out.add(s);
         return out;
     }
 

@@ -181,7 +181,26 @@ public record SkillFxPayload(int entityId, Kind kind, int color, float x, float 
         /** A ball of lightning drifting from the entity to (x,y,z) in {@code duration} ticks; size = its radius. */
         BALL,
         /** Arcs of electricity crawling over the entity, or around (x,y,z) without one, for {@code duration} ticks; size = how far they reach. */
-        STATIC
+        STATIC,
+        /**
+         * A hand nobody can see closed round the entity for {@code duration} ticks, a tether of force running to it from
+         * the hand of the one holding it (x and y = the holder's entity id: x its high bits, y its low twelve, so floats
+         * carry it exactly); size = the grip's radius. A negative size presses the entity down (a pin) instead of lifting
+         * it. A new one replaces the old one, and size 0 only takes it away.
+         */
+        GRASP,
+        /**
+         * A creature thrown by force. With a {@code duration}: the air tearing round it as it flies, that long at most
+         * (size = its width). Duration 0 ends that: it crashes at (x,y,z), size = how hard (0: it only falls).
+         */
+        HURL,
+        /** A wave of raw force rolling out of the caster's hand to (x,y,z); size = how far it reaches. */
+        FORCE,
+        /**
+         * A pool of shadow opening on the ground at (x,y,z), dark shapes sinking into it and rising out of it: the two
+         * ends of a trade of places through the dark; size = its radius.
+         */
+        EXCHANGE
     }
 
     /** The species a {@link Kind#BEAST} can be. */

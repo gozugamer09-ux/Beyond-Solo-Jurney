@@ -65,6 +65,8 @@ public class SkillsTab implements SystemTab {
         // after the job change: the subclass's own skills
         com.beyondsolo.job.Subclass sub = com.beyondsolo.client.job.JobClient.subclass();
         if (sub != null) list.addAll(Skills.forSubclass(sub));
+        // the skills only shadow raisers hold
+        if (com.beyondsolo.client.shadow.ShadowClient.canRaise()) list.add(Skills.UMBRAL_EXCHANGE);
         // skills from another class (e.g. before a job change) still show while known
         for (Skill s : ClientSkills.known()) if (!list.contains(s)) list.add(s);
         return list;

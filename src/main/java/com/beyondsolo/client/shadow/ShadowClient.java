@@ -27,6 +27,13 @@ public final class ShadowClient {
     public static List<ShadowRecord> shadows() { return SHADOWS; }
     public static boolean isActive(UUID id) { return ACTIVE.contains(id); }
     public static int activeCount() { return ACTIVE.size(); }
+
+    /** The master's places for shadows out that are taken: those out, and the guards away at their posts. */
+    public static int used() {
+        int n = ACTIVE.size();
+        for (ShadowRecord r : SHADOWS) if (r.posted() && !ACTIVE.contains(r.id())) n++;
+        return n;
+    }
     public static int capacity() { return cap; }
     public static int limit() { return limit; }
     public static boolean canRaise() { return canRaise; }

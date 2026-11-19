@@ -84,7 +84,7 @@ public class ShadowsTab implements SystemTab {
         float hx = x + 2;
         SysFont.spaced(g, Component.translatable("shadows.beyondsolo.army").getString(), hx, y + 1, 6.2f, 0xFFB79CFF, true, 1.3f, 0f);
         String counts = Component.translatable("shadows.beyondsolo.counts", all.size(), ShadowClient.capacity(),
-                ShadowClient.activeCount(), ShadowClient.limit()).getString();
+                ShadowClient.used(), ShadowClient.limit()).getString();
         SysFont.draw(g, counts, x + LIST_W, y + 1, 6.2f, SystemTheme.TEXT_SOFT, false, 1f);
 
         if (all.isEmpty()) {
@@ -133,7 +133,10 @@ public class ShadowsTab implements SystemTab {
             // status
             String status;
             int sc;
-            if (ShadowClient.isActive(r.id())) {
+            if (r.posted()) {
+                status = Component.translatable("shadows.beyondsolo.on_guard").getString();
+                sc = ShadowClient.isActive(r.id()) ? SystemTheme.GOLD : Gfx.mix(SystemTheme.GOLD, 0xFF808080, 0.4f);
+            } else if (ShadowClient.isActive(r.id())) {
                 status = Component.translatable("shadows.beyondsolo.out").getString();
                 sc = SystemTheme.GOOD;
             } else if (r.recovering(now)) {
@@ -234,7 +237,13 @@ public class ShadowsTab implements SystemTab {
         float sx = tx;
         sx += stat(g, sx, cy, Icons.HEART, SkillActions.f(ShadowService.maxHealth(r, master)), SystemTheme.HP_B) + 4;
         sx += stat(g, sx, cy, Icons.FLAME, SkillActions.f(ShadowService.damage(r, master)), 0xFFFFB070) + 4;
-        stat(g, sx, cy, Icons.MEDAL, Component.translatable("shadows.beyondsolo.kills", r.kills()).getString(), SystemTheme.GOLD);
+        // big health pools and long words: the kills go under the others when the row runs out
+        String kills = Component.translatable("shadows.beyondsolo.kills", r.kills()).getString();
+        if (sx + statWidth(kills) > tx + tw) {
+            sx = tx;
+            cy += 12;
+        }
+        stat(g, sx, cy, Icons.MEDAL, kills, SystemTheme.GOLD);
         cy += 15;
 
         // what it does
@@ -245,6 +254,28 @@ public class ShadowsTab implements SystemTab {
             SysFont.draw(g, lines.get(i), px, dy, SystemTheme.TEXT_SOFT, 0f);
             dy += 6.6f * SysFont.LINE;
         }
+        // standing guard: where, and how far
+        if (r.posted()) {
+            dy += 2;
+            Minecraft mc = Minecraft.getInstance();
+            Component where;
+            if (mc.player != null && mc.level != null && r.postedIn(mc.level.dimension())) {
+                where = Component.translatable("shadows.beyondsolo.guarding", Math.round(Math.sqrt(mc.player.distanceToSqr(r.post()))));
+            } else {
+                where = Component.translatable("shadows.beyondsolo.guarding.elsewhere");
+            }
+            // two lines above the buttons: a smaller hand when a language needs more
+            float gs = 6.4f;
+            List<SysFont.Line> gl = SysFont.wrap(where, gs, false, pw);
+            if (gl.size() > 2) {
+                gs = 5.6f;
+                gl = SysFont.wrap(where, gs, false, pw);
+            }
+            for (int i = 0; i < Math.min(2, gl.size()); i++) {
+                SysFont.draw(g, gl.get(i), px, dy, SystemTheme.GOLD, 0f);
+                dy += gs * SysFont.LINE;
+            }
+        }
 
         // buttons
         float bY = y + h - 20;
@@ -254,6 +285,9 @@ public class ShadowsTab implements SystemTab {
         if (out) bx2 += button(g, bx2, bY, "shadows.beyondsolo.btn.dismiss", ShadowActionPayload.DISMISS, r, 0xFF9B7BE0, true, mouseX, mouseY) + 4;
         else bx2 += button(g, bx2, bY, "shadows.beyondsolo.btn.summon", ShadowActionPayload.SUMMON, r, 0xFFB79CFF, !recovering, mouseX, mouseY) + 4;
         if (r.isMount()) bx2 += button(g, bx2, bY, "shadows.beyondsolo.btn.ride", ShadowActionPayload.RIDE, r, 0xFF6FA0FF, !recovering, mouseX, mouseY) + 4;
+        // leave it to guard where it stands, or take it off its post
+        else if (r.posted()) bx2 += button(g, bx2, bY, "shadows.beyondsolo.btn.unpost", ShadowActionPayload.UNPOST, r, SystemTheme.GOLD, true, mouseX, mouseY) + 4;
+        else if (out) bx2 += button(g, bx2, bY, "shadows.beyondsolo.btn.post", ShadowActionPayload.POST, r, SystemTheme.GOLD, true, mouseX, mouseY) + 4;
         boolean armed = r.id().equals(releaseArmed) && Anim.since(releaseArmedAt) < 3;
         float rw = buttonWidth(armed ? "shadows.beyondsolo.btn.confirm" : "shadows.beyondsolo.btn.release");
         button(g, x + w - 10 - rw, bY, armed ? "shadows.beyondsolo.btn.confirm" : "shadows.beyondsolo.btn.release",
@@ -281,9 +315,12 @@ public class ShadowsTab implements SystemTab {
         }
     }
 
+    private static float statWidth(String text) {
+        return SysFont.width(text, 6.5f, true) + 17;
+    }
+
     private static float stat(GuiGraphics g, float x, float y, net.minecraft.resources.ResourceLocation icon, String text, int color) {
-        float tw = SysFont.width(text, 6.5f, true);
-        float w = tw + 17;
+        float w = statWidth(text);
         Shapes.pill(x, y, w, 10).fill(Gfx.alpha(color, 0.1f)).border(0.6f, Gfx.alpha(color, 0.5f)).draw(g);
         Shapes.icon(icon, x + 6, y + 5, 7).fill(color).draw(g);
         SysFont.draw(g, text, x + 11.5f, SysFont.centerY(y, 10, 6.5f), 6.5f, Gfx.mix(color, 0xFFFFFFFF, 0.3f), true, 0f);

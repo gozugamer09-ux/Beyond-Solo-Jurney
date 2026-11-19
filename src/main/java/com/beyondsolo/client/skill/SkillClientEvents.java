@@ -103,6 +103,12 @@ public final class SkillClientEvents {
         Skill s = ClientSkills.slot(slot);
         if (s == null || mc.player == null || !ClientSystemData.get().isAwakened()) return;
         int level = ClientSkills.data().level(s.path());
+        // the second press of a skill still working (a hand holding what it grabbed): no cooldown or mana to check
+        if (recasting(s)) {
+            SkillBar.casted(slot);
+            PacketDistributor.sendToServer(new SkillActionPayload(SkillActionPayload.CAST, slot, ""));
+            return;
+        }
         if (ClientSkills.cooldownFraction(s, 0) > 0) {
             SkillOverlay.refuse(s.path(), SkillMomentPayload.COOLDOWN);
             return;
@@ -114,6 +120,12 @@ public final class SkillClientEvents {
         }
         SkillBar.casted(slot);
         PacketDistributor.sendToServer(new SkillActionPayload(SkillActionPayload.CAST, slot, ""));
+    }
+
+    /** True while a skill's first press is still working and the next press is its recast ({@link Skill#recast()}). */
+    public static boolean recasting(Skill s) {
+        Minecraft mc = Minecraft.getInstance();
+        return s.recastBuff() != null && mc.level != null && ClientSkills.data().hasBuff(s.recastBuff(), mc.level.getGameTime());
     }
 
     private SkillClientEvents() {}

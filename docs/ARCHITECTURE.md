@@ -646,6 +646,32 @@ scales with level and with the stat the skill names (`SkillActions.mult`, `statB
 attribute modifiers reapplied by `SkillPassives.apply` whenever skills change. `SkillHooks` wires the rest:
 damage modifiers (marks, stealth openers, weak spots), mobs losing track of a stealthed player, upkeep each second.
 
+**Recasts and gates.** A skill can take a second press while its first is still working (`Skill.recast`, with the
+buff that marks the window): `SkillAPI.cast` offers the press to the recast first, and a press it takes costs no
+mana and skips the cooldown (the client lets it through its own cooldown check while the buff is on, and the bar
+slot beats instead of showing the cooldown). A skill can also be held only by some players (`Skill.gate`, read with
+`allows`): `grantUnlocked`, `refreshForClass`, tomes, rune stones and `/solo skill learn all` respect it,
+`Skills.forClass` leaves gated skills out, and `SkillAPI.refreshGated` runs when what a gate asks for comes or goes
+(a crown).
+
+**Utility skills** (the series' telekinesis and shadow exchange; neither belongs to a class, and the exchange is only
+for hunters who raise shadows):
+
+- *Sovereign Hand* (`SovereignHand`, B grade, level 30): looking at a creature, the hand takes it (`GRASP` effect: a
+  shell, five fingers of force and an arm of force from the hunter's hand) and holds it in front of their eyes,
+  without gravity or legs, unable to hurt anyone or explode, for 3 s and up. The recast hurls it where they look
+  (`HURL`): it crashes into the first wall (x1.3), the ground or a creature (which takes 80%). Held too long, it is
+  slammed down (70%). A boss or anything wider than 2 or taller than 3.2 blocks is pinned instead (slowed to 15%,
+  no jumping, half damage). At nothing, it shoves (`FORCE`): a cone of force that hurts and throws creatures back,
+  deflects arrows and spells the way the hunter looks, and pulls loot to them. Shadows, hired hunters, association
+  people and the hunter's mother are never taken.
+- *Umbral Exchange* (`UmbralExchange`, A grade, level 22, gated by `ShadowService.canRaise`): trades places with one
+  of the hunter's shadows: the one looked at (48 blocks and up), else the one lying the way they look (22 degrees): a
+  guard at its post anywhere in this world, loaded or not, or a shadow out in the world they can see (no trading
+  through a wall into a sealed room). `EXCHANGE` draws a pool of shadow at both ends. The shadow rises anew where the
+  hunter stood (`ShadowService.exchange` summons a fresh entity that keeps the old one's health and effects: a
+  teleported entity is interpolated by the client and would be seen sliding from one spot to the other).
+
 Skill tomes (`SkillTomeItem`): an unread one teaches a random fitting skill the player lacks, or raises one they
 have; a named one (`ModComponents.SKILL`) teaches that skill. Gate caches drop them (`GateLoot`), two System quests
 reward them. Events for other modules: `SkillEvent.Learned` (with its source), `LevelUp`, `Cast`.
@@ -815,13 +841,25 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   `activeLimit` grow with level and INT.
 - **Mounts**: the mount key (Y) calls the strongest mount and seats the player (again to get off); right click works
   too. Space jumps (`PlayerRideableJumping`). The first job change into a necromancer gives the steed Duskmane.
+- **Standing guard** (series: shadows left to guard someone): the Shadows page's *Stand guard* leaves a shadow that is
+  out (not a mount) at the spot it stands (`ShadowService.post`; out in the world only, not in the mod's own
+  dimensions). The post is kept in the record (`ShadowRecord.post`, saved). A guard stays put (`GuardPostGoal`),
+  fights what comes within 14 blocks of its post and walks back, and the recall key leaves it there. It still takes one
+  of the places for shadows out (`ShadowData.used`), even while away. Minecraft keeps an unsaved entity frozen and
+  out of sight when nobody is near its spot any more, so `ShadowHooks` catches that (`EntityLeaveLevelEvent` without
+  a removal): the guard goes back into the dark and `reformGuards` stands it up again at its post (every second)
+  once its spot ticks again; a shadow that was following rises again at its master's side (after a long jump or an
+  exchange). A dimension change, logout or respawn leaves the guards posted. *Leave post* takes it off (it follows
+  again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
+  this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
 - **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
   violet-black), burning eyes, aura and a ring; `ShadowWorldFx` draws souls, the ritual, the extraction burst,
   refusals, summons, recalls and rank-up pillars; `ShadowHud` the extract prompt, ritual ring, banners (cinematic
   for bosses) and the army counter; `ShadowsTab` the System window page (necromancers only).
 - **Keys**: H extract / call the army, U recall, Y mount.
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
-  next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index], kill, reset.
+  next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index], kill, reset. `/solo shadow post|unpost [players]`
+  leaves every shadow out on guard or takes the guards off, `/solo shadow posts [player]` lists the posts.
 
 ## Gold, storage, shop and license
 

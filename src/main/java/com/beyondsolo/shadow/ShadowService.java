@@ -341,7 +341,7 @@ public final class ShadowService {
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.WARDEN_EMERGE, SoundSource.PLAYERS, 0.8f, 1.4f);
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1.5f, 0.6f);
         // it rises where it fell, if there is room in the field
-        if (army.activeCount() < activeLimit(p)) summonAt(p, r, s.pos, false);
+        if (army.used() < activeLimit(p)) summonAt(p, r, s.pos, false);
         Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
                 Component.translatable(s.boss ? "shadow.beyondsolo.extracted.boss" : "shadow.beyondsolo.extracted"),
                 Component.translatable("shadow.beyondsolo.extracted.body", r.displayName(), r.rank().displayName())));
@@ -383,7 +383,8 @@ public final class ShadowService {
         long now = p.level().getGameTime();
         List<ShadowRecord> ready = new ArrayList<>();
         for (ShadowRecord r : army.shadows()) {
-            if (!r.isMount() && !army.isActive(r.id()) && !r.recovering(now)) ready.add(r);
+            // a shadow standing guard stays at its post: it comes back by itself, or when called back from it
+            if (!r.isMount() && !r.posted() && !army.isActive(r.id()) && !r.recovering(now)) ready.add(r);
         }
         if (ready.isEmpty()) {
             if (!free) alert(p, "shadow.beyondsolo.none_ready", Component.translatable(army.size() == 0
@@ -392,7 +393,7 @@ public final class ShadowService {
         }
         ready.sort(Comparator.comparingInt((ShadowRecord r) -> r.boss() ? 1 : 0).thenComparingInt(r -> r.rank().ordinal())
                 .thenComparingInt(ShadowRecord::level).reversed());
-        int room = activeLimit(p) - army.activeCount();
+        int room = activeLimit(p) - army.used();
         int n = 0;
         float yaw = p.getYRot() * Mth.DEG_TO_RAD;
         for (ShadowRecord r : ready) {
@@ -426,6 +427,7 @@ public final class ShadowService {
         if (e == null) return null;
         MASTERS.put(p.getUUID(), p);
         e.configure(r, p);
+        if (r.postedIn(level.dimension())) e.setPost(r.post());
         e.moveTo(at.x, at.y, at.z, p.getYRot() + (float) (p.getRandom().nextGaussian() * 20), 0);
         e.yHeadRot = e.yBodyRot = e.getYRot();
         level.addFreshEntity(e);
@@ -447,7 +449,9 @@ public final class ShadowService {
         ShadowData army = army(p);
         ShadowRecord r = army.get(recordId);
         if (r == null || army.isActive(recordId) || r.recovering(p.level().getGameTime())) return false;
-        if (army.activeCount() >= activeLimit(p)) {
+        // called out by name: a guard away at its post leaves the post and comes to its master
+        if (r.posted()) r.setPost(null, null);
+        if (army.used() >= activeLimit(p)) {
             alert(p, "shadow.beyondsolo.limit", Component.translatable("shadow.beyondsolo.limit.body", activeLimit(p)));
             return false;
         }
@@ -460,22 +464,34 @@ public final class ShadowService {
         return true;
     }
 
-    /** Sends every shadow out in the world back into the dark. Returns how many went. */
+    /** Sends every shadow out in the world back into the dark, but those standing guard. Returns how many went. */
     public static int recallAll(ServerPlayer p) {
         ShadowData army = army(p);
         int n = 0;
         for (UUID rid : List.copyOf(army.active().keySet())) {
+            ShadowRecord r = army.get(rid);
+            if (r != null && r.posted()) continue;
             if (dismiss(p, rid)) n++;
         }
         sync(p);
         return n;
     }
 
-    /** Sends one shadow back into the dark. */
+    /** Sends one shadow back into the dark (a guard leaves its post for it). */
     public static boolean dismiss(ServerPlayer p, UUID recordId) {
         ShadowData army = army(p);
+        ShadowRecord rec = army.get(recordId);
         UUID eid = army.entityOf(recordId);
-        if (eid == null) return false;
+        if (eid == null) {
+            // a guard away at its post: sent back all the same
+            if (rec != null && rec.posted()) {
+                rec.setPost(null, null);
+                sync(p);
+                return true;
+            }
+            return false;
+        }
+        if (rec != null) rec.setPost(null, null);
         army.setInactive(recordId);
         if (p.serverLevel().getEntity(eid) instanceof ShadowEntity e && e.isAlive()) {
             PacketDistributor.sendToPlayersTrackingEntityAndSelf(e, new ShadowFxPayload(ShadowFxPayload.Kind.RECALL.ordinal(), e.getId(),
@@ -526,7 +542,7 @@ public final class ShadowService {
             return;
         }
         if (eid != null) army.setInactive(pick.id());
-        if (army.activeCount() >= activeLimit(p)) {
+        if (army.used() >= activeLimit(p)) {
             alert(p, "shadow.beyondsolo.limit", Component.translatable("shadow.beyondsolo.limit.body", activeLimit(p)));
             return;
         }
@@ -568,6 +584,12 @@ public final class ShadowService {
             }
             case com.beyondsolo.network.ShadowActionPayload.RELEASE -> {
                 if (id != null) release(p, id);
+            }
+            case com.beyondsolo.network.ShadowActionPayload.POST -> {
+                if (id != null) post(p, id);
+            }
+            case com.beyondsolo.network.ShadowActionPayload.UNPOST -> {
+                if (id != null) unpost(p, id);
             }
             default -> {
             }
@@ -679,6 +701,11 @@ public final class ShadowService {
         return p != null && !p.isRemoved() && p.level() == level ? p : null;
     }
 
+    /** Whether this shadow standing in the world is one of this player's, called out by them. */
+    public static boolean isOwn(ServerPlayer p, ShadowEntity e) {
+        return p.getUUID().equals(e.getOwnerUUID()) && owns(p, e);
+    }
+
     /** Whether a shadow in the world is still one its master has called. */
     static boolean owns(ServerPlayer p, ShadowEntity e) {
         if (e.recordId() == null) return false;
@@ -711,7 +738,8 @@ public final class ShadowService {
         }
     }
 
-    static @Nullable ShadowEntity entity(ServerPlayer p, UUID recordId) {
+    /** The shadow of this record standing in the master's world right now, or null. */
+    public static @Nullable ShadowEntity entity(ServerPlayer p, UUID recordId) {
         UUID eid = army(p).entityOf(recordId);
         return eid != null && p.serverLevel().getEntity(eid) instanceof ShadowEntity e ? e : null;
     }
@@ -747,9 +775,140 @@ public final class ShadowService {
         return at;
     }
 
+    // ================================================================ standing guard
+
+    /** Shadows can't stand guard in the System's own worlds (gates, the wastes, trials): only out in the world. */
+    public static boolean canGuardIn(ServerLevel level) {
+        return !level.dimension().location().getNamespace().equals(com.beyondsolo.BeyondSolo.MOD_ID);
+    }
+
+    /** Leaves a shadow that is out to guard the spot where it stands. False if it can't (a mount, a gate's world). */
+    public static boolean post(ServerPlayer p, UUID recordId) {
+        ShadowData army = army(p);
+        ShadowRecord r = army.get(recordId);
+        ShadowEntity e = r == null ? null : entity(p, recordId);
+        if (r == null || e == null || !e.isAlive() || r.isMount() || !canRaise(p)) return false;
+        if (!canGuardIn(p.serverLevel())) {
+            alert(p, "shadow.beyondsolo.post.not_here", Component.translatable("shadow.beyondsolo.post.not_here.body"));
+            return false;
+        }
+        Vec3 spot = ground(p.serverLevel(), e.position());
+        r.setPost(p.serverLevel().dimension(), spot);
+        e.setPost(spot);
+        e.ejectPassengers();
+        e.getNavigation().stop();
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(e, new ShadowFxPayload(ShadowFxPayload.Kind.SUMMON.ordinal(), e.getId(),
+                (float) spot.x, (float) spot.y, (float) spot.z, r.rank().color(), 0, ""));
+        Notifications.send(p, SystemNotification.of(SystemNotification.Kind.INFO, Component.translatable("shadow.beyondsolo.post"),
+                Component.translatable("shadow.beyondsolo.post.body", r.displayName())));
+        sync(p);
+        return true;
+    }
+
+    /** Calls a guard back from its post: it follows its master again (or rests, if it was away from the world). */
+    public static boolean unpost(ServerPlayer p, UUID recordId) {
+        ShadowRecord r = army(p).get(recordId);
+        if (r == null || !r.posted()) return false;
+        r.setPost(null, null);
+        ShadowEntity e = entity(p, recordId);
+        if (e != null) e.setPost(null);
+        sync(p);
+        return true;
+    }
+
+    /**
+     * Umbral Exchange: the master and one of their shadows trade places at once. The shadow is either in the world
+     * (any distance in the same world) or a guard away at its post in this world; either way it rises anew where the
+     * master stood, as wounded as it was. A guard keeps guarding: its post moves to the spot it now stands on. False
+     * if the shadow can't be reached.
+     */
+    public static boolean exchange(ServerPlayer p, UUID recordId) {
+        ShadowData army = army(p);
+        ShadowRecord r = army.get(recordId);
+        if (r == null || r.recovering(p.level().getGameTime())) return false;
+        ServerLevel level = p.serverLevel();
+        ShadowEntity e = entity(p, recordId);
+        Vec3 there;
+        if (e != null && e.isAlive()) there = e.position();
+        else if (r.postedIn(level.dimension()) && !army.isActive(recordId)) there = r.post();
+        else return false;
+        Vec3 here = p.position();
+        Vec3 spot = ground(level, here);
+        p.stopRiding();
+        // the shadow takes the master's place; standing guard, it now guards that spot
+        if (r.posted()) r.setPost(level.dimension(), spot);
+        // the master steps out of the dark where the shadow stood
+        if (p instanceof net.neoforged.neoforge.common.util.FakePlayer) p.moveTo(there.x, there.y, there.z, p.getYRot(), p.getXRot());
+        else p.teleportTo(level, there.x, there.y, there.z, p.getYRot(), p.getXRot());
+        p.fallDistance = 0;
+        // and the shadow rises out of the dark where they stood: a new body that keeps the old one's wounds (moved
+        // instead, the old one would be seen sliding along the ground from one spot to the other)
+        ShadowEntity risen = summonAt(p, r, spot, false);
+        if (e != null && e.isAlive()) {
+            if (risen != null) {
+                risen.setHealth(Math.min(risen.getMaxHealth(), e.getHealth()));
+                for (net.minecraft.world.effect.MobEffectInstance fx : e.getActiveEffects()) {
+                    risen.addEffect(new net.minecraft.world.effect.MobEffectInstance(fx));
+                }
+            }
+            e.ejectPassengers();
+            e.discard();
+        }
+        sync(p);
+        return true;
+    }
+
+    /** Guards whose post is in their master's world and loaded again stand up at it (every second). */
+    private static void reformGuards() {
+        for (ServerPlayer p : List.copyOf(MASTERS.values())) {
+            if (p.isRemoved() && !(p instanceof net.neoforged.neoforge.common.util.FakePlayer) || !canRaise(p)) continue;
+            ShadowData army = army(p);
+            if (army.awayPosts() == 0) continue;
+            ServerLevel level = p.serverLevel();
+            long now = level.getGameTime();
+            for (ShadowRecord r : List.copyOf(army.shadows())) {
+                if (!r.postedIn(level.dimension()) || army.isActive(r.id()) || r.recovering(now)) continue;
+                net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(r.post());
+                if (!level.isLoaded(at) || !level.isPositionEntityTicking(at)) continue;
+                summonAt(p, r, r.post(), true);
+            }
+        }
+    }
+
+    /**
+     * A shadow left the world. Sent away or fallen, that was counted already. Otherwise nobody is near its spot any more
+     * (its master walked away from a guard, or jumped far from the ones following them), and Minecraft keeps such a
+     * shadow, frozen and out of sight, until someone comes back. It goes back into its master's shadow instead: a guard
+     * stays posted and stands up again when its spot is near (see {@link #reformGuards}), and one that was following
+     * rises again at its master's side.
+     */
+    static void left(ShadowEntity e) {
+        ServerPlayer p = e.master();
+        UUID rid = e.recordId();
+        if (p == null || rid == null || !owns(p, e)) return;
+        ShadowData army = army(p);
+        army.setInactive(rid);
+        sync(p);
+        if (e.isRemoved()) return;
+        // still held, out of sight: let it go once the level is done moving entities about
+        ServerScheduler.schedule(1, () -> {
+            if (!e.isRemoved()) e.discard();
+        });
+        ShadowRecord r = army.get(rid);
+        if (r == null || r.posted() || r.isMount()) return;
+        ServerScheduler.schedule(10, () -> {
+            ShadowData now = army(p);
+            if (p.isRemoved() || !canRaise(p) || now.get(rid) == null || now.isActive(rid) || r.posted() || now.used() >= activeLimit(p)) return;
+            // behind its master, where the army rises when called
+            double a = p.getYRot() * Mth.DEG_TO_RAD + Math.PI + p.getRandom().nextGaussian() * 0.35;
+            summonAt(p, r, ground(p.serverLevel(), p.position().add(-Math.sin(a) * 2.4, 0, Math.cos(a) * 2.4)), true);
+        });
+    }
+
     // ================================================================ ticking and players coming and going
 
     static void tick(net.minecraft.server.MinecraftServer server) {
+        if (server.getTickCount() % 20 == 0) reformGuards();
         Iterator<Soul> it = SOULS.iterator();
         List<Runnable> later = new ArrayList<>();
         while (it.hasNext()) {
@@ -808,7 +967,12 @@ public final class ShadowService {
     /** The master changed dimension: the shadows that were out follow through the dark. */
     static void changedDimension(ServerPlayer p) {
         ShadowData army = army(p);
-        List<UUID> out = new ArrayList<>(army.active().keySet());
+        List<UUID> out = new ArrayList<>();
+        // the guards stay at their posts (they stand there again when their master is back in that world)
+        for (UUID rid : army.active().keySet()) {
+            ShadowRecord r = army.get(rid);
+            if (r != null && !r.posted()) out.add(rid);
+        }
         discardAll(p);
         if (out.isEmpty() || !canRaise(p)) {
             sync(p);
@@ -819,7 +983,7 @@ public final class ShadowService {
             int n = 0;
             for (UUID rid : out) {
                 ShadowRecord r = army(p).get(rid);
-                if (r == null || r.isMount() || army(p).isActive(rid) || army(p).activeCount() >= activeLimit(p)) continue;
+                if (r == null || r.isMount() || army(p).isActive(rid) || army(p).used() >= activeLimit(p)) continue;
                 double a = n * 2.1;
                 summonAt(p, r, ground(p.serverLevel(), p.position().add(Math.cos(a) * 2.5, 0, Math.sin(a) * 2.5)), true);
                 n++;
