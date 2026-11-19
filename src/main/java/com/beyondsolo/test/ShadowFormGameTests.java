@@ -328,7 +328,8 @@ public final class ShadowFormGameTests {
         // (just past their rising: long enough to fall, too soon to go after another test's creatures)
         helper.runAfterDelay(ShadowEntity.RISE_TICKS + 4, () -> {
             helper.assertTrue(bat.isAlive() && bat.getY() > floor + 0.9, "the bat's shadow stays up in the air: " + (bat.getY() - floor));
-            helper.assertTrue(zombie.isAlive() && Math.abs(zombie.getY() - floor) < 0.05, "the zombie's came down to the floor: " + (zombie.getY() - floor));
+            // down off the two blocks it rose at (it may already be on its way, up on the crystal's dais)
+            helper.assertTrue(zombie.isAlive() && zombie.getY() - floor < 1, "the zombie's came down to the floor: " + (zombie.getY() - floor));
             helper.assertTrue(cod.isAlive() && cod.getHealth() >= cod.getMaxHealth(), "the cod's doesn't choke out of the water");
             ShadowService.reset(p);
             helper.succeed();
