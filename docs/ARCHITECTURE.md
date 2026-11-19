@@ -829,12 +829,36 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
 - **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (warrior; caster from tag `shadow/casters`,
   bolts at range; mount from tag `shadow/mounts`), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
-  Commander, Marshal), level 1-10 inside the rank, and the health, damage and speed it was extracted with. Weak
+  Commander, Marshal, and Regent for a monarch's), level 1-10 inside the rank, and the health, damage and speed it was
+  extracted with. Weak
   creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`) and tag `shadow/bosses` become named
   elites (`ShadowNames`) that start at Knight to Commander, use Dread Slam and give nearby shadows +15% damage.
 - **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
-  nearby; filling level 10 climbs a rank (`ShadowService.addXp`, rank-up moment and pop-up). The master gets half
-  the usual System XP for their shadows' kills. Stats: base x rank power x (1 + 5%/level) x (1 + 1%/INT over base).
+  nearby; filling level 10 climbs a rank by itself up to Knight (`ShadowService.addXp`, rank-up moment and pop-up).
+  A new rank never makes a shadow weaker: it comes in at the lowest level as strong as it was (`ShadowRank.entryLevel`;
+  from the top of a rank that is level 4 or 5, as growth inside a rank, +45%, outweighs a rank step, about +25%).
+  From Knight on, a shadow at level 10 waits (`ShadowRecord.ready`, takes no XP) for its master to promote it. The
+  master gets half the usual System XP for their shadows' kills. Stats: base x rank power x (1 + 5%/level) x
+  (1 + 1%/INT over base) x 1.10 if its master named it.
+- **Promotions** (`ShadowPromotions`; series: the named shadows promoted to knights, commanders, a marshal). Captain,
+  Commander, Marshal and Regent come only by promotion (`ShadowRank.byPromotion`): the Shadows page's *Promote* (or
+  `promote`, payload action 9) takes the master's level and shadow essence (`promotionLevel` / `promotionCost`:
+  30/150, 45/400, 60/1000, 80/2500), and the shadow comes into its new rank as above. A hunter's shadows stop at Marshal,
+  a monarch's go on to Regent. `refusal` names the missing piece (shown on the page and as a pop-up). The
+  promotion moment (`ShadowFxPayload.Kind.PROMOTED`) is a column of the new rank's colour, rings and rays, and a
+  banner with what the rank brings. Raising the first marshal earns the title *Raiser of Marshals*.
+- **Shadow essence** (`ShadowData.essence`, saved). A soul its master leaves to fade, or one that crumbles after three
+  refusals, drifts into its master's shadow as essence if the master is within 48 blocks in the same world
+  (`soulEssence`: health / 8, at least 1, a boss's x4); the wisp (`Kind.ESSENCE`) flies to the master's chest and the
+  army chip shows "+N". Letting a shadow go leaves `releaseEssence` behind.
+- **Given names** (`ShadowPromotions.name`, `ShadowNamePayload`). A Knight or stronger, or any boss's shadow, can be
+  given a name from the tag on its portrait (letters, spaces, `'` and `-`, 2-16 long, `ShadowNames.clean`/`fit`; two
+  shadows can't share one). A named shadow is bound closer (`ShadowRecord.bonded`): 10% more health and damage
+  (`BOND`), its name in its rank's colour over its head and on the page. Names: 2, +1 every 20 levels, +3 for a
+  monarch (`nameSlots`). An empty name takes it back; a boss's shadow is known by its own name again
+  (`ShadowRecord.bestow` keeps it). The first name earns the title *Keeper of Names*.
+- **Commanders lead**: shadows within 12 blocks of one of their master's Commanders (or higher) hit 10% harder
+  (`LEAD`); a boss shadow's +15% still counts first (`ShadowService.auraBonus`).
 - **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
   left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
   Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. Never saved with
@@ -855,13 +879,23 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
 - **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring; `ShadowWorldFx` draws souls, the ritual, the extraction burst,
-  refusals, summons, recalls and rank-up pillars; `ShadowHud` the extract prompt, ritual ring, banners (cinematic
-  for bosses) and the army counter; `ShadowsTab` the System window page (necromancers only).
+  violet-black), burning eyes, aura and a ring. The rank shows: from Knight a moving energy shell in the rank's
+  colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
+  `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
+  bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
+  Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
+  recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
+  ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
+  (necromancers only): filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
+  used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
+  portrait that opens the name field (Enter keeps, Escape cancels).
 - **Keys**: H extract / call the army, U recall, Y mount.
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
-  next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index], kill, reset. `/solo shadow post|unpost [players]`
-  leaves every shadow out on guard or takes the guards off, `/solo shadow posts [player]` lists the posts.
+  next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index] (a promotion's rank is staged as a free promotion),
+  kill, reset. `/solo shadow post|unpost [players]` leaves every shadow out on guard or takes the guards off,
+  `/solo shadow posts [player]` lists the posts. `/solo shadow list [player]` lists the army with numbers,
+  `promote <number> [player]` promotes one for free, `name <number> <name> [player]` names one (`""` takes it back),
+  `essence set|add <amount> [players]`.
 
 ## Gold, storage, shop and license
 

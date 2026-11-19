@@ -45,7 +45,11 @@ final class SoloHelp {
                 new Line("quest fail <quest>|all [players]", "quest.fail"),
                 new Line("shadow give <creature> [shadow rank] [players]", "shadow.give"),
                 new Line("shadow post|unpost [players]", "shadow.post"),
-                new Line("shadow posts [player]", "shadow.posts")));
+                new Line("shadow posts [player]", "shadow.posts"),
+                new Line("shadow list [player]", "shadow.list"),
+                new Line("shadow promote <number> [player]", "shadow.promote"),
+                new Line("shadow name <number> <name> [player]", "shadow.name"),
+                new Line("shadow essence set|add <amount> [players]", "shadow.essence")));
         TOPICS.put("world", List.of(
                 new Line("spawn creature <kind>|random [count] [rank] [variant] [affinity]", "spawn.creature"),
                 new Line("spawn boss <kind>|random [rank] [ascended]", "spawn.boss"),

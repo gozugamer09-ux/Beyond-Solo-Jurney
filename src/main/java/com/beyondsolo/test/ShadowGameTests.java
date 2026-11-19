@@ -125,6 +125,7 @@ public final class ShadowGameTests {
     public static void aSoulRefusesThreeTimesThenCrumbles(GameTestHelper helper) {
         ServerPlayer p = player(helper, Subclass.NECROMANCER);
         kill(helper, p, helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1)));
+        float health = souls(p).get(0).health();
         int step = ShadowService.RITUAL_TICKS + 4;
         ShadowService.forceNext(p, false);
         ShadowService.startExtraction(p);
@@ -138,6 +139,8 @@ public final class ShadowGameTests {
                 helper.runAfterDelay(step, () -> {
                     helper.assertTrue(souls(p).isEmpty(), "the soul crumbled");
                     helper.assertTrue(ShadowService.army(p).size() == 0, "nothing was raised");
+                    helper.assertTrue(ShadowService.army(p).essence() == com.beyondsolo.shadow.ShadowPromotions.soulEssence(health, false),
+                            "what was left of it drifted into its master's shadow: " + ShadowService.army(p).essence());
                     ShadowService.reset(p);
                     helper.succeed();
                 });
@@ -171,7 +174,8 @@ public final class ShadowGameTests {
         helper.assertTrue(r.rank().ordinal() > ShadowRank.HUSK.ordinal(), "climbed a rank");
         helper.assertTrue(ShadowService.maxHealth(r, 20) > hp, "stronger after ranking up");
         ShadowService.addXp(p, r, 10_000_000);
-        helper.assertTrue(ShadowService.maxed(p, r) && r.rank() == ShadowRank.MARSHAL, "marshal at the top (past it only for a monarch)");
+        helper.assertTrue(r.rank() == ShadowRank.KNIGHT && r.level() == ShadowRank.LEVEL_CAP && r.ready(ShadowService.top(p))
+                && !ShadowService.maxed(p, r), "it climbs by itself only to a knight, then waits for its master: " + r.rank() + " " + r.level());
         ShadowService.reset(p);
         helper.succeed();
     }

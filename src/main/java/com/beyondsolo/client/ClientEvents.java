@@ -73,6 +73,8 @@ public final class ClientEvents {
             // over-head villager markers sit under everything else of ours
             event.registerAboveAll(BeyondSolo.id("npc_markers"), com.beyondsolo.client.npc.NpcMarkers::render);
             event.registerAboveAll(BeyondSolo.id("situation_markers"), com.beyondsolo.client.quest.SituationMarkers::render);
+            // shadows' guard posts are marks on the world too: under the pop-ups, never over them
+            event.registerAboveAll(BeyondSolo.id("shadow_posts"), com.beyondsolo.client.shadow.PostMarkers::render);
             event.registerAboveAll(BeyondSolo.id("status_hud"), StatusHud::render);
             event.registerAboveAll(BeyondSolo.id("quest_tracker"), QuestTracker::render);
             event.registerAboveAll(BeyondSolo.id("notifications"), NotificationRenderer::renderHud);

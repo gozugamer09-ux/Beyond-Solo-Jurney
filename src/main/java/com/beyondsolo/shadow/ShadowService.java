@@ -112,6 +112,8 @@ public final class ShadowService {
         public Vec3 pos() { return pos; }
         public ResourceLocation type() { return type; }
         public boolean boss() { return boss; }
+        /** The health the shadow would be built on (and the essence the soul leaves if it fades). */
+        public float health() { return health; }
         public int tries() { return tries; }
         public boolean inRitual() { return ritualEnd > 0; }
     }
@@ -167,12 +169,17 @@ public final class ShadowService {
         return 1f + 0.01f * Math.max(0, intellect - Stat.BASE);
     }
 
+    /** A name its master gave it binds a shadow closer: {@link ShadowPromotions#BOND} stronger. */
+    private static float bond(ShadowRecord r) {
+        return r.bonded() ? ShadowPromotions.BOND : 1f;
+    }
+
     public static float maxHealth(ShadowRecord r, int intellect) {
-        return Math.max(4, r.baseHealth() * r.rank().power() * (1 + 0.05f * (r.level() - 1)) * intMult(intellect));
+        return Math.max(4, r.baseHealth() * r.rank().power(r.level()) * intMult(intellect) * bond(r));
     }
 
     public static float damage(ShadowRecord r, int intellect) {
-        return Math.max(1, r.baseDamage() * r.rank().power() * (1 + 0.05f * (r.level() - 1)) * intMult(intellect));
+        return Math.max(1, r.baseDamage() * r.rank().power(r.level()) * intMult(intellect) * bond(r));
     }
 
     /**
@@ -229,6 +236,11 @@ public final class ShadowService {
         float hard = creatureHealth / power;
         if (boss) return Mth.clamp(0.6f - 0.12f * hard, 0.08f, 0.6f);
         return Mth.clamp(0.95f - 0.3f * hard, 0.1f, 0.95f);
+    }
+
+    /** Tests and staging: every soul this player left fades at the next tick (into essence, if they are near). */
+    public static void fadeSouls(Player player) {
+        for (Soul s : SOULS) if (s.owner.equals(player.getUUID()) && !s.inRitual()) s.expires = 0;
     }
 
     /** Tests and staging: decide a player's next extraction (null: back to the odds). */
@@ -323,6 +335,8 @@ public final class ShadowService {
                 SOULS.remove(s);
                 soulFx(level, s, ShadowFxPayload.Kind.CRUMBLE, 0, "");
                 level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1.2f, 0.5f);
+                // what is left of it drifts into its master's shadow
+                ShadowPromotions.soulFaded(p, level, s);
             } else {
                 soulFx(level, s, ShadowFxPayload.Kind.FAILED, s.tries, "");
                 level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 0.7f, 0.5f);
@@ -504,12 +518,14 @@ public final class ShadowService {
         return true;
     }
 
-    /** Lets a shadow go for good. */
+    /** Lets a shadow go for good; a little of what it grew to stays behind as essence. */
     public static boolean release(ServerPlayer p, UUID recordId) {
         ShadowData army = army(p);
-        if (army.get(recordId) == null) return false;
+        ShadowRecord r = army.get(recordId);
+        if (r == null) return false;
         dismiss(p, recordId);
         army.remove(recordId);
+        army.addEssence(ShadowPromotions.releaseEssence(r));
         sync(p);
         return true;
     }
@@ -593,6 +609,9 @@ public final class ShadowService {
             case com.beyondsolo.network.ShadowActionPayload.UNPOST -> {
                 if (id != null) unpost(p, id);
             }
+            case com.beyondsolo.network.ShadowActionPayload.PROMOTE -> {
+                if (id != null) ShadowPromotions.promote(p, id);
+            }
             default -> {
             }
         }
@@ -600,12 +619,17 @@ public final class ShadowService {
 
     // ================================================================ growing
 
-    /** Gives a shadow XP; climbs levels and ranks, with the rank-up moment. */
+    /**
+     * Gives a shadow XP; climbs levels and ranks, with the rank-up moment, up to the top of a rank its master has to
+     * promote it out of (then the System says it is ready, once).
+     */
     public static void addXp(ServerPlayer p, ShadowRecord r, int amount) {
         ShadowRank before = r.rank();
         int levelBefore = r.level();
+        boolean waiting = r.ready(top(p));
         int ranks = r.addXp(amount, top(p));
         if (ranks > 0) rankedUp(p, r, before);
+        if (!waiting && r.ready(top(p))) ShadowPromotions.becameReady(p, r);
         if (ranks > 0 || r.level() != levelBefore) {
             ShadowEntity e = entity(p, r.id());
             if (e != null) e.refresh(r, p);
@@ -616,9 +640,14 @@ public final class ShadowService {
     /** Raises a shadow one rank straight away (staging). */
     public static void rankUp(ServerPlayer p, ShadowRecord r) {
         if (r.rank().ordinal() >= top(p).ordinal()) return;
+        if (r.rank().next().byPromotion()) {
+            // a rank only a promotion reaches: staged as one, with its moment
+            ShadowPromotions.promoted(p, r, true);
+            return;
+        }
         ShadowRank before = r.rank();
+        r.setLevel(before.entryLevel(r.level()));
         r.setRank(before.next());
-        r.setLevel(1);
         r.setXp(0);
         rankedUp(p, r, before);
         ShadowEntity e = entity(p, r.id());
@@ -679,19 +708,21 @@ public final class ShadowService {
     }
 
     /**
-     * +15% damage for shadows fighting near one of their master's boss shadows; inside their master's domain (a crowned
-     * monarch's) they fight harder still ({@link com.beyondsolo.monarch.MonarchDomain#shadowBonus}).
+     * +15% damage for shadows fighting near one of their master's boss shadows, +10% near one of its commanders (or
+     * anything higher, {@link ShadowPromotions#LEAD}); inside their master's domain (a crowned monarch's) they fight
+     * harder still ({@link com.beyondsolo.monarch.MonarchDomain#shadowBonus}). The best of these counts.
      */
     public static float auraBonus(ShadowEntity shadow) {
-        float domain = com.beyondsolo.monarch.MonarchDomain.shadowBonus(shadow);
-        if (shadow.isBoss()) return domain;
+        float best = com.beyondsolo.monarch.MonarchDomain.shadowBonus(shadow);
+        if (shadow.isBoss()) return best;
         UUID owner = shadow.getOwnerUUID();
-        if (owner == null) return domain;
+        if (owner == null) return best;
         for (ShadowEntity s : shadow.level().getEntitiesOfClass(ShadowEntity.class, shadow.getBoundingBox().inflate(12),
-                o -> o.isBoss() && owner.equals(o.getOwnerUUID()) && o.isAlive())) {
-            return Math.max(1.15f, domain);
+                o -> o != shadow && owner.equals(o.getOwnerUUID()) && o.isAlive()
+                        && (o.isBoss() || o.rank().ordinal() >= ShadowRank.COMMANDER.ordinal()))) {
+            best = Math.max(best, s.isBoss() ? 1.15f : ShadowPromotions.LEAD);
         }
-        return domain;
+        return best;
     }
 
     // ================================================================ entity lifecycle
@@ -933,7 +964,8 @@ public final class ShadowService {
             }
             if (now >= s.expires || (owner == null && server.getPlayerList().getPlayer(s.owner) == null && !MASTERS.containsKey(s.owner))) {
                 it.remove();
-                soulFx(level, s, ShadowFxPayload.Kind.SOUL_GONE, 0, "");
+                // left to fade: it drifts into its master's shadow as essence, if the master is near
+                if (ShadowPromotions.soulFaded(owner, level, s) == 0) soulFx(level, s, ShadowFxPayload.Kind.SOUL_GONE, 0, "");
             }
         }
         later.forEach(Runnable::run);
@@ -1059,6 +1091,7 @@ public final class ShadowService {
         tag.putInt("limit", activeLimit(p));
         tag.putBoolean("canRaise", canRaise(p));
         tag.putInt("top", top(p).ordinal());
+        tag.putInt("slots", ShadowPromotions.nameSlots(p));
         tag.putLong("time", p.level().getGameTime());
         PacketDistributor.sendToPlayer(p, new ShadowSyncPayload(tag));
     }

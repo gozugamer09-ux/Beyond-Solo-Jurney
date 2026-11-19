@@ -14,9 +14,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * @param id    the soul's id (soul kinds) or the shadow entity's id (the others)
  * @param x     where (x, y, z)
  * @param color RGB
- * @param extra tries left (SOUL, FAILED), ritual ticks (RITUAL), 1 for a boss (EXTRACTED), the new rank (RANK_UP)
- * @param text  the creature's type id (SOUL) or the shadow's {@code ShadowRecord.wireName()} (EXTRACTED, RANK_UP), so
- *              each client reads the name in its own language
+ * @param extra tries left (SOUL, FAILED), ritual ticks (RITUAL), 1 for a boss (EXTRACTED), the new rank (RANK_UP,
+ *              PROMOTED), the master's entity id (ESSENCE)
+ * @param text  the creature's type id (SOUL), the shadow's {@code ShadowRecord.wireName()} (EXTRACTED, RANK_UP,
+ *              PROMOTED, NAMED), so each client reads the name in its own language, or the essence gained (ESSENCE)
  */
 public record ShadowFxPayload(int kind, int id, float x, float y, float z, int color, int extra, String text) implements CustomPacketPayload {
     public enum Kind {
@@ -37,7 +38,13 @@ public record ShadowFxPayload(int kind, int id, float x, float y, float z, int c
         /** A shadow went back into the dark. */
         RECALL,
         /** A shadow climbed a rank. */
-        RANK_UP
+        RANK_UP,
+        /** Its master promoted a shadow: extra = the new rank, text = its wire name. */
+        PROMOTED,
+        /** A soul faded into its master's shadow as essence: id = the soul, extra = the master's entity id, text = how much. */
+        ESSENCE,
+        /** Its master gave a shadow a name: text = its wire name. */
+        NAMED
     }
 
     public static final Type<ShadowFxPayload> TYPE = new Type<>(BeyondSolo.id("shadow_fx"));

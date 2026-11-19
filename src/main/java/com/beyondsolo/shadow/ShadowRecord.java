@@ -39,6 +39,10 @@ public final class ShadowRecord {
     private UUID id;
     private String type;
     private String name = "";
+    /** The name is one its master gave it (not a boss's own, nor the first steed's): it is bound closer, and stronger. */
+    private boolean bestowed;
+    /** The name it came with (a boss's own, the first steed's) while one its master gave stands over it, else "". */
+    private String born = "";
     private ShadowRank rank = ShadowRank.HUSK;
     private int level = 1;
     private int xp;
@@ -78,6 +82,8 @@ public final class ShadowRecord {
     }
     public String name() { return name; }
     public boolean named() { return !name.isEmpty(); }
+    /** Its master gave it its name ({@link ShadowPromotions#name}): {@link ShadowPromotions#BOND} stronger. */
+    public boolean bonded() { return bestowed && !name.isEmpty(); }
     public ShadowRank rank() { return rank; }
     public int level() { return level; }
     public int xp() { return xp; }
@@ -138,9 +144,38 @@ public final class ShadowRecord {
         return rank.ordinal() >= top.ordinal() && level >= ShadowRank.LEVEL_CAP;
     }
 
+    /**
+     * At the top of its rank, waiting for its master to promote it ({@link ShadowPromotions#promote}): the next rank is
+     * one only a promotion reaches ({@link ShadowRank#byPromotion}), and one its master's shadows can reach at all.
+     */
+    public boolean ready(ShadowRank top) {
+        return level >= ShadowRank.LEVEL_CAP && rank.ordinal() < top.ordinal() && rank.next().byPromotion();
+    }
+
+    /** Takes no XP for now: fully grown, or waiting for a promotion. */
+    public boolean stalled(ShadowRank top) {
+        return maxed(top) || ready(top);
+    }
+
     // ---- changes (through ShadowService)
 
     void setName(String name) { this.name = name == null ? "" : name; }
+
+    /**
+     * Its master gives it a name ({@link ShadowPromotions#name}), or with "" takes theirs back: then it is known again by
+     * the name it came with, if it had one, else by its creature.
+     */
+    void bestow(String given) {
+        if (given == null || given.isEmpty()) {
+            if (bestowed) name = born;
+            born = "";
+            bestowed = false;
+            return;
+        }
+        if (!bestowed) born = name;
+        name = given;
+        bestowed = true;
+    }
     void setBoss(int bossRank) {
         this.boss = true;
         this.bossRank = bossRank;
@@ -163,24 +198,24 @@ public final class ShadowRecord {
     }
 
     /**
-     * Adds XP, climbing no higher than {@code top}. Returns how many ranks it climbed (0 if none); levels inside a rank
-     * are applied on the way.
+     * Adds XP, climbing no higher than {@code top} and no further than the top of a rank its master has to promote it
+     * out of ({@link #ready}). Returns how many ranks it climbed (0 if none); levels inside a rank are applied on the way.
      */
     int addXp(int amount, ShadowRank top) {
-        if (maxed(top) || amount <= 0) return 0;
+        if (stalled(top) || amount <= 0) return 0;
         int ranks = 0;
         xp += amount;
-        while (!maxed(top) && xp >= xpToNext()) {
+        while (!stalled(top) && xp >= xpToNext()) {
             xp -= xpToNext();
             if (level < ShadowRank.LEVEL_CAP) {
                 level++;
             } else {
+                level = rank.entryLevel(level);
                 rank = rank.next();
-                level = 1;
                 ranks++;
             }
         }
-        if (maxed(top)) xp = 0;
+        if (stalled(top)) xp = 0;
         return ranks;
     }
 
@@ -191,6 +226,8 @@ public final class ShadowRecord {
         t.putUUID("id", id);
         t.putString("type", type);
         if (!name.isEmpty()) t.putString("name", name);
+        if (bestowed) t.putBoolean("bestowed", true);
+        if (!born.isEmpty()) t.putString("born", born);
         t.putInt("rank", rank.ordinal());
         t.putInt("level", level);
         t.putInt("xp", xp);
@@ -217,6 +254,8 @@ public final class ShadowRecord {
         r.id = t.hasUUID("id") ? t.getUUID("id") : UUID.randomUUID();
         r.type = t.getString("type");
         r.name = t.getString("name");
+        r.bestowed = t.getBoolean("bestowed");
+        r.born = t.getString("born");
         r.rank = ShadowRank.byOrdinal(t.getInt("rank"));
         r.level = Math.max(1, t.getInt("level"));
         r.xp = t.getInt("xp");

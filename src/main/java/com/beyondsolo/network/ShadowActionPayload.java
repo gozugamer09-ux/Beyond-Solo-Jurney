@@ -27,6 +27,8 @@ public record ShadowActionPayload(int action, String shadow) implements CustomPa
     public static final int POST = 7;
     /** Call a guard off its post (it comes back to follow, or into the dark if it is far away). */
     public static final int UNPOST = 8;
+    /** Promote a shadow waiting at the top of its rank (paid in shadow essence). */
+    public static final int PROMOTE = 9;
 
     public static final Type<ShadowActionPayload> TYPE = new Type<>(BeyondSolo.id("shadow_action"));
     public static final StreamCodec<ByteBuf, ShadowActionPayload> STREAM_CODEC = StreamCodec.composite(
