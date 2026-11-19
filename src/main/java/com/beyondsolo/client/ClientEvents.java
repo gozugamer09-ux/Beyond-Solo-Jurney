@@ -75,6 +75,8 @@ public final class ClientEvents {
             event.registerAboveAll(BeyondSolo.id("situation_markers"), com.beyondsolo.client.quest.SituationMarkers::render);
             // shadows' guard posts are marks on the world too: under the pop-ups, never over them
             event.registerAboveAll(BeyondSolo.id("shadow_posts"), com.beyondsolo.client.shadow.PostMarkers::render);
+            // where the objective leads (the village the System marked): a mark on the world as well
+            event.registerAboveAll(BeyondSolo.id("objective_waypoint"), com.beyondsolo.client.hud.ObjectiveWaypoint::render);
             event.registerAboveAll(BeyondSolo.id("status_hud"), StatusHud::render);
             event.registerAboveAll(BeyondSolo.id("quest_tracker"), QuestTracker::render);
             event.registerAboveAll(BeyondSolo.id("notifications"), NotificationRenderer::renderHud);

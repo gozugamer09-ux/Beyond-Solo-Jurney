@@ -21,6 +21,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -30,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * First join: drop the player somewhere random (everyone after the first beside where the first one landed, with
  * {@code spawn.together}) and give them the "find a village" objective. Then watch for them entering a village and
- * point them to the Evaluation Zone.
+ * point them to the Evaluation Zone. The way to the nearest village that has one is marked by {@link VillageGuide}.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class FirstSpawnHandler {
@@ -148,7 +149,9 @@ public final class FirstSpawnHandler {
         SystemData data = SystemAPI.get(player);
         if (!data.objective().equals(Objectives.FIND_VILLAGE)) return;
         ServerLevel level = player.serverLevel();
-        if (level.structureManager().getStructureWithPieceAt(player.blockPosition(), StructureTags.VILLAGE).isValid()) {
+        StructureStart village = level.structureManager().getStructureWithPieceAt(player.blockPosition(), StructureTags.VILLAGE);
+        // a village with no Evaluation Zone is no end of the way: the System says so and keeps its mark on one that has
+        if (village.isValid() && VillageGuide.enteredVillage(player, village)) {
             SystemAPI.setObjective(player, Objectives.FIND_EVALUATION_ZONE);
         }
     }

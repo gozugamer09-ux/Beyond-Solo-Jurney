@@ -11,6 +11,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.system.Objectives;
 import com.beyondsolo.system.SystemData;
+import com.mojang.math.Axis;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -147,7 +148,13 @@ public final class StatusHud {
             if (objective.isEmpty() && objectiveShown < 0.03f) lastObjective = "";
             String title = Objectives.title(lastObjective).getString();
             float tw = SysFont.width(title, 8f, true);
-            float w = tw + 28;
+            // where it leads, when the System marked it: an arrow that turns as the player does, and how far
+            float partial = delta.getGameTimeDeltaPartialTick(false);
+            double dist = ObjectiveWaypoint.distance(partial);
+            float arrow = ObjectiveWaypoint.bearing(partial);
+            String far = Double.isNaN(dist) ? null : ObjectiveWaypoint.distanceText(dist);
+            float fw = far == null ? 0 : SysFont.width(far, 6.5f, true);
+            float w = tw + 28 + (far == null ? 0 : 24 + fw);
             float h = 16;
             float fresh = 1 - Anim.outCubic(Anim.progress(objectiveChangedAt, 1.2f));
             float oldChip = Gfx.fade(objectiveShown);
@@ -157,6 +164,17 @@ public final class StatusHud {
                     .glow(5 + fresh * 8, Gfx.alpha(SystemTheme.GOLD, 0.14f + 0.4f * fresh)).draw(g);
             Shapes.icon(Icons.PIN, ox + 10.5f, y + h / 2f, 9).fill(SystemTheme.GOLD).glow(2 + fresh * 3, Gfx.alpha(SystemTheme.GOLD, 0.6f)).draw(g);
             SysFont.title(g, title, ox + 19, SysFont.centerY(y, h, 8f), 8f, Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.25f + 0.5f * fresh));
+            if (far != null) {
+                float dx = ox + 19 + tw + 6;
+                Shapes.box(dx, y + 4, 0.7f, h - 8).fill(Gfx.alpha(SystemTheme.GOLD, 0.35f)).draw(g);
+                float ax = dx + 9.5f, ay = y + h / 2f;
+                g.pose().pushPose();
+                g.pose().translate(ax, ay, 0);
+                g.pose().mulPose(Axis.ZP.rotationDegrees(arrow));
+                Shapes.icon(Icons.ARROW, 0, 0, 8.5f).fill(Gfx.mix(SystemTheme.GOLD, 0xFFFFFFFF, 0.35f)).glow(1.5f, Gfx.alpha(SystemTheme.GOLD, 0.6f)).draw(g);
+                g.pose().popPose();
+                SysFont.draw(g, far, ax + 6.5f, SysFont.centerY(y, h, 6.5f), 6.5f, SystemTheme.TEXT, true, 0f);
+            }
             Gfx.setAlpha(oldChip);
             y += (h + 6) * objectiveShown;
         }

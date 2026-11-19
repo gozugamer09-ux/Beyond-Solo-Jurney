@@ -6,6 +6,7 @@ import com.beyondsolo.network.SyncSystemDataPayload;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
 import com.beyondsolo.registry.ModAttachments;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,6 +15,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * The one entry point other modules should use to read or change a player's System.
@@ -296,7 +298,21 @@ public final class SystemAPI {
         SystemData data = get(player);
         String old = data.objective();
         data.setObjective(objective);
+        // no objective, nowhere to go
+        if (objective.isEmpty()) data.setObjectiveTarget(null);
         NeoForge.EVENT_BUS.post(new SystemEvent.ObjectiveChanged(player, old, objective));
+    }
+
+    /**
+     * Points the current objective at a place, or nowhere (null): a column of light there, an arrow and the distance on
+     * the objective chip, and a waypoint on Xaero's minimap and world map when those are installed. Cleared with the
+     * objective.
+     */
+    public static void setObjectiveTarget(ServerPlayer player, @Nullable GlobalPos target) {
+        SystemData data = get(player);
+        if (java.util.Objects.equals(data.objectiveTarget(), target)) return;
+        data.setObjectiveTarget(target);
+        sync(player);
     }
 
     // ---------- misc ----------
