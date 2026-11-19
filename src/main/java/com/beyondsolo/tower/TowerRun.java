@@ -237,6 +237,7 @@ public final class TowerRun {
         if (com.beyondsolo.penalty.PenaltyZone.busy(p)) return true;
         if (com.beyondsolo.job.JobTrial.inTrial(p) || com.beyondsolo.monarch.ThroneTrial.inTrial(p)) return true;
         if (com.beyondsolo.awakening.AwakeningService.inSequence(p)) return true;
+        if (com.beyondsolo.isle.IsleRaids.occupied(p)) return true;
         return com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p);
     }
 

@@ -43,6 +43,8 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
     private static final BlockState PALE = Blocks.CALCITE.defaultBlockState();
     private static final BlockState PALE_CHIP = Blocks.SMOOTH_QUARTZ.defaultBlockState();
     private static final BlockState LIGHT_CORE = Blocks.GLOWSTONE.defaultBlockState();
+    private static final BlockState ACID = Blocks.HONEY_BLOCK.defaultBlockState();
+    private static final BlockState ACID_CORE = Blocks.OCHRE_FROGLIGHT.defaultBlockState();
 
     private final BlockRenderDispatcher blocks;
 
@@ -65,6 +67,7 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
             case LIGHT_SPEAR -> crystal(p, pose, buffers, camera, s * 0.22f, s * 3.2f, c, 0xFFFFFF);
             case FEATHER -> crystal(p, pose, buffers, camera, s * 0.14f, s * 1.4f, c, 0xFFFFF0);
             case HURLED_STONE -> stone(p, pose, buffers, camera, time, s, c);
+            case ACID_GLOB -> glob(p, pose, buffers, camera, time, s, c);
         }
         super.render(p, yaw, partial, pose, buffers, light);
     }
@@ -99,6 +102,22 @@ public class BossProjectileRenderer extends EntityRenderer<BossProjectile> {
         pose.popPose();
         GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, s * 0.5f, 0, s * 2.4f, c, 0.45f);
         trail(p, pose, buffers, camera, s, c, 0.35f);
+    }
+
+    /** A gobbet of the hive's acid: a wobbling lump of amber resin, glowing from inside, dripping as it flies. */
+    private void glob(BossProjectile p, PoseStack pose, MultiBufferSource buffers, Camera camera, float time, float s, int c) {
+        int full = LightTexture.FULL_BRIGHT;
+        float wob = 1 + 0.12f * Mth.sin(time * 0.9f);
+        pose.pushPose();
+        pose.translate(0, s * 0.45f, 0);
+        pose.mulPose(Axis.YP.rotationDegrees(time * 9));
+        pose.mulPose(Axis.XP.rotationDegrees(time * 5));
+        block(pose, buffers, ACID, s * 0.95f * wob, 0, 0, 0, 30, 15, full);
+        block(pose, buffers, ACID_CORE, s * 0.6f, s * 0.2f, s * 0.15f, -s * 0.1f, 45, 40, full);
+        block(pose, buffers, ACID, s * 0.5f / wob, -s * 0.35f, -s * 0.2f, s * 0.25f, 10, 70, full);
+        pose.popPose();
+        GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, 0, s * 0.45f, 0, s * 2.2f, c, 0.6f);
+        trail(p, pose, buffers, camera, s, c, 0.45f);
     }
 
     /** One block's model, centred, {@code size} on a side, turned. */

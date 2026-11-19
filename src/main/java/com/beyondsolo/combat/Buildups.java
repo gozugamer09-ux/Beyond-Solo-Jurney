@@ -51,6 +51,8 @@ public final class Buildups {
     /** Adds buildup and triggers the effect if the threshold is reached. Server side only. */
     public static void add(LivingEntity target, BuildupType type, float amount, @Nullable Entity source) {
         if (target.level().isClientSide || !target.isAlive()) return;
+        // the hive's royalty: their own venom never builds on them, and the allies' blows carry nothing onto them
+        if (target instanceof com.beyondsolo.isle.HiveBoss boss && !boss.takesBuildup(type, source)) return;
         amount *= 1 - ModAttributes.resistance(target, type.element());
         // a creature immune to an element never builds it up (a blaze can't take a deep burn)
         if (!(target instanceof net.minecraft.world.entity.player.Player)

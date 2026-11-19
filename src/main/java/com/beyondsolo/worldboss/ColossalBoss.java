@@ -141,6 +141,8 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     private long lastEngaged;
     /** The source of the blow being taken (a command's kill is never held back by the phase lines). */
     @Nullable private DamageSource taking;
+    /** Its health as that blow began, less what blows inside it (its procs) took: what is left is the blow's own. */
+    private float takingFrom;
     /** Where it rose or landed: the land it roams and keeps to. */
     @Nullable private BlockPos home;
     /** Its entrance: from where to where it moves while it plays (rising out of the earth, coming down from the sky). */
@@ -419,16 +421,21 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (level().isClientSide) return super.hurt(source, amount);
-        float before = getHealth();
+        DamageSource outer = taking;
+        float outerFrom = takingFrom;
         taking = source;
+        takingFrom = getHealth();
         boolean hit;
         try {
             hit = super.hurt(source, amount);
         } finally {
-            taking = null;
+            float lost = takingFrom - Math.max(0f, getHealth());
+            // a killing blow was credited as it fell (die), before its fall was told
+            if (taking == source && lost > 0) credit(source, lost);
+            // a blow inside another (a proc of it) is its own hunter's share, not the outer blow's
+            taking = outer;
+            takingFrom = outerFrom - Math.max(0f, lost);
         }
-        float lost = before - getHealth();
-        if (lost > 0) credit(source, lost);
         return hit;
     }
 
@@ -964,6 +971,12 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
 
     @Override
     public void die(DamageSource source) {
+        if (!level().isClientSide && taking != null) {
+            // the killing blow counts before the fall is told: the shares, and who did the most
+            float lost = takingFrom - Math.max(0f, getHealth());
+            if (lost > 0) credit(taking, lost);
+            taking = null;
+        }
         super.die(source);
         move = null;
         strikes.clear();

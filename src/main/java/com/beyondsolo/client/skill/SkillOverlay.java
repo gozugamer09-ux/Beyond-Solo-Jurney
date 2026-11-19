@@ -274,7 +274,9 @@ public final class SkillOverlay {
         float w = Math.max(SysFont.spacedWidth(head, 6f, true, 1.6f), SysFont.width(name, 9.5f, true) + 40) + 52;
         float h = 30;
         float x = g.guiWidth() / 2f - w / 2f;
-        float y = 22 - (1 - in) * 30 - out * 10;
+        // under whatever bars hold the top centre (a great threat's, a raid's chip, a run's clock)
+        float top = Math.max(22, com.beyondsolo.client.hud.HudSpace.topClaimedLately(x, x + w) + 6);
+        float y = top - (1 - in) * 30 - out * 10;
         float old = Gfx.fade(live);
         Ui.panel(g, x, y, w, h, 10, color, 0.8f);
         float pop = Anim.window(t, 0.25f, 0.9f);

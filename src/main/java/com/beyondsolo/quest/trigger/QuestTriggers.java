@@ -52,7 +52,7 @@ public final class QuestTriggers {
         if (com.beyondsolo.job.JobTrial.inTrial(player) || com.beyondsolo.monarch.ThroneTrial.inTrial(player)) return true;
         // nor in the Penalty Zone, nor in a red gate, nor while climbing the Citadel
         return com.beyondsolo.penalty.PenaltyZone.busy(player) || com.beyondsolo.redgate.RedGates.occupied(player)
-                || com.beyondsolo.tower.TowerAPI.busy(player);
+                || com.beyondsolo.tower.TowerAPI.busy(player) || com.beyondsolo.isle.IsleRaids.occupied(player);
     }
 
     /** The player is in an emergency already (one at a time). */

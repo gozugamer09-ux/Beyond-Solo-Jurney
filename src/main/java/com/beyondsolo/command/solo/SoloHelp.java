@@ -130,6 +130,18 @@ final class SoloHelp {
                 new Line("story mother [player]", "story.mother"),
                 new Line("story scene visit|waking|meal|reveal [player]", "story.scene"),
                 new Line("story reset [players]", "story.reset")));
+        TOPICS.put("isle", List.of(
+                new Line("isle call [players]", "isle.call"),
+                new Line("isle land [players]", "isle.land"),
+                new Line("isle launch", "isle.launch"),
+                new Line("isle phase beach|nests|hive|queen|king", "isle.phase"),
+                new Line("isle win|fail|stop", "isle.end"),
+                new Line("isle status", "isle.status"),
+                new Line("isle next <minutes>", "isle.next"),
+                new Line("isle build", "isle.build"),
+                new Line("isle visit [player]", "isle.visit"),
+                new Line("isle record [player]", "isle.record"),
+                new Line("isle reset [players]", "isle.reset")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

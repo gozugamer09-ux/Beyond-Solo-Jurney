@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec3;
  * It is never saved.
  */
 public class BossProjectile extends Entity {
-    public enum Kind { BOULDER, ICE_SPEAR, STORM_ORB, BLOOD_SHARD, LIGHT_SPEAR, FEATHER, HURLED_STONE }
+    public enum Kind { BOULDER, ICE_SPEAR, STORM_ORB, BLOOD_SHARD, LIGHT_SPEAR, FEATHER, HURLED_STONE, ACID_GLOB }
 
     private static final EntityDataAccessor<Integer> KIND = SynchedEntityData.defineId(BossProjectile.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> SCALE = SynchedEntityData.defineId(BossProjectile.class, EntityDataSerializers.FLOAT);
@@ -111,6 +111,10 @@ public class BossProjectile extends Entity {
             case HURLED_STONE -> {
                 if (age % 3 == 0) level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.4, at.z, 1, 0.4, 0.4, 0.4, 0.01);
             }
+            case ACID_GLOB -> {
+                level.sendParticles(ParticleTypes.DRIPPING_HONEY, at.x, at.y, at.z, 1, 0.15, 0.15, 0.15, 0.01);
+                if (age % 2 == 0) level.sendParticles(ParticleTypes.ITEM_SLIME, at.x, at.y, at.z, 1, 0.15, 0.15, 0.15, 0.02);
+            }
         }
     }
 
@@ -130,6 +134,12 @@ public class BossProjectile extends Entity {
                 level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.CALCITE.defaultBlockState()), at.x, at.y + 0.5, at.z, 36,
                         0.8, 0.4, 0.8, 0.25);
                 level.sendParticles(ParticleTypes.END_ROD, at.x, at.y + 0.5, at.z, 10, 0.6, 0.3, 0.6, 0.1);
+            }
+            case ACID_GLOB -> {
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.HONEY_BLOCK.defaultBlockState()), at.x, at.y + 0.3, at.z, 26,
+                        0.6, 0.2, 0.6, 0.2);
+                level.sendParticles(ParticleTypes.FALLING_HONEY, at.x, at.y + 0.6, at.z, 10, 0.8, 0.3, 0.8, 0.05);
+                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, at.x, at.y + 0.3, at.z, 3, 0.5, 0.1, 0.5, 0.01);
             }
         }
     }

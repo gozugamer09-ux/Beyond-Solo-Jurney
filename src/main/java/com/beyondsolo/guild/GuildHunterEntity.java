@@ -77,6 +77,29 @@ public class GuildHunterEntity extends PathfinderMob {
     /** Server: where the raid wants it to stand (the light, during a cataclysm), and until when. */
     @Nullable private Vec3 refuge;
     private long refugeUntil;
+    /** Server: what it fights for when it isn't a guild's raid (the Halcyon raid's allies); null: a raid's hunter. */
+    @Nullable private Cause cause;
+
+    /**
+     * What a hunter fights for besides a guild's raid in a gate ({@link Raids}): who it keeps near, whether it is still
+     * wanted, and what happens when it falls. The Halcyon raid's allies from the national rankings fight for one.
+     */
+    public interface Cause {
+        /** Whether it is still wanted in the fight (false: it heads home). */
+        boolean keeps(GuildHunterEntity hunter);
+
+        /** The hunter it keeps near, or null. */
+        @Nullable
+        ServerPlayer leader(GuildHunterEntity hunter);
+
+        /** It fell. */
+        void fell(ServerLevel level, GuildHunterEntity hunter);
+
+        /** Left far behind: it steps out of the air beside its leader. */
+        default void catchUp(GuildHunterEntity hunter, ServerPlayer leader) {
+            Raids.slipTo(hunter, leader);
+        }
+    }
 
     public GuildHunterEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -137,6 +160,18 @@ public class GuildHunterEntity extends PathfinderMob {
         setCustomName(Component.literal("[" + guildTag + "] ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(guildColor & 0xFFFFFF)))
                 .append(Component.literal(h.name).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)))));
         setCustomNameVisible(true);
+    }
+
+    /** Makes this the body of a hunter fighting for {@code cause} (no gate, no guild raid): its looks, gear and strength. */
+    public void serve(Cause cause, RaidState.Hired h, int color, String tag) {
+        configure(h, h.hunter, color, tag);
+        this.gateId = null;
+        this.cause = cause;
+    }
+
+    @Nullable
+    public Cause cause() {
+        return cause;
     }
 
     /** Health and damage for each class: {health, damage} times a hunter's of the level. */
@@ -250,6 +285,7 @@ public class GuildHunterEntity extends PathfinderMob {
         if (e instanceof Player || e instanceof GuildHunterEntity || e instanceof ShadowEntity) return false;
         if (e instanceof OwnableEntity o && o.getOwnerUUID() != null) return false;
         if (e instanceof GateBossEntity boss && (!boss.isAwake() || boss.introTicks() > 0)) return false;
+        if (e instanceof com.beyondsolo.worldboss.ColossalBoss boss && (!boss.isAwake() || boss.introTicks() > 0 || boss.leaving())) return false;
         // hired hunters keep out of the light's war
         if (com.beyondsolo.ruler.Rulers.light(e)) return false;
         return e instanceof Enemy && !e.isInvulnerable();
@@ -302,7 +338,9 @@ public class GuildHunterEntity extends PathfinderMob {
     @Override
     public void die(DamageSource source) {
         super.die(source);
-        if (level() instanceof ServerLevel server) Raids.hunterDown(server, this);
+        if (!(level() instanceof ServerLevel server)) return;
+        if (cause != null) cause.fell(server, this);
+        else Raids.hunterDown(server, this);
     }
 
     @Override
@@ -314,7 +352,7 @@ public class GuildHunterEntity extends PathfinderMob {
         if (tauntCooldown > 0) tauntCooldown--;
         if (pylonCooldown > 0) pylonCooldown--;
         // no raid to fight in (the cave was cleared and left, the raid failed, the server was restarted): it goes home
-        if (tickCount % 20 == 0 && (gateId == null || !Raids.keeps(this))) {
+        if (tickCount % 20 == 0 && (cause != null ? !cause.keeps(this) : gateId == null || !Raids.keeps(this))) {
             leave();
             return;
         }
@@ -350,7 +388,9 @@ public class GuildHunterEntity extends PathfinderMob {
     /** The raider it keeps close to: the raid's leader if they are in here, else the nearest raider. */
     @Nullable
     ServerPlayer raider() {
-        if (!(level() instanceof ServerLevel server) || gateId == null) return null;
+        if (!(level() instanceof ServerLevel server)) return null;
+        if (cause != null) return cause.leader(this);
+        if (gateId == null) return null;
         return Raids.followTarget(server, gateId, this);
     }
 
@@ -640,7 +680,8 @@ public class GuildHunterEntity extends PathfinderMob {
             ServerPlayer p = raider();
             if (p == null || inRefuge()) return false;
             if (distanceToSqr(p) > 34 * 34) {
-                Raids.slipTo(GuildHunterEntity.this, p);
+                if (cause != null) cause.catchUp(GuildHunterEntity.this, p);
+                else Raids.slipTo(GuildHunterEntity.this, p);
                 return false;
             }
             if (getTarget() != null && distanceToSqr(p) < 18 * 18) return false;

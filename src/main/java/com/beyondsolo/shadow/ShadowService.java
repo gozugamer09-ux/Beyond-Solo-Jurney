@@ -249,7 +249,9 @@ public final class ShadowService {
         EntityType<?> type = victim.getType();
         if (type.is(ShadowModule.NO_SOUL)) return null;
         boolean boss = victim instanceof DungeonBoss || type.is(ShadowModule.BOSSES);
-        int bossRank = victim instanceof DungeonBoss db ? db.rank().ordinal() : boss ? 3 : -1;
+        // the hive's king is the swarm's last and greatest child: his shadow rises a commander
+        int bossRank = victim instanceof DungeonBoss db ? db.rank().ordinal()
+                : victim instanceof com.beyondsolo.worldboss.ColossalBoss c && c.kind() == com.beyondsolo.worldboss.WorldBossKind.KING ? 5 : boss ? 3 : -1;
         float[] size = soulSize(victim);
         float hp = size[0];
         float dmg = size[1];

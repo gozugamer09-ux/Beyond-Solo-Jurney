@@ -435,7 +435,7 @@ public final class WorldBossWorldFx {
         float ended = t.endedAt < 0 ? 0 : com.beyondsolo.client.gfx.Anim.since(t.endedAt);
 
         // the beacon: seen from afar, it fades as hunters close in
-        if (!t.descending() && !t.leaving && !t.slain) {
+        if (!t.descending() && !t.leaving && !t.slain && !t.kind.hive()) {
             float far = Mth.clamp((float) (dist - 36) / 50f, 0, 1);
             if (far > 0.01f) {
                 beaconLand.around((float) at.y);

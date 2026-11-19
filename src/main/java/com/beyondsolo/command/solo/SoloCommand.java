@@ -50,6 +50,7 @@ public final class SoloCommand {
         SoloAssociation.register(root);
         SoloBoxes.register(root);
         SoloStory.register(root);
+        SoloIsle.register(root);
         CommandNode<CommandSourceStack> system = dispatcher.getRoot().getChild("system");
         if (system != null) root.then(Commands.literal("dev").redirect(system));
         dispatcher.register(root);

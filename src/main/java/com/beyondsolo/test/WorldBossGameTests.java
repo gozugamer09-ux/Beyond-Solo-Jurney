@@ -59,6 +59,8 @@ public final class WorldBossGameTests {
     private static final String LANG = "/assets/beyondsolo_worldboss/lang/en_us.json";
     /** The rulers of light keep their own lines. */
     private static final String RULER_LANG = "/assets/beyondsolo_rulers/lang/en_us.json";
+    /** The hive's queen and king keep theirs with the Halcyon raid's. */
+    private static final String ISLE_LANG = "/assets/beyondsolo_isle/lang/en_us.json";
 
     /** Every animation a boss plays is in its animation file, and its model and skin are there. */
     @GameTest(template = ARENA)
@@ -92,6 +94,9 @@ public final class WorldBossGameTests {
         helper.assertTrue(lang != null, "the great threats have their own lang file");
         helper.assertTrue(rulers != null, "the rulers of light have their own lang file");
         rulers.entrySet().forEach(e -> lang.add(e.getKey(), e.getValue()));
+        JsonObject isle = json(ISLE_LANG);
+        helper.assertTrue(isle != null, "the Halcyon raid has its own lang file");
+        isle.entrySet().forEach(e -> lang.add(e.getKey(), e.getValue()));
         List<String> missing = new ArrayList<>();
         for (WorldBossKind kind : WorldBossKind.values()) {
             String k = "worldboss.beyondsolo." + kind.id;

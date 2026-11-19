@@ -130,7 +130,7 @@ public final class Regroup {
         if (stage == AwakeningData.Stage.CALLED || stage == AwakeningData.Stage.TRIAL || stage == AwakeningData.Stage.AWAKENING) return true;
         if (com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p)) return true;
         if (com.beyondsolo.job.JobTrial.inTrial(p) || com.beyondsolo.monarch.ThroneTrial.inTrial(p) || com.beyondsolo.penalty.PenaltyZone.inZone(p)) return true;
-        return com.beyondsolo.redgate.RedGates.occupied(p);
+        return com.beyondsolo.redgate.RedGates.occupied(p) || com.beyondsolo.isle.IsleRaids.occupied(p);
     }
 
     /** The lang key's last part for a place ({@link PartySyncPayload#WORLD} .. {@link PartySyncPayload#OFFLINE}). */

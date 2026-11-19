@@ -73,7 +73,8 @@ public final class WorldBossHud {
         if (r != null) LIGHT.last = r;
         domain(g, mc, w, h, t, r);
         if (b != null) banner(g, mc, w, h, b);
-        float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + BreakHud.shownHeight();
+        float y = 6 + 34 * Anim.outCubic(GateOverlay.bossBarIn()) + 26 * RunHud.clockShown() + BreakHud.shownHeight()
+                + com.beyondsolo.client.isle.IsleHud.shownHeight();
         y += bar(g, mc, w, y, t, THREAT);
         y += bar(g, mc, w, y, r, LIGHT);
         if (ClientSystemData.get().hasSystem()) {
@@ -232,7 +233,7 @@ public final class WorldBossHud {
         float pulse = 0.6f + 0.4f * Anim.pulse(t.descending() ? 1.0f : 2.2f);
         Shapes.pill(x, y, mw, hgt).fillV(0xC00A0C18, 0xC0050610).border(0.8f, Gfx.alpha(tc, 0.8f), Gfx.alpha(tc, 0.3f))
                 .glow(5, Gfx.alpha(kc, 0.25f * pulse)).draw(g);
-        Shapes.icon(k.ruler() ? Icons.SPARKLE : k.monarch() ? Icons.CROWN : Icons.SKULL, x + 8, y + hgt / 2f, 8).fill(Gfx.mix(kc, WHITE, 0.3f))
+        Shapes.icon(k.ruler() ? Icons.SPARKLE : k.monarch() || k.hive() ? Icons.CROWN : Icons.SKULL, x + 8, y + hgt / 2f, 8).fill(Gfx.mix(kc, WHITE, 0.3f))
                 .glow(2, Gfx.alpha(kc, 0.6f)).draw(g);
         float cx = x + 14;
         SysFont.draw(g, name, cx, SysFont.centerY(y, hgt, size), size, WHITE, true, 0f);
@@ -388,7 +389,8 @@ public final class WorldBossHud {
         float old = Gfx.fade(live);
         float cx = w / 2f, y = h - bh - 64;
         String head = upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.banner.descended"
-                : k.monarch() ? "worldboss.beyondsolo.banner.descended" : "worldboss.beyondsolo.banner.risen"));
+                : k.monarch() ? "worldboss.beyondsolo.banner.descended" : k.hive() ? "isle.beyondsolo.banner.royal." + k.id
+                : "worldboss.beyondsolo.banner.risen"));
         tag(g, head, cx, y, Anim.outBack(Anim.window(t, 0.4f, 0.8f)), tc, 6.5f);
         float nameK = Anim.window(t, 0.8f, 1.8f);
         if (nameK > 0) {
@@ -554,6 +556,8 @@ public final class WorldBossHud {
         float cx = w / 2f, y = h * 0.24f;
         float open = Anim.outBack(Anim.window(t, 0.15f, 0.7f));
         float pw = took ? 250 : 210, ph = took ? 72 : 46;
+        // the room it holds: the soul it left (to extract) and other overlays move under it
+        if (live > 0.05f) HudSpace.claimTop(cx - pw / 2f, y, pw, ph);
         g.pose().pushPose();
         g.pose().translate(cx, y + ph / 2f, 0);
         g.pose().scale(1, Math.max(0.02f, open), 1);
@@ -564,7 +568,8 @@ public final class WorldBossHud {
             float hk = Anim.outCubic(Anim.window(t, 0.6f, 1.0f));
             float o2 = Gfx.fade(hk);
             String head = upper(Component.translatable(k.ruler() ? "ruler.beyondsolo.banner.slain"
-                    : k.monarch() ? "worldboss.beyondsolo.banner.slain.monarch" : "worldboss.beyondsolo.banner.slain.world"));
+                    : k.monarch() ? "worldboss.beyondsolo.banner.slain.monarch" : k.hive() ? "isle.beyondsolo.banner.slain." + k.id
+                    : "worldboss.beyondsolo.banner.slain.world"));
             SysFont.spaced(g, head, cx, y + 9 - 4 * (1 - hk), 11f, Gfx.mix(gold, WHITE, 0.55f), true, 2.6f, 0.5f);
             Gfx.setAlpha(o2);
             Component sub = took ? k.fullName() : Component.translatable("worldboss.beyondsolo.banner.fallen", k.fullName());

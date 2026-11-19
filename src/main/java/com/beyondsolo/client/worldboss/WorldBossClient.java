@@ -319,9 +319,21 @@ public final class WorldBossClient {
         return current;
     }
 
+    /** A world boss banner is on screen now. */
+    public static boolean bannerShowing() {
+        return current != null && current.start >= 0 && current.age() < current.duration;
+    }
+
     /** A world boss banner is on screen or waiting (pop-ups and quest windows let it go first). */
     public static boolean bannerPending() {
         return (current != null && current.start >= 0 && current.age() < current.duration) || !BANNERS.isEmpty();
+    }
+
+    /** A great threat's fall is on screen or waiting: what the fall brings (an island retaken) is told after it. */
+    public static boolean slainPending() {
+        if (bannerShowing() && current.kind == BannerKind.SLAIN) return true;
+        for (Banner b : BANNERS) if (b.kind == BannerKind.SLAIN) return true;
+        return false;
     }
 
     // ================================================================ state
@@ -343,10 +355,13 @@ public final class WorldBossClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != seenLevel) {
             seenLevel = mc.level;
-            if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) {
+            boolean isle = mc.level != null && com.beyondsolo.isle.IsleWorld.isIsle(mc.level);
+            // the hive's royalty live on Halcyon Isle (in tests, out in the overworld): the rest are the overworld's
+            if (tracked != null && (tracked.kind.hive() ? mc.level == null || !isle && mc.level.dimension() != Level.OVERWORLD
+                    : mc.level == null || mc.level.dimension() != Level.OVERWORLD)) {
                 tracked = null;
-                ruler = null;
             }
+            if (mc.level == null || mc.level.dimension() != Level.OVERWORLD) ruler = null;
         }
         // a boss that fell or left is let go a little after (the bar empties, the gate closes)
         if (tracked != null && tracked.endedAt >= 0 && Anim.since(tracked.endedAt) > 12f) tracked = null;
@@ -370,7 +385,7 @@ public final class WorldBossClient {
     static boolean othersShowing() {
         return GateOverlay.active() || QuestOverlay.active() || com.beyondsolo.client.evaluation.EvaluationOverlay.active()
                 || com.beyondsolo.client.skill.SkillOverlay.active() || com.beyondsolo.client.breaks.BreakClient.bannerShowing()
-                || com.beyondsolo.client.depths.DepthsClient.bannerShowing();
+                || com.beyondsolo.client.depths.DepthsClient.bannerShowing() || com.beyondsolo.client.isle.IsleClient.bannerShowing();
     }
 
     private static void sound(SoundEvent s, float volume, float pitch) {
