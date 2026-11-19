@@ -57,6 +57,7 @@ public final class BeyondSolo {
         com.beyondsolo.raid.RaidModule.init(modBus, container);
         com.beyondsolo.monarch.MonarchModule.init(modBus, container);
         com.beyondsolo.ruler.RulerModule.init(modBus, container);
+        com.beyondsolo.light.LightModule.init(modBus, container);
         com.beyondsolo.association.AssociationModule.init(modBus, container);
         com.beyondsolo.reward.RewardModule.init(modBus, container);
         com.beyondsolo.manapoison.ManaPoisonModule.init(modBus, container);

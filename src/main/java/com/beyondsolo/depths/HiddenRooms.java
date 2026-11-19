@@ -98,14 +98,18 @@ public final class HiddenRooms {
         }
         knocks = ++d.knocks;
         float pitch = 0.55f + 0.12f * knocks;
+        boolean chapel = d.hidden(g) == HiddenKind.CHAPEL;
         level.playSound(null, pos, SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.BLOCKS, 1.4f, pitch);
         level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT, SoundSource.BLOCKS, 1.1f, 0.6f + 0.1f * knocks);
-        DepthsFxPayload fx = new DepthsFxPayload(DepthsFxPayload.KNOCK, pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, knocks, KNOCKS, VIOLET);
+        // the light behind the chapel's wall answers each knock with a bell
+        if (chapel) level.playSound(null, pos, SoundEvents.BELL_RESONATE, SoundSource.BLOCKS, 0.7f, 0.9f + 0.15f * knocks);
+        DepthsFxPayload fx = new DepthsFxPayload(DepthsFxPayload.KNOCK, pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, knocks, KNOCKS,
+                chapel ? HiddenKind.CHAPEL.color : VIOLET);
         for (ServerPlayer near : level.getEntitiesOfClass(ServerPlayer.class, new AABB(pos).inflate(32))) PacketDistributor.sendToPlayer(near, fx);
         if (knocks >= KNOCKS) {
             open(level, g, p, pos);
         } else if (knocks == 1) {
-            p.displayClientMessage(Component.translatable("depths.beyondsolo.hidden.hollow"), true);
+            p.displayClientMessage(Component.translatable(chapel ? "depths.beyondsolo.hidden.chapel.hollow" : "depths.beyondsolo.hidden.hollow"), true);
         }
     }
 
@@ -152,8 +156,9 @@ public final class HiddenRooms {
         long xp = 60L * (1 + g.rank().tier());
         for (ServerPlayer p : party) {
             PacketDistributor.sendToPlayer(p, fx);
-            // the sealed door is not the System's to find: no HIDDEN DUNGEON moment, no XP (the awakening has its own)
-            if (kind == HiddenKind.SEALED) continue;
+            // the sealed door is not the System's to find: no HIDDEN DUNGEON moment, no XP (the awakening has its own);
+            // nor is the chapel, which is the light's
+            if (kind == HiddenKind.SEALED || kind == HiddenKind.CHAPEL) continue;
             PacketDistributor.sendToPlayer(p, new DepthsPayload(DepthsPayload.HIDDEN, kind.ordinal(), g.rank().ordinal(),
                     (float) at.x, (float) at.y, (float) at.z,
                     Component.translatable("depths.beyondsolo.hidden.found"), kind.title()));
@@ -163,6 +168,7 @@ public final class HiddenRooms {
                     Component.translatable("depths.beyondsolo.hidden.found.title", kind.title()), kind.description()));
         }
         d.knocks = 0;
+        if (kind == HiddenKind.CHAPEL) com.beyondsolo.light.Chapel.opened(level, g, party);
     }
 
     /** Takes a wall down a block at a time, nearest {@code from} first. */
@@ -228,7 +234,7 @@ public final class HiddenRooms {
     // ------------------------------------------------------------------ inside
 
     /** True if {@code p} stands inside the room. */
-    static boolean inside(GateInstance g, DungeonLayout.Room room, Vec3 p, float margin) {
+    public static boolean inside(GateInstance g, DungeonLayout.Room room, Vec3 p, float margin) {
         BlockPos c = g.world(room.center());
         double dx = p.x - (c.getX() + 0.5), dz = p.z - (c.getZ() + 0.5);
         return Math.sqrt(dx * dx + dz * dz) < room.reach() - margin && Math.abs(p.y - c.getY()) < room.ry() + 3;
@@ -239,6 +245,11 @@ public final class HiddenRooms {
         GateDepths d = g.depths();
         HiddenKind kind = d.hidden(g);
         DungeonLayout.Room room = g.layout().hidden();
+        // the chapel is the light's to keep, its wall and all (light.Chapel)
+        if (kind == HiddenKind.CHAPEL && room != null) {
+            com.beyondsolo.light.Chapel.tick(level, g, room, players);
+            return;
+        }
         // the sealed door's chamber has nothing to step into: its door is the awakening's (awakening.AwakeningService)
         if (kind == null || kind == HiddenKind.SEALED || room == null || !d.hiddenOpen()) return;
         List<ServerPlayer> in = new ArrayList<>();
@@ -259,6 +270,7 @@ public final class HiddenRooms {
             case SHRINE -> "depths.beyondsolo.hidden.enter.shrine";
             case LAIR -> "depths.beyondsolo.hidden.enter.lair";
             case SEALED -> "depths.beyondsolo.hidden.enter.sealed";
+            case CHAPEL -> "depths.beyondsolo.hidden.enter.chapel";
         };
         for (ServerPlayer p : GateService.playersIn(level, g)) {
             PacketDistributor.sendToPlayer(p, new DepthsPayload(DepthsPayload.HIDDEN_ENTER, kind.ordinal(), g.rank().ordinal(),

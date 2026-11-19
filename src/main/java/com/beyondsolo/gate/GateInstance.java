@@ -47,6 +47,11 @@ public final class GateInstance {
      */
     private boolean temple;
     /**
+     * Awakening temple whose antechamber hides the chapel of the Envoy of Dawn ({@code light.Chapel}): the secret way to
+     * wake sworn to the light. Set for temples opened since the light came; older temples keep the plan they were carved to.
+     */
+    private boolean chapel;
+    /**
      * Awakening trial behind a door found in a cave: where its owner wakes once it is over (in front of that cave's gate
      * in the world, kept here because the cave itself is gone by then). Null: in front of the sealed gate.
      */
@@ -96,6 +101,8 @@ public final class GateInstance {
     public void setCheckpoint(int room) { this.checkpoint = room; }
     public boolean temple() { return temple; }
     public void setTemple(boolean temple) { this.temple = temple; this.layout = null; }
+    public boolean chapel() { return chapel; }
+    public void setChapel(boolean chapel) { this.chapel = chapel; this.layout = null; }
     @Nullable public GateService.Home trialHome() { return trialHome; }
     public void setTrialHome(@Nullable GateService.Home home) { this.trialHome = home; }
     public long seed() { return seed; }
@@ -213,7 +220,7 @@ public final class GateInstance {
     public DungeonLayout layout() {
         if (layout == null) {
             com.beyondsolo.depths.HiddenKind hidden = depths.hidden(this);
-            if (isTrial() && temple) layout = DungeonLayout.temple(seed);
+            if (isTrial() && temple) layout = DungeonLayout.temple(seed, chapel);
             else if (hidden == com.beyondsolo.depths.HiddenKind.SEALED) layout = DungeonLayout.planSealed(seed, theme(), realm(), shape());
             else layout = DungeonLayout.plan(seed, theme(), realm(), shape(), hidden != null);
         }
@@ -267,6 +274,7 @@ public final class GateInstance {
         if (owner != null) tag.putUUID("owner", owner);
         tag.putInt("checkpoint", checkpoint);
         tag.putBoolean("temple", temple);
+        tag.putBoolean("chapel", chapel);
         if (trialHome != null) {
             CompoundTag home = new CompoundTag();
             home.putString("dim", trialHome.dimension().location().toString());
@@ -310,6 +318,7 @@ public final class GateInstance {
         if (tag.hasUUID("owner")) g.owner = tag.getUUID("owner");
         g.checkpoint = tag.getInt("checkpoint");
         g.temple = tag.getBoolean("temple");
+        g.chapel = tag.getBoolean("chapel");
         if (tag.contains("trialHome")) {
             CompoundTag home = tag.getCompound("trialHome");
             g.trialHome = new GateService.Home(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(home.getString("dim"))),

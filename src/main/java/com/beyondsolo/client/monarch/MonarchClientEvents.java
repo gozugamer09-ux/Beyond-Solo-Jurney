@@ -32,8 +32,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Client wiring for the monarch path: the crown keys (Alt + the skill keys by default), the crown bar, the monarch HUD
- * and the coronation, the Arbiter Unchained's renderer and the camera's shudder.
+ * Client wiring for the monarch path: the crown keys (Alt + the skill keys by default; a hunter sworn to the light uses
+ * them for the light's powers instead), the crown bar, the monarch HUD and the coronation, the Arbiter Unchained's
+ * renderer and the camera's shudder.
  */
 public final class MonarchClientEvents {
     public static final ResourceLocation CROWN_BAR_LAYER = BeyondSolo.id("monarch_crown_bar");
@@ -129,6 +130,11 @@ public final class MonarchClientEvents {
     static void press(int key) {
         Minecraft mc = Minecraft.getInstance();
         Dominion d = MonarchClient.dominion();
+        // a hunter sworn to the light walks the other road: the same keys hold the light's powers
+        if (d == null && com.beyondsolo.client.light.LightClient.sworn()) {
+            com.beyondsolo.client.light.LightClient.press(key);
+            return;
+        }
         if (d == null || mc.player == null || !ClientSystemData.get().isAwakened()) return;
         Skill s = MonarchPowers.onKey(d, key);
         if (s == null || !ClientSkills.data().knows(s.path())) return;

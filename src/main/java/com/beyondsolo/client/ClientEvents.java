@@ -103,6 +103,8 @@ public final class ClientEvents {
             while (OPEN_SYSTEM.consumeClick()) {
                 // the throne's question comes first while it waits for an answer
                 if (com.beyondsolo.client.monarch.ThroneScreen.reopen()) continue;
+                // and the Envoy's, at the Investiture
+                if (com.beyondsolo.client.light.MantleScreen.reopen()) continue;
                 // no System, no window: before the awakening the key does nothing at all
                 if (mc.screen == null && ClientSystemData.get().hasSystem()) mc.setScreen(new SystemScreen());
             }

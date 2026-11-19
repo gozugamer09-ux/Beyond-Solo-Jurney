@@ -58,7 +58,9 @@ public final class SkillOverlay {
         switch (p.moment()) {
             case SkillMomentPayload.LEARNED -> {
                 // a crown's powers were just shown on the coronation's card: only the log hears of them again
-                if (!(s.monarch() && com.beyondsolo.client.monarch.CoronationOverlay.justCrowned())) LEARNED.addLast(new Learned(s, p.level()));
+                // (the light's at the Investiture likewise: its card names the mantle's authority)
+                if (!(s.monarch() && com.beyondsolo.client.monarch.CoronationOverlay.justCrowned())
+                        && !(s.ruler() && com.beyondsolo.client.light.LightHud.investing())) LEARNED.addLast(new Learned(s, p.level()));
                 NotificationManager.log(SystemNotification.of(SystemNotification.Kind.REWARD,
                         Component.translatable("skills.beyondsolo.acquired"), s.displayName()));
             }
@@ -77,6 +79,7 @@ public final class SkillOverlay {
     public static void refuse(String path, int reason) {
         SkillBar.refused(path);
         com.beyondsolo.client.monarch.CrownBar.refused(path);
+        com.beyondsolo.client.light.LightBar.refused(path);
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         String key = switch (reason) {
@@ -213,6 +216,7 @@ public final class SkillOverlay {
             float dy = ny + 22 + (1 - d) * 5;
             String kind = Component.translatable(s.isActive() ? "skills.beyondsolo.active" : "skills.beyondsolo.passive").getString();
             String owner = s.monarch() ? Component.translatable("skills.beyondsolo.monarch").getString()
+                    : s.ruler() ? Component.translatable("skills.beyondsolo.ruler").getString()
                     : s.rune() ? Component.translatable("skills.beyondsolo.rune_art").getString()
                     : s.owner() == null ? Component.translatable("skills.beyondsolo.common").getString() : s.owner().displayName().getString();
             String lv = Component.translatable("skills.beyondsolo.level", m.level).getString();

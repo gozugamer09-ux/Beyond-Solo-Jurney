@@ -144,6 +144,8 @@ public final class GateService {
         GateInstance g = GateData.get(level.getServer()).create(id, PlayerRank.D, level.random.nextLong(), level.dimension(), pos);
         g.setOwner(owner.getUUID());
         g.setTemple(true);
+        // the light's secret way: the Envoy of Dawn's chapel, walled off the antechamber
+        g.setChapel(com.beyondsolo.light.LightConfig.chapel());
         gate.setup(id, PlayerRank.D, false, level.getGameTime());
         gate.setSealed(true);
         level.playSound(null, pos, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.8f, 0.5f);

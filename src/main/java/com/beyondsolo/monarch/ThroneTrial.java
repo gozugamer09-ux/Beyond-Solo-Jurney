@@ -864,7 +864,7 @@ public final class ThroneTrial {
                 new SkillFxPayload(-1, kind, color & 0xFFFFFF, (float) at.x, (float) at.y, (float) at.z, size, duration));
     }
 
-    static DustParticleOptions dust(int rgb, float scale) {
+    public static DustParticleOptions dust(int rgb, float scale) {
         return new DustParticleOptions(new org.joml.Vector3f(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f), scale);
     }
 

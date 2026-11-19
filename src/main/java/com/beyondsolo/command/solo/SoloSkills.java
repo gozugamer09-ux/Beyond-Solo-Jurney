@@ -99,7 +99,7 @@ final class SoloSkills {
         int n = 0;
         for (Skill s : Skills.all()) {
             // the monarch powers come with a crown (/solo monarch crown), not with "every skill"
-            if (s.monarch() || !s.fits(d.playerClass(), JobAPI.subclass(p)) || !s.allows(p)) continue;
+            if (s.sovereign() || !s.fits(d.playerClass(), JobAPI.subclass(p)) || !s.allows(p)) continue;
             teach(p, s, level);
             n++;
         }

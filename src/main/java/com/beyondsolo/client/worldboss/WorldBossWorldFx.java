@@ -151,6 +151,7 @@ public final class WorldBossWorldFx {
         any |= threat(buffers, time, partial);
         any |= regalia(buffers, partial);
         any |= monarchs(buffers, time, partial);
+        any |= lightRulers(buffers, time, partial);
         if (any) for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
     }
 
@@ -745,6 +746,55 @@ public final class WorldBossWorldFx {
             }
             // the crown's circle under their feet
             flat(buf(buffers, CIRCLE), at.x, at.y + 0.06, at.z, 1.5f * k, -spin * 1.5f, c, 0.45f * k);
+            drew = true;
+        }
+        return drew;
+    }
+
+    // ================================================================ the hunters sworn to the light
+
+    /** The land under each hunter ruler's sanctum (each follows its own ruler). */
+    private static final java.util.Map<Integer, Terrain> LIGHT_LANDS = new java.util.HashMap<>();
+
+    /**
+     * A hunter ruler of light's sanctum and seraph form ({@link com.beyondsolo.client.light.LightClient}). The sanctum
+     * is a ruler's from beyond the gates in the hunter's own light, following them, with the ground inside it lit and a
+     * sun of light turning under their feet; in seraph form the light burns off them like a crowned monarch's aura (its
+     * wings and halo are a model of their own, {@code client.light.SeraphLayer}).
+     */
+    private static boolean lightRulers(MultiBufferSource buffers, float time, float partial) {
+        var sanctums = com.beyondsolo.client.light.LightClient.sanctums();
+        var seraphs = com.beyondsolo.client.light.LightClient.seraphs();
+        if (sanctums.isEmpty() && seraphs.isEmpty()) {
+            LIGHT_LANDS.clear();
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        double now = com.beyondsolo.client.light.LightClient.now(partial);
+        boolean drew = false;
+        for (var g : sanctums) {
+            Entity owner = mc.level.getEntity(g.entity);
+            float in = g.strength(now);
+            if (owner == null || in <= 0.005f) continue;
+            Terrain land = LIGHT_LANDS.computeIfAbsent(g.entity, id -> new Terrain((float) owner.getY()));
+            Vec3 at = owner.getPosition(partial);
+            int c = g.color;
+            sanctum(buffers, land, at, g.size, c, in, time);
+            float breath = 0.85f + 0.15f * Mth.sin(time * 0.07f);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 3.0f, (time * 0.8f) % 360, 0.07f, c, 0.5f * in);
+            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 1.8f, (-time * 1.5f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.5f), 0.4f * in);
+            flatOnLand(buf(buffers, GLOW), land, at.x, at.z, 4.2f, 0, 0.06f, c, 0.3f * in * breath);
+            drew = true;
+        }
+        LIGHT_LANDS.keySet().removeIf(id -> sanctums.stream().noneMatch(g -> g.entity == id));
+        Entity viewer = mc.getCameraEntity();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
+        for (var f : seraphs) {
+            Entity e = mc.level.getEntity(f.entity);
+            float k = f.strength(now);
+            if (!(e instanceof LivingEntity ruler) || k <= 0.005f || ruler.isInvisible()) continue;
+            if (e == viewer && firstPerson) continue;
+            aura(buf(buffers, GLOW), ruler, e.getPosition(partial), time, f.color, 6, k);
             drew = true;
         }
         return drew;

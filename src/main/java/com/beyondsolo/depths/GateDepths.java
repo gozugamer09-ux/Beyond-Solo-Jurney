@@ -76,7 +76,9 @@ public final class GateDepths {
     /** The hidden chamber, or null. Changing it after the cave is built does nothing to the rock. */
     @Nullable
     public HiddenKind hidden(GateInstance g) {
-        if (!enabled || g.isTrial() || hiddenOverride == NONE) return null;
+        // an awakening temple hides nothing but, since the light came, the Envoy of Dawn's chapel
+        if (g.isTrial()) return enabled && g.temple() && g.chapel() ? HiddenKind.CHAPEL : null;
+        if (!enabled || hiddenOverride == NONE) return null;
         if (hiddenOverride >= 0) return HiddenKind.byIndex(hiddenOverride);
         return HiddenKind.roll(g.seed(), g.rank());
     }
