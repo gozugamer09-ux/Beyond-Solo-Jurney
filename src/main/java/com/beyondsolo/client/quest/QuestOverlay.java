@@ -108,7 +108,9 @@ public final class QuestOverlay {
                 && !com.beyondsolo.client.redgate.RedGateClient.warningUp() && !com.beyondsolo.client.tower.TowerClient.holdsScreen()
                 && !com.beyondsolo.client.raid.RaidClient.holdsScreen()
                 // never over a title moment: the two would draw on top of each other
-                && !com.beyondsolo.client.chronicle.TitleOverlay.active()) {
+                && !com.beyondsolo.client.chronicle.TitleOverlay.active()
+                // nor over a box opening, and a box that came in the same moment goes first (a cursed box's wardens)
+                && !com.beyondsolo.client.reward.BoxOverlay.active() && !com.beyondsolo.client.reward.BoxOverlay.waiting()) {
             current = QUEUE.pollFirst();
             NotificationManager.setHeld(true);
             startedAt = Anim.now();

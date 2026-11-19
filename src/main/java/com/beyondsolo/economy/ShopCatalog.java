@@ -122,6 +122,8 @@ public final class ShopCatalog {
         item(m, Category.REMEDIES, com.beyondsolo.crafting.CraftingModule.MANA_DRAUGHT.get(), 1, 70, PlayerRank.E);
         item(m, Category.REMEDIES, com.beyondsolo.crafting.CraftingModule.STAMINA_TONIC.get(), 1, 90, PlayerRank.E);
         item(m, Category.REMEDIES, com.beyondsolo.crafting.CraftingModule.GREATER_HEALING_DRAUGHT.get(), 1, 300, PlayerRank.C);
+        // for the thick mana of A and S gates
+        item(m, Category.REMEDIES, com.beyondsolo.manapoison.ManaPoisonModule.DRAUGHT.get(), 1, 450, PlayerRank.B);
         // weapons: the arsenal up to epic; legendary and up only come from gates
         for (var w : Arsenal.ofGrade(ItemGrade.COMMON)) gear(m, Category.WEAPONS, w.get(), 180, PlayerRank.E, 0);
         for (var w : Arsenal.ofGrade(ItemGrade.RARE)) gear(m, Category.WEAPONS, w.get(), 650, PlayerRank.D, 0);

@@ -42,7 +42,8 @@ import java.util.function.Consumer;
  *     <li>the structures go in: the chasm's sea and the lake, islands on their pillars, bridge decks with railings,
  *     steps in corridors, the walkway of winding stairs, terraces for camps in a hollow;</li>
  *     <li>then the dressing ({@link DungeonDecor}): lights, the realm's decorations, the boss's arena, caches, mana
- *     veins, and walls and fences are joined up to their neighbours;</li>
+ *     veins, and walls and fences are joined up to their neighbours; then the depths ({@code depths.DepthsBuild}) and, in
+ *     A and S gates, the purifying crystals ({@code manapoison.ManaCrystals});</li>
  *     <li>last, it is walked from the entrance as a player would, and a way is opened to any room that can't be got
  *     to on foot ({@link DungeonMend}).</li>
  * </ol>
@@ -103,6 +104,7 @@ public final class DungeonBuilder {
         steps.add(once(this::joinUp));
         // the hidden chamber's wall and dressing, the trap rooms' cores and vents
         steps.add(once(level -> com.beyondsolo.depths.DepthsBuild.build(level, gate)));
+        steps.add(once(level -> com.beyondsolo.manapoison.ManaCrystals.build(level, gate)));
         steps.add(once(this::landing));
         // last, walked through as a player would: every room can be got to on foot, the hidden chamber only past its wall
         DungeonMend mend = new DungeonMend(this);

@@ -170,6 +170,13 @@ public class RewardCacheBlockEntity extends BlockEntity implements GeoBlockEntit
         if (red && server.random.nextFloat() < 0.5f) loot.add(com.beyondsolo.key.DungeonKeys.key(rank));
         // what a hidden chamber kept: often a key to a gate of its rank
         if (hidden && server.random.nextFloat() < 0.5f) loot.add(com.beyondsolo.key.DungeonKeys.key(rank));
+        // now and then a random box: a red gate's cursed, a hidden chamber's or an ascended boss's often blessed
+        loot.addAll(com.beyondsolo.reward.RewardBoxes.fromCache(rank, boss != null, ascended, red, hidden, server.random));
+        // where the mana is thick enough to poison, a purifying draught for the way on
+        if (com.beyondsolo.manapoison.ManaPoisonConfig.enabled() && rank.tier() >= com.beyondsolo.manapoison.ManaPoisonConfig.minGateRank().tier()
+                && (hidden || server.random.nextFloat() < 0.5f)) {
+            loot.add(new ItemStack(com.beyondsolo.manapoison.ManaPoisonModule.DRAUGHT.get(), hidden ? 2 : 1));
+        }
         for (int i = 0; i < loot.size(); i++) {
             double a = i * Math.PI * 2 / loot.size() + server.random.nextDouble() * 0.4;
             ItemEntity item = new ItemEntity(server, x, y, z, loot.get(i).copy());

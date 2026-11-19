@@ -428,7 +428,7 @@ final class SoloWorld {
         return Solo.t("dungeon.enter", p.getDisplayName(), g.dungeonName());
     }
 
-    private static GateInstance inside(ServerPlayer p) throws CommandSyntaxException {
+    static GateInstance inside(ServerPlayer p) throws CommandSyntaxException {
         GateInstance g = GateService.isDungeon(p.level()) ? GateData.get(p.server).bySlotPos(p.blockPosition()) : null;
         if (g == null || g.state() == GateInstance.State.CLOSED) throw Solo.error("not_in_dungeon", p.getDisplayName());
         return g;
