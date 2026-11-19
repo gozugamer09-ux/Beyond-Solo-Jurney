@@ -145,16 +145,17 @@ public final class ObjectiveWaypoint {
         double far = Math.max(48, RenderSystem.getShaderFogEnd() * 0.7);
         float scale = (float) (rel.length() > far ? far / rel.length() : 1);
         rel = rel.scale(scale);
-        float width = (float) Math.max(0.9, flat * 0.011) * scale;
-        float height = (float) Math.max(110, flat * 0.32) * scale;
+        // the same width on screen however far: about six degrees of soft glow round a bright core
+        float width = (float) Math.max(1.0, flat * 0.02) * scale;
+        float height = (float) Math.max(110, flat * 0.45) * scale;
         float t = mc.level.getGameTime() + partial;
         float beat = 0.85f + 0.15f * Mth.sin(t * 0.09f);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         pose.pushPose();
         pose.translate(rel.x, rel.y, rel.z);
-        GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, at.x, at.z, width * 2.6f, height, COLOR, 0.42f * a * beat);
-        GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, at.x, at.z, width * 0.75f, height * 0.9f,
-                GateFx.mix(COLOR, 0xFFFFFF, 0.55f), 0.8f * a);
+        GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, at.x, at.z, width * 2.6f, height, COLOR, 0.55f * a * beat);
+        GateFx.column(buffers.getBuffer(ModRenderTypes.lightThroughWalls(BEAM)), pose, camera, at.x, at.z, width * 0.8f, height * 0.9f,
+                GateFx.mix(COLOR, 0xFFFFFF, 0.5f), 0.9f * a);
         // a soft glow at its foot
         float glow = (float) Math.max(1.2, flat * 0.02) * scale;
         GateFx.dot(buffers.getBuffer(ModRenderTypes.lightThroughWalls(GLOW)), pose, camera, 0, 0.6f * scale, 0, glow * (0.9f + 0.2f * beat), COLOR, 0.6f * a);

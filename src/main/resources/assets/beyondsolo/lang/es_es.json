@@ -116,7 +116,7 @@
   "notify.beyondsolo.kind.reward": "RECOMPENSA",
   "notify.beyondsolo.welcome.title": "Bienvenido, Jugador.",
   "notify.beyondsolo.welcome.body": "El Sistema está vinculado a ti. Encuentra una aldea y toca su Cristal de Evaluación para conocer tu rango y tu clase. Hasta entonces, ningún portal te dejará entrar.",
-  "notify.beyondsolo.village_marked.title": "Aldea Marcada",
+  "notify.beyondsolo.village_marked.title": "Aldea marcada",
   "notify.beyondsolo.village_marked.body": "La aldea más cercana con Zona de Evaluación está a unos %s bloques al %s. Sigue la columna de luz.",
   "notify.beyondsolo.village_no_zone.title": "Sin Zona de Evaluación",
   "notify.beyondsolo.village_no_zone.body": "Esta aldea no tiene Zona de Evaluación. Busca otra aldea.",

@@ -9,6 +9,7 @@ import net.minecraft.Util;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 import java.util.function.Function;
 
@@ -95,6 +96,14 @@ public final class ModRenderTypes {
         return ENERGY.apply(texture);
     }
 
+    /**
+     * Every fragment passes the depth test, whether the test is on or off. Vanilla's {@code NO_DEPTH_TEST} only skips
+     * turning the test on, and the particle engine leaves it on, so at {@code AFTER_PARTICLES} (where the world effects
+     * draw) a "no depth test" type was still hidden behind every block in front of it.
+     */
+    private static final RenderStateShard.LayeringStateShard PASS_DEPTH = new RenderStateShard.LayeringStateShard("beyondsolo_pass_depth",
+            () -> RenderSystem.depthFunc(GL11.GL_ALWAYS), () -> RenderSystem.depthFunc(GL11.GL_LEQUAL));
+
     private static final Function<ResourceLocation, RenderType> LIGHT_THROUGH =Util.memoize(texture -> RenderType.create("beyondsolo_light_through",
             DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
             RenderType.CompositeState.builder()
@@ -102,6 +111,7 @@ public final class ModRenderTypes {
                     .setTextureState(new RenderStateShard.TextureStateShard(texture, true, false))
                     .setTransparencyState(RenderStateShard.LIGHTNING_TRANSPARENCY)
                     .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
+                    .setLayeringState(PASS_DEPTH)
                     .setWriteMaskState(RenderStateShard.COLOR_WRITE)
                     .setCullState(RenderStateShard.NO_CULL)
                     .createCompositeState(false)));

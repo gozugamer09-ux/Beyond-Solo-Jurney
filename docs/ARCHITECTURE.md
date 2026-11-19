@@ -181,6 +181,11 @@ Rules that came out of building it, worth keeping for gates and bosses:
   textured shaders cut every pixel under 10% opacity, which turns a soft glow into a hard disc). `CRYSTAL` and
   `CRYSTAL_GLOW` do the same for flat-coloured triangles. Vanilla particles are kept for things on the ground and
   for bursts, where their look fits.
+- **Seen through walls means a depth function of ALWAYS.** Vanilla's `NO_DEPTH_TEST` only skips turning the depth
+  test on, and the particle engine leaves it on, so at `AFTER_PARTICLES` (where the world effects draw) a "no depth
+  test" render type is still hidden behind every block in front of it. `ModRenderTypes.lightThroughWalls` sets the
+  depth function to `ALWAYS` for its own draw (`PASS_DEPTH`): gate sense pillars, the Depths frames and the village
+  mark's column use it.
 - **Never spawn a real lightning bolt for show.** Even a "visual only" bolt on the server hands the vanilla
   lightning advancement to everyone nearby, charges lightning rods and cleans copper. `WorldEffects.lightning`
   makes one that exists only on the client.
