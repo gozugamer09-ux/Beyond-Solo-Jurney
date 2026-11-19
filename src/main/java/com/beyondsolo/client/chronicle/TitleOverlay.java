@@ -79,6 +79,8 @@ public final class TitleOverlay {
         return !com.beyondsolo.client.evaluation.EvaluationOverlay.active()
                 && !com.beyondsolo.client.awakening.AwakeningOverlay.active()
                 && !com.beyondsolo.client.quest.QuestOverlay.active()
+                // a quest moment that came in the same moment goes first (a title earned by finishing a quest)
+                && !com.beyondsolo.client.quest.QuestOverlay.waiting()
                 && !com.beyondsolo.client.gate.GateOverlay.active()
                 && !com.beyondsolo.client.skill.SkillOverlay.active()
                 && !com.beyondsolo.client.job.JobRevealOverlay.active()

@@ -87,8 +87,10 @@ public final class ClientEvents {
         static void frame(RenderFrameEvent.Pre event) {
             Anim.frame();
             EvaluationOverlay.frame(event.getPartialTick());
-            NotificationManager.frame();
+            // the quest moment first: pop-ups that came in the same tick (a reward's news) then wait for it instead
+            // of starting under the card and being drawn over
             QuestOverlay.frame();
+            NotificationManager.frame();
         }
 
         @SubscribeEvent

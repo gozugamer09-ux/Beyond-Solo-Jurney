@@ -259,7 +259,9 @@ public final class GateService {
         // it. A gate that has broken has spilled its cave out here: its boss is the way to close it now.
         String refusal = g.isTrial() && !com.beyondsolo.awakening.AwakeningService.mayEnter(player, g) ? "message.beyondsolo.gate.sealed_other"
                 : g.breakState().broken() ? "message.beyondsolo.gate.broken"
-                : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated" : null;
+                : SystemAPI.hasSystem(player) && !SystemAPI.isAwakened(player) ? "message.beyondsolo.gate.unevaluated"
+                // an exam gate is its examinee's; a permit's gate, its holder's and their party's
+                : com.beyondsolo.association.Association.refusal(player, g);
         if (refusal != null) {
             if (COOLDOWN.getOrDefault(player.getUUID(), 0L) <= level.getGameTime()) {
                 player.displayClientMessage(Component.translatable(refusal), true);
@@ -733,6 +735,8 @@ public final class GateService {
         // a raid's own spoils: a cache for each raider, guild renown, its hunters' growth, the results board
         if (g.isRaid()) com.beyondsolo.raid.Raids.bossDefeated(level, g, boss, players);
         com.beyondsolo.awakening.AwakeningService.gateCleared(level, g, players);
+        // merit for everyone inside, and their association contracts and exam done
+        com.beyondsolo.association.Association.gateCleared(level, g, players);
         if (g.isKeyed()) com.beyondsolo.key.KeyedRuns.cleared(level, g, players);
         for (ServerPlayer p : players) {
             PacketDistributor.sendToPlayer(p, new GatePayload(GatePayload.BOSS_DEFEATED, g.rank().ordinal(), boss.getId(), 0,

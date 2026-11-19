@@ -98,7 +98,7 @@ public final class ClientQuests {
             case GATE -> 1;
             case SET -> 2;
             case SURPRISE -> 3;
-            case NPC -> 4;
+            case NPC, ASSOCIATION -> 4;
             case DAILY -> 5;
             case SECRET -> 6;
         };

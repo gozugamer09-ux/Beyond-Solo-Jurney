@@ -553,6 +553,8 @@ public final class DungeonBreaks {
         Set<ServerPlayer> paid = new LinkedHashSet<>(near(level, fell, SHARE));
         paid.addAll(near(level, g.gatePos(), SHARE));
         for (ServerPlayer p : paid) reward(p, g, xp, title, sub);
+        // merit with the association, and its contracts on the break done
+        com.beyondsolo.association.Association.breakSuppressed(level, g, paid);
     }
 
     /** One hunter's share of a suppressed break. */

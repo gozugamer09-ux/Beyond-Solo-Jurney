@@ -106,7 +106,9 @@ public final class QuestOverlay {
                 && !com.beyondsolo.client.depths.DepthsClient.bannerShowing() && !com.beyondsolo.client.breaks.BreakClient.bannerPending()
                 && !com.beyondsolo.client.worldboss.WorldBossClient.bannerPending() && !com.beyondsolo.client.monarch.MonarchHud.bannerUp()
                 && !com.beyondsolo.client.redgate.RedGateClient.warningUp() && !com.beyondsolo.client.tower.TowerClient.holdsScreen()
-                && !com.beyondsolo.client.raid.RaidClient.holdsScreen()) {
+                && !com.beyondsolo.client.raid.RaidClient.holdsScreen()
+                // never over a title moment: the two would draw on top of each other
+                && !com.beyondsolo.client.chronicle.TitleOverlay.active()) {
             current = QUEUE.pollFirst();
             NotificationManager.setHeld(true);
             startedAt = Anim.now();

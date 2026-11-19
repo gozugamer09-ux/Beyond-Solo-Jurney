@@ -39,6 +39,9 @@ Gradle sets the game up.
 - **Filming the player from outside.** `ui.sh "camera <x> <y> <z> <yaw> <pitch>"` films from a fixed point, like a
   camera on a tripod, so what the player casts is seen from the side instead of hiding behind their back. The
   numbers are the ones `look.py` prints. `camera off` goes back to the player's own eyes.
+- **Pressing buttons.** `ui.sh "click <x> <y>"` moves the mouse to a point of the open screen and left-clicks it, in
+  GUI coordinates (at GUI scale 2 the window is 640x360). That is how a tab, a row or a button of any screen gets
+  pressed. Find the point on a screenshot: halve its pixel position at GUI scale 2.
 - **Another language.** `ui.sh "lang es_es"` switches the game to Spanish (and `lang en_us` back) without a
   restart, as the options screen does.
 - **Keep the chat clean for pictures.** Commands answer in the chat, which ends up in screenshots and videos.

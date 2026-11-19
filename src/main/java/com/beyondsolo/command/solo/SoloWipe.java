@@ -145,6 +145,8 @@ final class SoloWipe {
         // off any raid's roster, then out of their guild (as if they left: a master hands it on)
         com.beyondsolo.raid.Raids.wipe(p);
         com.beyondsolo.guild.Guilds.wipe(p);
+        // the association lets go of the gates it held for them
+        com.beyondsolo.association.Association.wipe(p);
         // every record the mod keeps on the player back to its defaults (the System's own keeps "first join handled")
         List<AttachmentType<?>> ours = new ArrayList<>();
         for (var e : NeoForgeRegistries.ATTACHMENT_TYPES.entrySet()) {
