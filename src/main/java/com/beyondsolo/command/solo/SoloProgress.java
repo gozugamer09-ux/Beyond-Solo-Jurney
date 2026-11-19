@@ -137,6 +137,10 @@ final class SoloProgress {
         if (r.rulers() + r.sentences() + r.alliedWars() + r.heralds() + r.blessings() > 0) {
             out.append("\n").append(Solo.t("info.rulers", r.rulers(), r.sentences(), r.overturned(), r.alliedWars(), r.heralds()));
         }
+        com.beyondsolo.isle.IsleRecord isle = com.beyondsolo.isle.IsleAdmin.record(p);
+        if (isle.raids() > 0) {
+            out.append("\n").append(Solo.t("info.isle", isle.raids(), isle.cleared(), isle.nests(), isle.queens(), isle.kings()));
+        }
         return out;
     }
 

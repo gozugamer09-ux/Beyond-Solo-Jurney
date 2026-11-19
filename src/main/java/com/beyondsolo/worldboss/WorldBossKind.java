@@ -41,10 +41,16 @@ public enum WorldBossKind {
     /** Caelistor, Ruler of a Thousand Wings: four wings of white steel and a lance of light; the sky is hers. */
     WINGS("wings", Tier.RULER, Affinity.NONE, null, 0xFFF0B8, 4.8f, 1.15f, 0.6f, 0.25f),
     /** Ithrael, Ruler of the Unseen Hand: a masked one in robes who never touches the ground, and never needs to. */
-    HAND("hand", Tier.RULER, Affinity.NONE, null, 0xF6E2A8, 5.0f, 1.1f, 0.6f, 0.25f);
+    HAND("hand", Tier.RULER, Affinity.NONE, null, 0xF6E2A8, 5.0f, 1.1f, 0.6f, 0.25f),
+    /** Vessa, Mother of the Hive: the swollen queen deep under Halcyon Isle, who lays the swarm that took it. */
+    QUEEN("queen", Tier.HIVE, Affinity.VENOM, DamageElement.POISON, 0xFFB43C, 3.2f, 0.9f, 0.66f, 0.33f),
+    /** Azhrak, the Hive King: born when his mother dies, the swarm's last and deadliest child. Fast, winged, and hungry. */
+    KING("king", Tier.HIVE, Affinity.VENOM, DamageElement.POISON, 0xC8FF5A, 4.2f, 1.15f, 0.6f, 0.3f);
 
     public enum Tier {
-        WORLD(0xFFB347), MONARCH(0xC77DFF), RULER(0xFFE7A0);
+        WORLD(0xFFB347), MONARCH(0xC77DFF), RULER(0xFFE7A0),
+        /** The swarm of Halcyon Isle ({@code com.beyondsolo.isle}): fought only in the island raid, never abroad. */
+        HIVE(0xFFB43C);
 
         public final int color;
 
@@ -105,12 +111,17 @@ public enum WorldBossKind {
         return tier == Tier.RULER;
     }
 
+    /** The hive's queen and king: they live on Halcyon Isle and fall only in its raid. */
+    public boolean hive() {
+        return tier == Tier.HIVE;
+    }
+
     /**
      * Whether it comes from beyond the world (a monarch or a ruler): down out of the sky, with a domain (a ruler's
      * sanctum), an authority and a host of its own.
      */
     public boolean sovereign() {
-        return tier != Tier.WORLD;
+        return tier == Tier.MONARCH || tier == Tier.RULER;
     }
 
     /** The name its entity, model, animations and skin are filed under ("titan", "monarch_stillness", "ruler_verdict"). */
@@ -118,6 +129,7 @@ public enum WorldBossKind {
         return switch (tier) {
             case MONARCH -> "monarch_" + id;
             case RULER -> "ruler_" + id;
+            case HIVE -> "hive_" + id;
             default -> id;
         };
     }
@@ -162,6 +174,11 @@ public enum WorldBossKind {
 
     public static WorldBossKind[] rulers() {
         return new WorldBossKind[]{VERDICT, WINGS, HAND};
+    }
+
+    /** The hive's queen and king. */
+    public static WorldBossKind[] swarm() {
+        return new WorldBossKind[]{QUEEN, KING};
     }
 
     @Nullable

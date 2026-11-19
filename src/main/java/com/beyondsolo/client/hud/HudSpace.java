@@ -33,6 +33,8 @@ public final class HudSpace {
     private static final float GAP = 4;
 
     private static final List<float[]> CLAIMS = new ArrayList<>();
+    /** Last frame's claims, for pieces that may draw before the ones they must keep clear of. */
+    private static final List<float[]> LAST = new ArrayList<>();
     private static long frame;
     private static long readFrame = -1;
     /** Xaero's minimap this frame as {left, top, right, bottom}, or null. */
@@ -51,6 +53,8 @@ public final class HudSpace {
     /** A new frame of the HUD: the last frame's claims go. */
     static void newFrame() {
         frame++;
+        LAST.clear();
+        LAST.addAll(CLAIMS);
         CLAIMS.clear();
     }
 
@@ -63,6 +67,16 @@ public final class HudSpace {
     public static float topClaimed(float left, float right) {
         float bottom = 0;
         for (float[] c : CLAIMS) if (c[2] > left && c[0] < right) bottom = Math.max(bottom, c[3]);
+        return bottom;
+    }
+
+    /**
+     * Like {@link #topClaimed}, counting last frame's claims too: for a piece that may draw before the bars it has to
+     * keep clear of (the layers' order among mods' classes is not fixed).
+     */
+    public static float topClaimedLately(float left, float right) {
+        float bottom = topClaimed(left, right);
+        for (float[] c : LAST) if (c[2] > left && c[0] < right) bottom = Math.max(bottom, c[3]);
         return bottom;
     }
 

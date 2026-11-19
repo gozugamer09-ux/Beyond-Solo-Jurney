@@ -146,6 +146,7 @@ public final class JobTrial {
                 || com.beyondsolo.awakening.AwakeningService.inSequence(player)
                 || com.beyondsolo.penalty.PenaltyZone.busy(player)
                 || com.beyondsolo.redgate.RedGates.occupied(player)
+                || com.beyondsolo.isle.IsleRaids.occupied(player)
                 || com.beyondsolo.monarch.ThroneTrial.inTrial(player)) {
             info(player, "job_not_here");
             return;

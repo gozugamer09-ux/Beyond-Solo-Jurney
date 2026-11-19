@@ -158,6 +158,8 @@ public final class WorldBossModule {
             case VERDICT -> com.beyondsolo.ruler.RulerModule.VERDICT.get();
             case WINGS -> com.beyondsolo.ruler.RulerModule.WINGS.get();
             case HAND -> com.beyondsolo.ruler.RulerModule.HAND.get();
+            case QUEEN -> com.beyondsolo.isle.IsleModule.QUEEN.get();
+            case KING -> com.beyondsolo.isle.IsleModule.KING.get();
         };
     }
 

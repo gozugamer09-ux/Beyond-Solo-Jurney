@@ -8,6 +8,7 @@ import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
+import com.beyondsolo.client.hud.HudSpace;
 import com.beyondsolo.network.ShadowFxPayload;
 import com.beyondsolo.shadow.ShadowEntity;
 import com.beyondsolo.shadow.ShadowRank;
@@ -114,6 +115,9 @@ public final class ShadowHud {
         float old = Gfx.fade(in);
         int c = Gfx.opaque(s.color);
         float cx = p[0], cy = p[1];
+        // over the soul, but under whatever holds the top of the screen (a boss's bars, the report of a great kill)
+        float under = HudSpace.topClaimedLately(cx - 60, cx + 60);
+        if (under > 0 && cy - 18 < under + 4) cy = under + 22;
         if (s.inRitual(now)) {
             float k = s.ritualProgress(now);
             Shapes.circle(cx, cy, 13).fill(0xC0080612).border(0.75f, Gfx.alpha(c, 0.6f)).glow(6 + 6 * k, Gfx.alpha(c, 0.4f)).draw(g);

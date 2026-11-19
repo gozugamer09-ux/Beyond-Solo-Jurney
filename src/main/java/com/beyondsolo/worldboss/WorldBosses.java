@@ -106,6 +106,32 @@ public final class WorldBosses {
         return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
     }
 
+    /**
+     * The ground under a point beneath a roof (a cave, the hive's chamber): searched from the point down, never from above
+     * it ({@link #groundY} starts above the point, so under a low roof it finds the roof). A point in the ground (a step,
+     * a slab) is lifted onto it.
+     */
+    public static double groundBelow(ServerLevel level, double x, double z, double fromY) {
+        int bx = Mth.floor(x), bz = Mth.floor(z);
+        if (!level.hasChunk(bx >> 4, bz >> 4)) return fromY;
+        int y0 = Mth.floor(fromY + 0.01);
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos(bx, y0, bz);
+        int y = y0;
+        while (y < y0 + 4 && isGround(level.getBlockState(m.setY(y)))) y++;
+        if (y > y0) return top(level, m.setY(y - 1));
+        int bottom = Math.max(level.getMinBuildHeight(), y0 - 24);
+        for (y = y0 - 1; y >= bottom; y--) {
+            if (isGround(level.getBlockState(m.setY(y)))) return top(level, m);
+        }
+        return fromY;
+    }
+
+    /** The top of a block's collision (its y + 1 for a full block). */
+    private static double top(ServerLevel level, BlockPos p) {
+        double h = level.getBlockState(p).getCollisionShape(level, p).max(net.minecraft.core.Direction.Axis.Y);
+        return p.getY() + (Double.isFinite(h) && h > 0 ? h : 1);
+    }
+
     /** Solid ground a giant stands on: not air, leaves, logs, plants or water. */
     public static boolean isGround(BlockState s) {
         return !s.isAir() && s.blocksMotion() && !s.is(BlockTags.LEAVES) && !s.is(BlockTags.LOGS) && s.getFluidState().isEmpty();
@@ -393,7 +419,12 @@ public final class WorldBosses {
 
     /** A short number naming an event on the wire. */
     public static long eventKey(Event ev) {
-        return ev.id.getMostSignificantBits() ^ ev.id.getLeastSignificantBits();
+        return eventKey(ev.id);
+    }
+
+    /** A short number naming an event (or a raid: {@link com.beyondsolo.isle.IsleRaids}) on the wire, from its id. */
+    public static long eventKey(UUID id) {
+        return id.getMostSignificantBits() ^ id.getLeastSignificantBits();
     }
 
     // ================================================================ phases
@@ -401,7 +432,8 @@ public final class WorldBosses {
     /** A boss began a phase: the world shakes, and every hunter near hears its name. */
     public static void phaseBegan(ServerLevel level, ColossalBoss boss, int phase) {
         Event ev = eventOf(level, boss);
-        long key = ev != null ? eventKey(ev) : 0;
+        // the hive's royalty belong to a raid, not an event: its id names them on the wire all the same
+        long key = ev != null ? eventKey(ev) : boss.eventId() != null ? eventKey(boss.eventId()) : 0;
         for (ServerPlayer p : boss.watchers(WorldBossFx.RANGE)) {
             PacketDistributor.sendToPlayer(p, new WorldBossPayload(WorldBossPayload.PHASE, boss.kind().ordinal(), key, boss.getId(), boss.blockPosition(),
                     phase, 0, 0));
@@ -426,6 +458,10 @@ public final class WorldBosses {
         WorldBossKind kind = boss.kind();
         if (kind.ruler()) {
             com.beyondsolo.ruler.Rulers.slain(level, boss, source);
+            return;
+        }
+        if (kind.hive()) {
+            com.beyondsolo.isle.IsleRaids.slain(level, boss, source);
             return;
         }
         WorldBossData data = WorldBossData.get(level.getServer());
@@ -510,12 +546,19 @@ public final class WorldBosses {
         }
     }
 
+    /** Counts a great threat slain into a hunter's record (for kills paid elsewhere: the hive's royalty). */
+    public static void countSlain(ServerPlayer p, WorldBossKind kind, boolean top) {
+        p.getData(WorldBossModule.RECORD.get()).addSlain(kind, top);
+    }
+
     /** It has gone (sunk into the earth, risen back into its gate). */
     static void left(ServerLevel level, ColossalBoss boss) {
         if (boss.kind().ruler()) {
             com.beyondsolo.ruler.Rulers.left(level, boss);
             return;
         }
+        // the hive's royalty never leave their island: a raid that ends takes them away itself
+        if (boss.kind().hive()) return;
         Event ev = eventOf(level, boss);
         if (ev != null) withdrawn(level, WorldBossData.get(level.getServer()), ev);
     }
@@ -579,6 +622,8 @@ public final class WorldBosses {
         Event ev = data.current();
         if (e instanceof ColossalBoss boss) {
             if (!event.loadedFromDisk()) return;
+            // the hive's royalty are the raid's to keep or let crumble (IsleRaids.onJoin)
+            if (boss.kind().hive()) return;
             Event own = boss.kind().ruler() ? data.ruler() : ev;
             if (own == null || !own.id.equals(boss.eventId()) || !boss.getUUID().equals(own.entity)) event.setCanceled(true);
             return;

@@ -1,0 +1,18 @@
+{
+  "type": "beyondsolo:halcyon_isle",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "beyondsolo:halcyon_isle",
+      "lakes": false,
+      "features": false,
+      "structure_overrides": [],
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:stone", "height": 47 },
+        { "block": "minecraft:sand", "height": 3 },
+        { "block": "minecraft:water", "height": 12 }
+      ]
+    }
+  }
+}

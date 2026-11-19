@@ -1,4 +1,4 @@
 {
   "replace": false,
-  "values": ["minecraft:wither", "minecraft:warden", "minecraft:elder_guardian"]
+  "values": ["minecraft:wither", "minecraft:warden", "minecraft:elder_guardian", "beyondsolo:hive_queen", "beyondsolo:hive_king"]
 }

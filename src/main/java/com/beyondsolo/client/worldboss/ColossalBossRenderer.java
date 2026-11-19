@@ -12,6 +12,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
@@ -47,6 +48,13 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
     protected float getDeathMaxRotation(T boss) {
         // each falls with its own death animation
         return 0f;
+    }
+
+    @Override
+    public int getPackedOverlay(T boss, float u, float partialTick) {
+        // a great threat doesn't flush red under every blow: with a raid's hunters on it, it never would stop, and it
+        // falls with its own death animation
+        return OverlayTexture.pack(OverlayTexture.u(u), OverlayTexture.v(false));
     }
 
     @Override

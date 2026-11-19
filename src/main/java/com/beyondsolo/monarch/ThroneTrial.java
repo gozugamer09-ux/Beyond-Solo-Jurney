@@ -153,6 +153,7 @@ public final class ThroneTrial {
                 || com.beyondsolo.awakening.AwakeningService.inSequence(p)
                 || com.beyondsolo.penalty.PenaltyZone.busy(p)
                 || com.beyondsolo.redgate.RedGates.occupied(p)
+                || com.beyondsolo.isle.IsleRaids.occupied(p)
                 || com.beyondsolo.job.JobTrial.inTrial(p)
                 || com.beyondsolo.tower.TowerAPI.inCitadel(p)
                 || com.beyondsolo.evaluation.EvaluationManager.isBeingEvaluated(p);
