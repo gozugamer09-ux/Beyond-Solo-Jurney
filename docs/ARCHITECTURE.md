@@ -883,13 +883,17 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   exchange). A dimension change, logout or respawn leaves the guards posted. *Leave post* takes it off (it follows
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
-- **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring. The rank shows: from Knight a moving energy shell in the rank's
-  colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
-  `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
-  bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
-  Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
-  recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
+- **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to
+  blue-black ink) and records its outline as it draws (`client.fx.Outline`); `client.fx.Aura` then burns that
+  outline in the series' style (see "Series look" below): a hot rim, black flame standing on it, ink wisps, eyes
+  with comet trails, and a pool of ink when it rises, sinks or falls. The rank shows in the burning (`LOOKS`): a husk
+  barely holds an edge, from Vanguard light shows through the seams, from Knight a taller crest of flame, from
+  Commander a crown of flame spikes; a Regent has a second, violet rim and stands in its own pool; each rank above
+  Knight is a little bigger (`tierScale`). `ShadowWorldFx` draws souls (a small pool with a black flame and an
+  ember), the ritual (the pool spreads, a ring of black flame rises, ink tendrils climb to the soul, a hot thread from
+  the hand), the extraction burst (an eruption of black flame), refusals (a red-rimmed splash), summons, recalls,
+  rank-up and promotion pillars of black flame (a promotion sets a crown of it), essence streaks and the naming ring,
+  with ink smoke from `FxParticles`; `ShadowHud` the extract prompt, ritual
   ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
   (necromancers only): filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the

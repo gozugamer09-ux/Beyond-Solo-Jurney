@@ -373,7 +373,8 @@ public class ShadowsTab implements SystemTab {
         float boxW = 70, boxH = 80;
         float bx = px - 2, by = y + 8;
         Shapes.box(bx, by, boxW, boxH).radius(7).fillV(0xC0100820, 0xE0040208).border(0.75f, Gfx.alpha(c, 0.5f)).draw(g);
-        Shapes.circle(bx + boxW / 2, by + boxH - 12, 24).fill(0).glow(16, Gfx.alpha(c, 0.25f)).draw(g);
+        // it stands in a pool of ink with a thin rim of its light (never a circle of light: that is the other side's)
+        Shapes.pill(bx + 13, by + boxH - 13, boxW - 26, 8).fill(0xF0040208).border(0.6f, Gfx.alpha(c, 0.75f)).glow(7, Gfx.alpha(c, 0.22f)).draw(g);
         celebration(g, r, bx, by, boxW, boxH, true);
         drawPreview(g, r, (int) bx, (int) by, (int) (bx + boxW), (int) (by + boxH));
         celebration(g, r, bx, by, boxW, boxH, false);

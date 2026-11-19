@@ -17,9 +17,15 @@ in vec4 vertexColor;
 
 out vec4 fragColor;
 
+// How far into the fog a fragment is. With no fog (a screen: the start is pushed out of reach and the end left where
+// the world had it) nothing is fogged, where smoothstep alone would be undefined and hide everything.
+float fog() {
+    return fogDistance <= FogStart ? 0.0 : smoothstep(FogStart, max(FogEnd, FogStart + 0.001), fogDistance);
+}
+
 void main() {
     vec4 tex = texture(Sampler0, texCoord0);
-    float strength = vertexColor.a * ColorModulator.a * (1.0 - smoothstep(FogStart, FogEnd, fogDistance));
+    float strength = vertexColor.a * ColorModulator.a * (1.0 - fog());
     vec3 tint = vertexColor.rgb * ColorModulator.rgb;
     vec3 hue = tint / max(max(tint.r, tint.g), max(tint.b, 0.04));
     float heat = tex.r * strength;
