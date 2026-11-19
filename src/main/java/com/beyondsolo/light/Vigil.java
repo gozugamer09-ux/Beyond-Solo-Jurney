@@ -174,7 +174,7 @@ public final class Vigil {
         List<Runnable> after = new ArrayList<>();
         while (it.hasNext()) {
             Watch w = it.next().getValue();
-            ServerPlayer p = server.getPlayerList().getPlayer(w.player);
+            ServerPlayer p = com.beyondsolo.util.OnlinePlayers.get(server, w.player);
             if (p == null || !p.isAlive() || p.level() != w.level) {
                 it.remove();
                 after.add(() -> failed(w, p, "gone"));

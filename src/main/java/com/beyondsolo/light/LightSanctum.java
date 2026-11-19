@@ -232,7 +232,7 @@ public final class LightSanctum {
         if (!SERAPHS.isEmpty()) {
             List<ServerPlayer> over = new ArrayList<>();
             for (Map.Entry<UUID, Form> en : SERAPHS.entrySet()) {
-                ServerPlayer p = server.getPlayerList().getPlayer(en.getKey());
+                ServerPlayer p = com.beyondsolo.util.OnlinePlayers.get(server, en.getKey());
                 if (p == null) continue;
                 Form f = en.getValue();
                 if (!p.isAlive() || p.level().getGameTime() >= f.until || !LightAPI.sworn(p)) over.add(p);
@@ -249,7 +249,7 @@ public final class LightSanctum {
                 }
             }
             for (ServerPlayer p : over) endSeraph(p);
-            SERAPHS.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
+            SERAPHS.keySet().removeIf(id -> com.beyondsolo.util.OnlinePlayers.get(server, id) == null);
         }
     }
 

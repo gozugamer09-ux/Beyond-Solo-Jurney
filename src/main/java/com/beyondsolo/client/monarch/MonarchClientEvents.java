@@ -53,8 +53,15 @@ public final class MonarchClientEvents {
                 ClientEvents.KEY_CATEGORY);
     }
 
-    /** The crown key a monarch power sits on (the domain, dread, the crown form, then any authority), or -1. */
+    /**
+     * The crown key a monarch's or a ruler's power sits on (the domain or sanctum, dread or judgement, the crown or seraph
+     * form, then any authority), or -1.
+     */
     public static int crownKeyOf(Skill s) {
+        if (s.ruler()) {
+            return s == com.beyondsolo.skill.RulerPowers.SANCTUM ? 0 : s == com.beyondsolo.skill.RulerPowers.JUDGEMENT ? 1
+                    : s == com.beyondsolo.skill.RulerPowers.SERAPH ? 2 : 3;
+        }
         if (!s.monarch()) return -1;
         return s == MonarchPowers.DOMAIN ? 0 : s == MonarchPowers.DREAD ? 1 : s == MonarchPowers.CROWN ? 2 : 3;
     }
