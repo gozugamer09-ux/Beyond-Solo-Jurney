@@ -13,6 +13,19 @@ The hunter's own story (see com.beyondsolo.story): their mother's skins and the 
   crimson_kings_chalice (a gold goblet of crimson, a ruby on the cup), elixir_of_waking (a tall flask of gold light),
   home_cooked_stew (a wooden bowl of stew, steam rising); their item models.
 - the Home Comfort effect icon (18x18): a warm heart under a little roof.
+- father_0..2 (+ _glow): the hunter's father, the main story's (com.beyondsolo.story.MainStory), a man of about fifty
+  in the wide player shape: the long hunter's coat he walked into a gate in ten years ago, open over a dark shirt with
+  his hunter's tag on a chain, its skirt over the legs (the outer leg layer) and torn at the hem, trousers, boots,
+  fingerless gloves. The light he carries now shows through the coat's seams (waist, cuffs, hem) and in
+  his eyes: the _glow textures hold only those, drawn at full brightness by the game. Each matches the mother of the
+  same number:
+    0  fair, dark brown hair going grey at the temples, a short beard; a charcoal coat.
+    1  tan, black hair, dark stubble, a scar down the left cheek; an olive coat.
+    2  dark, a close silver crop and a grey beard; a navy coat.
+- king_of_night (+ _glow): Morvath, the King of Night, the vision the story shows: a pale gaunt face framed by long
+  black hair under a crown of iron spikes, black plate with a crack across the chest, heavy pauldrons, a ragged cloak
+  of shadow down the back to the heels (its tatters see-through). His eyes, the crack, the runes on his gauntlets and
+  pauldrons and the crown's jewel burn violet (the _glow texture).
 
 Faces are drawn pixel by pixel from the maps below (one letter a colour, '.' clear), with the association art kit's
 weave and light (tools/gen_association_assets.py).
@@ -33,6 +46,7 @@ from PIL import Image, ImageDraw, ImageFilter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gen_association_assets import (HAT, HEAD, BODY, JACKET, R_LEG, R_PANTS, L_LEG, L_PANTS,  # noqa: E402
                                     Skin, eye_pal, fill, hair_pal, hexc, mirror, rows, skin_pal)
+import gen_association_assets as assoc  # noqa: E402
 import gen_combat_assets as cb  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
@@ -231,6 +245,239 @@ def mother(look, asleep):
     return sk
 
 
+# ------------------------------------------------------------------------------------------------- lit skins
+
+class LitSkin(Skin):
+    """A skin with a glow texture beside it: glow letters (letter -> (colour, strength)) paint their pixels into the
+    glow texture too (everything else there stays clear black, which adds nothing); alpha letters (letter -> 0..255)
+    are see-through by that much in the skin itself."""
+
+    def __init__(self, seed, pal, glow, alpha=None):
+        super().__init__(seed, pal)
+        self.glow = {k: hexc(v[0]) * v[1] for k, v in glow.items()}
+        self.alpha = alpha or {}
+        self.g = np.zeros((64, 64, 4), float)
+
+    def paint(self, x, y, rows_, light=0.0):
+        super().paint(x, y, rows_, light)
+        for j, row in enumerate(rows_):
+            for i, ch in enumerate(row):
+                if ch == ".":
+                    continue
+                if ch in self.alpha:
+                    self.a[y + j, x + i, 3] = self.alpha[ch]
+                if ch in self.glow:
+                    self.g[y + j, x + i, :3] = self.glow[ch]
+                    self.g[y + j, x + i, 3] = 255
+                else:
+                    self.g[y + j, x + i] = 0
+
+    def glow_image(self):
+        return Image.fromarray(np.clip(self.g, 0, 255).astype(np.uint8), "RGBA")
+
+
+# the wide arms (4 wide) of the player model
+W_R_ARM, W_R_SLEEVE, W_L_ARM, W_L_SLEEVE = assoc.R_ARM, assoc.R_SLEEVE, assoc.L_ARM, assoc.L_SLEEVE
+LIGHT = "ffe7a0"
+
+
+# ------------------------------------------------------------------------------------------------- their father
+
+FATHER_LOOKS = [
+    # tone, hair (base, shade, light), grey strands, beard (base, grey), iris, coat (base, fold, edge), shirt (base,
+    # fold), trousers (base, fold), boots (base, light), gloves
+    dict(tone="light", hair=("4a3426", "33231a", "6a4c38"), grey="9c968e", beard=("4e3a2c", "8a8078"), iris="d8b058",
+         coat=("3c3c42", "2a2a30", "54545e"), shirt=("2e3a4c", "222c3a"), trousers=("2e2c2c", "201e1e"),
+         boots=("3a2a20", "5a4232"), glove="4a3628"),
+    dict(tone="tan", hair=("1e1a1c", "121012", "38323a"), grey="8e8c94", beard=("3a3234", "6e6a70"), iris="e0b860",
+         coat=("454c38", "33392a", "5c664a"), shirt=("4a2e2a", "36201e"), trousers=("2a2826", "1e1c1a"),
+         boots=("2e221c", "4a382c"), glove="3a2a20"),
+    dict(tone="deep", hair=("b8b2aa", "8e8880", "d8d2ca"), grey="e8e4de", beard=("a8a29a", "d0cac2"), iris="e8c060",
+         coat=("2a3249", "1d2337", "3b466c"), shirt=("5e4e3e", "463a2e"), trousers=("26242a", "1a181e"),
+         boots=("221a16", "3a2c22"), glove="2e2420"),
+]
+
+
+def father_palette(look):
+    L = FATHER_LOOKS[look]
+    tone = skin_pal(L["tone"])
+    pal = {}
+    pal.update(tone)
+    pal.update(hair_pal(*L["hair"]))
+    pal.update(eye_pal(L["iris"]))
+    pal.update({
+        "g": (L["grey"], 0.04),
+        "W": (L["hair"][1], 0.0),            # brows
+        "R": (L["beard"][0], 0.06), "r": (L["beard"][1], 0.05),
+        "M": (mixc(tone["m"][0], "1a1012", 0.55), 0.0),   # the mouth, in the beard
+        "X": (mixc(tone["S"][0], "f2d8c8", 0.45), 0.0),   # the old scar
+        "Z": (L["iris"], 0.0),               # the light in his eyes
+        "C": (L["coat"][0], 0.05), "c": (L["coat"][1], 0.05), "K": (L["coat"][2], 0.03),
+        "F": ("c8b070", 0.03),               # the seams, where the light shows through
+        "T": (L["shirt"][0], 0.04), "t": (L["shirt"][1], 0.04),
+        "B": ("2a1e18", 0.03), "b": ("a8a8b2", 0.02),
+        "N": (L["trousers"][0], 0.04), "n": (L["trousers"][1], 0.04),
+        "O": (L["boots"][0], 0.04), "o": (L["boots"][1], 0.03),
+        "G": (L["glove"], 0.04),
+    })
+    return pal
+
+
+def father_head(sk, look):
+    if look == 0:
+        front = ["HHHHHHHH", "gHHHHHHg", "HSSSSSSH", "SWWSSWWS", "SEZSSZES", "SSSssSSS", "sRRMMRRs", "RRRrrRRR"]
+        side = ["HHHHHHHH", "HHHHHHHg", "HHHHHHgS", "HHHHHHSS", "HHHHeSSS", "hHHeeSSS", "hhHRRRSS", "hhRRRRRR"]
+        back = ["HHHHHHHH", "HHHgHHHH", "HHHHHHHH", "HHHHgHHH", "HHHHHHHH", "hHHHHHHh", "hhhhhhhh", "sSSSSSSs"]
+        top = ["HHHHHHHH", "HHgHHHHH", "HHHHHkHH", "HkHHHHHH", "HHHHgHHH", "HHHHHHHH", "HHkHHHgH", "HHHHHHHH"]
+        # a little volume to the hair
+        hat_front = ["H.HkHH.H"] + ["........"] * 7
+        hat_side = ["HHHHHHHg", "HHHHHH..", "hHH.....", "........", "........", "........", "........", "........"]
+        hat_back = ["HHHHHHHH", "HHHgHHHH", "hHHHHHHh", "........", "........", "........", "........", "........"]
+        hat_top = ["HHHHHHHH", "HHgHHHHH", "HHHHHkHH", "HkHHHHHH", "HHHHgHHH", "HHHHHHHH", "HHkHHHgH", "HHHHHHHH"]
+    elif look == 1:
+        # dark stubble, and an old scar from the brow down the left cheek
+        front = ["HHHHHHHH", "HHHHHHHH", "gSSSSSSg", "SWWSSXWS", "SEZSSZES", "SSSssSXS", "sRRMMRXs", "dRRrrRRd"]
+        side = ["HHHHHHHH", "HHHHHHHH", "gHHHHHHS", "gHHHHHSS", "HHHHeSSS", "hHHeeSSS", "hhHSRSSS", "hhSRRRRR"]
+        back = ["HHHHHHHH", "HHHHHHHH", "HHHkHHHH", "HHHHHHHH", "HHHHHHHH", "hHHHHHHh", "hhhhhhhh", "sSSSSSSs"]
+        top = ["HHHHHHHH", "HHHHHHkH", "HkHHHHHH", "HHHHHHHH", "HHHkHHHH", "HHHHHHHH", "HkHHHHHH", "HHHHHHHH"]
+        hat_front = ["HHHkHH.H"] + ["........"] * 7
+        hat_side = ["HHHHHHHH", "gHHHHH..", "g.......", "........", "........", "........", "........", "........"]
+        hat_back = ["HHHHHHHH", "HHHkHHHH", "hHHHHHHh", "........", "........", "........", "........", "........"]
+        hat_top = ["HHHHHHHH", "HHHHHHkH", "HkHHHHHH", "HHHHHHHH", "HHHkHHHH", "HHHHHHHH", "HkHHHHHH", "HHHHHHHH"]
+    else:
+        # a close silver crop and a grey beard
+        front = ["HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SWWSSWWS", "SEZSSZES", "SSSssSSS", "sRRMMRRs", "RRRrrRRR"]
+        side = ["HHHHHHHH", "HHHHHHHS", "HHHHHHSS", "HHHHHSSS", "hHHHeSSS", "hHHeeSSS", "hhRRRRSS", "hRRRRRRR"]
+        back = ["HHHHHHHH", "HHHkHHHH", "HHHHHHHH", "HHHHHHHH", "hHHHHHHh", "hhHHHHhh", "shhhhhhs", "sSSSSSSs"]
+        top = ["HHHHHHHH", "HHkHHHHH", "HHHHHHkH", "HHHHHHHH", "HkHHHHHH", "HHHHkHHH", "HHHHHHHH", "HHHHHHHH"]
+        hat_front = hat_side = hat_back = hat_top = None
+    sk.box(HEAD, side, front, mirror(side), back, top, fill("s", 8, 8))
+    if hat_front is not None:
+        sk.box(HAT, hat_side, hat_front, mirror(hat_side), hat_back, hat_top, None)
+
+
+def father_body(sk):
+    # the shirt, his hunter's tag on its chain, the belt; trousers below
+    front = ["TTTSSTTT", "TTTtbTTT", "TTTbbTTT", "TTTTTTTT", "TTtTTtTT", "TTTTTTTT", "TTtTTtTT", "TTTTTTTT",
+             "BBBbbBBB", "NNNNNNNN", "NnNNNNnN", "NNNNNNNN"]
+    side = rows(("T", 4, 8), ("B", 4, 1), ("N", 4, 3))
+    back = rows(["TTTTTTTT", "TTtTTtTT"] * 4, ("B", 8, 1), ["NNNNNNNN", "NnNNNNnN", "NNNNNNNN"])
+    sk.box(BODY, side, front, side, back, fill("T", 8, 4), fill("N", 8, 4), light=0.05)
+    # the coat over it, open down the front; the seam round the waist lit
+    j_front = ["CK....KC", "CCK..KCC", "CCK..KCC", "CcK..KcC", "CcK..KcC", "CcK..KcC", "CcK..KcC",
+               "FFK..KFF", "CcK..KcC", "CcK..KcC", "CcK..KcC", "CcK..KcC"]
+    j_side = rows(["CCCC"], ["CCCc"] * 6, ["FFFF"], ["CCCc"] * 4)
+    j_back = rows(["CCCCCCCC"], ["CCcCCcCC"] * 6, ["FFFFFFFF"], ["CCCccCCC"] * 4)
+    j_top = ["CCKKKKCC", "CK....KC", "CK....KC", "CCKKKKCC"]
+    sk.box(JACKET, j_side, j_front, mirror(j_side), j_back, j_top, None, light=0.06)
+
+
+def father_arms(sk):
+    for box, sleeve_box, right in ((W_R_ARM, W_R_SLEEVE, True), (W_L_ARM, W_L_SLEEVE, False)):
+        face = rows(("C", 4, 9), ("K", 4, 1), ("G", 4, 1), ("S", 4, 1))
+        sk.box(box, face, face, face, face, fill("C", 4, 4), fill("s", 4, 4), light=0.05)
+        # the coat's sleeve over it, the cuff lit at its edge
+        outer = rows(["CCCC"], ["CcCC"] * 7, ["KKKK", "FFFF"], (".", 4, 2))
+        plain = rows(["CCCC"], ["CCcC"] * 7, ["KKKK", "FFFF"], (".", 4, 2))
+        r, l = (outer, plain) if right else (plain, mirror(outer))
+        sk.box(sleeve_box, r, plain, l, plain, fill("C", 4, 4), None, light=0.06)
+
+
+def father_legs(sk):
+    for box in (R_LEG, L_LEG):
+        face = rows(["NNNN", "NnNN"] * 4, ["NNnN"], ["OoOO"], ("O", 4, 2))
+        sk.box(box, face, face, face, face, fill("N", 4, 4), fill("O", 4, 4), light=0.04)
+    # the coat's skirt over the upper legs, open at the front, a lit hem, torn below it
+    r_front = rows(["CcK."] * 6, ["FFK."], ["c.C."], (".", 4, 4))
+    l_front = rows([".KcC"] * 6, [".KFF"], [".C.c"], (".", 4, 4))
+    r_out = rows(["CCCc"] * 6, ["FFFF"], [".C.c"], (".", 4, 4))
+    l_out = mirror(r_out)
+    r_in = rows(["cCCc"] * 6, ["FFFF"], ["c.c."], (".", 4, 4))
+    l_in = mirror(r_in)
+    r_back = rows(["cCCC"] * 6, ["FFFF"], [".C.c"], (".", 4, 4))
+    l_back = rows(["CCCc"] * 6, ["FFFF"], ["c.C."], (".", 4, 4))
+    sk.box(R_PANTS, r_out, r_front, r_in, r_back, None, None, light=0.05)
+    sk.box(L_PANTS, l_in, l_front, l_out, l_back, None, None, light=0.05)
+
+
+def father(look):
+    sk = LitSkin(400 + look, father_palette(look), {"Z": (LIGHT, 1.0), "F": (LIGHT, 0.55)})
+    father_head(sk, look)
+    father_body(sk)
+    father_arms(sk)
+    father_legs(sk)
+    return sk
+
+
+# ------------------------------------------------------------------------------------------------- the King of Night
+
+KING_PAL = {
+    "A": ("16131e", 0.03), "h": ("2a2240", 0.03), "a": ("44346a", 0.03),   # long black hair, strands with a violet sheen
+    "S": ("a8a4b6", 0.02), "s": ("807c92", 0.02), "d": ("4e4a62", 0.02), "m": ("2a2434", 0.0),   # ashen, gaunt
+    "v": ("0e0b16", 0.0), "V": ("dcc4ff", 0.0), "t": ("7444c0", 0.0),   # dark sockets, burning eyes, light running down
+    "K": ("27242f", 0.025), "k": ("4a465c", 0.02), "L": ("75718c", 0.02), "n": ("0b0a10", 0.02),  # black plate: base,
+    # bevelled edges, a glint of light on them, the deep joints
+    "R": ("8a50dc", 0.0), "r": ("3a2460", 0.02),                         # the crack and the runes, their scorched rims
+    "I": ("2e2c38", 0.04), "i": ("5c5a70", 0.03), "J": ("9894b0", 0.02),  # the iron crown, its edges, the spikes' points
+    "U": ("a46cf0", 0.0), "u": ("5c309e", 0.0),                          # its jewel, the jewel's dark facet
+    "C": ("120e1a", 0.03), "c": ("221b32", 0.03), "G": ("33275a", 0.03),  # the cloak of shadow, its folds, the lining
+    "x": ("0d0b13", 0.0), "w": ("120e1a", 0.0),                          # its tatters, thinning into nothing
+    "P": ("2e2b3c", 0.025), "p": ("57536e", 0.02), "Q": ("8a86a4", 0.02), "T": ("9a62ec", 0.0),   # pauldrons, their rims,
+    # the light on them, a violet trim
+    "B": ("1a1622", 0.04), "b": ("a6a2ba", 0.02),                        # the belt, its buckle
+}
+KING_GLOW = {"V": ("e2ccff", 1.0), "t": ("8a52e0", 0.55), "R": ("a46cff", 0.9), "U": ("b884ff", 1.0),
+             "u": ("7a44d0", 0.5), "T": ("9a62ec", 0.75)}
+KING_ALPHA = {"C": 238, "c": 238, "x": 140, "w": 70}
+
+
+def king():
+    sk = LitSkin(500, KING_PAL, KING_GLOW, KING_ALPHA)
+    # the head: an ashen, gaunt face framed by long black hair, light running from the burning eyes
+    front = ["AAhAAhAA", "AhSSSShA", "ASdSSdSA", "AvVSSVvA", "AdtSStdA", "AsSssSsA", "AdsmmsdA", "AAdssdAA"]
+    side = ["AAAAAAAA", "AhAAaAAA", "AhAAaAAS", "AhAAhAsS", "AAhAhAvS", "AAhAAhsS", "AAhAAhds", "AAhAAhAd"]
+    back = ["AAAAAAAA", "AAhAAhaA", "AAhAAhaA", "AAhAAhAA", "AhAAAhAA", "AhAAhAAA", "AhAAhAaA", "AAAAhAaA"]
+    top = ["AAAAAAAA", "AAhhhhAA", "AhAAAAhA", "AhAaaAhA", "AhAaaAhA", "AhAAAAhA", "AAhhhhAA", "AAAAAAAA"]
+    sk.box(HEAD, side, front, mirror(side), back, top, fill("d", 8, 8))
+    # the crown of iron spikes round the brow (the points catch the light), a violet stone at the front
+    ring = ["IiIiIiIi", "I......I", "i......i", "I......I", "I......I", "i......i", "I......I", "IiIiIiIi"]
+    band = rows(["J.iJ.iJ.", "IiIIiIIi"], (".", 8, 6))
+    sk.box(HAT, band, rows(["J.iJJi.J", "IiIUUIiI", "...uu..."], (".", 8, 5)), mirror(band), band, ring, None)
+    # black plate: a gorget, a crack burning violet from the right shoulder across the chest, a belt, the faulds
+    b_front = ["nkkLLkkn", "kKKkLKRk", "KKKkLRrK", "KKKrRKKK", "kkkRrkkk", "KKRrkKKK", "nnnnnnnn", "BBBbbBBB",
+               "kkkkkkkk", "KKKnnKKK", "kkknnkkk", "nKKnnKKn"]
+    b_side = rows(["kkkk"], ("K", 4, 3), ["kkkk"], ["KKKK"], ["nnnn"], ["BBBB"], ["kkkk"], ("K", 4, 2), ["nKKn"])
+    b_back = rows(["nkkkkkkn"], ["KKKkkKKK"] * 3, ["kkkkkkkk"], ["KKKkkKKK"], ("n", 8, 1), ["BBBBBBBB"], ["kkkkkkkk"],
+                  ("K", 8, 2), ["nKKKKKKn"])
+    sk.box(BODY, b_side, b_front, b_side, b_back, ["kLLLLLLk", "kKKKKKKk", "kKKKKKKk", "nkkkkkkn"], fill("n", 8, 4), light=0.08)
+    # the cloak of shadow: a high collar, its violet lining showing at the front edges, down the back in folds,
+    # ragged at the end
+    c_side = rows(["CC.."] * 11, ["x.x."])
+    c_back = rows(["CCCCCCCC"], ["CcCCcCcC"] * 9, ["CxCCxCxC"], ["x.xCx.x."])
+    c_front = rows(["CcC..CcC", "GC....CG", "G......G"], (".", 8, 9))
+    sk.box(JACKET, c_side, c_front, mirror(c_side), c_back, ["CCCCCCCC", "C......C", "C......C", "c......c"], None, light=0.04)
+    # arms in plate (an elbow cop, the gauntlets' cuffs), runes down the backs of the gauntlets; heavy pauldrons with a
+    # violet trim over the shoulders
+    for box, sleeve_box, outer in ((W_R_ARM, W_R_SLEEVE, "right"), (W_L_ARM, W_L_SLEEVE, "left")):
+        plain = ["kkkk", "KKKK", "KKKK", "nnnn", "kLLk", "KKKK", "nnnn", "kkkk", "KKKK", "nnnn", "kkkk", "nKKn"]
+        rune = ["kkkk", "KKKK", "KKKK", "nnnn", "kLLk", "KKKK", "nnnn", "kRkk", "KrRK", "nnRn", "kkrk", "nKKn"]
+        right, left = (rune, plain) if outer == "right" else (plain, rune)
+        sk.box(box, right, rune, left, plain, fill("K", 4, 4), fill("n", 4, 4), light=0.08)
+        pad = rows(["QQQQ", "PPPP", "pppp", "TTTT"], (".", 4, 8))
+        sk.box(sleeve_box, pad, pad, mirror(pad), pad, ["pQQp", "QPPQ", "QPPQ", "pQQp"], None, light=0.05)
+    # greaves with knee cops and sabatons; the cloak goes on down the backs of the legs to the heels, thinning into shadow
+    for box in (R_LEG, L_LEG):
+        face = ["kkkk", "KKKK", "KKKK", "nnnn", "kLLk", "KKKK", "nnnn", "kkkk", "KKKK", "KKKK", "nnnn", "kkkk"]
+        sk.box(box, face, face, mirror(face), face, fill("K", 4, 4), fill("n", 4, 4), light=0.06)
+    r_back = rows(["CcCC"] * 7, ["CxCx", "xCx."], ["x.w.", ".w.."], (".", 4, 1))
+    l_back = mirror(r_back)
+    r_out = rows(["Cc.."] * 7, ["x...", "x..."], ["w..."], (".", 4, 2))
+    r_in = mirror(r_out)
+    sk.box(R_PANTS, r_out, None, r_in, r_back, None, None)
+    sk.box(L_PANTS, mirror(r_in), None, mirror(r_out), l_back, None, None)
+    return sk
+
+
 # ------------------------------------------------------------------------------------------------- items
 
 S = 32
@@ -387,14 +634,15 @@ def comfort_icon(n=18):
 
 # ------------------------------------------------------------------------------------------------- preview
 
-def preview(images, out, views=("fl", "front", "back")):
+def preview(images, out, views=("fl", "front", "back"), wide=False, glows=None):
     import armor_rig as rig  # noqa: E402
     import preview_model as pm  # noqa: E402
+    aw, ax = (4, -3) if wide else (3, -2)
     boxes = [
         ("head", (-4, -8, -4), (8, 8, 8), (0, 0), 0.0), ("head", (-4, -8, -4), (8, 8, 8), (32, 0), 0.5),
         ("body", (-4, 0, -2), (8, 12, 4), (16, 16), 0.0), ("body", (-4, 0, -2), (8, 12, 4), (16, 32), 0.25),
-        ("right_arm", (-2, -2, -2), (3, 12, 4), (40, 16), 0.0), ("right_arm", (-2, -2, -2), (3, 12, 4), (40, 32), 0.25),
-        ("left_arm", (-1, -2, -2), (3, 12, 4), (32, 48), 0.0), ("left_arm", (-1, -2, -2), (3, 12, 4), (48, 48), 0.25),
+        ("right_arm", (ax, -2, -2), (aw, 12, 4), (40, 16), 0.0), ("right_arm", (ax, -2, -2), (aw, 12, 4), (40, 32), 0.25),
+        ("left_arm", (-1, -2, -2), (aw, 12, 4), (32, 48), 0.0), ("left_arm", (-1, -2, -2), (aw, 12, 4), (48, 48), 0.25),
         ("right_leg", (-2, 0, -2), (4, 12, 4), (0, 16), 0.0), ("right_leg", (-2, 0, -2), (4, 12, 4), (0, 32), 0.25),
         ("left_leg", (-2, 0, -2), (4, 12, 4), (16, 48), 0.0), ("left_leg", (-2, 0, -2), (4, 12, 4), (0, 48), 0.25),
     ]
@@ -411,9 +659,9 @@ def preview(images, out, views=("fl", "front", "back")):
         nn[1] = -nn[1]
         scene.append((Q, rect, nn))
     columns = []
-    for img in images:
+    for n, img in enumerate(images):
         atlas = np.asarray(img.resize((128, 128), Image.NEAREST))
-        glow = np.zeros_like(atlas)
+        glow = np.asarray(glows[n].resize((128, 128), Image.NEAREST)) if glows else np.zeros_like(atlas)
         tiles = [pm.render(scene, atlas, glow, (220, 330), target=(0, 16.5, 0), dist=60, fov=38, **pm.VIEWS[v]) for v in views]
         tiles.append(pm.render(scene, atlas, glow, (220, 220), target=(0, 28, 0), dist=20, fov=38, **pm.VIEWS["face"]))
         columns.append(np.concatenate(tiles, axis=0))
@@ -450,8 +698,23 @@ def main():
     os.makedirs(EFFECTS, exist_ok=True)
     comfort = comfort_icon()
     comfort.save(os.path.join(EFFECTS, "home_comfort.png"))
-    print("  skins: mother_0..2 (+ _asleep); items: " + ", ".join(icons) + "; effect: home_comfort")
+    fathers, father_glows = [], []
+    for look in range(len(FATHER_LOOKS)):
+        sk = father(look)
+        img, glow = sk.image(), sk.glow_image()
+        img.save(os.path.join(SKIN_OUT, f"father_{look}.png"))
+        glow.save(os.path.join(SKIN_OUT, f"father_{look}_glow.png"))
+        fathers.append(img)
+        father_glows.append(glow)
+    kg = king()
+    king_img, king_glow = kg.image(), kg.glow_image()
+    king_img.save(os.path.join(SKIN_OUT, "king_of_night.png"))
+    king_glow.save(os.path.join(SKIN_OUT, "king_of_night_glow.png"))
+    print("  skins: mother_0..2 (+ _asleep), father_0..2 (+ _glow), king_of_night (+ _glow); items: " + ", ".join(icons)
+          + "; effect: home_comfort")
     if args.preview:
+        print("preview", preview(fathers + [king_img], os.path.join(PREVIEW, "story_fathers.png"),
+                                 views=("fl", "front", "back"), wide=True, glows=father_glows + [king_glow]))
         print("preview", preview(skins[0::2] + skins[1::2][:1], os.path.join(PREVIEW, "story_mothers.png")))
         print("preview", items_preview(list(icons.values()) + [comfort.resize((32, 32), Image.NEAREST)],
                                        os.path.join(PREVIEW, "story_items.png")))

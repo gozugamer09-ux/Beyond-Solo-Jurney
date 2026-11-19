@@ -24,6 +24,7 @@ import com.beyondsolo.evaluation.Reevaluation;
 import com.beyondsolo.util.OnlinePlayers;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.shadowsoffire.apothic_attributes.api.ALObjects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
@@ -245,6 +246,14 @@ public final class ManaPoisonGameTests {
         ServerPlayer p = hunter(helper, "WeakHunter", PlayerRank.C);
         Zombie z = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(5, 2, 5));
         z.getAttribute(Attributes.MAX_HEALTH).setBaseValue(1000);
+        // no lucky blows: Apothic's random critical hits (and dodges) would bend the numbers compared below
+        var crit = p.getAttribute(ALObjects.Attributes.CRIT_CHANCE);
+        if (crit != null) {
+            crit.removeModifiers();
+            crit.setBaseValue(-10);
+        }
+        var dodge = z.getAttribute(ALObjects.Attributes.DODGE_CHANCE);
+        if (dodge != null) dodge.setBaseValue(0);
         float clean = hit(z, p);
         helper.assertTrue(clean > 0 && Math.abs(hit(z, p) - clean) < clean * 0.001f, "a clean blow lands the same twice: " + clean);
         ManaPoisoning.set(p, 65);

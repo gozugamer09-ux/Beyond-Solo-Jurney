@@ -310,6 +310,8 @@ public final class WorldBossClient {
         if (current != null && current.age() >= current.duration) current = null;
         // a countdown that ran out while it waited is no use any more
         while (current == null && free && !BANNERS.isEmpty()) {
+            // one drawn low on the screen, where a story scene's lines go, waits for the scene
+            if (low(BANNERS.peekFirst()) && com.beyondsolo.client.story.StoryOverlay.active()) break;
             Banner next = BANNERS.pollFirst();
             if (next.kind == BannerKind.AUTHORITY && next.left(next.a) < 20) continue;
             if (next.kind == BannerKind.PHASE && gameTime() - next.heard > 200) continue;
@@ -317,6 +319,11 @@ public final class WorldBossClient {
             current.start = Anim.now();
         }
         return current;
+    }
+
+    /** Whether {@code b} is drawn low on the screen: a landing (or a ruler landed at war), a domain. */
+    private static boolean low(Banner b) {
+        return b.kind == BannerKind.APPEAR || b.kind == BannerKind.DOMAIN || b.kind == BannerKind.WAR && b.b <= 0;
     }
 
     /** A world boss banner is on screen now. */
