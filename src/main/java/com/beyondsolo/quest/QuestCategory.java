@@ -25,7 +25,9 @@ public enum QuestCategory {
      */
     SECRET(0xFFFF8AD0),
     /** A contract, permit, rank exam or broker's lead from the Hunter Association ({@code association} module). */
-    ASSOCIATION(0xFF8FB4FF);
+    ASSOCIATION(0xFF8FB4FF),
+    /** The hunter's own story ({@code story} module): it can't be given up, and it waits as long as it takes. */
+    STORY(0xFFFFB38A);
 
     private final int color;
 

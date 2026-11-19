@@ -955,6 +955,8 @@ public final class TowerRun {
             if (!p.getInventory().add(stack)) p.drop(stack, false);
         }
         if (first) SystemAPI.setTitle(p, CONQUEROR_TITLE);
+        // the chalice the Elixir of Waking needs
+        com.beyondsolo.story.LongSleep.lordFallen(p);
         openWay(s);
         setPhase(s, Phase.VICTORY);
         freeze(p, true);
@@ -1250,7 +1252,10 @@ public final class TowerRun {
         if (dead.getTags().contains(FOE_TAG)) {
             UUID id = dead.getUUID();
             for (Session s : SESSIONS.values()) {
-                if (s.foes.remove(id) && s.phase == Phase.FIGHT) send(s);
+                boolean foe = s.foes.remove(id);
+                if (foe && s.phase == Phase.FIGHT) send(s);
+                // the souls the Elixir of Waking is brewed from
+                if (foe || id.equals(s.boss)) com.beyondsolo.story.LongSleep.soul(s.player, dead);
             }
             return;
         }

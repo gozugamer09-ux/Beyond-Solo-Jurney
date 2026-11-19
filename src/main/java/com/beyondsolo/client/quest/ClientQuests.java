@@ -96,7 +96,7 @@ public final class ClientQuests {
         return switch (q.category()) {
             case EMERGENCY -> 0;
             case GATE -> 1;
-            case SET -> 2;
+            case SET, STORY -> 2;
             case SURPRISE -> 3;
             case NPC, ASSOCIATION -> 4;
             case DAILY -> 5;
@@ -138,7 +138,7 @@ public final class ClientQuests {
     }
 
     public static boolean canAbandon(Quest q) {
-        return q.isTaken() && q.category() != QuestCategory.SET;
+        return q.isTaken() && q.category() != QuestCategory.SET && q.category() != QuestCategory.STORY;
     }
 
     public static void clear() {
