@@ -23,6 +23,7 @@ import com.beyondsolo.system.Stat;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
 import com.mojang.authlib.GameProfile;
+import dev.shadowsoffire.apothic_attributes.api.ALObjects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -194,6 +195,13 @@ public final class BalanceGameTests {
         Zombie attacker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(1, 2, 1));
         Zombie small = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(3, 2, 1));
         Zombie big = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(5, 2, 1));
+        // no lucky blows: Apothic gives every creature a chance of a critical hit (half again, after armour) and of a dodge
+        for (Zombie z : new Zombie[]{attacker, small, big}) {
+            var crit = z.getAttribute(ALObjects.Attributes.CRIT_CHANCE);
+            if (crit != null) crit.setBaseValue(0);
+            var dodge = z.getAttribute(ALObjects.Attributes.DODGE_CHANCE);
+            if (dodge != null) dodge.setBaseValue(0);
+        }
         for (Zombie z : new Zombie[]{small, big}) {
             z.getAttribute(Attributes.ARMOR).setBaseValue(14);
             z.getAttribute(Attributes.ARMOR_TOUGHNESS).setBaseValue(4);

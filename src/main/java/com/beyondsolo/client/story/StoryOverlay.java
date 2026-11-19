@@ -1,9 +1,12 @@
 package com.beyondsolo.client.story;
 
+import com.beyondsolo.client.SystemTheme;
 import com.beyondsolo.client.gfx.Anim;
 import com.beyondsolo.client.gfx.Gfx;
+import com.beyondsolo.client.gfx.Icons;
 import com.beyondsolo.client.gfx.Shapes;
 import com.beyondsolo.client.gfx.SysFont;
+import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.job.CutsceneCamera;
 import com.beyondsolo.network.StoryLinePayload;
 import com.beyondsolo.network.StorySkipPayload;
@@ -19,7 +22,7 @@ import java.util.List;
 /**
  * A story scene on the hunter's screen ({@code story.StoryScenes}): its lines at the bottom, typed out one after the
  * other (who speaks over their words in their colour, the hunter's own thoughts in italics, what happens told
- * quietly), a dip to black now and then, and while a held scene plays, bars closing in and the HUD out of the way
+ * quietly, the System in one of its own windows), a dip to black now and then, and while a held scene plays, bars closing in and the HUD out of the way
  * ({@code client.job.JobClientEvents#hideHud}). The hide key skips it.
  */
 public final class StoryOverlay {
@@ -153,6 +156,7 @@ public final class StoryOverlay {
     private static void drawLine(GuiGraphics g, Shown s, int w, float bottom, float a, double now, boolean done) {
         boolean speech = s.style() == StoryLinePayload.SPEECH;
         boolean thought = s.style() == StoryLinePayload.THOUGHT;
+        boolean system = s.style() == StoryLinePayload.SYSTEM;
         float size = s.style() == StoryLinePayload.NARRATION ? 8.5f : 9.5f;
         float maxW = Math.min(w * 0.64f, 400);
         Component text = thought ? s.text().copy().withStyle(st -> st.withItalic(true)) : s.text();
@@ -160,7 +164,7 @@ public final class StoryOverlay {
         if (lines.isEmpty()) return;
         float lh = size * SysFont.LINE;
         float textH = (lines.size() - 1) * lh + size * SysFont.CAP;
-        float nameH = speech ? 10 : 0;
+        float nameH = speech || system ? 10 : 0;
         float widest = 0;
         for (SysFont.Line l : lines) widest = Math.max(widest, l.width());
         float cx = w / 2f;
@@ -169,10 +173,29 @@ public final class StoryOverlay {
         float top = bottom - panelH;
         float old = Gfx.fade(a);
 
-        // a soft dark panel the words stand on, whatever is behind
-        Shapes.box(cx - panelW / 2f, top, panelW, panelH).radius(9).fill(Gfx.alpha(0xFF05070C, 0.52f))
-                .glow(16, Gfx.alpha(0xFF05070C, 0.32f)).draw(g);
-        int color = speech ? Gfx.mix(s.color(), 0xFFFFFFFF, 0.82f) : thought ? THOUGHT_COLOR : NARRATION_COLOR;
+        int color = speech ? Gfx.mix(s.color(), 0xFFFFFFFF, 0.82f) : system ? SystemTheme.TEXT : thought ? THOUGHT_COLOR : NARRATION_COLOR;
+        if (system) {
+            // one of the System's own windows: blue glass, a flash and a shine as it opens
+            int accent = SystemTheme.ACCENT;
+            float flash = done ? 0 : 1 - Anim.outCubic(Anim.clamp01((float) (now - s.at()) / 0.8f));
+            float sweep = done ? 1 : Anim.clamp01((float) (now - s.at() - 0.06) / 0.7f);
+            Shapes.box(cx - panelW / 2f, top, panelW, panelH).radius(4)
+                    .fillV(Gfx.mix(SystemTheme.GLASS_TOP, Gfx.alpha(accent, 0.95f), 0.08f + 0.12f * flash), SystemTheme.GLASS_BOTTOM)
+                    .border(1f, Gfx.mix(accent, 0xFFFFFFFF, 0.15f + 0.5f * flash), Gfx.fade(accent, 0.3f))
+                    .glow(9 + 7 * flash, Gfx.alpha(accent, 0.22f + 0.35f * flash))
+                    .sheen(sweep * 1.5f - 0.25f, sweep < 1 ? 0.16f * (1 - sweep) + 0.04f : 0f)
+                    .draw(g);
+            String who = s.speaker().getString().toUpperCase(java.util.Locale.ROOT);
+            float ww = SysFont.spacedWidth(who, 6.2f, true, 1.3f);
+            float x0 = cx - (ww + 11) / 2f;
+            float ny = top + 7;
+            Ui.iconBadge(g, Icons.EXCLAIM, x0 + 4.5f, ny + 2.2f, 4.5f, accent);
+            SysFont.spaced(g, who, x0 + 11, ny, 6.2f, Gfx.mix(accent, 0xFFFFFFFF, 0.25f), true, 1.3f, 0f);
+        } else {
+            // a soft dark panel the words stand on, whatever is behind
+            Shapes.box(cx - panelW / 2f, top, panelW, panelH).radius(9).fill(Gfx.alpha(0xFF05070C, 0.52f))
+                    .glow(16, Gfx.alpha(0xFF05070C, 0.32f)).draw(g);
+        }
         if (speech) {
             String who = s.speaker().getString().toUpperCase(java.util.Locale.ROOT);
             float ww = SysFont.spacedWidth(who, 6.2f, true, 1f);
@@ -181,7 +204,7 @@ public final class StoryOverlay {
             // a small mark either side of the name
             Shapes.box(cx - ww / 2f - 11, ny + 1.7f, 6, 0.8f).fill(Gfx.alpha(s.color(), 0.7f)).draw(g);
             Shapes.box(cx + ww / 2f + 5, ny + 1.7f, 6, 0.8f).fill(Gfx.alpha(s.color(), 0.7f)).draw(g);
-        } else if (!thought) {
+        } else if (!thought && !system) {
             // told quietly: thin rules beside it
             float my = top + panelH / 2f;
             Shapes.box(cx - panelW / 2f + 6, my, 9, 0.7f).fill(Gfx.alpha(NARRATION_COLOR, 0.45f)).draw(g);

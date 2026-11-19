@@ -166,8 +166,8 @@ public abstract class MonarchBoss extends ColossalBoss {
                     blockPosition(), phase(), DOMAIN, 0));
         }
         callArmy(level, 4);
-        // the light may answer it
-        com.beyondsolo.ruler.Rulers.monarchLanded(level, this);
+        // the light may answer it; the System's story answers its own monarchs (the hunter's father, and in the Last War a ruler)
+        if (!com.beyondsolo.story.MainFights.monarchLanded(level, this)) com.beyondsolo.ruler.Rulers.monarchLanded(level, this);
         // the banner, now it is here
         WorldBossData.Event ev = WorldBosses.eventOf(level, this);
         if (ev != null) {

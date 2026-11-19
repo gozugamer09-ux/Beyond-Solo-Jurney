@@ -488,6 +488,8 @@ public final class WorldBosses {
         level.playSound(null, boss.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 3f, 0.8f);
         // a ruler at war with it has won: it blesses the hunters who fought at its side
         if (kind.monarch()) com.beyondsolo.ruler.Rulers.monarchFell(level, boss);
+        // the System's story: a monarch it called on a hunter (or waited for) has fallen
+        if (kind.monarch()) com.beyondsolo.story.MainFights.monarchFell(level, boss);
         if (ev != null) {
             // its army falls with it
             MonarchArmy.disband(level, ev.id);

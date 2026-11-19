@@ -129,7 +129,13 @@ final class SoloHelp {
                 new Line("story home [player]", "story.home"),
                 new Line("story mother [player]", "story.mother"),
                 new Line("story scene visit|waking|meal|reveal [player]", "story.scene"),
-                new Line("story reset [players]", "story.reset")));
+                new Line("story reset [players]", "story.reset"),
+                new Line("story main info [player]", "story.main.info"),
+                new Line("story main chapter untold|player|arise|citadel|throne|father|last_war|home|done [players]", "story.main.chapter"),
+                new Line("story main scene prologue|statue|arise|vharos|truth|father|war|last_light|home|end [player]", "story.main.scene"),
+                new Line("story main fight [player]", "story.main.fight"),
+                new Line("story main father [player]", "story.main.father"),
+                new Line("story main reset [players]", "story.main.reset")));
         TOPICS.put("isle", List.of(
                 new Line("isle call [players]", "isle.call"),
                 new Line("isle land [players]", "isle.land"),

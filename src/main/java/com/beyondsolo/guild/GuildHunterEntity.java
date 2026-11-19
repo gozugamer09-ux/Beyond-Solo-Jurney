@@ -174,6 +174,29 @@ public class GuildHunterEntity extends PathfinderMob {
         return cause;
     }
 
+    /**
+     * Makes this one of a story's own hunters, fighting for {@code cause}: no gate, no guild and no gear given here (it
+     * brings its own). {@code health} and {@code power} are its health and what one of its blows deals.
+     */
+    protected void enlist(Cause cause, PlayerClass cls, int level, double health, float power) {
+        this.gateId = null;
+        this.guildId = null;
+        this.hunterId = null;
+        this.cause = cause;
+        entityData.set(CLASS, cls.ordinal());
+        entityData.set(LEVEL, Math.max(1, level));
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(Math.max(20, health));
+        this.power = Math.max(1, power);
+        setHealth(getMaxHealth());
+    }
+
+    /** What a hunter of {@code cls} at {@code level} has: {health, one blow's damage} (the guilds' own scale). */
+    public static double[] strength(PlayerClass cls, int level) {
+        double[] k = roleScale(cls);
+        return new double[]{Math.max(20, 20 * Balance.damageAt(level) * k[0] * GuildConfig.HUNTER_HEALTH.get()),
+                Math.max(1, 5 * Balance.healthAt(level) * k[1] * GuildConfig.HUNTER_DAMAGE.get())};
+    }
+
     /** Health and damage for each class: {health, damage} times a hunter's of the level. */
     static double[] roleScale(PlayerClass cls) {
         return switch (cls) {
@@ -310,7 +333,7 @@ public class GuildHunterEntity extends PathfinderMob {
     }
 
     /** One of its blows (or bolts): counted for the raid's tally. */
-    boolean strike(LivingEntity victim, float dmg, boolean knock) {
+    protected boolean strike(LivingEntity victim, float dmg, boolean knock) {
         boolean hit = victim.hurt(damageSources().mobAttack(this), dmg);
         if (hit && knock) {
             double dx = victim.getX() - getX(), dz = victim.getZ() - getZ();

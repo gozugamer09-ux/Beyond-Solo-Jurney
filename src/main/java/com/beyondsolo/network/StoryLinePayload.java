@@ -13,7 +13,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  * <ul>
  *   <li>{@link #LINE}: a line of the scene at the bottom of the screen for {@code ticks}: someone speaking
  *       ({@link #SPEECH}, with {@code speaker}'s name over it in {@code color}), the hunter's own thoughts
- *       ({@link #THOUGHT}) or a quiet description of what happens ({@link #NARRATION}).</li>
+ *       ({@link #THOUGHT}), a quiet description of what happens ({@link #NARRATION}) or the System's own voice, in one
+ *       of its windows ({@link #SYSTEM}).</li>
  *   <li>{@link #BLINK}: the screen dips to black and back over {@code ticks} (a cut, a moment passing).</li>
  *   <li>{@link #BEGIN} / {@link #END}: a scene starts (the hide key can skip it; {@code style} 1: a held, cinematic
  *       one: the HUD steps aside and bars close in) / is over (lines fade out).</li>
@@ -21,7 +22,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record StoryLinePayload(int mode, int style, Component speaker, Component text, int ticks, int color) implements CustomPacketPayload {
     public static final int LINE = 0, BLINK = 1, BEGIN = 2, END = 3;
-    public static final int SPEECH = 0, THOUGHT = 1, NARRATION = 2;
+    public static final int SPEECH = 0, THOUGHT = 1, NARRATION = 2, SYSTEM = 3;
 
     public static final Type<StoryLinePayload> TYPE = new Type<>(BeyondSolo.id("story_line"));
     public static final StreamCodec<RegistryFriendlyByteBuf, StoryLinePayload> STREAM_CODEC = StreamCodec.of(

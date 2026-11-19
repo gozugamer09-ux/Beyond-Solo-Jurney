@@ -32,13 +32,14 @@ import java.util.function.Consumer;
  * skipping (or leaving the game) still does everything the scene changes in the world ("essential" beats), only
  * without the show. While a scene holds a hunter still nothing can hurt them.
  *
- * <p>Any part of the game can tell a scene: the Long Sleep's visit and waking ({@link LongSleep}) are the first.</p>
+ * <p>Any part of the game can tell a scene: the Long Sleep's visit and waking ({@link LongSleep}) were the first; the
+ * System's own story ({@link MainScenes}) tells most of them.</p>
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class StoryScenes {
     private static final ResourceLocation HOLD = BeyondSolo.id("story_scene_hold");
     /** Colours the lines of the people in a scene are named in. */
-    public static final int HUNTER = 0xFF9CC9FF, MOTHER = 0xFFFFB38A;
+    public static final int HUNTER = 0xFF9CC9FF, MOTHER = 0xFFFFB38A, SYSTEM = 0xFF5FD0FF;
 
     private record Beat(int at, Consumer<ServerPlayer> action, boolean essential) {}
 
@@ -86,6 +87,13 @@ public final class StoryScenes {
         /** The hunter thinks it. */
         public Scene think(Component text, int ticks) {
             send(StoryLinePayload.line(StoryLinePayload.THOUGHT, Component.empty(), text, ticks, HUNTER));
+            cursor += ticks;
+            return this;
+        }
+
+        /** The System speaks, in one of its windows. */
+        public Scene system(Component text, int ticks) {
+            send(StoryLinePayload.line(StoryLinePayload.SYSTEM, Component.translatable("story.beyondsolo.speaker.system"), text, ticks, SYSTEM));
             cursor += ticks;
             return this;
         }

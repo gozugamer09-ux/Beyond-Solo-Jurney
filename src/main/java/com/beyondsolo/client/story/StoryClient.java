@@ -11,7 +11,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 
-/** Client wiring for the hunter's story: the scene's lines on screen, their mother's renderer and her name plate. */
+/** Client wiring for the hunter's story: the scene's lines on screen, their mother's and father's renderers and name plates, visions. */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class StoryClient {
     /** The layer the scene's lines are drawn on (it stays while the HUD steps aside for a scene). */
@@ -36,6 +36,8 @@ public final class StoryClient {
     @SubscribeEvent
     static void renderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(StoryModule.MOTHER.get(), KinRenderer::new);
+        event.registerEntityRenderer(StoryModule.FATHER.get(), FatherRenderer::new);
+        event.registerEntityRenderer(StoryModule.VISION.get(), VisionRenderer::new);
     }
 
     @SubscribeEvent

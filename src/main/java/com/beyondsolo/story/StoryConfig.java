@@ -34,6 +34,13 @@ public final class StoryConfig {
             .comment("How far (blocks) from the village's Evaluation Zone a bed for her is looked for before one is set up.")
             .defineInRange("story.bedReach", 48, 8, 128);
 
+    public static final ModConfigSpec.BooleanValue MAIN = B
+            .comment("The System's own story: chapters from the awakening to the empty throne, the hunter's father and the Last War.")
+            .define("story.main", true);
+    public static final ModConfigSpec.IntValue WAR_DELAY = B
+            .comment("Minutes between the end of the Vessel of Light and the Last War's first monarch coming down.")
+            .defineInRange("story.warDelayMinutes", 10, 0, 1440);
+
     public static final ModConfigSpec SPEC = B.build();
 
     // safe reads: the config is not loaded in every context (early game tests)
@@ -54,6 +61,8 @@ public final class StoryConfig {
     public static int keeperSouls() { return get(KEEPER_SOULS::get, 10); }
     public static int lordSouls() { return get(LORD_SOULS::get, 50); }
     public static int bedReach() { return get(BED_REACH::get, 48); }
+    public static boolean mainEnabled() { return get(MAIN::get, true); }
+    public static int warDelayTicks() { return get(WAR_DELAY::get, 10) * 60 * 20; }
 
     public static PlayerRank dewRank() {
         String r = get(DEW_RANK::get, "B");

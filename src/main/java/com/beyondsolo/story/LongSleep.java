@@ -143,7 +143,7 @@ public final class LongSleep {
     static void pointHome(ServerPlayer p) {
         boolean changed = false;
         for (Quest q : QuestEngine.data(p).active()) {
-            if (!q.template().equals(VISIT_QUEST) && !q.template().equals(WAKING_QUEST)) continue;
+            if (!q.template().equals(VISIT_QUEST) && !q.template().equals(WAKING_QUEST) && !q.template().equals(MainStory.HOME_QUEST)) continue;
             pointHome(p, q);
             changed = true;
         }
@@ -260,7 +260,10 @@ public final class LongSleep {
     /** Moves the story to {@code stage} at once: that stage's quest given, the elixir in hand when it is brewed. */
     public static void step(ServerPlayer p, int stage) {
         KinRecord r = Kin.record(p);
-        for (Quest q : List.copyOf(QuestEngine.data(p).all())) if (q.category() == QuestCategory.STORY) QuestEngine.drop(p, q);
+        for (Quest q : List.copyOf(QuestEngine.data(p).all())) {
+            String t = q.template();
+            if (t.equals(VISIT_QUEST) || t.equals(CURE_QUEST) || t.equals(WAKING_QUEST)) QuestEngine.drop(p, q);
+        }
         r.stage = Math.max(UNTOLD, Math.min(AWAKE, stage));
         r.wokeDay = KinRecord.NOT_YET;
         r.mealDay = KinRecord.NOT_YET;
@@ -391,6 +394,8 @@ public final class LongSleep {
 
     /** The hunter came to her: what happens depends on how far the story has come. */
     static void talk(ServerPlayer p, KinEntity k) {
+        // the System's story waiting for them at home comes first
+        if (MainScenes.homecoming(p, k)) return;
         KinRecord r = Kin.record(p);
         switch (r.stage) {
             case UNTOLD, VISIT -> {

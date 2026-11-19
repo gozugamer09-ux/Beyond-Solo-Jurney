@@ -42,7 +42,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Registers the hunter's own story: their mother ({@link KinEntity}, {@link Kin}), the Long Sleep's quests and things
+ * Registers the hunter's own story: the System's story ({@link MainStory}: its chapters, their father
+ * {@link FatherEntity}, the visions it shows {@link VisionEntity}), their mother ({@link KinEntity}, {@link Kin}), the Long Sleep's quests and things
  * ({@link LongSleep}: Elder Root Dew, the Crimson King's chalice, the Elixir of Waking), her home-cooked stew and its
  * Home Comfort, the story's scenes ({@link StoryScenes}), its title and settings ({@code beyondsolo-story.toml}). Lang
  * lives in {@code assets/beyondsolo_story/lang}; skins and icons come from {@code tools/gen_story_assets.py}. Called
@@ -57,6 +58,20 @@ public final class StoryModule {
     /** The hunter's story: how far it has come, where their mother is. Kept through death. */
     public static final Supplier<AttachmentType<KinRecord>> RECORD = ATTACHMENTS.register("kin",
             () -> AttachmentType.serializable(KinRecord::new).copyOnDeath().build());
+
+    /** The System's own story for the hunter ({@link MainStory}). Kept through death. */
+    public static final Supplier<AttachmentType<MainRecord>> MAIN = ATTACHMENTS.register("main_story",
+            () -> AttachmentType.serializable(MainRecord::new).copyOnDeath().build());
+
+    /** The hunter's father, the light's vessel, at their side in the story's fights. */
+    public static final DeferredHolder<EntityType<?>, EntityType<FatherEntity>> FATHER = ENTITY_TYPES.register("hunters_father",
+            () -> EntityType.Builder.<FatherEntity>of(FatherEntity::new, MobCategory.MISC)
+                    .sized(0.6f, 1.8f).eyeHeight(1.62f).clientTrackingRange(10).build("hunters_father"));
+
+    /** What a story scene shows the hunter that is not really there (the King of Night). */
+    public static final DeferredHolder<EntityType<?>, EntityType<VisionEntity>> VISION = ENTITY_TYPES.register("story_vision",
+            () -> EntityType.Builder.<VisionEntity>of(VisionEntity::new, MobCategory.MISC)
+                    .sized(0.7f, 2.2f).eyeHeight(1.95f).clientTrackingRange(10).noSave().build("story_vision"));
 
     /** The hunter's mother. */
     public static final DeferredHolder<EntityType<?>, EntityType<KinEntity>> MOTHER = ENTITY_TYPES.register("hunters_mother",
@@ -104,17 +119,24 @@ public final class StoryModule {
         modBus.addListener(StoryModule::creativeTab);
         titles();
         LongSleep.registerTemplates();
+        MainStory.registerTemplates();
         container.registerConfig(ModConfig.Type.COMMON, StoryConfig.SPEC, "beyondsolo-story.toml");
     }
 
     private static void attributes(EntityAttributeCreationEvent event) {
         event.put(MOTHER.get(), KinEntity.attributes().build());
+        event.put(FATHER.get(), com.beyondsolo.guild.GuildHunterEntity.attributes().build());
+        event.put(VISION.get(), VisionEntity.attributes().build());
     }
 
     /** First guesses for the balancing pass. */
     private static void titles() {
         Titles.register(new TitleDef(LongSleep.TITLE_ID, TitleCategory.SYSTEM, TitleTier.LEGENDARY, null, 0,
                 List.of(new PerkLine(TitlePerk.VITALITY, 0.06f), new PerkLine(TitlePerk.XP, 0.05f)), false));
+        Titles.register(new TitleDef(MainStory.HEIR_ID, TitleCategory.SYSTEM, TitleTier.LEGENDARY, null, 0,
+                List.of(new PerkLine(TitlePerk.MIGHT, 0.04f), new PerkLine(TitlePerk.FOCUS, 0.04f)), false));
+        Titles.register(new TitleDef(MainStory.BEYOND_ID, TitleCategory.SYSTEM, TitleTier.MYTHIC, null, 0,
+                List.of(new PerkLine(TitlePerk.MIGHT, 0.05f), new PerkLine(TitlePerk.VITALITY, 0.05f), new PerkLine(TitlePerk.XP, 0.05f)), false));
     }
 
     private static void payloads(RegisterPayloadHandlersEvent event) {
