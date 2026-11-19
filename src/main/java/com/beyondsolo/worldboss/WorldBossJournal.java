@@ -54,6 +54,8 @@ public final class WorldBossJournal {
             if (top) SystemAPI.setTitle(p, THRONE_TAKER);
             // crown against crown: a monarch who had a share in it
             com.beyondsolo.monarch.MonarchAPI.monarchSlain(p);
+            // the light against the crowns: a hunter sworn to it who had a share in it
+            com.beyondsolo.light.LightAPI.monarchSlain(p);
         } else {
             SystemAPI.setTitle(p, COLOSSUS_BREAKER);
         }

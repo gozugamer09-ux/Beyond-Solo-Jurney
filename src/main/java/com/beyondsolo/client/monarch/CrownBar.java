@@ -197,21 +197,21 @@ public final class CrownBar {
     // ================================================================ key labels
 
     /** The modifier every crown key shares (Alt by default), or NONE when they differ or there is none. */
-    private static KeyModifier sharedModifier() {
+    public static KeyModifier sharedModifier() {
         KeyModifier m = MonarchClientEvents.CROWN_KEYS[0].getKeyModifier();
         for (KeyMapping k : MonarchClientEvents.CROWN_KEYS) if (k.getKeyModifier() != m || k.isUnbound()) return KeyModifier.NONE;
         return m;
     }
 
     /** "ALT" in the player's language (NeoForge names modifiers as "ALT + %s"). */
-    static String modifierLabel(KeyModifier m) {
+    public static String modifierLabel(KeyModifier m) {
         String s = m.getCombinedName(InputConstants.UNKNOWN, Component::empty).getString();
         s = s.replace("+", "").trim();
         return s.isEmpty() ? m.name() : s.toUpperCase(Locale.ROOT);
     }
 
     /** A crown key's keycap: the key (with its modifier when the keys don't share one), a few letters at most. */
-    static String keyLabel(KeyMapping k, boolean withModifier) {
+    public static String keyLabel(KeyMapping k, boolean withModifier) {
         if (k.isUnbound()) return "-";
         String key = k.getKey().getDisplayName().getString();
         if (key.length() > 3) key = key.substring(0, 3);

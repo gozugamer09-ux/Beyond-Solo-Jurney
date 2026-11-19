@@ -72,10 +72,56 @@ final class DungeonPlanner {
         return done();
     }
 
-    /** An awakening temple ({@link DungeonLayout#temple}): the original caverns, cut short, with no side caves. */
-    DungeonLayout temple() {
+    /**
+     * An awakening temple ({@link DungeonLayout#temple}): the original caverns, cut short, with no side caves; with
+     * {@code chapel}, the Envoy of Dawn's chapel off the antechamber ({@link #placeChapel}).
+     */
+    DungeonLayout temple(boolean chapel) {
         caverns(DungeonLayout.TEMPLE_ROOMS + 1, 0);
+        if (chapel) placeChapel();
         return done();
+    }
+
+    /**
+     * The chapel of the Envoy of Dawn ({@code depths.HiddenKind#CHAPEL}): a round chamber off the temple's antechamber,
+     * turned away from both the way in and the way on to the Arbiter's hall, at the end of a short tunnel nothing else
+     * comes near, behind a wall that passes for the temple's rock. Its own random, so the temple is otherwise the same.
+     */
+    private void placeChapel() {
+        Room ante = null, boss = null;
+        for (Room room : rooms) {
+            if (room.kind() == Kind.CAVERN && ante == null) ante = room;
+            if (room.kind() == Kind.BOSS) boss = room;
+        }
+        if (ante == null) return;
+        RandomSource h = new LegacyRandomSource(seed * 0x9E3779B97F4A7C15L + 0x4348415045L);
+        boolean exact = shape == DungeonShape.CAVERNS && realm.build == GateRealm.Build.CAVE && !realm.corridors;
+        // the ways in and on, seen from the antechamber: the chapel turns its back on both
+        List<Float> ways = new ArrayList<>();
+        for (Tunnel t : tunnels) {
+            Room other = t.from() == ante.index() ? rooms.get(t.to()) : t.to() == ante.index() ? rooms.get(t.from()) : null;
+            if (other != null) ways.add((float) Math.atan2(other.center().getZ() - ante.center().getZ(), other.center().getX() - ante.center().getX()));
+        }
+        int r = DungeonLayout.CHAPEL_R, ry = DungeonLayout.CHAPEL_RY;
+        for (int attempt = 0; attempt < 160; attempt++) {
+            float a = h.nextFloat() * Mth.TWO_PI;
+            boolean apart = true;
+            for (float w : ways) if (Math.abs(Mth.wrapDegrees((a - w) * Mth.RAD_TO_DEG)) < (attempt < 100 ? 60 : 35)) apart = false;
+            if (!apart) continue;
+            int dist = ante.reach() + r + 8 + h.nextInt(5);
+            int y = Mth.clamp(ante.floorY() + Math.round(ry * 0.55f) + h.nextInt(3) - 1,
+                    exact ? MIN_Y + ry + 2 : FLOOR_LIMIT + ry + 4, exact ? MAX_Y - ry - 2 : CEILING_LIMIT - ry - 4);
+            Room room = new Room(rooms.size(), new BlockPos(ante.center().getX() + Math.round(Mth.cos(a) * dist), y,
+                    ante.center().getZ() + Math.round(Mth.sin(a) * dist)), r, ry, r, Kind.HIDDEN);
+            if (!centersClear(room, 7)) continue;
+            if (boss != null && room.center().distSqr(boss.center()) < Mth.square(boss.reach() + room.reach() + 12)) continue;
+            if (!exact && (!clear(room, 7) || !inSlot(room, 8) || nearSpaces(room, 4))) continue;
+            Tunnel t = tube(h, ante, room);
+            if (!secluded(ante, room, t, exact)) continue;
+            rooms.add(room);
+            tunnels.add(t);
+            return;
+        }
     }
 
     private void layOut() {

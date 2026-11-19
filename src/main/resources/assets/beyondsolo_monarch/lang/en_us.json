@@ -96,9 +96,9 @@
   "skill.beyondsolo.monarch_thousand_thunders.flavour": "The storm has a master.",
   "skill.beyondsolo.monarch_thousand_thunders.desc": "The sky answers you: %s bolts fall one after another on the foes within %s blocks, %s damage each, stunning what they strike and leaping on to one more.",
 
-  "key.beyondsolo.crown_1": "Crown: Domain",
-  "key.beyondsolo.crown_2": "Crown: Dread",
-  "key.beyondsolo.crown_3": "Crown: Crown Form",
+  "key.beyondsolo.crown_1": "Crown: Domain / Sanctum",
+  "key.beyondsolo.crown_2": "Crown: Dread / Judgement",
+  "key.beyondsolo.crown_3": "Crown: Crown Form / Seraph Form",
   "key.beyondsolo.crown_4": "Crown: Authority",
 
   "ui.beyondsolo.monarch.authority.header": "[ AUTHORITY ]",

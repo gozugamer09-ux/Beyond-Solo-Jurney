@@ -795,7 +795,7 @@ public final class ShadowService {
      * harder still ({@link com.beyondsolo.monarch.MonarchDomain#shadowBonus}). The best of these counts.
      */
     public static float auraBonus(ShadowEntity shadow) {
-        float best = com.beyondsolo.monarch.MonarchDomain.shadowBonus(shadow);
+        float best = Math.max(com.beyondsolo.monarch.MonarchDomain.shadowBonus(shadow), com.beyondsolo.light.LightSanctum.shadowBonus(shadow));
         if (shadow.isBoss()) return best;
         UUID owner = shadow.getOwnerUUID();
         if (owner == null) return best;

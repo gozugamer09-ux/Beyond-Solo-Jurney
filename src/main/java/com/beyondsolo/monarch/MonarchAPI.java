@@ -63,7 +63,7 @@ public final class MonarchAPI {
     public static boolean eligible(Player player) {
         SystemData sys = SystemAPI.get(player);
         return sys.isAwakened() && sys.hasSystem() && !crowned(player) && TowerAPI.hasSigil(player)
-                && JobAPI.hasChangedJob(player) && sys.level() >= minLevel();
+                && JobAPI.hasChangedJob(player) && sys.level() >= minLevel() && !com.beyondsolo.light.LightAPI.sworn(player);
     }
 
     /** Calls the hunter to the throne if they are ready and haven't been called: the System's notice and the quest. */
@@ -96,6 +96,11 @@ public final class MonarchAPI {
             info(player, "monarch_sigil_quiet", dominion(player).title());
             return false;
         }
+        // a hunter sworn to the light can never take a crown
+        if (com.beyondsolo.light.LightAPI.sworn(player)) {
+            info(player, "monarch_sigil_light");
+            return false;
+        }
         SystemData sys = SystemAPI.get(player);
         if (!sys.isAwakened() || !sys.hasSystem() || !JobAPI.hasChangedJob(player) || sys.level() < minLevel()) {
             info(player, "monarch_sigil_waits", minLevel());
@@ -112,6 +117,8 @@ public final class MonarchAPI {
      * crown's authority is forgotten), the monarch's strength, the crown's title, and their aura in its colour.
      */
     public static void crown(ServerPlayer player, Dominion dominion) {
+        // one or the other: a crown sets a hunter free of the light (commands; the throne never takes one sworn to it)
+        if (com.beyondsolo.light.LightAPI.sworn(player)) com.beyondsolo.light.LightAPI.unswear(player);
         MonarchData data = get(player);
         data.crown(dominion, player.level().getGameTime());
         data.setCalled(true);

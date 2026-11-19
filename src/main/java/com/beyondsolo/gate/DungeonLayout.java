@@ -331,8 +331,20 @@ public final class DungeonLayout {
      * from the door to an antechamber and on to the Arbiter's hall. No side caves: nothing in there but the Arbiter.
      */
     public static DungeonLayout temple(long seed) {
-        return new DungeonPlanner(seed, GateTheme.TRIAL, GateRealm.THRESHOLD, DungeonShape.CAVERNS).temple();
+        return temple(seed, false);
     }
+
+    /**
+     * An awakening temple, with the chapel of the Envoy of Dawn walled off its antechamber when {@code chapel}
+     * ({@code GateInstance#chapel}): a hidden chamber of its own, placed with its own random so the temple is otherwise
+     * the same.
+     */
+    public static DungeonLayout temple(long seed, boolean chapel) {
+        return new DungeonPlanner(seed, GateTheme.TRIAL, GateRealm.THRESHOLD, DungeonShape.CAVERNS).temple(chapel);
+    }
+
+    /** Size of the chapel of the Envoy of Dawn: round, tall enough for the Envoy's wings. */
+    public static final int CHAPEL_R = 7, CHAPEL_RY = 6;
 
     /** Size of the sealed door's chamber: wider and taller than the others, a sealed gate stands in it. */
     public static final int SEALED_RX = 8, SEALED_RY = 6;
