@@ -41,6 +41,8 @@ public class MantleScreen extends Screen {
     private static final float W = 404, H = 248;
     private static final float CARD_W = 90, CARD_H = 162, CARD_GAP = 7.3f;
     private static final int GOLD = LightHud.GOLD;
+    /** The dark that the words stand on. */
+    private static final int VEIL = 0xFF070502;
 
     private static @Nullable Mantle leaning;
     /** Game time the light picks for them. */
@@ -186,6 +188,8 @@ public class MantleScreen extends Screen {
     }
 
     private void header(GuiGraphics g) {
+        // a dark veil behind the words, so they read over the Envoy's light (it stands right behind them)
+        Shapes.box(W / 2f - 140, -5, 280, 41).radius(16).fill(Gfx.alpha(VEIL, 0.6f)).glow(16, Gfx.alpha(VEIL, 0.45f)).draw(g);
         String head = getTitle().getString().toUpperCase(Locale.ROOT);
         SysFont.spaced(g, head, W / 2f, 2, 12, 0xFFFFFFFF, true, 3.4f, 0.5f);
         float hw = SysFont.spacedWidth(head, 12, true, 3.4f);
@@ -209,6 +213,8 @@ public class MantleScreen extends Screen {
         boolean sel = m == selected;
         float k = lift[i];
         float justPicked = sel ? 1 - Anim.progress(selectedAt, 0.5f) : 0;
+        // a dark backing at the card's full strength first: a mantle not picked dims, but nothing shows through it
+        Shapes.box(x, y, CARD_W, CARD_H).radius(9).fill(0xFF0A0804).draw(g);
         float oldDim = Gfx.fade(sel ? 1 : 0.62f + 0.38f * k);
         Shapes.box(x, y, CARD_W, CARD_H).radius(9)
                 .fillV(Gfx.mix(0xF01C160C, Gfx.alpha(c, 0.94f), 0.1f + 0.12f * k), 0xF00C0904)
@@ -283,6 +289,8 @@ public class MantleScreen extends Screen {
     }
 
     private void footer(GuiGraphics g, float mx, float my) {
+        // the same veil under the button and its lines, so they read over daylit ground
+        Shapes.box(W / 2f - 160, 40 + CARD_H + 1, 320, 47).radius(16).fill(Gfx.alpha(VEIL, 0.55f)).glow(14, Gfx.alpha(VEIL, 0.4f)).draw(g);
         int c = Gfx.opaque(selected.color());
         String every = Component.translatable("ui.beyondsolo.light.mantle.every").getString();
         SysFont.draw(g, SysFont.fit(every, 5f, false, W - 20), W / 2f, 40 + CARD_H + 6, 5f, SystemTheme.TEXT_SOFT, false, 0.5f);

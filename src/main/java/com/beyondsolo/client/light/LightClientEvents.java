@@ -14,6 +14,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 
 /**
  * Client wiring for the light: the Envoy's and the light's shapes' renderers, the seraph form's wings on players, the
@@ -53,6 +54,16 @@ public final class LightClientEvents {
         static void tick(ClientTickEvent.Post event) {
             if (Minecraft.getInstance().player == null) return;
             LightClient.tick();
+        }
+
+        /**
+         * While the Envoy speaks or lays its mantles out, the HUD steps aside: its words and the cards stand alone over
+         * the chapel or the vigil, with no quest list or bars showing through them.
+         */
+        @SubscribeEvent
+        static void hideHud(RenderGuiLayerEvent.Pre event) {
+            net.minecraft.client.gui.screens.Screen s = Minecraft.getInstance().screen;
+            if (s instanceof CovenantScreen || s instanceof MantleScreen) event.setCanceled(true);
         }
 
         @SubscribeEvent

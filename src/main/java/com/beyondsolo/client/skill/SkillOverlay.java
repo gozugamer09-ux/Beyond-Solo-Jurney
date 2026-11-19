@@ -103,7 +103,7 @@ public final class SkillOverlay {
         }
         if (current == null && !LEARNED.isEmpty() && !EvaluationOverlay.active() && !QuestOverlay.active()
                 && !com.beyondsolo.client.gate.GateOverlay.active() && !com.beyondsolo.client.rune.RuneClient.absorbing()
-                && !com.beyondsolo.client.monarch.CoronationOverlay.active()) {
+                && !com.beyondsolo.client.monarch.CoronationOverlay.active() && !com.beyondsolo.client.light.LightHud.investing()) {
             current = LEARNED.pollFirst();
             startedAt = Anim.now();
             learnTime = LEARNED.isEmpty() ? 4.0f : 2.7f;

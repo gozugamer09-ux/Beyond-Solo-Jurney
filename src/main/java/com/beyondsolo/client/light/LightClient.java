@@ -6,6 +6,7 @@ import com.beyondsolo.client.skill.SkillOverlay;
 import com.beyondsolo.light.Mantle;
 import com.beyondsolo.network.LightActionPayload;
 import com.beyondsolo.network.LightFxPayload;
+import com.beyondsolo.network.LightRingPayload;
 import com.beyondsolo.network.LightSyncPayload;
 import com.beyondsolo.network.SkillMomentPayload;
 import com.beyondsolo.skill.RulerPowers;
@@ -73,6 +74,46 @@ public final class LightClient {
     private static final Map<Integer, Glow> SANCTUMS = new HashMap<>();
     private static final Map<Integer, Glow> SERAPHS = new HashMap<>();
 
+    /** A vigil's ring of light on the ground, in game time. */
+    public static final class Ring {
+        public final int id;
+        public final double x, y, z;
+        public final int radius;
+        public final int color;
+        public final long since;
+        long until;
+        long endedAt = -1;
+
+        Ring(LightRingPayload p, long now) {
+            this.id = p.id();
+            this.x = p.x();
+            this.y = p.y();
+            this.z = p.z();
+            this.radius = p.radius();
+            this.color = p.color();
+            this.since = now;
+            this.until = now + p.ticks();
+        }
+
+        /** 0..1: rises over a second, goes out over half a second. */
+        public float strength(double now) {
+            float in = (float) Math.min(1, (now - since) / 20.0);
+            long end = endedAt >= 0 ? endedAt : until;
+            float out = (float) Math.min(1, Math.max(0, (end + 10 - now) / 10.0));
+            return Math.max(0, Math.min(in, out));
+        }
+
+        boolean over(double now) {
+            return now > (endedAt >= 0 ? endedAt : until) + 10;
+        }
+
+        boolean same(LightRingPayload p) {
+            return endedAt < 0 && Math.abs(x - p.x()) < 0.01 && Math.abs(y - p.y()) < 0.01 && Math.abs(z - p.z()) < 0.01 && radius == p.radius();
+        }
+    }
+
+    private static final Map<Integer, Ring> RINGS = new HashMap<>();
+
     // ================================================================ the player's own road
 
     public static boolean sworn() {
@@ -136,6 +177,25 @@ public final class LightClient {
             default -> {
             }
         }
+    }
+
+    /** A vigil's ring: lit, kept lit (sent again while the vigil lasts) or put out. */
+    public static void onRing(LightRingPayload p) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        long now = mc.level.getGameTime();
+        Ring r = RINGS.get(p.id());
+        if (p.ticks() <= 0) {
+            if (r != null && r.endedAt < 0) r.endedAt = Math.min(now, r.until);
+            return;
+        }
+        if (r != null && r.same(p)) r.until = Math.max(r.until, now + p.ticks());
+        else RINGS.put(p.id(), new Ring(p, now));
+    }
+
+    /** The vigils' rings nearby (some may be going out). */
+    public static Collection<Ring> rings() {
+        return RINGS.values();
     }
 
     private static void glow(Map<Integer, Glow> map, LightFxPayload p, long now) {
@@ -222,6 +282,7 @@ public final class LightClient {
         double now = now(0);
         SANCTUMS.values().removeIf(g -> g.over(now) || mc.level.getEntity(g.entity) == null && now - g.since > 40);
         SERAPHS.values().removeIf(g -> g.over(now) || mc.level.getEntity(g.entity) == null && now - g.since > 40);
+        RINGS.values().removeIf(r -> r.over(now));
     }
 
     /** Game time, with the frame's part of a tick. */
@@ -234,6 +295,7 @@ public final class LightClient {
     static void clearWorld() {
         SANCTUMS.clear();
         SERAPHS.clear();
+        RINGS.clear();
         SeraphLayer.clear();
     }
 

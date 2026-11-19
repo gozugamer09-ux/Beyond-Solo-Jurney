@@ -5,7 +5,6 @@ import com.beyondsolo.enemy.Enemies;
 import com.beyondsolo.enemy.EnemyRoster;
 import com.beyondsolo.enemy.EnemyTraits;
 import com.beyondsolo.enemy.Variant;
-import com.beyondsolo.monarch.ThroneTrial;
 import com.beyondsolo.network.LightFxPayload;
 import com.beyondsolo.notify.Notifications;
 import com.beyondsolo.notify.SystemNotification;
@@ -85,6 +84,8 @@ public final class Vigil {
         int wave;
         int outside;
         @Nullable UUID envoy;
+        /** The hunter's entity id when it began: their ring's name on the clients. */
+        int ringId;
         final Set<UUID> foes = new HashSet<>();
 
         Watch(ServerPlayer p, Vec3 center, long now) {
@@ -145,7 +146,9 @@ public final class Vigil {
         if (!data.called()) LightAPI.call(p);
         LightAPI.vigilTried(p);
         Watch w = new Watch(p, p.position(), p.level().getGameTime());
+        w.ringId = p.getId();
         WATCHES.put(p.getUUID(), w);
+        ringLight(w, RING_TICKS);
         // the Envoy comes down over the ring
         EnvoyEntity envoy = LightModule.ENVOY.get().create(w.level);
         if (envoy != null) {
@@ -199,7 +202,8 @@ public final class Vigil {
                 w.outside = 0;
                 send(p, Math.max(0, w.wave), foesLeft(w));
             }
-            if (w.level.getGameTime() % 10 == 0) ring(w);
+            if (w.level.getGameTime() % 5 == 0) ring(w);
+            if (w.level.getGameTime() % 20 == 0) ringLight(w, RING_TICKS);
             switch (w.stage) {
                 case GATHER -> {
                     if (w.since() >= GATHER_TICKS) wave(w, p, 1);
@@ -284,15 +288,25 @@ public final class Vigil {
         }
     }
 
-    /** The ring of light on the ground, and the pillar where the Envoy's light comes down. */
+    /** How long the ring stays on the clients unless it is sent again (it is, each second, while the vigil lasts). */
+    static final int RING_TICKS = 30;
+
+    /**
+     * The ring of light on the ground, for everyone near: a line of gold on the lie of the land and a low wall of light
+     * standing on it, so the hunter always sees where it ends ({@code WorldBossWorldFx}). {@code ticks} 0 puts it out.
+     */
+    private static void ringLight(Watch w, int ticks) {
+        PacketDistributor.sendToPlayersNear(w.level, null, w.center.x, w.center.y, w.center.z, 64,
+                new com.beyondsolo.network.LightRingPayload(w.ringId, (float) w.center.x, (float) w.center.y, (float) w.center.z, RADIUS,
+                        RulerPowers.DAWN_GOLD, ticks));
+    }
+
+    /** Sparks rising off the ring here and there, and the pillar where the Envoy's light comes down. */
     private static void ring(Watch w) {
-        int c = RulerPowers.DAWN_GOLD;
-        int n = 28;
-        long t = w.level.getGameTime();
-        for (int i = 0; i < n; i++) {
-            double a = i * Mth.TWO_PI / n + t * 0.01;
-            SkillParticles.send(w.level, ThroneTrial.dust(c, 1.3f), w.center.x + Math.cos(a) * RADIUS, w.center.y + 0.2,
-                    w.center.z + Math.sin(a) * RADIUS, 1, 0, 0.02, 0, 0);
+        for (int i = 0; i < 4; i++) {
+            double a = w.level.random.nextDouble() * Mth.TWO_PI;
+            SkillParticles.send(w.level, ParticleTypes.END_ROD, w.center.x + Math.cos(a) * RADIUS, w.center.y + 0.3,
+                    w.center.z + Math.sin(a) * RADIUS, 1, 0, 0.6, 0, 0.02);
         }
         SkillParticles.send(w.level, ParticleTypes.END_ROD, w.center.x, w.center.y + 3, w.center.z, 3, 0.15, 2.5, 0.15, 0.01);
     }
@@ -325,8 +339,11 @@ public final class Vigil {
         Watch w = WATCHES.get(p.getUUID());
         if (w == null || w.stage != Stage.CHOOSE) return;
         w.stage(Stage.DONE);
-        LightAPI.invest(p, m);
         int c = m.color();
+        // the Investiture on their screen first: the powers the mantle gives are named on its card, so they are not
+        // shown again one by one over it (the client hears of them right after)
+        PacketDistributor.sendToPlayer(p, new LightFxPayload(LightFxPayload.INVESTITURE, p.getId(), c, m.ordinal(), 0));
+        LightAPI.invest(p, m);
         EnvoyEntity envoy = envoy(w);
         if (envoy != null) envoy.bless();
         ServerLevel level = p.serverLevel();
@@ -341,7 +358,6 @@ public final class Vigil {
         level.playSound(null, p.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 2f, 0.6f);
         level.playSound(null, p.blockPosition(), SoundEvents.BELL_RESONATE, SoundSource.PLAYERS, 2f, 0.5f);
         level.playSound(null, p.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1f, 1.2f);
-        PacketDistributor.sendToPlayer(p, new LightFxPayload(LightFxPayload.INVESTITURE, p.getId(), c, m.ordinal(), 0));
         // everyone near sees a ruler of light rise
         for (ServerPlayer o : level.getEntitiesOfClass(ServerPlayer.class, p.getBoundingBox().inflate(64), o -> o != p)) {
             if (!SystemAPI.hasSystem(o)) continue;
@@ -369,9 +385,11 @@ public final class Vigil {
                 Component.translatable("notify.beyondsolo.light_vigil_failed." + why, LightConfig.retryMinutes())));
     }
 
+    /** The Envoy goes back up, and the ring goes out with it (every vigil ends here). */
     private static void envoyLeaves(Watch w) {
         EnvoyEntity envoy = envoy(w);
         if (envoy != null) envoy.leave();
+        ringLight(w, 0);
     }
 
     /** The hunter fell (from {@code LightHooks}): their vigil fails. */

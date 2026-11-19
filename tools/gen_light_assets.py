@@ -588,9 +588,10 @@ def seraph():
     B = OneSkin(SERAPH, 8300)
     B.bone("root", None, [0, 0, 0])
     for side, sx in (("right", -1), ("left", 1)):
-        light_wing(B, side, sx, "wing", "root", (1.2, -3.2, 2.5), 36, 6.6, 3.8,
-                   [(74, 9.4), (62, 10.2), (50, 10.6), (38, 10.2), (26, 9.4), (14, 8.6)],
-                   [(0.9, -4, 8.0), (0.7, -20, 7.6), (0.5, -36, 7.0), (0.3, -52, 6.2)], width=1.7, t=0.25, z_step=0.09, rest=(0, 24, 0),
+        # great wings: each spans about two blocks from the shoulder blade, more than the hunter is wide
+        light_wing(B, side, sx, "wing", "root", (1.2, -3.2, 2.5), 36, 9.6, 5.6,
+                   [(74, 13.6), (62, 14.8), (50, 15.4), (38, 14.8), (26, 13.6), (14, 12.4)],
+                   [(0.9, -4, 11.6), (0.7, -20, 11.0), (0.5, -36, 10.2), (0.3, -52, 9.0)], width=2.3, t=0.25, z_step=0.09, rest=(0, 24, 0),
                    seed=300 + (50 if sx > 0 else 0), r="feather")
     hc = (0, 10.6, 0)
     B.bone("halo", "root", list(hc), [

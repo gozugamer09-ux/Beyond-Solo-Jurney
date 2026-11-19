@@ -115,6 +115,8 @@ public final class LightModule {
                 (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.light.LightClient.onSync(p)));
         r.playToClient(LightFxPayload.TYPE, LightFxPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.light.LightClient.onFx(p)));
+        r.playToClient(com.beyondsolo.network.LightRingPayload.TYPE, com.beyondsolo.network.LightRingPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.light.LightClient.onRing(p)));
         r.playToServer(LightActionPayload.TYPE, LightActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer player) LightAPI.handle(player, p);
