@@ -53,11 +53,24 @@ public final class Outline {
 
     /** The shared outline, emptied. */
     public static Outline begin() {
-        SHARED.quadCount = 0;
-        SHARED.edgeCount = 0;
-        SHARED.length = 0;
-        SHARED.outerLength = 0;
-        return SHARED;
+        return SHARED.reset();
+    }
+
+    /**
+     * An outline of one's own, for drawing that can run while the shared one is being filled (a render layer of a model
+     * that is itself drawn into the shared outline).
+     */
+    public static Outline create() {
+        return new Outline();
+    }
+
+    /** Empties this outline. */
+    public Outline reset() {
+        quadCount = 0;
+        edgeCount = 0;
+        length = 0;
+        outerLength = 0;
+        return this;
     }
 
     /** A buffer source that draws through {@code inner} and keeps every entity quad drawn through it. */

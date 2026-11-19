@@ -97,6 +97,7 @@ public final class MonarchClientEvents {
             if (mc.player == null) return;
             CoronationOverlay.tick();
             MonarchClient.tick();
+            MonarchClient.breathe();
             for (int i = 0; i < CROWN_KEYS.length; i++) {
                 while (CROWN_KEYS[i].consumeClick()) {
                     if (mc.screen == null) press(i);

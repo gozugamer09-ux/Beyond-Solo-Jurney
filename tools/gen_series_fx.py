@@ -17,7 +17,8 @@ edge, energy is thin and sharp (flame tongues, slits, threads), never a soft bal
   spark.png       a hot point with four short glints: an eye, a mote of light
   feather.png     a feather of light (a ruler's wing): a white spine, a blade of light fading to nothing at the tip
   halo.png        a broken halo: segments, spokes and thin rings, to be turned slowly
-  vein.png        veins of light on ink, tiling both ways: a domain's ground, cracks in monarch plate
+  vein.png        veins of light running through ink, tiling both ways: a domain's ground
+  shaft.png       a column of ink pouring down with a burning edge each side, tiling along v (a monarch's gate)
 
 Run from the repo root:  python3 tools/gen_series_fx.py [--preview <png>]
 """
@@ -308,7 +309,25 @@ def veins():
     # thin bright lines along the ridges, the thicker ones brighter, nothing in between
     lines = smooth(0.955, 0.995, ridge1) * 1.0 + smooth(0.965, 0.995, ridge2) * 0.55
     glow = smooth(0.85, 1.0, ridge1) * 0.18
-    save("vein", np.clip(lines + glow, 0, 1), np.zeros((s, s)), clamp=False)
+    # the ink the veins run through: pooled thicker in places, thinner along the veins where the light shows
+    ink = (0.55 + 0.3 * fbm(s, s, 3, 3, 4, 503)) * (1 - 0.6 * np.clip(lines, 0, 1))
+    save("vein", np.clip(lines + glow, 0, 1), ink, clamp=False)
+
+
+def shaft():
+    """A column of ink pouring down (a monarch's gate, the beacon over a dark threat): ink in the middle torn into
+    streaks that run along it, a thin burning edge down both sides. Tiles along v: scroll it and the ink pours."""
+    w, h = 64, 256
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float64)
+    u = (xs + 0.5) / w
+    d = np.abs(u - 0.5) * 2  # 0 in the middle, 1 at the sides
+    streaks = fbm(w, h, 12, 2, 3, 811)
+    grain = fbm(w, h, 6, 8, 3, 823)
+    width = 0.78 + 0.1 * (grain - 0.5)
+    body = smooth(width, width - 0.2, d) * (0.55 + 0.45 * streaks)
+    edge = smooth(width - 0.16, width - 0.04, d) * smooth(width + 0.06, width - 0.02, d)
+    heat = edge * (0.45 + 0.4 * grain) + body * 0.06 * smooth(0.7, 1.0, streaks)
+    save("shaft", heat, body * 0.92, clamp=False)
 
 
 def preview(path):
@@ -348,5 +367,6 @@ if __name__ == "__main__":
     feather()
     halo()
     veins()
+    shaft()
     if len(sys.argv) > 2 and sys.argv[1] == "--preview":
         preview(sys.argv[2])

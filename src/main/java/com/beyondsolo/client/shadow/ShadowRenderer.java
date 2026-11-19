@@ -157,16 +157,7 @@ public class ShadowRenderer extends EntityRenderer<ShadowEntity> {
             Aura.edge(outline, buffers, style, time, presence, unit, new Vec3(up.x(), up.y(), up.z()), Vec3.ZERO, 1f, size, e.getId(), 0f);
             return;
         }
-        outline.solveWorld();
-        double dist = Math.sqrt(Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().distanceToSqr(e.getPosition(partial)));
-        float detail = (float) Mth.clamp(1 - (dist - 24) / 40, 0, 1);
-        if (dist > 72) return;
-        // blown back by its own motion
-        Vec3 drift = new Vec3(e.xo - e.getX(), 0, e.zo - e.getZ());
-        if (drift.lengthSqr() > 0.25) drift = drift.normalize().scale(0.5);
-        Aura.edge(outline, buffers, style, time, presence, 1f, new Vec3(0, 1, 0), drift, Math.max(detail, 0.15f), size, e.getId(),
-                Aura.daylight(light, partial));
-        if (detail > 0.1f) Aura.wisps(Aura.state(e.getId()), outline, buffers, style, time, presence * detail, drift, size, e.getId());
+        Aura.burnWorld(outline, buffers, style, e, partial, time, presence, size, light);
     }
 
     /**

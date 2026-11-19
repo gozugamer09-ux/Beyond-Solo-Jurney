@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
@@ -38,6 +39,7 @@ public final class Aura {
     public static final ResourceLocation WISP = tex("wisp");
     public static final ResourceLocation POOL = tex("pool");
     public static final ResourceLocation SPLASH = tex("splash");
+    public static final ResourceLocation SHAFT = tex("shaft");
     public static final ResourceLocation EDGE = tex("edge");
     public static final ResourceLocation TRAIL = tex("trail");
     public static final ResourceLocation SPARK = tex("spark");
@@ -204,6 +206,28 @@ public final class Aura {
         }
         if (s.seams > 0.01f) seams(o, buffers, s.hue, s.seams * alpha, s.rimWidth * unit * wide * 0.6f, unit, time, seed);
     }
+
+    /**
+     * The burning edge, the flame and the ink wisps off a figure drawn in the world (camera-relative) from the outline
+     * just recorded of it: finer up close, blown back by its motion, lower by day. Nothing past 72 blocks.
+     *
+     * @param size how much bigger than a man the figure is
+     */
+    public static void burnWorld(Outline o, MultiBufferSource buffers, Style s, Entity e, float partial, float time, float alpha, float size,
+                                 int packedLight) {
+        if (alpha <= 0.01f) return;
+        o.solveWorld();
+        double dist = Math.sqrt(Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().distanceToSqr(e.getPosition(partial)));
+        if (dist > 72) return;
+        float detail = (float) Mth.clamp(1 - (dist - 24) / 40, 0, 1);
+        // blown back by its own motion
+        Vec3 drift = new Vec3(e.xo - e.getX(), 0, e.zo - e.getZ());
+        if (drift.lengthSqr() > 0.25) drift = drift.normalize().scale(0.5);
+        edge(o, buffers, s, time, alpha, 1f, UP, drift, Math.max(detail, 0.15f), size, e.getId(), daylight(packedLight, partial));
+        if (detail > 0.1f) wisps(state(e.getId()), o, buffers, s, time, alpha * detail, drift, size, e.getId());
+    }
+
+    private static final Vec3 UP = new Vec3(0, 1, 0);
 
     /**
      * How much daylight a figure stands in, 0 (night, a cave, a screen) to 1 (open sky at noon), from the sky's
@@ -378,6 +402,70 @@ public final class Aura {
         VertexConsumer vc = buffers.getBuffer(ModRenderTypes.flame(FLAME));
         for (int j : order) {
             float ua = u0 + j * arc, ub = u0 + (j + 1) * arc;
+            flameVertex(vc, fx[j], fy[j], fz[j], ua, 0, r, g, b, al[j], tall[j]);
+            flameVertex(vc, fx[j + 1], fy[j + 1], fz[j + 1], ub, 0, r, g, b, al[j + 1], tall[j + 1]);
+            flameVertex(vc, tx[j + 1], ty[j + 1], tz[j + 1], ub, 1, r, g, b, al[j + 1], tall[j + 1]);
+            flameVertex(vc, tx[j], ty[j], tz[j], ua, 1, r, g, b, al[j], tall[j]);
+        }
+    }
+
+    /**
+     * A wall of flame standing on a closed line of feet ({@code n} points, x y z in {@code feet}, the first not repeated,
+     * before {@code m}): the rim of a domain on uneven land. It stands {@code height} blocks tall, leans away from
+     * (cx, cz) by {@code lean} of its height, and burns in tongues {@code tongue} blocks wide; the far side is drawn first.
+     */
+    public static void wall(Matrix4f m, MultiBufferSource buffers, float[] feet, int n, float cx, float cz, float height, float lean,
+                            float tongue, int rgb, float alpha, float time, int seed) {
+        int a = Mth.clamp(Math.round(alpha * 255), 0, 255);
+        if (a <= 2 || n < 3 || height <= 0.01f || !ModRenderTypes.flameReady()) return;
+        float seconds = time / 20f;
+        float perBlock = 1f / Math.max(0.2f, tongue);
+        float[] fx = new float[n + 1], fy = new float[n + 1], fz = new float[n + 1];
+        float[] tx = new float[n + 1], ty = new float[n + 1], tz = new float[n + 1], us = new float[n + 1], tall = new float[n + 1];
+        int[] al = new int[n + 1];
+        org.joml.Vector3f v = new org.joml.Vector3f();
+        float run = 0;
+        for (int j = 0; j <= n; j++) {
+            int jj = j % n;
+            float x = feet[jj * 3], y = feet[jj * 3 + 1], z = feet[jj * 3 + 2];
+            if (j > 0) {
+                int pj = (j - 1) % n;
+                float ddx = x - feet[pj * 3], ddz = z - feet[pj * 3 + 2];
+                run += (float) Math.sqrt(ddx * ddx + ddz * ddz);
+            }
+            float ox = x - cx, oz = z - cz;
+            float ol = (float) Math.sqrt(ox * ox + oz * oz);
+            if (ol > 1.0e-4f) {
+                ox /= ol;
+                oz /= ol;
+            }
+            float beat = 0.65f + 0.35f * Mth.sin(seconds * (1.1f + 0.7f * hash(seed, jj)) + hash(seed, jj + 31) * 6.28f);
+            float hh = height * beat;
+            m.transformPosition(x, y, z, v);
+            fx[j] = v.x();
+            fy[j] = v.y();
+            fz[j] = v.z();
+            m.transformPosition(x + ox * lean * hh, y + hh, z + oz * lean * hh, v);
+            tx[j] = v.x();
+            ty[j] = v.y();
+            tz[j] = v.z();
+            us[j] = run * perBlock;
+            tall[j] = hh * (float) Math.sqrt(1 + lean * lean) * perBlock;
+            al[j] = Mth.clamp(Math.round(alpha * (0.7f + 0.3f * beat) * 255), 0, 255);
+        }
+        Integer[] order = new Integer[n];
+        float[] depth = new float[n];
+        for (int j = 0; j < n; j++) {
+            order[j] = j;
+            float mx = (fx[j] + fx[j + 1]) * 0.5f, my = (fy[j] + fy[j + 1]) * 0.5f, mz = (fz[j] + fz[j + 1]) * 0.5f;
+            depth[j] = mx * mx + my * my + mz * mz;
+        }
+        java.util.Arrays.sort(order, (p, q) -> Float.compare(depth[q], depth[p]));
+        int r = rgb >> 16 & 0xFF, g = rgb >> 8 & 0xFF, b = rgb & 0xFF;
+        float u0 = hash(seed, 7) * 16f;
+        VertexConsumer vc = buffers.getBuffer(ModRenderTypes.flame(FLAME));
+        for (int j : order) {
+            float ua = u0 + us[j], ub = u0 + us[j + 1];
             flameVertex(vc, fx[j], fy[j], fz[j], ua, 0, r, g, b, al[j], tall[j]);
             flameVertex(vc, fx[j + 1], fy[j + 1], fz[j + 1], ub, 0, r, g, b, al[j + 1], tall[j + 1]);
             flameVertex(vc, tx[j + 1], ty[j + 1], tz[j + 1], ub, 1, r, g, b, al[j + 1], tall[j + 1]);
