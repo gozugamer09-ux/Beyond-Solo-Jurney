@@ -106,13 +106,16 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
     public void preRender(PoseStack pose, T boss, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer, boolean isReRender,
                           float partial, int light, int overlay, int colour) {
         super.preRender(pose, boss, model, buffers, buffer, isReRender, partial, light, overlay, colour);
-        // the Verdict's wings are light ({@link Aura#wings}), not the feathers of its model
+        // the Verdict's wings are light ({@link Aura#wings}), not the feathers of its model (a shadow's stand-in keeps
+        // the feathers, in ink)
         if (kind == WorldBossKind.VERDICT) {
-            for (String wing : VERDICT_WINGS) model.getBone(wing).ifPresent(b -> b.setHidden(true));
+            for (String wing : VERDICT_WINGS) model.getBone(wing).ifPresent(b -> b.setHidden(drawingReal));
         }
     }
 
     private static final String[] VERDICT_WINGS = {"right_wing", "right_wing2", "left_wing", "left_wing2"};
+    /** Whether the boss itself is being drawn, not a shadow's stand-in (read in {@link #preRender}). */
+    private boolean drawingReal;
 
     @Override
     protected float getDeathMaxRotation(T boss) {
@@ -146,6 +149,7 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
             pose.pushPose();
             pose.translate(0, -buried, 0);
         }
+        drawingReal = real;
         super.render(boss, yaw, partial, pose, drawn, light);
         if (buried > 0) pose.popPose();
         if (!real) return;

@@ -1111,11 +1111,12 @@ light; energy is thin and sharp; nothing glows like a ball; circles of runes bel
   each side, `open` 0 folded to 1 spread, `beat`) and `glint` (a hot point with four short rays: a mote, light
   gathering). The pictures are `textures/effect/series`, made by `tools/gen_series_fx.py` (red = heat, alpha =
   cover, drawn by the energy shader); feathers and halo lines carry a little cover so they read against a bright sky.
-- **Who burns.** Shadows (`ShadowRenderer`, the rank looks), worn monarch armour and crown forms
-  (`MonarchAuraLayer`), monarchs and world bosses (`ColossalBossRenderer`: a calm, a wrath and a death style per
-  kind), the rulers (flame of light; the Verdict's model wings are hidden in `preRender` and drawn as wings of light),
-  heralds (`HeraldRenderer`, a small flame of light) and the Envoy (broken rings and glints, no soft sun). Only the
-  real entity burns: a shadow's stand-in drawn with the same renderer is checked against the level's own entity.
+- **Who burns.** Shadows (`ShadowRenderer`, the rank looks), worn monarch armour and crown forms (`MonarchAuraLayer`),
+  monarchs and world bosses (`ColossalBossRenderer`: a calm, a wrath and a death style per kind), the rulers (flame of
+  light; the Verdict's model wings are hidden in `preRender` and drawn as wings of light; a shadow's stand-in keeps
+  them, in ink), heralds (`HeraldRenderer`, a small flame of light and small wings of light in place of their model's
+  feathers) and the Envoy (broken rings and glints, no soft sun). Only the real entity burns: a shadow's stand-in
+  drawn with the same renderer is checked against the level's own entity.
 - **Breath** (`WorldBossWorldFx.breathe`, each tick within 64 blocks of the threat or the ruler abroad): the frost
   queen's cold mist and frost motes, the wolf king's blood mist, sparks off the storm lord, the flame giant's embers
   and black smoke and the beast's dark blood in their last phase, light dust off a ruler; ink smoke pours off a dying
