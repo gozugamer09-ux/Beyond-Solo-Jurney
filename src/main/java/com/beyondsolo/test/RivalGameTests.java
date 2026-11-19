@@ -12,6 +12,7 @@ import com.beyondsolo.gate.GateService;
 import com.beyondsolo.guild.GuildHunterEntity;
 import com.beyondsolo.quest.QuestEngine;
 import com.beyondsolo.quest.QuestTestAccess;
+import com.beyondsolo.redgate.RedGates;
 import com.beyondsolo.rival.Hire;
 import com.beyondsolo.rival.Hires;
 import com.beyondsolo.rival.RivalConfig;
@@ -86,8 +87,11 @@ public final class RivalGameTests {
 
     /** An open gate of that rank standing in the plot (registered, with no block to walk into). */
     private static GateInstance gate(GameTestHelper helper, PlayerRank rank, BlockPos at) {
-        return GateData.get(helper.getLevel().getServer()).create(UUID.randomUUID(), rank, helper.getLevel().random.nextLong(),
-                Level.OVERWORLD, helper.absolutePos(at));
+        MinecraftServer server = helper.getLevel().getServer();
+        // a gate that will turn red is no party's to go for (RivalParties.eligible): the tests' gates never will
+        long seed = helper.getLevel().random.nextLong();
+        while (RedGates.latent(server, new GateInstance(UUID.randomUUID(), rank, seed, 0, Level.OVERWORLD, BlockPos.ZERO))) seed++;
+        return GateData.get(server).create(UUID.randomUUID(), rank, seed, Level.OVERWORLD, helper.absolutePos(at));
     }
 
     /** A party sent for the gate, out of sight. */
