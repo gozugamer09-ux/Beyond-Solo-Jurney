@@ -49,6 +49,11 @@ public final class WorldBossRecord implements INBTSerializable<CompoundTag> {
         return armorPieces;
     }
 
+    /** Sets how many of a kind the hunter has slain (operator commands: {@code /solo home trophies}). */
+    public void setSlain(WorldBossKind kind, int count) {
+        slain[kind.ordinal()] = Math.max(0, count);
+    }
+
     void addSlain(WorldBossKind kind, boolean top) {
         slain[kind.ordinal()]++;
         if (top) topHunter++;

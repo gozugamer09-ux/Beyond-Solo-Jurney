@@ -31,7 +31,7 @@ import java.util.Deque;
  *
  * <p>Write commands, one per line, to {@code <game dir>/uitest/cmd.txt}. They run in order:</p>
  * <pre>
- * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|party|guild|chronicle|gallery  open a System page (or the drawing test page)
+ * screen status|skills|quests|log|shadows|storage|shop|forge|craft|gates|citadel|party|guild|chronicle|home|gallery  open a System page (or the drawing test page)
  * chronicle titles [id|category|all]   what the CHRONICLE page shows: a title, or the list filtered by category
  * chronicle rankings [hunters|citadel|rush|gates] [tier]   ... a leaderboard (tier: e..s or sovereign for the rush)
  * chronicle journal [creatures|bosses|realms|arsenal] [page]   ... a journal section and page (page id or bare name)
@@ -77,6 +77,7 @@ import java.util.Deque;
  * engravego                            press the engraving screen's CARVE button
  * gates &lt;n&gt;                            choose the n-th kind of key on the GATES page
  * gatesgo                              press the GATES page's TURN button
+ * homego go|leave|buy|stay             press a HOME page button (go home, back out, buy the next part, stop going)
  * rerun                                press the re-run prompt's key (the accept key)
  * partydemo [alone]                    stand in a made-up party (or, alone, two invitations) on the PARTY page and the HUD
  * partygo &lt;action&gt; [name]              press a PARTY page button (invite, accept, decline, leave, kick, promote, disband, regroup)
@@ -245,6 +246,7 @@ public final class UiTestDriver {
                     case "party" -> SystemScreen.openOn(com.beyondsolo.client.party.PartyClientEvents.PARTY_TAB);
                     case "guild" -> SystemScreen.openOn(com.beyondsolo.client.guild.GuildClientEvents.GUILD_TAB);
                     case "chronicle" -> SystemScreen.openOn(com.beyondsolo.client.chronicle.ChronicleClientEvents.CHRONICLE_TAB);
+                    case "home" -> SystemScreen.openOn(com.beyondsolo.client.home.HomeClientEvents.HOME_TAB);
                     default -> {}
                 }
                 mc.setScreen(arg.equals("gallery") ? new UiGalleryScreen() : new SystemScreen());
@@ -321,6 +323,12 @@ public final class UiTestDriver {
             case "engravego" -> com.beyondsolo.client.rune.RuneEngraveScreen.pressCarve();
             case "gates" -> com.beyondsolo.client.key.GatesTab.show(Integer.parseInt(arg));
             case "gatesgo" -> com.beyondsolo.client.key.GatesTab.press();
+            case "homego" -> com.beyondsolo.client.home.HomeTab.press(switch (arg) {
+                case "leave" -> com.beyondsolo.network.HomeActionPayload.LEAVE;
+                case "buy" -> com.beyondsolo.network.HomeActionPayload.BUY;
+                case "stay" -> com.beyondsolo.network.HomeActionPayload.CANCEL;
+                default -> com.beyondsolo.network.HomeActionPayload.GO;
+            });
             case "rerun" -> com.beyondsolo.client.key.KeyClient.pressRerun();
             case "storagebtn" -> {
                 if (mc.screen instanceof com.beyondsolo.client.economy.StorageScreen s) s.press(Integer.parseInt(arg));

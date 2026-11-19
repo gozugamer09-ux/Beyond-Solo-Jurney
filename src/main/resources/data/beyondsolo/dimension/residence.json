@@ -1,0 +1,17 @@
+{
+  "type": "beyondsolo:residence",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "beyondsolo:residence",
+      "lakes": false,
+      "features": false,
+      "structure_overrides": [],
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:stone", "height": 62 },
+        { "block": "minecraft:gray_concrete", "height": 1 }
+      ]
+    }
+  }
+}

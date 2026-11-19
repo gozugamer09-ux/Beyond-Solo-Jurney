@@ -147,6 +147,8 @@ final class SoloWipe {
         com.beyondsolo.guild.Guilds.wipe(p);
         // the association lets go of the gates it held for them
         com.beyondsolo.association.Association.wipe(p);
+        // out of any home, and their own is gone (the plot stays theirs, to be built again from nothing)
+        com.beyondsolo.home.Homes.takeAway(p);
         // every record the mod keeps on the player back to its defaults (the System's own keeps "first join handled")
         List<AttachmentType<?>> ours = new ArrayList<>();
         for (var e : NeoForgeRegistries.ATTACHMENT_TYPES.entrySet()) {

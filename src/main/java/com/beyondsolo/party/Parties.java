@@ -606,6 +606,8 @@ public final class Parties {
         if (com.beyondsolo.job.JobTrial.inTrial(p)) return new Place(PartySyncPayload.JOB_TRIAL, -1, Component.empty());
         if (com.beyondsolo.monarch.ThroneTrial.inTrial(p)) return new Place(PartySyncPayload.THRONE, -1, Component.empty());
         if (com.beyondsolo.penalty.PenaltyZone.inZone(p)) return new Place(PartySyncPayload.PENALTY, -1, Component.empty());
+        // at home, or a guest in a party member's (their name)
+        if (com.beyondsolo.home.Homes.inAnyHome(p)) return new Place(PartySyncPayload.HOME, -1, com.beyondsolo.home.Homes.hostOf(p));
         ResourceKey<Level> dim = p.level().dimension();
         if (dim.equals(com.beyondsolo.tower.TowerRun.DIMENSION)) return new Place(PartySyncPayload.CITADEL, -1, Component.empty());
         if (dim.equals(com.beyondsolo.redgate.RedWorld.DIMENSION)) {

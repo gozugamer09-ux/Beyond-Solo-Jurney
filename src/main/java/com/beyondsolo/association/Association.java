@@ -190,6 +190,11 @@ public final class Association {
         open(p, new Session(0, p.level().dimension(), p.blockPosition(), OFFICE), tab, null);
     }
 
+    /** Opens the office for the gates round {@code office} (the desk in the hunter's home: where they left the world). */
+    public static void openAt(ServerPlayer p, ResourceKey<Level> dim, BlockPos office, int tab) {
+        open(p, new Session(0, dim, office, OFFICE), tab, null);
+    }
+
     /** The hunter is at that desk now (its window is open). */
     static void remember(ServerPlayer p, Session s) {
         SESSIONS.put(p.getUUID(), s);
@@ -342,7 +347,7 @@ public final class Association {
         QuestBuilder b = QuestBuilder.of(CONTRACT, QuestCategory.ASSOCIATION, g.rank().tier(), SystemAPI.get(p).level()).fixed()
                 .title(Component.translatable("quest.beyondsolo.association.contract", rank))
                 .description(Component.translatable("quest.beyondsolo.association.contract." + kindId(kind) + ".desc", rank,
-                        blocks(p, g), GateSpawner.direction(p.position(), g.gatePos())))
+                        blocks(p, g), GateSpawner.direction(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos())))
                 .line(contractKey(g.id()), Component.translatable("quest_objective.beyondsolo.association.close", rank))
                 .extra(extra);
         if (giver != null) b.giver(giver);
@@ -360,7 +365,7 @@ public final class Association {
     }
 
     static int blocks(ServerPlayer p, GateInstance g) {
-        return Mth.floor(Math.sqrt(GateSpawner.flatDistSqr(p.position(), g.gatePos())) + 0.5);
+        return Mth.floor(Math.sqrt(GateSpawner.flatDistSqr(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos())) + 0.5);
     }
 
     /** Gives a contract (or a permit's gate) back. */
@@ -423,7 +428,7 @@ public final class Association {
         QuestBuilder b = QuestBuilder.of(PERMIT, QuestCategory.ASSOCIATION, g.rank().tier(), SystemAPI.get(p).level()).fixed()
                 .title(Component.translatable("quest.beyondsolo.association.permit", rank))
                 .description(Component.translatable("quest.beyondsolo.association.permit.desc", rank, blocks(p, g),
-                        GateSpawner.direction(p.position(), g.gatePos())))
+                        GateSpawner.direction(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos())))
                 .line(contractKey(g.id()), Component.translatable("quest_objective.beyondsolo.association.close", rank))
                 .extra(extra);
         if (giver != null) b.giver(giver);
@@ -488,7 +493,7 @@ public final class Association {
         QuestBuilder b = QuestBuilder.of(EXAM, QuestCategory.ASSOCIATION, g.rank().tier(), SystemAPI.get(p).level()).fixed()
                 .title(Component.translatable("quest.beyondsolo.association.exam", rank))
                 .description(Component.translatable("quest.beyondsolo.association.exam.desc", rank, blocks(p, g),
-                        GateSpawner.direction(p.position(), g.gatePos()), minutes))
+                        GateSpawner.direction(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos()), minutes))
                 .line(examKey(g.id()), Component.translatable("quest_objective.beyondsolo.association.exam", rank))
                 .rule(Component.translatable("quest_objective.beyondsolo.association.alone"))
                 .timeLimit(AssociationConfig.examTicks())

@@ -90,6 +90,40 @@ public final class Kin {
         r.kin = null;
     }
 
+    /**
+     * She moves into the room made for her in the hunter's own home: {@code bed} (its head, standing in {@code level}) is
+     * hers from now on, she is there now as her day says, and wherever she was before, she is gone from. Null if that is
+     * no bed.
+     */
+    @Nullable
+    public static KinEntity moveIn(ServerPlayer p, ServerLevel level, BlockPos bed) {
+        if (!isBed(level, bed)) return null;
+        KinRecord r = record(p);
+        KinEntity before = find(p);
+        if (before != null && before.level() != level) before.discard();
+        r.bed = bed.immutable();
+        r.bedDim = level.dimension();
+        MISSING.remove(p.getUUID());
+        KinEntity k = find(level, r);
+        if (k == null) {
+            k = spawn(p, level, r);
+        } else {
+            k.moveToBed(r.bed);
+            k.setState(stateFor(p, r));
+        }
+        LongSleep.pointHome(p);
+        return k;
+    }
+
+    /** Her room in the hunter's home is gone: she goes back to the village (a bed there is found her the next time they are near). */
+    public static void moveOut(ServerPlayer p) {
+        KinEntity k = find(p);
+        if (k != null) k.discard();
+        forgetBed(p);
+        MISSING.remove(p.getUUID());
+        LongSleep.pointHome(p);
+    }
+
     // ------------------------------------------------------------------ looking after her
 
     @SubscribeEvent

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "beyondsolo:block/trophy_pedestal"
+    },
+    "facing=east": {
+      "model": "beyondsolo:block/trophy_pedestal",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "beyondsolo:block/trophy_pedestal",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "beyondsolo:block/trophy_pedestal",
+      "y": 270
+    }
+  }
+}
