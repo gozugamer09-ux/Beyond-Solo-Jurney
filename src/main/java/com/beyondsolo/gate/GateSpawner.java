@@ -240,6 +240,11 @@ public final class GateSpawner {
         return told != null && told.contains(g.id()) || GateService.noticed(p, g.id());
     }
 
+    /** The player now knows of this gate (a broker sold them its whereabouts): it is not pointed out to them again. */
+    public static void tell(ServerPlayer p, UUID gate) {
+        told(p, gate);
+    }
+
     private static void told(ServerPlayer p, UUID gate) {
         TOLD.computeIfAbsent(p.getUUID(), k -> new HashSet<>()).add(gate);
     }

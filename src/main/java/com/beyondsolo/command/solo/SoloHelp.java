@@ -102,6 +102,15 @@ final class SoloHelp {
                 new Line("ruler bless [players]", "ruler.bless"),
                 new Line("ruler mote [count]", "ruler.mote"),
                 new Line("ruler record [player]", "ruler.record")));
+        TOPICS.put("association", List.of(
+                new Line("association open [contracts|permits|exam|standing]", "association.open"),
+                new Line("association broker", "association.broker"),
+                new Line("association post", "association.post"),
+                new Line("association merit add|set <merit> [players]", "association.merit"),
+                new Line("association exam start|pass|fail [player]", "association.exam"),
+                new Line("association contract [player]", "association.contract"),
+                new Line("association record [player]", "association.record"),
+                new Line("association reset [players]", "association.reset")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

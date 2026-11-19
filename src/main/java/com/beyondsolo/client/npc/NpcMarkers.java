@@ -54,6 +54,9 @@ public final class NpcMarkers {
     public static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
     public static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
 
+    /** A quest's waypoint label kind, when a module names its own (see {@code association.Association#WAYPOINT_KIND}). */
+    private static final String WAYPOINT_KIND = com.beyondsolo.association.Association.WAYPOINT_KIND;
+
     private static final Map<Integer, Integer> STATES = new HashMap<>();
     private static final Map<Integer, Float> SHOWN = new HashMap<>();
     private static final Map<Integer, Integer> LAST_STATE = new HashMap<>();
@@ -230,12 +233,21 @@ public final class NpcMarkers {
 
     private static String kindKey(Quest q) {
         if (q.extra().contains(Run.SITUATION)) return "situation";
+        if (q.extra().contains(WAYPOINT_KIND)) return q.extra().getString(WAYPOINT_KIND);
         NpcQuestKind k = NpcQuestKind.byTemplate(q.template());
         return k == null ? "place" : k.name().toLowerCase();
     }
 
     private static int waypointColor(Quest q) {
         if (q.extra().contains(Run.SITUATION)) return q.category().color();
+        if (q.extra().contains(WAYPOINT_KIND)) {
+            return switch (q.extra().getString(WAYPOINT_KIND)) {
+                case "break" -> 0xFFFF5D6C;
+                case "exam" -> SystemTheme.GOLD;
+                case "tip" -> 0xFFB98BFF;
+                default -> q.category().color();
+            };
+        }
         NpcQuestKind k = NpcQuestKind.byTemplate(q.template());
         if (k == NpcQuestKind.CLEAR) return 0xFFFF5D6C;
         if (k == NpcQuestKind.DELIVER) return SystemTheme.GOLD;
@@ -244,6 +256,15 @@ public final class NpcMarkers {
 
     private static ResourceLocation waypointIcon(Quest q) {
         if (q.extra().contains(Run.SITUATION)) return q.extra().contains(Run.TARGET) ? Icons.SKULL : Icons.FLAG;
+        if (q.extra().contains(WAYPOINT_KIND)) {
+            return switch (q.extra().getString(WAYPOINT_KIND)) {
+                case "break" -> Icons.SKULL;
+                case "exam" -> Icons.ID_CARD;
+                case "tip" -> Icons.COMPASS;
+                case "permit" -> Icons.FLAG;
+                default -> Icons.SEAL;
+            };
+        }
         return NpcBoardScreen.kindIcon(NpcQuestKind.byTemplate(q.template()));
     }
 

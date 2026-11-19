@@ -31,6 +31,7 @@ public final class QuestText {
             case NPC -> Icons.MEDAL;
             case GATE -> Icons.DIAMOND;
             case SECRET -> Icons.KEY;
+            case ASSOCIATION -> Icons.ID_CARD;
         };
     }
 
@@ -73,6 +74,11 @@ public final class QuestText {
         if (!r.title().isEmpty()) {
             list.add(new Reward(Icons.CROWN, Component.translatable("quest.beyondsolo.reward.title", Component.translatable(r.title())).getString(), SystemTheme.GOLD, -1));
         }
+        // an association bounty and its merit
+        long gold = q.extra().getLong(com.beyondsolo.association.Association.REWARD_GOLD);
+        if (gold > 0) list.add(new Reward(Icons.COINS, Component.translatable("quest.beyondsolo.reward.gold").getString(), SystemTheme.GOLD, gold));
+        long merit = q.extra().getLong(com.beyondsolo.association.Association.REWARD_MERIT);
+        if (merit > 0) list.add(new Reward(Icons.MEDAL, Component.translatable("quest.beyondsolo.reward.merit").getString(), 0xFF8FB4FF, merit));
         return list;
     }
 

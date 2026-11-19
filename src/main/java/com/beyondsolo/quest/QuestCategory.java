@@ -23,7 +23,9 @@ public enum QuestCategory {
      * Never announced: the System only reveals it once it is already done, as a reward for something brave or unusual
      * the player did on their own (see {@code quest.situation.Secrets}).
      */
-    SECRET(0xFFFF8AD0);
+    SECRET(0xFFFF8AD0),
+    /** A contract, permit, rank exam or broker's lead from the Hunter Association ({@code association} module). */
+    ASSOCIATION(0xFF8FB4FF);
 
     private final int color;
 

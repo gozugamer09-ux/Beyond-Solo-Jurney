@@ -68,6 +68,7 @@ import java.util.Deque;
  * npc scroll &lt;amount&gt;                  scroll the villager window's list
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
+ * click &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position and left-click there (a tab, a button, a row)
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
  * lang &lt;code&gt;                          switch the game's language (en_us, es_es...) and wait for the reload
  * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
@@ -414,6 +415,15 @@ public final class UiTestDriver {
             case "mouse" -> {
                 String[] a = arg.split(" ");
                 moveMouse(mc, Double.parseDouble(a[0]), Double.parseDouble(a[1]));
+            }
+            case "click" -> {
+                String[] a = arg.split(" ");
+                double x = Double.parseDouble(a[0]), y = Double.parseDouble(a[1]);
+                moveMouse(mc, x, y);
+                if (mc.screen != null) {
+                    mc.screen.mouseClicked(x, y, 0);
+                    mc.screen.mouseReleased(x, y, 0);
+                }
             }
             case "hover" -> {
                 if (mc.screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> cs) {

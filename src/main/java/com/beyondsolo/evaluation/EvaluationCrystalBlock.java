@@ -66,7 +66,9 @@ public class EvaluationCrystalBlock extends Block implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (!level.isClientSide || type != ModBlockEntities.EVALUATION_CRYSTAL.get()) return null;
+        if (type != ModBlockEntities.EVALUATION_CRYSTAL.get()) return null;
+        // the server's side: the association keeps a post at every crystal
+        if (!level.isClientSide) return (lvl, pos, st, be) -> com.beyondsolo.association.AssociationPosts.crystalTick(lvl, pos);
         return (lvl, pos, st, be) -> EvaluationCrystalBlockEntity.clientTick(lvl, pos, st, (EvaluationCrystalBlockEntity) be);
     }
 
