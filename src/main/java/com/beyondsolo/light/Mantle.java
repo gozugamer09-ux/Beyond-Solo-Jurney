@@ -25,7 +25,7 @@ import java.util.Locale;
 public enum Mantle {
     VERDICT(0xFFC94A, "light_blade_of_heaven"),
     WINGS(0xBFE8FF, "light_choir_of_wings"),
-    HAND(0xF2C6FF, "light_hand_of_heaven"),
+    HAND(0xF6E2A8, "light_hand_of_heaven"),
     DAWN(0xFF9E52, "light_daybreak");
 
     private final int color;

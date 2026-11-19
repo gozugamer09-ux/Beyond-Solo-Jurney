@@ -211,7 +211,9 @@ public class LightConstruct extends Entity implements GeoEntity {
                 // the hand comes down open, closes on what is under it, then holds it
                 case HAND -> new RawAnimation[]{RawAnimation.begin().thenLoop(name + "open"),
                         RawAnimation.begin().thenPlay(name + "close").thenLoop(name + "fist")};
-                case SUN, CHOIR -> new RawAnimation[]{RawAnimation.begin().thenLoop(name + "idle"), RawAnimation.begin().thenLoop(name + "idle")};
+                // the sun and the choir open out of nothing, then turn and beat
+                case SUN, CHOIR -> new RawAnimation[]{RawAnimation.begin().thenPlay(name + "rise").thenLoop(name + "idle"),
+                        RawAnimation.begin().thenPlay(name + "rise").thenLoop(name + "idle")};
                 default -> new RawAnimation[]{RawAnimation.begin().thenLoop(name + "fall"),
                         RawAnimation.begin().thenPlay(name + "land").thenLoop(name + "stand")};
             };

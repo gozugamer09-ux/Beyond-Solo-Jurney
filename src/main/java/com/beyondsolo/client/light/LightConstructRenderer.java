@@ -142,9 +142,10 @@ public class LightConstructRenderer extends GeoEntityRenderer<LightConstruct> {
                 if (landed > 0) GateFx.dot(glow, pose, camera, 0, 0.3f, 0, 4f + 5f * impact, white, (0.3f + 0.5f * impact) * a);
             }
             case SUN -> {
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 6f * pulse, white, 0.55f * a);
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 13f, col, 0.3f * a);
-                GateFx.dot(glow, pose, camera, 0, 0, 0, 24f, col, 0.12f * a);
+                // a short bloom round its heart (the rays and rings carry the rest)
+                GateFx.dot(glow, pose, camera, 0, 0, 0, 2.6f * pulse, white, 0.6f * a);
+                GateFx.dot(glow, pose, camera, 0, 0, 0, 6f, col, 0.28f * a);
+                GateFx.dot(glow, pose, camera, 0, 0, 0, 12f, col, 0.07f * a);
             }
             case CHOIR -> GateFx.dot(glow, pose, camera, 0, 1.4f, 0.4f, 3.2f, col, 0.25f * a * pulse);
         }

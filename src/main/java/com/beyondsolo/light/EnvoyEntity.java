@@ -66,6 +66,8 @@ public class EnvoyEntity extends PathfinderMob implements GeoEntity {
 
     public EnvoyEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
+        // its wings reach far past its body: never skipped as out of sight while they show
+        this.noCulling = true;
         setInvulnerable(true);
         setNoGravity(true);
         setPersistenceRequired();

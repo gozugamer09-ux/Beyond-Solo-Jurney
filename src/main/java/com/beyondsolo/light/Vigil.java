@@ -111,6 +111,14 @@ public final class Vigil {
 
     /** The feather raised: the vigil begins where they stand, if the light will have them now. Returns true if it did. */
     public static boolean begin(ServerPlayer p) {
+        return begin(p, false);
+    }
+
+    /**
+     * The vigil begins where they stand. {@code force} (commands, tests) skips the level, the job change and the wait
+     * after a failed vigil; they still have to be sworn, not yet invested, and in the overworld.
+     */
+    public static boolean begin(ServerPlayer p, boolean force) {
         LightData data = LightAPI.get(p);
         if (!data.sworn()) {
             LightAPI.info(p, "light_feather_cold");
@@ -121,12 +129,12 @@ public final class Vigil {
             return false;
         }
         if (WATCHES.containsKey(p.getUUID())) return false;
-        if (!LightAPI.eligible(p)) {
+        if (!force && !LightAPI.eligible(p)) {
             LightAPI.info(p, "light_vigil_waits", LightAPI.minLevel());
             return false;
         }
         long now = p.server.overworld().getGameTime();
-        if (data.retryAt() > now) {
+        if (!force && data.retryAt() > now) {
             LightAPI.info(p, "light_vigil_retry", Math.max(1, (data.retryAt() - now + 1199) / 1200));
             return false;
         }

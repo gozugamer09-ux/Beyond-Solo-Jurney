@@ -108,6 +108,16 @@ final class SoloHelp {
                 new Line("ruler bless [players]", "ruler.bless"),
                 new Line("ruler mote [count]", "ruler.mote"),
                 new Line("ruler record [player]", "ruler.record")));
+        TOPICS.put("light", List.of(
+                new Line("light swear [players]", "light.swear"),
+                new Line("light unswear [players]", "light.unswear"),
+                new Line("light invest verdict|wings|hand|dawn [players]", "light.invest"),
+                new Line("light divest [players]", "light.divest"),
+                new Line("light call [players]", "light.call"),
+                new Line("light vigil [next|stop] [player]", "light.vigil"),
+                new Line("light chapel [player]", "light.chapel"),
+                new Line("light power sanctum|judgement|seraph|authority [players]", "light.power"),
+                new Line("light reset [players]", "light.reset")));
         TOPICS.put("association", List.of(
                 new Line("association open [contracts|permits|exam|standing]", "association.open"),
                 new Line("association broker", "association.broker"),
