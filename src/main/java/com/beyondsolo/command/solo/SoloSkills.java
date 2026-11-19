@@ -11,6 +11,7 @@ import com.beyondsolo.quest.QuestTemplate;
 import com.beyondsolo.quest.QuestTemplates;
 import com.beyondsolo.quest.QuestTestAccess;
 import com.beyondsolo.registry.ModEntities;
+import com.beyondsolo.shadow.ShadowPromotions;
 import com.beyondsolo.shadow.ShadowRank;
 import com.beyondsolo.shadow.ShadowRecord;
 import com.beyondsolo.shadow.ShadowService;
@@ -214,6 +215,9 @@ final class SoloSkills {
     /**
      * {@code /solo shadow give <creature> [rank] [players]}: a shadow straight into the army. {@code post} leaves every
      * shadow out on guard where it stands, {@code unpost} takes every guard off its post, {@code posts} lists them.
+     * {@code list} shows the army with each shadow's number, {@code promote <number>} promotes one at once (no essence,
+     * no level needed, with its moment), {@code name <number> <name>} names one (quotes round a name with spaces; "" takes
+     * the name back), {@code essence set|add <amount>} sets the essence for promotions.
      */
     private static LiteralArgumentBuilder<CommandSourceStack> shadow() {
         RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> creature = Commands.argument("creature", ResourceLocationArgument.id())
@@ -225,7 +229,63 @@ final class SoloSkills {
         return Commands.literal("shadow").then(Commands.literal("give").then(creature))
                 .then(Solo.targets(Commands.literal("post"), (ctx, p) -> postAll(p)))
                 .then(Solo.targets(Commands.literal("unpost"), (ctx, p) -> unpostAll(p)))
-                .then(Solo.target(Commands.literal("posts"), (ctx, p) -> posts(p)));
+                .then(Solo.target(Commands.literal("posts"), (ctx, p) -> posts(p)))
+                .then(Solo.target(Commands.literal("list"), (ctx, p) -> shadows(p)))
+                .then(Commands.literal("promote").then(Solo.target(Commands.argument("number", IntegerArgumentType.integer(0)),
+                        (ctx, p) -> promote(p, IntegerArgumentType.getInteger(ctx, "number")))))
+                .then(Commands.literal("name").then(Commands.argument("number", IntegerArgumentType.integer(0))
+                        .then(Solo.target(Commands.argument("name", StringArgumentType.string()),
+                                (ctx, p) -> name(p, IntegerArgumentType.getInteger(ctx, "number"), StringArgumentType.getString(ctx, "name"))))))
+                .then(Commands.literal("essence")
+                        .then(Commands.literal("set").then(Solo.targets(Commands.argument("amount", IntegerArgumentType.integer(0)),
+                                (ctx, p) -> essence(p, IntegerArgumentType.getInteger(ctx, "amount"), false))))
+                        .then(Commands.literal("add").then(Solo.targets(Commands.argument("amount", IntegerArgumentType.integer()),
+                                (ctx, p) -> essence(p, IntegerArgumentType.getInteger(ctx, "amount"), true)))));
+    }
+
+    private static ShadowRecord numbered(ServerPlayer p, int number) throws CommandSyntaxException {
+        ShadowRecord r = ShadowService.army(p).byIndex(number);
+        if (r == null) throw Solo.error("no_such_shadow", p.getDisplayName(), number, ShadowService.army(p).size());
+        return r;
+    }
+
+    private static Component shadows(ServerPlayer p) throws CommandSyntaxException {
+        var army = ShadowService.army(p);
+        if (army.size() == 0) throw Solo.error("no_shadows", p.getDisplayName());
+        MutableComponent out = Solo.t("shadow.list", p.getDisplayName(), army.size(), ShadowService.capacity(p), army.essence(),
+                army.bonded(), ShadowPromotions.nameSlots(p));
+        ShadowRank top = ShadowService.top(p);
+        for (int i = 0; i < army.size(); i++) {
+            ShadowRecord r = army.byIndex(i);
+            out.append(Component.literal("\n  " + i + ". ")).append(Solo.t("shadow.list.line", r.displayName(), r.rank().displayName(), r.level(),
+                    r.kills()).withStyle(r.ready(top) ? ChatFormatting.GOLD : army.isActive(r.id()) ? ChatFormatting.GREEN : ChatFormatting.GRAY));
+            if (r.ready(top)) out.append(" ").append(Solo.t("shadow.list.ready").withStyle(ChatFormatting.GOLD));
+            if (r.bonded()) out.append(" ").append(Solo.t("shadow.list.named").withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+        return out;
+    }
+
+    private static Component promote(ServerPlayer p, int number) throws CommandSyntaxException {
+        ShadowRecord r = numbered(p, number);
+        ShadowRank before = r.rank();
+        if (!ShadowPromotions.promoteFree(p, r)) throw Solo.error("shadow_top", r.displayName(), before.displayName());
+        return Solo.t("shadow.promoted", p.getDisplayName(), r.displayName(), before.displayName(), r.rank().displayName());
+    }
+
+    private static Component name(ServerPlayer p, int number, String name) throws CommandSyntaxException {
+        ShadowRecord r = numbered(p, number);
+        Component before = r.displayName();
+        String why = ShadowPromotions.nameRefusal(p, r, name);
+        if (why != null) throw Solo.error("shadow_name", Component.translatable("shadow.beyondsolo.name." + why,
+                com.beyondsolo.shadow.ShadowNames.MIN_GIVEN, com.beyondsolo.shadow.ShadowNames.MAX_GIVEN, ShadowPromotions.nameSlots(p)));
+        ShadowPromotions.name(p, r.id(), name);
+        return Solo.t(r.bonded() ? "shadow.named" : "shadow.unnamed", p.getDisplayName(), before, r.displayName());
+    }
+
+    private static Component essence(ServerPlayer p, int amount, boolean add) {
+        if (add) ShadowPromotions.addEssence(p, amount);
+        else ShadowPromotions.setEssence(p, amount);
+        return Solo.t("shadow.essence", p.getDisplayName(), ShadowService.army(p).essence());
     }
 
     private static Component postAll(ServerPlayer p) throws CommandSyntaxException {

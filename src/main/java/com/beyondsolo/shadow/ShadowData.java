@@ -16,17 +16,27 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * A necromancer's army: every shadow they have extracted (kept through death), and which of them are out in the
- * world right now (not saved: shadows go back into their master's shadow when the master leaves).
- * Change it through {@link ShadowService}.
+ * A necromancer's army: every shadow they have extracted (kept through death), which of them are out in the world
+ * right now (not saved: shadows go back into their master's shadow when the master leaves), and the shadow essence
+ * the dark has gathered for promotions ({@link ShadowPromotions}). Change it through {@link ShadowService}.
  */
 public final class ShadowData implements INBTSerializable<CompoundTag> {
     private final List<ShadowRecord> shadows = new ArrayList<>();
     /** record id -> the entity standing in the world */
     private final Map<UUID, UUID> active = new LinkedHashMap<>();
+    /** Shadow essence: what the souls that were not kept left behind, spent on promotions. */
+    private int essence;
 
     public List<ShadowRecord> shadows() { return Collections.unmodifiableList(shadows); }
     public int size() { return shadows.size(); }
+    public int essence() { return essence; }
+
+    /** How many shadows carry a name their master gave them. */
+    public int bonded() {
+        int n = 0;
+        for (ShadowRecord r : shadows) if (r.bonded()) n++;
+        return n;
+    }
 
     public @Nullable ShadowRecord get(UUID id) {
         for (ShadowRecord r : shadows) if (r.id().equals(id)) return r;
@@ -54,6 +64,10 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
 
     void add(ShadowRecord r) { shadows.add(r); }
 
+    void setEssence(int amount) { essence = Math.max(0, amount); }
+
+    void addEssence(int amount) { essence = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, (long) essence + amount)); }
+
     void remove(UUID id) {
         shadows.removeIf(r -> r.id().equals(id));
         active.remove(id);
@@ -66,6 +80,7 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
     void clear() {
         shadows.clear();
         active.clear();
+        essence = 0;
     }
 
     @Override
@@ -74,6 +89,7 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
         ListTag list = new ListTag();
         for (ShadowRecord r : shadows) list.add(r.save());
         tag.put("shadows", list);
+        tag.putInt("essence", essence);
         return tag;
     }
 
@@ -83,5 +99,6 @@ public final class ShadowData implements INBTSerializable<CompoundTag> {
         active.clear();
         ListTag list = tag.getList("shadows", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) shadows.add(ShadowRecord.load(list.getCompound(i)));
+        essence = Math.max(0, tag.getInt("essence"));
     }
 }

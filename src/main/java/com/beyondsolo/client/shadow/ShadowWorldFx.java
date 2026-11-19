@@ -81,6 +81,9 @@ public final class ShadowWorldFx {
                 case SUMMON -> 1.6f;
                 case RECALL -> 1.0f;
                 case RANK_UP -> 2.6f;
+                case PROMOTED -> 3.4f;
+                case ESSENCE -> 0.9f;
+                case NAMED -> 1.4f;
                 default -> 0.5f;
             };
         }
@@ -175,6 +178,36 @@ public final class ShadowWorldFx {
                 for (int i = 0; i < 30; i++) {
                     mc.level.addParticle(ParticleTypes.END_ROD, at.x + rnd(0.8), at.y + RANDOM.nextDouble() * 0.5, at.z + rnd(0.8), 0, 0.12 + RANDOM.nextDouble() * 0.2, 0);
                 }
+            }
+            case PROMOTED -> {
+                add(p, at, t);
+                // a burst of its new rank's light, sparks thrown up and out, souls rising round it
+                DustParticleOptions dust = new DustParticleOptions(rgb(p.color()), 1.6f);
+                for (int i = 0; i < 48; i++) {
+                    double a = i / 48.0 * Math.PI * 2;
+                    mc.level.addParticle(dust, at.x + Math.cos(a) * 0.6, at.y + 0.15, at.z + Math.sin(a) * 0.6, Math.cos(a) * 0.6, 0.08, Math.sin(a) * 0.6);
+                }
+                for (int i = 0; i < 40; i++) {
+                    mc.level.addParticle(ParticleTypes.END_ROD, at.x + rnd(0.7), at.y + RANDOM.nextDouble() * 1.6, at.z + rnd(0.7), rnd(0.12), 0.1 + RANDOM.nextDouble() * 0.3, rnd(0.12));
+                }
+                for (int i = 0; i < 24; i++) {
+                    mc.level.addParticle(ParticleTypes.SCULK_SOUL, at.x + rnd(0.9), at.y + 0.2, at.z + rnd(0.9), rnd(0.03), 0.1 + RANDOM.nextDouble() * 0.15, rnd(0.03));
+                }
+            }
+            case ESSENCE -> {
+                // the soul drifts to its master: the wisp travels (drawn in render), nothing stays behind
+                SOULS.remove(p.id());
+                add(p, at, t);
+                for (int i = 0; i < 6; i++) mc.level.addParticle(ParticleTypes.SOUL, at.x + rnd(0.3), at.y + 0.4, at.z + rnd(0.3), 0, 0.04, 0);
+            }
+            case NAMED -> {
+                add(p, at, t);
+                for (int i = 0; i < 24; i++) {
+                    double a = i / 24.0 * Math.PI * 2;
+                    mc.level.addParticle(ParticleTypes.END_ROD, at.x + Math.cos(a) * 0.7, at.y + 0.1, at.z + Math.sin(a) * 0.7, 0, 0.06 + RANDOM.nextDouble() * 0.05, 0);
+                }
+            }
+            default -> {
             }
         }
     }
@@ -276,7 +309,7 @@ public final class ShadowWorldFx {
             float out = 1 - (1 - t) * (1 - t) * (1 - t);
             float fade = 1 - t;
             Vec3 at = fx.pos;
-            if (fx.kind == ShadowFxPayload.Kind.RANK_UP) {
+            if (fx.kind == ShadowFxPayload.Kind.RANK_UP || fx.kind == ShadowFxPayload.Kind.PROMOTED || fx.kind == ShadowFxPayload.Kind.NAMED) {
                 Entity e = mc.level.getEntity(fx.entityId);
                 if (e != null) at = e.getPosition(partial);
             }
@@ -326,6 +359,63 @@ public final class ShadowWorldFx {
                     flat(buffers, CIRCLE, pose, 0.05f, 2.2f, time * 5, c, hold * 0.9f);
                     dot(buffers, pose, camera, 0, 1.2f, 0, 2.4f, c, 0.4f * hold * (0.7f + 0.3f * Mth.sin(time * 0.6f)));
                 }
+                case PROMOTED -> {
+                    Entity e = mc.level.getEntity(fx.entityId);
+                    float eh = e != null ? e.getBbHeight() : 1.8f;
+                    float up = Mth.clamp(age / 0.25f, 0, 1);
+                    float hold = Mth.clamp((life - age) / 1.0f, 0, 1);
+                    float flash = Mth.clamp(1 - age / 0.3f, 0, 1);
+                    // the pillar it is raised in, and the flash at the moment
+                    column(buffers, pose, camera, at, 0.7f + 0.3f * Mth.sin(time * 0.5f), 30 * up, light, hold);
+                    column(buffers, pose, camera, at, 2.0f, 30 * up, c, hold * 0.5f);
+                    dot(buffers, pose, camera, 0, eh * 0.6f, 0, 4.5f * (0.5f + 0.5f * out), 0xFFFFFF, flash);
+                    // rings rolling out over the ground, and the circle it stands in
+                    for (int i = 0; i < 4; i++) {
+                        float rt = Mth.clamp((age - i * 0.3f) / 1.2f, 0, 1);
+                        if (rt <= 0 || rt >= 1) continue;
+                        flat(buffers, RING, pose, 0.08f + i * 0.01f, 0.6f + 7f * rt, 0, i % 2 == 0 ? light : c, 1 - rt);
+                    }
+                    flat(buffers, CIRCLE, pose, 0.05f, 2.8f, time * 4, c, hold);
+                    flat(buffers, CIRCLE, pose, 0.06f, 1.6f, -time * 7, light, hold * 0.7f);
+                    // rays thrown up and out from over its head, like a crown being set
+                    Vec3 head = new Vec3(0, eh + 0.2, 0);
+                    float rays = Mth.clamp((age - 0.15f) / 0.6f, 0, 1);
+                    for (int i = 0; i < 10; i++) {
+                        float a = i / 10f * Mth.TWO_PI + time * 0.02f;
+                        Vec3 tip = head.add(Mth.cos(a) * 1.6f * rays, 1.4f * rays, Mth.sin(a) * 1.6f * rays);
+                        streak(buffers, pose, camera, at, head, tip, 0.14f, i % 2 == 0 ? light : c, hold * 0.9f * (1 - rays * 0.3f));
+                    }
+                    dot(buffers, pose, camera, 0, eh * 0.55f, 0, 3f, c, 0.45f * hold * (0.7f + 0.3f * Mth.sin(time * 0.6f)));
+                }
+                case ESSENCE -> {
+                    // a wisp flying from the soul to its master's chest, in an arc, with a short tail
+                    Entity master = mc.level.getEntity(fx.extra);
+                    if (master == null) break;
+                    Vec3 to = master.getPosition(partial).add(0, master.getBbHeight() * 0.6, 0).subtract(at);
+                    Vec3 from = new Vec3(0, 0.7, 0);
+                    float k = Mth.clamp(age / (life * 0.85f), 0, 1);
+                    float e1 = k * k * (3 - 2 * k);
+                    float e0 = Math.max(0, e1 - 0.12f);
+                    Vec3 p1 = arc(from, to, e1);
+                    Vec3 p0 = arc(from, to, e0);
+                    if (k < 1) {
+                        streak(buffers, pose, camera, at, p0, p1, 0.16f, c, 0.85f);
+                        dot(buffers, pose, camera, (float) p1.x, (float) p1.y, (float) p1.z, 0.28f, light, 0.95f);
+                        dot(buffers, pose, camera, (float) p1.x, (float) p1.y, (float) p1.z, 0.7f, c, 0.4f);
+                    } else {
+                        float pop = Mth.clamp((age - life * 0.85f) / (life * 0.15f), 0, 1);
+                        dot(buffers, pose, camera, (float) to.x, (float) to.y, (float) to.z, 0.5f + 0.6f * pop, light, 0.8f * (1 - pop));
+                    }
+                }
+                case NAMED -> {
+                    Entity e = mc.level.getEntity(fx.entityId);
+                    float eh = e != null ? e.getBbHeight() : 1.8f;
+                    // a ring of light rising from its feet to over its head, where the name now hangs
+                    float y = eh * out + 0.1f;
+                    flat(buffers, RING, pose, y, 0.9f + 0.4f * out, 0, light, fade);
+                    flat(buffers, RING, pose, 0.05f, 0.6f + 2.2f * out, 0, c, fade * 0.7f);
+                    dot(buffers, pose, camera, 0, eh + 0.45f, 0, 1.4f * fade, c, 0.5f * fade);
+                }
                 default -> {
                 }
             }
@@ -365,6 +455,12 @@ public final class ShadowWorldFx {
             Vec3 b = new Vec3(0, 1f + 0.6f * ease, 0);
             if (a.distanceToSqr(b) < 15 * 15) streak(buffers, pose, camera, s.pos, a, b, 0.08f + 0.06f * Mth.sin(time * 0.8f), light, 0.75f);
         }
+    }
+
+    /** A point on the arc from a to b, rising a little over the straight line. */
+    private static Vec3 arc(Vec3 a, Vec3 b, float t) {
+        double lift = Math.min(2.5, a.distanceTo(b) * 0.25) * 4 * t * (1 - t);
+        return a.lerp(b, t).add(0, lift, 0);
     }
 
     // ---- drawing helpers: each fetches its buffer right before drawing (see the gates' "Not building!" note)

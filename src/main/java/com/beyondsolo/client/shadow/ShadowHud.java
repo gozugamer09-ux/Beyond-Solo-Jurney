@@ -34,11 +34,20 @@ import java.util.Deque;
  * army counter next to the hotbar. Drawn with the System toolkit.
  */
 public final class ShadowHud {
-    private record Moment(ShadowFxPayload.Kind kind, String title, String sub, int color, boolean boss) {
+    /** A banner; {@code boss} ones are cinematic (bars, a title card and {@code note} under it in gold). */
+    private record Moment(ShadowFxPayload.Kind kind, String title, String sub, int color, boolean boss, String note) {
+        Moment(ShadowFxPayload.Kind kind, String title, String sub, int color, boolean boss) {
+            this(kind, title, sub, color, boss, boss ? tr("shadow.beyondsolo.hud.elite") : "");
+        }
+
         float duration() {
             return boss ? 4.2f : kind == ShadowFxPayload.Kind.RANK_UP ? 3.2f : 2.4f;
         }
     }
+
+    /** Essence that just came in (shown over the army counter), and when. */
+    private static int essenceGain;
+    private static double essenceAt = -10;
 
     private static final Deque<Moment> QUEUE = new ArrayDeque<>();
     private static Moment current;
@@ -71,6 +80,31 @@ public final class ShadowHud {
                 ShadowRank r = ShadowRank.byOrdinal(p.extra());
                 push(new Moment(p.kindEnum(), tr("shadow.beyondsolo.hud.rank_up"),
                         ShadowRecord.displayName(p.text()).getString() + "  →  " + r.displayName().getString().toUpperCase(), r.color(), false));
+            }
+            case PROMOTED -> {
+                Entity e = p.id() >= 0 && mc.level != null ? mc.level.getEntity(p.id()) : null;
+                if (e instanceof ShadowEntity s && !mc.player.getUUID().equals(s.getOwnerUUID())) return;
+                ShadowRank r = ShadowRank.byOrdinal(p.extra());
+                String note = Component.translatable(r.ordinal() >= ShadowRank.COMMANDER.ordinal() ? "shadow.beyondsolo.hud.promoted.leads"
+                        : "shadow.beyondsolo.hud.promoted.power", String.format(java.util.Locale.ROOT, "%.2f", r.power())).getString();
+                push(new Moment(p.kindEnum(), tr("shadow.beyondsolo.hud.promoted"),
+                        ShadowRecord.displayName(p.text()).getString() + "  →  " + r.displayName().getString().toUpperCase(), r.color(), true, note));
+            }
+            case NAMED -> {
+                Entity e = mc.level != null ? mc.level.getEntity(p.id()) : null;
+                if (!(e instanceof ShadowEntity s) || !mc.player.getUUID().equals(s.getOwnerUUID())) return;
+                push(new Moment(p.kindEnum(), tr("shadow.beyondsolo.hud.named"), ShadowRecord.displayName(p.text()).getString(), p.color(), false));
+            }
+            case ESSENCE -> {
+                if (p.extra() != mc.player.getId()) return;
+                int n;
+                try {
+                    n = Integer.parseInt(p.text());
+                } catch (NumberFormatException ex) {
+                    return;
+                }
+                essenceGain = Anim.since(essenceAt) < 2f ? essenceGain + n : n;
+                essenceAt = Anim.now();
             }
             default -> {
             }
@@ -160,7 +194,6 @@ public final class ShadowHud {
     // ---------------------------------------------------------------- the army counter
 
     private static void armyChip(GuiGraphics g) {
-        if (ShadowClient.shadows().isEmpty()) return;
         int out = ShadowClient.activeCount();
         String text = out + "/" + ShadowClient.limit();
         float w = SysFont.width(text, 7f, true) + 22;
@@ -168,9 +201,23 @@ public final class ShadowHud {
         float x = com.beyondsolo.client.hud.VitalsHud.hotbarLeft(g.guiWidth()) - 6 - w;
         float y = g.guiHeight() - h - 4;
         int c = 0xFF9B7BE0;
-        Shapes.pill(x, y, w, h).fill(0xB00A0614).border(0.75f, Gfx.alpha(c, out > 0 ? 0.8f : 0.35f)).glow(out > 0 ? 4 : 0, Gfx.alpha(c, 0.3f)).draw(g);
-        Shapes.icon(Icons.SKULL, x + 8, y + h / 2, 8).fill(out > 0 ? Gfx.mix(c, 0xFFFFFFFF, 0.4f) : SystemTheme.TEXT_DIM).draw(g);
-        SysFont.draw(g, text, x + 15, SysFont.centerY(y, h, 7f), 7f, out > 0 ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 0f);
+        if (!ShadowClient.shadows().isEmpty()) {
+            Shapes.pill(x, y, w, h).fill(0xB00A0614).border(0.75f, Gfx.alpha(c, out > 0 ? 0.8f : 0.35f)).glow(out > 0 ? 4 : 0, Gfx.alpha(c, 0.3f)).draw(g);
+            Shapes.icon(Icons.SKULL, x + 8, y + h / 2, 8).fill(out > 0 ? Gfx.mix(c, 0xFFFFFFFF, 0.4f) : SystemTheme.TEXT_DIM).draw(g);
+            SysFont.draw(g, text, x + 15, SysFont.centerY(y, h, 7f), 7f, out > 0 ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 0f);
+        }
+        // essence drifting in from the souls left to fade: "+12" rising over the counter
+        float t = Anim.since(essenceAt);
+        if (t < 2f && essenceGain > 0) {
+            float a = Anim.clamp01(t / 0.15f) * Anim.clamp01((2f - t) / 0.6f);
+            float old = Gfx.fade(a);
+            String gain = "+" + essenceGain;
+            float gy = y - 9 - Anim.outCubic(Anim.clamp01(t / 0.8f)) * 5;
+            float gw = SysFont.width(gain, 6.6f, true);
+            Shapes.icon(Icons.DIAMOND, x + w / 2 - gw / 2 - 4, gy + 3.5f, 7).fill(0xFFC9A6FF).glow(3, 0x90B07CFF).draw(g);
+            SysFont.draw(g, gain, x + w / 2 + 3, gy, 6.6f, 0xFFE8DCFF, true, 0.5f);
+            Gfx.setAlpha(old);
+        }
     }
 
     // ---------------------------------------------------------------- banners
@@ -201,14 +248,15 @@ public final class ShadowHud {
             float cy = g.guiHeight() * 0.70f;
             Shapes.rays(cx, cy, 120 * in, 18).fill(Gfx.alpha(c, 0.12f)).rotation(Anim.loop(30f)).draw(g);
             Shapes.circle(cx, cy - 26, 15).fillV(0xF0140A24, 0xF0060310).border(1, c).glow(10 + 4 * Anim.pulse(1.2f), Gfx.alpha(c, 0.5f)).draw(g);
-            Shapes.icon(Icons.SKULL, cx, cy - 26, 17).fill(Gfx.mix(c, 0xFFFFFFFF, 0.5f)).glow(4, Gfx.alpha(c, 0.8f)).draw(g);
+            Shapes.icon(current.kind == ShadowFxPayload.Kind.PROMOTED ? Icons.CROWN : Icons.SKULL, cx, cy - 26, 17)
+                    .fill(Gfx.mix(c, 0xFFFFFFFF, 0.5f)).glow(4, Gfx.alpha(c, 0.8f)).draw(g);
             float s = 14 * (0.85f + 0.15f * in);
             SysFont.spaced(g, current.title, cx, cy - 4, s, SystemTheme.TEXT, true, 2.4f, 0.5f);
             Ui.divider(g, cx - 110, cy + 16, 220, Gfx.alpha(c, 0.9f));
             float subIn = Anim.outCubic(Anim.clamp01((t - 0.5f) / 0.5f));
             float o2 = Gfx.fade(subIn);
             SysFont.draw(g, current.sub, cx, cy + 22 + (1 - subIn) * 6, 10, Gfx.mix(c, 0xFFFFFFFF, 0.55f), true, 0.5f);
-            SysFont.spaced(g, tr("shadow.beyondsolo.hud.elite"), cx, cy + 38, 6.5f, SystemTheme.GOLD, true, 2f, 0.5f);
+            if (!current.note.isEmpty()) SysFont.spaced(g, current.note, cx, cy + 38, 6.5f, SystemTheme.GOLD, true, 2f, 0.5f);
             Gfx.setAlpha(o2);
         } else {
             float y = 46;

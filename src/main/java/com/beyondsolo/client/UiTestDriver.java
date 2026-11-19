@@ -69,6 +69,8 @@ import java.util.Deque;
  * inventory                            open the player's inventory
  * mouse &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position (for tooltips)
  * click &lt;x&gt; &lt;y&gt;                       move the mouse to a GUI position and left-click there (a tab, a button, a row)
+ * type &lt;text&gt;                          type into the open screen, as the keyboard would (a text field that has focus)
+ * key enter|escape|backspace|tab       press one key on the open screen
  * hover &lt;slot&gt;                         move the mouse over a slot of the open container (menu slot index)
  * lang &lt;code&gt;                          switch the game's language (en_us, es_es...) and wait for the reload
  * reload                               reload the resource packs, as F3+T does, and wait until that is over (run
@@ -431,6 +433,22 @@ public final class UiTestDriver {
                 if (mc.screen != null) {
                     mc.screen.mouseClicked(x, y, 0);
                     mc.screen.mouseReleased(x, y, 0);
+                }
+            }
+            case "type" -> {
+                if (mc.screen != null) for (char c : arg.toCharArray()) mc.screen.charTyped(c, 0);
+            }
+            case "key" -> {
+                int k = switch (arg) {
+                    case "enter" -> org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER;
+                    case "escape" -> org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
+                    case "backspace" -> org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE;
+                    case "tab" -> org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
+                    default -> -1;
+                };
+                if (mc.screen != null && k >= 0) {
+                    mc.screen.keyPressed(k, 0, 0);
+                    mc.screen.keyReleased(k, 0, 0);
                 }
             }
             case "hover" -> {

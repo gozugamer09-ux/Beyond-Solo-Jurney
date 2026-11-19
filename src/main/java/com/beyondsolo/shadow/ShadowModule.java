@@ -3,6 +3,7 @@ package com.beyondsolo.shadow;
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.network.ShadowActionPayload;
 import com.beyondsolo.network.ShadowFxPayload;
+import com.beyondsolo.network.ShadowNamePayload;
 import com.beyondsolo.network.ShadowSyncPayload;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
@@ -55,6 +56,7 @@ public final class ShadowModule {
         ENTITY_TYPES.register(modBus);
         modBus.addListener(ShadowModule::payloads);
         modBus.addListener(ShadowModule::attributes);
+        ShadowPromotions.titles();
     }
 
     private static void attributes(EntityAttributeCreationEvent event) {
@@ -70,6 +72,15 @@ public final class ShadowModule {
         r.playToServer(ShadowActionPayload.TYPE, ShadowActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer player) ShadowService.action(player, p.action(), p.shadow());
+                }));
+        r.playToServer(ShadowNamePayload.TYPE, ShadowNamePayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> {
+                    if (!(ctx.player() instanceof ServerPlayer player)) return;
+                    try {
+                        ShadowPromotions.name(player, java.util.UUID.fromString(p.shadow()), p.name());
+                    } catch (IllegalArgumentException ignored) {
+                        // not a shadow's id
+                    }
                 }));
     }
 

@@ -25,6 +25,47 @@ public final class ShadowNames {
     public static final String STARTER_STEED = "#starter_steed";
     private static final String LEGACY_STEED = "Duskmane";
 
+    /** The longest name a master can give a shadow, and the shortest. */
+    public static final int MAX_GIVEN = 16;
+    public static final int MIN_GIVEN = 2;
+
+    /**
+     * A name as a master typed it, made fit to give: letters (any language's), spaces, apostrophes and hyphens only,
+     * no runs of spaces, trimmed, at most {@link #MAX_GIVEN} long. Never holds the ':', '|' or '#' stored names
+     * rely on ({@link ShadowRecord#wireName}). Both sides use it: the page as it is typed, the server again.
+     */
+    public static String clean(String typed) {
+        if (typed == null) return "";
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < typed.length(); i++) {
+            char c = typed.charAt(i);
+            if (c == '\u2019') c = '\'';
+            boolean ok = Character.isLetter(c) || c == '\'' || c == '-' || Character.getType(c) == Character.NON_SPACING_MARK;
+            if (Character.isWhitespace(c)) {
+                if (b.length() > 0 && b.charAt(b.length() - 1) != ' ') b.append(' ');
+            } else if (ok) {
+                b.append(c);
+            }
+            if (b.length() >= MAX_GIVEN) break;
+        }
+        return b.toString().stripLeading();
+    }
+
+    /** True if a cleaned name can be given: long enough, with at least two letters in it. */
+    public static boolean fit(String cleaned) {
+        String t = cleaned.strip();
+        if (t.length() < MIN_GIVEN || t.length() > MAX_GIVEN) return false;
+        int letters = 0;
+        for (int i = 0; i < t.length(); i++) if (Character.isLetter(t.charAt(i))) letters++;
+        return letters >= 2;
+    }
+
+    /** The name a stored one is known by, to tell two names apart (a boss's without its epithet). */
+    public static String base(String stored) {
+        int bar = stored.indexOf('|');
+        return (bar > 0 ? stored.substring(0, bar) : stored).strip().toLowerCase(java.util.Locale.ROOT);
+    }
+
     public static String boss(RandomSource r) {
         return HEAD[r.nextInt(HEAD.length)] + TAIL[r.nextInt(TAIL.length)] + "|" + EPITHET[r.nextInt(EPITHET.length)];
     }

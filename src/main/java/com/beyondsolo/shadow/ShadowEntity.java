@@ -146,20 +146,31 @@ public class ShadowEntity extends PathfinderMob implements PlayerRideableJumping
         entityData.set(BOSS_RANK, r.boss() ? r.bossRank() : -1);
         applyStats(r, com.beyondsolo.system.SystemAPI.get(owner));
         setHealth(getMaxHealth());
-        if (r.named()) {
-            setCustomName(r.displayName());
-            setCustomNameVisible(true);
-        }
+        nameFrom(r);
         refreshDimensions();
     }
 
-    /** Rank or level changed: new numbers, same share of health. */
+    /** A named shadow shows its name over its head; one its master named shows it in its rank's colour. */
+    private void nameFrom(ShadowRecord r) {
+        if (!r.named()) {
+            setCustomName(null);
+            setCustomNameVisible(false);
+            return;
+        }
+        net.minecraft.network.chat.MutableComponent name = r.displayName().copy();
+        if (r.bonded()) name = name.withStyle(s -> s.withColor(r.rank().color()));
+        setCustomName(name);
+        setCustomNameVisible(true);
+    }
+
+    /** Rank, level or name changed: new numbers, same share of health. */
     public void refresh(ShadowRecord r, ServerPlayer owner) {
         float share = getHealth() / Math.max(1, getMaxHealth());
         entityData.set(RANK, r.rank().ordinal());
         entityData.set(LEVEL, r.level());
         applyStats(r, com.beyondsolo.system.SystemAPI.get(owner));
         setHealth(Math.max(1, getMaxHealth() * share));
+        nameFrom(r);
         refreshDimensions();
     }
 

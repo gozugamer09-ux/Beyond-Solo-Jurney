@@ -55,7 +55,7 @@ public final class ShadowClientEvents {
         @SubscribeEvent
         static void layers(RegisterGuiLayersEvent event) {
             event.registerAboveAll(BeyondSolo.id("shadow_hud"), ShadowHud::render);
-            event.registerAboveAll(BeyondSolo.id("shadow_posts"), PostMarkers::render);
+            // the guard posts' marks are registered with the other world marks, under the pop-ups (ClientEvents)
         }
     }
 

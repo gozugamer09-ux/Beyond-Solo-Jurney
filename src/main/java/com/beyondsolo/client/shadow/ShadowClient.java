@@ -23,6 +23,8 @@ public final class ShadowClient {
     private static int limit;
     private static boolean canRaise;
     private static ShadowRank top = ShadowRank.MARSHAL;
+    private static int essence;
+    private static int slots;
 
     public static List<ShadowRecord> shadows() { return SHADOWS; }
     public static boolean isActive(UUID id) { return ACTIVE.contains(id); }
@@ -39,6 +41,17 @@ public final class ShadowClient {
     public static boolean canRaise() { return canRaise; }
     /** The highest rank the player's shadows can climb to (past the marshals for a monarch). */
     public static ShadowRank top() { return top; }
+    /** Shadow essence, for promotions. */
+    public static int essence() { return essence; }
+    /** How many shadows the player can give names to. */
+    public static int nameSlots() { return slots; }
+
+    /** How many shadows carry a name the player gave them. */
+    public static int bonded() {
+        int n = 0;
+        for (ShadowRecord r : SHADOWS) if (r.bonded()) n++;
+        return n;
+    }
 
     public static long gameTime() {
         var level = Minecraft.getInstance().level;
@@ -62,6 +75,10 @@ public final class ShadowClient {
         limit = t.getInt("limit");
         canRaise = t.getBoolean("canRaise");
         top = t.contains("top") ? ShadowRank.byOrdinal(t.getInt("top")) : ShadowRank.MARSHAL;
+        int before = essence;
+        essence = t.getInt("essence");
+        slots = t.getInt("slots");
+        ShadowsTab.synced(before, essence);
     }
 
     public static void onFx(ShadowFxPayload p) {
@@ -76,6 +93,8 @@ public final class ShadowClient {
         limit = 0;
         canRaise = false;
         top = ShadowRank.MARSHAL;
+        essence = 0;
+        slots = 0;
         ShadowWorldFx.clear();
         ShadowHud.reset();
     }
