@@ -16,6 +16,9 @@
   "shadow_role.beyondsolo.warrior": "Warrior",
   "shadow_role.beyondsolo.caster": "Caster",
   "shadow_role.beyondsolo.mount": "Mount",
+  "shadow_move.beyondsolo.walk": "Walks",
+  "shadow_move.beyondsolo.fly": "Flies",
+  "shadow_move.beyondsolo.swim": "Swims",
 
   "shadow.beyondsolo.of": "%s Shadow",
   "shadow.beyondsolo.starter_steed": "Duskmane",
@@ -142,6 +145,8 @@
   "shadows.beyondsolo.why.essence": "%2$s more essence. Souls you leave to fade drift into your shadow as essence.",
   "shadows.beyondsolo.promote.capped": "Marshal is as high as a hunter's shadows rise. A crowned monarch's go further.",
   "shadows.beyondsolo.leads": "Leads the shadows near it: they hit %s%% harder.",
+  "shadows.beyondsolo.moves.fly": "It flies: hovers over your head and swoops on what you fight.",
+  "shadows.beyondsolo.moves.swim": "It swims through water and air alike, low over the ground.",
   "shadows.beyondsolo.release.essence": "+%s essence",
   "shadows.beyondsolo.name.give": "Give it a name",
   "shadows.beyondsolo.name.rename": "Rename it",

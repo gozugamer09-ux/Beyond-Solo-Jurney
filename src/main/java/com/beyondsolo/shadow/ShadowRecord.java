@@ -61,6 +61,11 @@ public final class ShadowRecord {
     /** Standing guard: the world it guards in and the spot it keeps to, or null while it follows its master. */
     private @Nullable String postDimension;
     private @Nullable net.minecraft.world.phys.Vec3 post;
+    /**
+     * The shape of the creature it was: how it gets about, its size and its look ({@link ShadowForm}). Null for a shadow
+     * raised before forms were kept, until its master next comes in ({@link ShadowService#ensureForm}).
+     */
+    private @Nullable ShadowForm form;
 
     ShadowRecord() {}
 
@@ -98,6 +103,10 @@ public final class ShadowRecord {
     public boolean recovering(long now) { return recoverUntil > now; }
     public int kills() { return kills; }
     public long raisedAt() { return raisedAt; }
+    /** The shape of the creature it was, or null (an old shadow not seen since, or the client before the first sync). */
+    public @Nullable ShadowForm form() { return form; }
+    /** How it gets about: walks, flies or swims. */
+    public ShadowForm.Movement movement() { return form == null ? ShadowForm.Movement.WALK : form.move(); }
 
     /** True while it stands guard somewhere instead of following its master. */
     public boolean posted() { return post != null && postDimension != null; }
@@ -160,6 +169,7 @@ public final class ShadowRecord {
     // ---- changes (through ShadowService)
 
     void setName(String name) { this.name = name == null ? "" : name; }
+    void setForm(@Nullable ShadowForm form) { this.form = form; }
 
     /**
      * Its master gives it a name ({@link ShadowPromotions#name}), or with "" takes theirs back: then it is known again by
@@ -222,6 +232,11 @@ public final class ShadowRecord {
     // ---- save
 
     public CompoundTag save() {
+        return save(true);
+    }
+
+    /** Saved; without its look ({@link ShadowForm#save}) for the army sent to the client. */
+    public CompoundTag save(boolean withLook) {
         CompoundTag t = new CompoundTag();
         t.putUUID("id", id);
         t.putString("type", type);
@@ -246,6 +261,7 @@ public final class ShadowRecord {
             t.putDouble("postY", post.y);
             t.putDouble("postZ", post.z);
         }
+        if (form != null) t.put("form", form.save(withLook));
         return t;
     }
 
@@ -272,6 +288,7 @@ public final class ShadowRecord {
             r.postDimension = t.getString("postDim");
             r.post = new net.minecraft.world.phys.Vec3(t.getDouble("postX"), t.getDouble("postY"), t.getDouble("postZ"));
         }
+        if (t.contains("form", net.minecraft.nbt.Tag.TAG_COMPOUND)) r.form = ShadowForm.load(t.getCompound("form"));
         return r;
     }
 }

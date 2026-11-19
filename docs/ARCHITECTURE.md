@@ -828,16 +828,36 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
 (`data/beyondsolo/tags/entity_type/shadow/`) and lang namespace (`assets/beyondsolo_shadows/lang`).
 **Only a necromancer** (`Subclass.canRaiseShadows()`, checked by `ShadowService.canRaise`) gets any of it.
 
-- **Souls.** A creature killed by a necromancer or one of their shadows leaves a soul for 20 s (a boss's for 60 s),
-  only for that player. Tag `shadow/no_soul` leaves none. The raise key (H) next to a soul starts the extraction
+- **Souls.** Any living creature, ours, vanilla's or another mod's, killed by a necromancer or one of their shadows
+  leaves a soul for 20 s (a boss's for 60 s), only for that player. One that dies of what came after their blow (it
+  burned, fell, drowned, or their pet finished it) counts as theirs, as Minecraft gives them the kill
+  (`getKillCredit`). Tag `shadow/no_soul` leaves none (players, the training dummy, visions). A creature that died in
+  the air leaves its soul on the ground or the water under it, in reach (`ShadowService.soulSpot`). A death that
+  can't be read (a broken mod creature) leaves no soul and is logged once (`ShadowHooks.onDeath`). The raise key (H) next to a soul starts the extraction
   ritual (2 s); each soul has 3 tries. The chance (`ShadowService.chance`) falls with the creature's health against
   the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
-- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (warrior; caster from tag `shadow/casters`,
-  bolts at range; mount from tag `shadow/mounts`), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
+- **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (`ShadowForm.roleOf`: tags
+  `shadow/mounts`, `shadow/casters`, `shadow/warriors` first; then a steed carries, a creature that shoots or throws
+  casts, bolts at range, unless it holds a blade; the rest fight up close), its form (below), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
   Commander, Marshal, and Regent for a monarch's), level 1-10 inside the rank, and the health, damage and speed it was
   extracted with. Weak
-  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`) and tag `shadow/bosses` become named
+  creatures start as Husks, strong ones higher. Dungeon bosses (`DungeonBoss`), the world's great threats
+  (`ColossalBoss`) and tags `shadow/bosses` and `c:bosses` (the dragon, the wither, other mods' bosses) become named
   elites (`ShadowNames`) that start at Knight to Commander, use Dread Slam and give nearby shadows +15% damage.
+  Health always follows the army's curve (`ShadowService.maxHealth` with `Balance.summonHealth`), whatever the
+  creature was.
+- **Any creature's shape** (`ShadowForm`, kept in the record and saved). How it gets about (`Movement`): tags
+  `shadow/fliers`, `shadow/swimmers`, `shadow/walkers` first, then a water creature or water-bound navigation swims,
+  a flying navigation or move control or a flier's body (bats, ghasts, phantoms, the dragon, the wither, vexes, the
+  magus) flies, the rest walk; a steed always walks. Its size: the creature's own with its size roll (a baby, a big
+  slime); anything wider than 4 or taller than 6 blocks rises smaller, in proportion (`fit`: the dragon at a quarter,
+  the giant at half). Its look (`lookOf`): what the creature saved less what only mattered while it lived (`DROP`:
+  where and who it was, health, mind, loot, owner, anger, asleep or hanging), so a skeleton's shadow holds its bow, a
+  sheep's keeps its colour and a mod's creature its variant; over 4 KB only its gear is kept. Shadows raised before
+  forms, and those given by command, take a fresh one of their kind's shape (`ShadowForm.probe`, at login and when
+  called). The army sent to the client with every change leaves the looks out (`ShadowData.save(false)`); the
+  Shadows page asks for a shadow's look when it shows it (`ShadowActionPayload.LOOK`, answered by
+  `ShadowLookPayload`).
 - **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
   nearby; filling level 10 climbs a rank by itself up to Knight (`ShadowService.addXp`, rank-up moment and pop-up).
   A new rank never makes a shadow weaker: it comes in at the lowest level as strong as it was (`ShadowRank.entryLevel`;
@@ -866,7 +886,10 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (`LEAD`); a boss shadow's +15% still counts first (`ShadowService.auraBonus`).
 - **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
   left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
-  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. Never saved with
+  Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. A flier's shadow
+  flies (`FlyingMoveControl`, `FlyingPathNavigation`, no gravity), hovers over its master's head (`hoverOver`) and
+  swoops on what it fights; a swimmer's swims through water and air alike, low over the ground. Neither drowns or
+  is carried off by water, and no shadow chokes in a wall or a crowd. Never saved with
   the world; it goes away when its master logs out, and follows through dimension changes. A fallen shadow rests
   30 s (boss 90 s). Calling one costs mana (`summonCost`). Army size `capacity` and shadows out at once
   `activeLimit` grow with level and INT.
@@ -884,17 +907,27 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
 - **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring. The rank shows: from Knight a moving energy shell in the rank's
+  violet-black), burning eyes, aura and a ring. The creature is made on the client from the shadow's look
+  (`ShadowLook`: any kind, with its own renderer, vanilla's, GeckoLib's or another mod's), takes the shadow's place
+  and pose every tick and runs its own tick with its particles held back (a bat's wings, a slime's squish; a
+  swimmer and the dragon are posed by hand, the dragon's wings and neck kept as Minecraft keeps them). `ShadowDraw`
+  keeps whatever goes wrong in a renderer inside the shadow: it draws on its own copy of the pose and finishes any
+  vertex or quad a failing renderer left half written. A kind that can't be made or drawn is told in the log once and
+  drawn from then on as a stand-in of its size and way of moving (a zombie or a spider, a vex or a phantom, a
+  dolphin); one whose own tick fails is only posed. The rank shows: from Knight a moving energy shell in the rank's
   colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
   `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
   bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
   Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
   recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
   ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
-  (necromancers only): filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
+  (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
   portrait that opens the name field (Enter keeps, Escape cancels).
 - **Keys**: H extract / call the army, U recall, Y mount.
+- **Tests**: `ShadowGameTests`, and `ShadowFormGameTests`, which raises a shadow of every living kind in the game
+  (whatever mods are loaded) and checks its soul, shape, health and flight, besides looks, roles, fliers, swimmers
+  and sizes.
 - **Commands** (`/system shadow ...`, level 2): info, give &lt;entity&gt; [rank] [boss], soul &lt;entity&gt; [boss],
   next, rise, summon, recall, mount, xp &lt;n&gt;, rankup [index] (a promotion's rank is staged as a free promotion),
   kill, reset. `/solo shadow post|unpost [players]` leaves every shadow out on guard or takes the guards off,
