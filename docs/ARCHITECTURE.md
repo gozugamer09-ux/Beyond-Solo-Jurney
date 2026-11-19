@@ -654,7 +654,8 @@ slot beats instead of showing the cooldown). A skill can also be held only by so
 `Skills.forClass` leaves gated skills out, and `SkillAPI.refreshGated` runs when what a gate asks for comes or goes
 (a crown).
 
-**Utility skills** (the series' telekinesis and shadow exchange, both for every class):
+**Utility skills** (the series' telekinesis and shadow exchange; neither belongs to a class, and the exchange is only
+for hunters who raise shadows):
 
 - *Sovereign Hand* (`SovereignHand`, B grade, level 30): looking at a creature, the hand takes it (`GRASP` effect: a
   shell, five fingers of force and an arm of force from the hunter's hand) and holds it in front of their eyes,
