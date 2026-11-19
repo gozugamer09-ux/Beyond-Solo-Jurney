@@ -87,7 +87,8 @@ public final class SoloCommandGameTests {
         CommandNode<CommandSourceStack> solo = d.getRoot().getChild("solo");
         helper.assertTrue(solo != null, "/solo is registered");
         for (String child : List.of("help", "info", "awaken", "evaluate", "bind", "set", "add", "heal", "reset", "wipe", "skill", "quest", "shadow",
-                "spawn", "gate", "dungeon", "trial", "tower", "give", "guild", "raid", "monarch", "ruler", "association", "dev")) {
+                "spawn", "gate", "dungeon", "trial", "tower", "give", "guild", "raid", "monarch", "ruler", "association", "rival", "hire", "box", "mana",
+                "story", "isle", "home", "dev")) {
             helper.assertTrue(solo.getChild(child) != null, "/solo " + child + " is there");
         }
         helper.assertTrue(solo.getChild("dev").getRedirect() == d.getRoot().getChild("system"), "/solo dev leads to the /system commands");

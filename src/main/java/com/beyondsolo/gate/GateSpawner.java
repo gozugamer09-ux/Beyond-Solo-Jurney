@@ -170,11 +170,14 @@ public final class GateSpawner {
             setQuiet(p, quiet);
             return Outcome.WAITING;
         }
-        if (trySpawnNear(level, p, only, first) == null) {
+        GateBlockEntity opened = trySpawnNear(level, p, only, first);
+        if (opened == null) {
             // a first gate stays a first gate; any other stays due
             if (!first) setQuiet(p, Math.max(quiet, rules.guarantee()));
             return Outcome.NO_SPOT;
         }
+        // now and then another party of hunters hears of it too, and races them for it
+        if (only == null) com.beyondsolo.rival.RivalParties.gateOpened(level, opened, p, first);
         setQuiet(p, 0);
         return Outcome.OPENED;
     }

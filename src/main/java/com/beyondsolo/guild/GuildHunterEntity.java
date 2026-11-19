@@ -190,6 +190,12 @@ public class GuildHunterEntity extends PathfinderMob {
         setHealth(getMaxHealth());
     }
 
+    /** Its face ({@link GuildHunter#SKINS}) and the colour of its name, for a hunter set up by {@link #enlist}. */
+    protected void setLook(int skin, int color) {
+        entityData.set(SKIN, Math.floorMod(skin, GuildHunter.SKINS.length));
+        entityData.set(COLOR, color & 0xFFFFFF);
+    }
+
     /** What a hunter of {@code cls} at {@code level} has: {health, one blow's damage} (the guilds' own scale). */
     public static double[] strength(PlayerClass cls, int level) {
         double[] k = roleScale(cls);
