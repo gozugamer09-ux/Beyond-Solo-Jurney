@@ -96,6 +96,8 @@ public final class RivalHud {
         RivalParty.State state = STATES[Mth.clamp(p.getInt("state"), 0, STATES.length - 1)];
         RivalParty.Outcome outcome = OUTCOMES[Mth.clamp(p.getInt("outcome"), 0, OUTCOMES.length - 1)];
         boolean here = p.getBoolean("here"), racing = p.getBoolean("racing"), trespasser = p.getBoolean("trespasser");
+        // the hunter's own guild (under contract): no race, a gate worked together
+        boolean ally = p.getBoolean("ally");
         float share = p.getFloat("share");
         // in the gate with them it is a race (a trespasser's too, once the boss has been struck)
         boolean race = state == RivalParty.State.INSIDE && here && racing && (!trespasser || share >= 0);
@@ -113,14 +115,16 @@ public final class RivalHud {
         BlockPos toward = null;
         switch (state) {
             case EN_ROUTE -> {
-                label = t("en_route");
+                label = t(ally ? "allies" : "en_route");
+                if (ally) icon = Icons.HANDSHAKE;
                 line = Component.translatable("rival.beyondsolo.hud.en_route.line", party, rank.displayName()).getString();
                 big = clock(left(p));
                 toward = gate(mc, p);
                 urgent = left(p) < 20 * 20;
             }
             case GATHERING -> {
-                label = t("gathering");
+                label = t(ally ? "allies" : "gathering");
+                if (ally) icon = Icons.HANDSHAKE;
                 line = Component.translatable("rival.beyondsolo.hud.gathering.line", party).getString();
                 big = clock(left(p));
                 toward = gate(mc, p);
@@ -145,6 +149,12 @@ public final class RivalHud {
                     label = t("race");
                     icon = Icons.RACE;
                     line = Component.translatable("rival.beyondsolo.hud.racing.line", party).getString();
+                    big = percent(progress);
+                    if (!here) toward = gate(mc, p);
+                } else if (ally) {
+                    label = t("allies");
+                    icon = Icons.HANDSHAKE;
+                    line = Component.translatable("rival.beyondsolo.hud.allies.line", party).getString();
                     big = percent(progress);
                     if (!here) toward = gate(mc, p);
                 } else {

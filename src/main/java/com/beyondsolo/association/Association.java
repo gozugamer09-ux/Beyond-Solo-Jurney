@@ -90,10 +90,10 @@ public final class Association {
     /** On a quest with a waypoint: what the waypoint's label calls the place ({@code npc.beyondsolo.waypoint.<kind>}). */
     public static final String WAYPOINT_KIND = "wpKind";
 
-    /** The windows. */
-    public static final int OFFICE = 0, BROKER = 1;
+    /** The windows: the office, the broker's, a great guild's scout's ({@code scouting.Scouting}). */
+    public static final int OFFICE = 0, BROKER = 1, SCOUT = 2;
     /** The office's tabs. */
-    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3, TAB_HIRE = 4;
+    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3, TAB_HIRE = 4, TAB_GUILDS = 5;
     /** Contract kinds: a gate holding, one coming apart, one that has broken. */
     public static final int CLEAR = 0, UNSTABLE = 1, BREAK = 2;
     /** How far a hunter may stray from the one they talk to before the window stops answering. */
@@ -116,7 +116,7 @@ public final class Association {
             return new Outcome(false, Component.translatable("association.beyondsolo.outcome." + key, args));
         }
 
-        void write(CompoundTag t, HolderLookup.Provider reg) {
+        public void write(CompoundTag t, HolderLookup.Provider reg) {
             t.putBoolean("ok", ok);
             t.putString("outcome", json(text, reg));
         }
@@ -196,7 +196,7 @@ public final class Association {
     }
 
     /** The hunter is at that desk now (its window is open). */
-    static void remember(ServerPlayer p, Session s) {
+    public static void remember(ServerPlayer p, Session s) {
         SESSIONS.put(p.getUUID(), s);
     }
 
@@ -209,8 +209,8 @@ public final class Association {
     static boolean atDesk(ServerPlayer p, Session s) {
         if (s.entity() == 0) return true;
         Entity e = p.serverLevel().getEntity(s.entity());
-        return e instanceof AssociationNpc && e.isAlive() && p.level().dimension().equals(s.dimension())
-                && e.distanceToSqr(p) <= TALK_RANGE * TALK_RANGE;
+        boolean desk = s.screen() == SCOUT ? e instanceof com.beyondsolo.scouting.ScoutEntity : e instanceof AssociationNpc;
+        return desk && e.isAlive() && p.level().dimension().equals(s.dimension()) && e.distanceToSqr(p) <= TALK_RANGE * TALK_RANGE;
     }
 
     /** A button in a window. */
@@ -230,21 +230,29 @@ public final class Association {
         UUID gate = args.hasUUID("gate") ? args.getUUID("gate") : null;
         UUID offer = args.hasUUID("offer") ? args.getUUID("offer") : null;
         UUID hire = args.hasUUID("hire") ? args.getUUID("hire") : null;
-        // each desk does its own business: the officer's buttons at the office, the broker's at the broker
+        // each desk does its own business: the officer's buttons at the office, the broker's at the broker, a scout's
+        // with the scout (the offers on the table may be answered at the office too)
         boolean broker = s.screen() == BROKER;
+        boolean scout = s.screen() == SCOUT;
         Outcome o = switch (a.action()) {
-            case AssociationActionPayload.ACCEPT -> broker || gate == null ? null : accept(p, s, gate);
-            case AssociationActionPayload.DROP -> broker || gate == null ? null : drop(p, gate);
-            case AssociationActionPayload.PERMIT -> broker || rank == null ? null : permit(p, s, rank);
-            case AssociationActionPayload.EXAM -> broker ? null : startExam(p, s);
+            case AssociationActionPayload.ACCEPT -> broker || scout || gate == null ? null : accept(p, s, gate);
+            case AssociationActionPayload.DROP -> broker || scout || gate == null ? null : drop(p, gate);
+            case AssociationActionPayload.PERMIT -> broker || scout || rank == null ? null : permit(p, s, rank);
+            case AssociationActionPayload.EXAM -> broker || scout ? null : startExam(p, s);
             case AssociationActionPayload.TIP -> !broker || rank == null ? null : Broker.tip(p, s, rank);
             case AssociationActionPayload.SCOUT -> !broker || gate == null ? null : Broker.scout(p, s, gate);
             // hands for hire ({@code rival.Hires})
-            case AssociationActionPayload.HIRE -> broker || offer == null ? null : com.beyondsolo.rival.Hires.hire(p, s.office(), offer);
-            case AssociationActionPayload.DISMISS -> broker || hire == null ? null : com.beyondsolo.rival.Hires.dismiss(p, hire);
+            case AssociationActionPayload.HIRE -> broker || scout || offer == null ? null : com.beyondsolo.rival.Hires.hire(p, s.office(), offer);
+            case AssociationActionPayload.DISMISS -> broker || scout || hire == null ? null : com.beyondsolo.rival.Hires.dismiss(p, hire);
+            // the great guilds' offers ({@code scouting.Scouting})
+            case AssociationActionPayload.SIGN -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.sign(p, offer);
+            case AssociationActionPayload.HOLD_OUT -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.holdOut(p, offer);
+            case AssociationActionPayload.DECLINE -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.decline(p, offer);
+            case AssociationActionPayload.BREAK_CONTRACT -> broker || scout ? null : com.beyondsolo.scouting.Scouting.breakContract(p);
             default -> null;
         };
         if (s.screen() == BROKER) Broker.open(p, s, o);
+        else if (scout) com.beyondsolo.scouting.Scouting.open(p, s, o);
         else open(p, s, -1, o);
     }
 
@@ -579,6 +587,8 @@ public final class Association {
     /** Adds merit; a new standing is said once (and the top one brings its title). */
     public static void addMerit(ServerPlayer p, long amount) {
         if (amount <= 0) return;
+        // a guild's contract may bring more of it ({@code scouting.Scouting})
+        amount = com.beyondsolo.scouting.Scouting.merit(p, amount);
         AssociationRecord r = record(p);
         r.merit += amount;
         Standing now = Standing.of(r.merit);
@@ -742,6 +752,8 @@ public final class Association {
         t.putInt("hunters", rows.size());
         // hands for hire, and how the hunter has fared against the other parties
         t.put("hire", com.beyondsolo.rival.Hires.officeTag(p, s.office()));
+        // the great guilds' offers and the hunter's contract
+        t.put("guilds", com.beyondsolo.scouting.Scouting.officeTag(p));
         return t;
     }
 

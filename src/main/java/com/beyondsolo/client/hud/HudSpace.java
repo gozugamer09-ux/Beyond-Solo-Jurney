@@ -58,9 +58,16 @@ public final class HudSpace {
         CLAIMS.clear();
     }
 
-    /** One of our pieces at the top centre of the screen drew in this box this frame (GUI pixels). */
-    public static void claimTop(float x, float y, float w, float h) {
-        if (w > 0 && h > 0 && y + h > 0) CLAIMS.add(new float[]{x, y, x + w, y + h});
+    /**
+     * One of our pieces at the top centre of the screen drew in this box this frame (GUI pixels). Returns the claim (null
+     * when the box is empty or off the screen), for a piece that also keeps clear of the others: see
+     * {@link #topClaimedLately(float, float, float[])}.
+     */
+    public static float[] claimTop(float x, float y, float w, float h) {
+        if (!(w > 0 && h > 0 && y + h > 0)) return null;
+        float[] claim = {x, y, x + w, y + h};
+        CLAIMS.add(claim);
+        return claim;
     }
 
     /** The lowest edge of what our pieces at the top drew this frame across [left, right]: 0 when none did. */
@@ -75,9 +82,24 @@ public final class HudSpace {
      * keep clear of (the layers' order among mods' classes is not fixed).
      */
     public static float topClaimedLately(float left, float right) {
-        float bottom = topClaimed(left, right);
-        for (float[] c : LAST) if (c[2] > left && c[0] < right) bottom = Math.max(bottom, c[3]);
+        return topClaimedLately(left, right, null);
+    }
+
+    /**
+     * Like {@link #topClaimedLately(float, float)}, leaving out one claim: a piece that keeps clear of the others and
+     * claims its own room too passes the claim it made last frame, or it would keep clear of itself and slide further
+     * down every frame.
+     */
+    public static float topClaimedLately(float left, float right, float[] mine) {
+        float bottom = 0;
+        for (float[] c : CLAIMS) if (c != mine && c[2] > left && c[0] < right) bottom = Math.max(bottom, c[3]);
+        for (float[] c : LAST) if (c != mine && c[2] > left && c[0] < right) bottom = Math.max(bottom, c[3]);
         return bottom;
+    }
+
+    /** The right edge of our left column (the status capsule and the quest cards, with a margin). */
+    public static float leftColumn() {
+        return LEFT_COLUMN;
     }
 
     /** Where the top-left corner is free from: under Xaero's minimap while it sits there, else 0. */

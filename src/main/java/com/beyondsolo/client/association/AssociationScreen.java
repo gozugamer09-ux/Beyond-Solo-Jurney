@@ -12,6 +12,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.quest.ClientQuests;
 import com.beyondsolo.network.AssociationActionPayload;
+import com.beyondsolo.rival.RivalGuild;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,12 +32,13 @@ import java.util.UUID;
 /**
  * The Hunter Association's office: the officer and the hunter's license on the left; on the right the contract board
  * (bounties on the gates the office watches), gate permits (a gate of the rank you ask for, its clearing rights
- * yours), the rank exam, the hunter's standing with the national merit board, and the hands for hire (porters and
- * freelance hunters, {@code rival.Hires}).
+ * yours), the rank exam, the hunter's standing with the national merit board, the hands for hire (porters and
+ * freelance hunters, {@code rival.Hires}), and the great guilds' offers with the hunter's contract
+ * ({@code scouting.Scouting}).
  */
 public class AssociationScreen extends AssociationWindow {
-    private static final String[] TABS = {"contracts", "permits", "exam", "standing", "hire"};
-    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL, Icons.HANDSHAKE};
+    private static final String[] TABS = {"contracts", "permits", "exam", "standing", "hire", "guilds"};
+    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL, Icons.HANDSHAKE, Icons.CROWN};
     /** The hired hands' colours: a porter's sand, a freelance hunter's steel blue (as over their heads). */
     private static final int SAND = 0xFFD9B26F, FREELANCE = 0xFF8FB8D8;
 
@@ -143,6 +145,7 @@ public class AssociationScreen extends AssociationWindow {
             case Association.TAB_EXAM -> exam(g, x, py, cw, ph, mouseX, mouseY);
             case Association.TAB_STANDING -> standing(g, x, py, cw, ph);
             case Association.TAB_HIRE -> hire(g, x, py, cw, ph, mouseX, mouseY);
+            case Association.TAB_GUILDS -> guilds(g, x, py, cw, ph, mouseX, mouseY);
             default -> contracts(g, x, py, cw, ph, mouseX, mouseY);
         }
         Gfx.setAlpha(o);
@@ -514,8 +517,17 @@ public class AssociationScreen extends AssociationWindow {
         else SysFont.draw(g, hireUi("slots", o.getInt("slots")).getString(), cx, y + 40, 4f, SystemTheme.TEXT_DIM, false, 0.5f);
         String fw = gold(fee);
         boolean afford = gold >= fee;
-        Shapes.icon(Icons.COINS, cx - SysFont.width(fw, 4.8f, true) / 2f - 4, y + 52, 5.5f).fill(afford ? GOLD : SystemTheme.DANGER).draw(g);
-        SysFont.draw(g, fw, cx + 3, y + 49.5f, 4.8f, afford ? GOLD : SystemTheme.DANGER, true, 0.5f);
+        // under contract with Iron Bastion: less, the full fee struck through over it
+        boolean cut = o.contains("was");
+        int fc = !afford ? SystemTheme.DANGER : cut ? SystemTheme.GOOD : GOLD;
+        Shapes.icon(Icons.COINS, cx - SysFont.width(fw, 4.8f, true) / 2f - 4, y + 52, 5.5f).fill(fc).draw(g);
+        SysFont.draw(g, fw, cx + 3, y + 49.5f, 4.8f, fc, true, 0.5f);
+        if (cut) {
+            String was = gold(o.getLong("was"));
+            float ww = SysFont.width(was, 3.8f, false);
+            SysFont.draw(g, was, cx, y + 44.5f, 3.8f, SystemTheme.TEXT_DIM, false, 0.5f);
+            Shapes.box(cx - ww / 2f - 0.5f, y + 46.4f, ww + 1, 0.5f).fill(SystemTheme.TEXT_DIM).draw(g);
+        }
         Gfx.setAlpha(old);
         if (hover) hint = refusal != null ? refusal : isPorter ? hireUi("hint.porter", name, minutes, gold(fee))
                 : hireUi("hint.hunter", name, cls.displayName(), o.getInt("level"), minutes, gold(fee));
@@ -554,5 +566,136 @@ public class AssociationScreen extends AssociationWindow {
         button(g, x + cw - bw - 5, y + (rh - 13) / 2f, bw, 13, hireUi("dismiss").getString(), Icons.X, SystemTheme.DANGER, mouseX, mouseY,
                 isPorter ? hireUi("hint.dismiss_porter", hd.getString("name")) : hireUi("hint.dismiss", hd.getString("name")),
                 () -> AssociationClient.send(AssociationActionPayload.DISMISS, args));
+    }
+
+    // ------------------------------------------------------------------ the great guilds
+
+    private static Component guildUi(String key, Object... args) {
+        return Component.translatable("ui.beyondsolo.scouting." + key, args);
+    }
+
+    /** The great guilds: the hunter's contract (or who would come for them), then the offers on the table. */
+    private void guilds(GuiGraphics g, float x, float y, float cw, float ch, int mouseX, int mouseY) {
+        CompoundTag d = data().getCompound("guilds");
+        SysFont.spaced(g, guildUi("office.title").getString(), x, y, 5f, SystemTheme.TEXT, true, 1.2f, 0f);
+        String record = guildUi("office.record", d.getInt("signed"), d.getInt("declined")).getString();
+        SysFont.draw(g, record, x + cw, y, 4.6f, SystemTheme.TEXT_SOFT, true, 1f);
+
+        // the contract
+        float cy = y + 10;
+        CompoundTag c = d.getCompound("contract");
+        float cardH = 44;
+        if (c.contains("guild")) {
+            RivalGuild guild = RivalGuild.byIndex(c.getInt("guild"));
+            int gc = guild.color;
+            Ui.card(g, x, cy, cw, cardH, 8, gc, 0.12f);
+            Shapes.box(x + 1.2f, cy + 4, 1.6f, cardH - 8).radius(0.8f).fill(gc).draw(g);
+            Shapes.circle(x + 15, cy + 15, 8.5f).fillV(Gfx.alpha(gc, 0.32f), Gfx.alpha(gc, 0.08f)).border(0.7f, Gfx.alpha(gc, 0.9f)).glow(3, Gfx.alpha(gc, 0.35f)).draw(g);
+            Shapes.icon(Icons.GUILDS[guild.ordinal()], x + 15, cy + 15, 10).fill(Gfx.mix(gc, 0xFFFFFFFF, 0.6f)).draw(g);
+            float tx = x + 29;
+            String name = guild.displayName().getString();
+            SysFont.text(g, name, tx, cy + 5, 6f, Gfx.mix(gc, 0xFFFFFFFF, 0.35f));
+            Ui.chip(g, tx + SysFont.width(name, 6f, true) + 5, cy + 4.5f, 7.5f, guildUi("office.contract").getString(), 4.2f, gc, true);
+            long owe = c.getLong("owe");
+            float bw = Math.max(52, SysFont.spacedWidth(guildUi("office.walk_out").getString(), 5.2f, true, 0.8f) + 22);
+            float right = x + cw - bw - 10;
+            String terms = guildUi("office.terms", gold(c.getLong("bonus")), Math.round(c.getFloat("cut") * 100), gold(c.getLong("paid"))).getString();
+            SysFont.text(g, SysFont.fit(terms, 4.5f, false, right - tx), tx, cy + 15, 4.5f, SystemTheme.TEXT_SOFT);
+            SysFont.text(g, SysFont.fit(AssociationClient.text(c, "perk").getString(), 4.5f, false, right - tx), tx, cy + 22.5f, 4.5f, Gfx.mix(gc, 0xFFFFFFFF, 0.5f));
+            long left = c.getLong("daysLeft"), days = Math.max(1, c.getLong("days"));
+            Ui.bar(g, tx, cy + 32, right - tx, 3f, (float) left / days, Gfx.shade(gc, -0.3f), gc);
+            SysFont.draw(g, guildUi("office.days_left", left).getString(), right, cy + 35.5f, 4.2f, SystemTheme.TEXT_DIM, false, 1f);
+            button(g, x + cw - bw - 5, cy + (cardH - 14) / 2f, bw, 14, guildUi("office.walk_out").getString(), Icons.LEAVE, SystemTheme.DANGER, mouseX, mouseY,
+                    EconomyClient.gold() < owe ? guildUi("office.hint.owe", gold(owe)) : guildUi("office.hint.walk_out", gold(owe), guild.displayName()),
+                    EconomyClient.gold() < owe ? null : () -> AssociationClient.send(AssociationActionPayload.BREAK_CONTRACT));
+        } else {
+            Ui.card(g, x, cy, cw, cardH, 8, STEEL, 0.06f);
+            Shapes.icon(Icons.CROWN, x + 14, cy + 15, 11).fill(Gfx.alpha(STEEL, 0.7f)).draw(g);
+            SysFont.text(g, guildUi("office.no_contract").getString(), x + 26, cy + 5, 5.4f, SystemTheme.TEXT);
+            SysFont.text(g, SysFont.fit(guildUi("office.who_comes").getString(), 4.4f, false, cw - 34), x + 26, cy + 14, 4.4f, SystemTheme.TEXT_SOFT);
+            // who comes from which rank
+            ListTag gl = d.getList("guilds", Tag.TAG_COMPOUND);
+            float gx = x + 26;
+            PlayerRank mine = rank(d.getInt("rank"));
+            for (int i = 0; i < gl.size(); i++) {
+                CompoundTag gt = gl.getCompound(i);
+                RivalGuild guild = RivalGuild.byIndex(gt.getInt("guild"));
+                PlayerRank from = rank(gt.getInt("from"));
+                boolean wants = mine.tier() >= from.tier();
+                String label = guild.displayName().getString() + " · " + from.name() + "+";
+                float lw = SysFont.width(label, 4.2f, true) + 14;
+                if (gx + lw > x + cw - 4) break;
+                Shapes.pill(gx, cy + 25, lw, 10).fill(Gfx.alpha(guild.color, wants ? 0.22f : 0.07f)).border(0.6f, Gfx.alpha(guild.color, wants ? 0.8f : 0.35f)).draw(g);
+                Shapes.icon(Icons.GUILDS[guild.ordinal()], gx + 6, cy + 30, 6).fill(Gfx.mix(guild.color, 0xFFFFFFFF, wants ? 0.5f : 0.1f)).draw(g);
+                SysFont.text(g, label, gx + 11, SysFont.centerY(cy + 25, 10, 4.2f), 4.2f, wants ? SystemTheme.TEXT : SystemTheme.TEXT_DIM);
+                gx += lw + 4;
+            }
+        }
+
+        // the offers on the table
+        float oy = cy + cardH + 7;
+        SysFont.spaced(g, guildUi("office.offers").getString(), x, oy, 4.6f, SystemTheme.TEXT_DIM, true, 1.2f, 0f);
+        int coming = d.getInt("coming");
+        if (coming > 0) SysFont.draw(g, guildUi("office.coming", coming).getString(), x + cw, oy, 4.4f, SystemTheme.TEXT_SOFT, false, 1f);
+        oy += 9;
+        ListTag offers = d.getList("offers", Tag.TAG_COMPOUND);
+        float rowH = 30, gap = 3;
+        int room = (int) ((y + ch - oy) / (rowH + gap));
+        if (offers.isEmpty()) {
+            Ui.card(g, x, oy, cw, 28, 8, STEEL, 0.05f);
+            paraMid(g, guildUi(coming > 0 ? "office.none_yet" : "office.none"), x + 12, oy + 14, cw - 24, 4.6f, SystemTheme.TEXT_SOFT);
+            return;
+        }
+        long best = 0;
+        for (int i = 0; i < offers.size(); i++) best = Math.max(best, offers.getCompound(i).getLong("bonus"));
+        boolean contracted = c.contains("guild");
+        for (int i = 0; i < Math.min(room, offers.size()); i++) {
+            float k = Anim.outCubic(Anim.window(Anim.since(openedAt), 0.25f + i * 0.05f, 0.55f + i * 0.05f));
+            float o = Gfx.fade(k);
+            CompoundTag of = offers.getCompound(i);
+            guildOffer(g, of, x + (1 - k) * 10, oy, cw, rowH, mouseX, mouseY, of.getLong("bonus") == best && offers.size() > 1, contracted ? c : null);
+            Gfx.setAlpha(o);
+            oy += rowH + gap;
+        }
+    }
+
+    /** One guild's offer on the table: who, what it pays and asks, the clock on it, and the three answers. */
+    private void guildOffer(GuiGraphics g, CompoundTag o, float x, float y, float cw, float rh, int mouseX, int mouseY, boolean best, CompoundTag contract) {
+        RivalGuild guild = RivalGuild.byIndex(o.getInt("guild"));
+        int gc = guild.color;
+        boolean last = o.getBoolean("last");
+        Shapes.box(x, y, cw, rh).radius(6).fillV(Gfx.alpha(gc, best ? 0.2f : 0.11f), Gfx.alpha(Gfx.shade(gc, -0.5f), 0.06f))
+                .border(best ? 0.9f : 0.6f, Gfx.alpha(best ? GOLD : gc, best ? 0.8f : 0.4f)).glow(best ? 3 : 0, Gfx.alpha(GOLD, 0.25f)).draw(g);
+        Shapes.circle(x + 13, y + rh / 2f, 8).fillV(Gfx.alpha(gc, 0.3f), Gfx.alpha(gc, 0.08f)).border(0.6f, Gfx.alpha(gc, 0.85f)).draw(g);
+        Shapes.icon(Icons.GUILDS[guild.ordinal()], x + 13, y + rh / 2f, 9.5f).fill(Gfx.mix(gc, 0xFFFFFFFF, 0.6f)).draw(g);
+        float tx = x + 26;
+        float bw = 30, bh = 12;
+        float buttons = 3 * bw + 2 * 3;
+        float bx = x + cw - buttons - 5;
+        String amount = gold(o.getLong("bonus"));
+        float aw = SysFont.width(amount, 7f, true);
+        float ax = bx - 8 - aw;
+        String name = SysFont.fit(guild.displayName().getString(), 5.2f, true, ax - tx - 40);
+        SysFont.text(g, name, tx, y + 4, 5.2f, Gfx.mix(gc, 0xFFFFFFFF, 0.35f));
+        float tagX = tx + SysFont.width(name, 5.2f, true) + 4;
+        if (o.getBoolean("renewal")) tagX += Ui.chip(g, tagX, y + 3.2f, 7, guildUi("renewal").getString(), 4f, gc, true) + 3;
+        if (last) Ui.chip(g, tagX, y + 3.2f, 7, guildUi("final").getString(), 4f, AMBER, true);
+        String terms = guildUi("office.offer_terms", Math.round(o.getFloat("cut") * 100), o.getInt("days"), AssociationClient.text(o, "perk")).getString();
+        SysFont.text(g, SysFont.fit(terms, 4.3f, false, ax - tx - 4), tx, y + 12.5f, 4.3f, SystemTheme.TEXT_SOFT);
+        String lapse = guildUi("lapses", clock(o.getLong("left"))).getString();
+        SysFont.text(g, SysFont.fit(lapse, 4f, false, ax - tx - 4), tx, y + 20.5f, 4f, o.getLong("left") < 20 * 120 ? AMBER : SystemTheme.TEXT_DIM);
+        Shapes.icon(Icons.COINS, ax - 5, y + rh / 2f, 7).fill(GOLD).draw(g);
+        SysFont.draw(g, amount, ax, SysFont.centerY(y, rh, 7f), 7f, best ? Gfx.mix(GOLD, 0xFFFFFFFF, 0.3f) : GOLD, true, 0f);
+        CompoundTag args = new CompoundTag();
+        args.putUUID("offer", o.getUUID("id"));
+        float by = y + (rh - bh) / 2f;
+        Component signTip = contract != null ? guildUi("hint.sign_buyout", gold(o.getLong("bonus")), RivalGuild.byIndex(contract.getInt("guild")).displayName())
+                : guildUi("hint.sign", gold(o.getLong("bonus")), o.getInt("days"));
+        button(g, bx, by, bw, bh, guildUi("office.sign").getString(), null, GOLD, mouseX, mouseY, signTip,
+                () -> AssociationClient.send(AssociationActionPayload.SIGN, args));
+        button(g, bx + bw + 3, by, bw, bh, guildUi("office.more").getString(), null, STEEL, mouseX, mouseY,
+                last ? guildUi("hint.final") : guildUi("hint.hold_out"), last ? null : () -> AssociationClient.send(AssociationActionPayload.HOLD_OUT, args));
+        button(g, bx + 2 * (bw + 3), by, bw, bh, guildUi("office.no").getString(), null, SystemTheme.DANGER, mouseX, mouseY,
+                guildUi("hint.decline"), () -> AssociationClient.send(AssociationActionPayload.DECLINE, args));
     }
 }

@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class Economy {
     /** Why gold changed (shown with the change on the client). */
-    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY, PARTY, GUILD, RAID, ASSOCIATION, BROKER, BOX, HOME, HIRE }
+    public enum Reason { KILL, QUEST, GATE, PURCHASE, SALE, COMMAND, FORGE, CRAFT, TOWER, RECOVERY, PARTY, GUILD, RAID, ASSOCIATION, BROKER, BOX, HOME, HIRE, CONTRACT }
 
     public static HunterData data(Player player) {
         return player.getData(EconomyModule.HUNTER.get());
@@ -31,6 +31,8 @@ public final class Economy {
         amount = com.beyondsolo.chronicle.title.TitleService.gold(player, amount, reason);
         // and the guild's (the same sources, and raids)
         amount = com.beyondsolo.guild.GuildPerks.gold(player, amount, reason);
+        // a great guild the hunter is under contract with takes its share of gate gold
+        amount = com.beyondsolo.scouting.Scouting.gold(player, amount, reason);
         HunterData d = data(player);
         long before = d.gold;
         d.gold = Math.max(0, d.gold + amount);

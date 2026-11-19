@@ -149,6 +149,8 @@ final class SoloWipe {
         com.beyondsolo.association.Association.wipe(p);
         // their hired hands go (a porter hands over the pack first)
         com.beyondsolo.rival.Hires.wipe(p);
+        // the great guilds' scouts on their way to them go home
+        com.beyondsolo.scouting.Scouting.wipe(p);
         // out of any home, and their own is gone (the plot stays theirs, to be built again from nothing)
         com.beyondsolo.home.Homes.takeAway(p);
         // every record the mod keeps on the player back to its defaults (the System's own keeps "first join handled")

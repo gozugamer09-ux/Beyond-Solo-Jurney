@@ -213,9 +213,11 @@ public final class RivalParties {
             double dist = Math.sqrt(GateSpawner.flatDistSqr(pl.position(), g.gatePos()));
             if (dist > TELL) continue;
             p.watchers.add(pl.getUUID());
-            Notifications.send(pl, SystemNotification.of(SystemNotification.Kind.ALERT,
-                    Component.translatable(KEY + "notify.dispatched.title", p.guild.displayName()),
-                    Component.translatable(KEY + "notify.dispatched.body", p.partyName(), rank.displayName(),
+            // one of the guild's own (under contract with it): no race, they'll let them in
+            String dispatched = com.beyondsolo.scouting.Scouting.allied(pl, p.guild) ? "notify.dispatched.ally" : "notify.dispatched";
+            Notifications.send(pl, SystemNotification.of(dispatched.endsWith("ally") ? SystemNotification.Kind.INFO : SystemNotification.Kind.ALERT,
+                    Component.translatable(KEY + dispatched + ".title", p.guild.displayName()),
+                    Component.translatable(KEY + dispatched + ".body", p.partyName(), rank.displayName(),
                             Mth.floor(dist + 0.5), GateSpawner.direction(pl.position(), g.gatePos()), clock(eta))));
         }
         data.setDirty();
@@ -394,6 +396,7 @@ public final class RivalParties {
         data.addClear(p.rival);
         end(server, data, p, RivalParty.Outcome.CLEARED, now);
         tell(server, p, SystemNotification.Kind.INFO, "cleared", p.partyName(), p.rank.displayName());
+        com.beyondsolo.news.HunterNews.partyCleared(server, p, p.rank);
     }
 
     /** They pull out: the gate is open again, nobody's. */
@@ -426,6 +429,13 @@ public final class RivalParties {
         return out;
     }
 
+    /** The hunters in a gate's cave who are the party's guild's own (under contract with it). */
+    static List<ServerPlayer> allies(MinecraftServer server, RivalParty p, GateInstance g) {
+        List<ServerPlayer> out = present(server, g);
+        out.removeIf(pl -> !com.beyondsolo.scouting.Scouting.allied(pl, p.guild));
+        return out;
+    }
+
     /** A hunter went into a gate ({@code GateService.arrive}): a party on its way was beaten to it, a party in it has company. */
     public static void arrived(ServerPlayer player, GateInstance g) {
         arrived(player, g, player.server.overworld().random.nextFloat());
@@ -439,8 +449,14 @@ public final class RivalParties {
         if (p == null) return;
         long now = now(server);
         p.watchers.add(player.getUUID());
+        // one of the guild's own (under contract with it, {@code scouting.Scouting}): the gate is theirs
+        boolean ally = com.beyondsolo.scouting.Scouting.allied(player, p.guild);
         switch (p.state) {
             case EN_ROUTE, GATHERING -> {
+                if (ally) {
+                    standDown(server, data, p, now, "ally");
+                    return;
+                }
                 if (p.racing) return;
                 // the bold ones come in after them anyway
                 if (roll < p.guild.nerve * RivalConfig.followInScale()) {
@@ -452,6 +468,7 @@ public final class RivalParties {
                 }
             }
             case INSIDE -> {
+                if (ally) return;
                 if (p.holds && !p.trespassers.contains(player.getUUID())) trespass(server, data, p, player);
                 else if (!p.racing) {
                     p.racing = true;
@@ -472,6 +489,8 @@ public final class RivalParties {
         RivalParty p = RivalData.get(player.server).forGate(g.id());
         if (p == null || p.state != RivalParty.State.INSIDE || !p.holds) return null;
         if (p.trespassers.contains(player.getUUID()) || player.isShiftKeyDown()) return null;
+        // the guild's own hunter is welcome
+        if (com.beyondsolo.scouting.Scouting.allied(player, p.guild)) return null;
         return KEY + "refuse.held";
     }
 
@@ -536,7 +555,9 @@ public final class RivalParties {
             if (p.id.equals(r.party())) p.rivalDamage += dealt;
         } else if (IsleRaids.hunterSide(by)) {
             p.hunterDamage += dealt;
-            p.racing = true;
+            // fighting beside the guild's own hunter is no race
+            GateInstance g = GateData.get(level.getServer()).get(p.gate);
+            if (g == null || allies(level.getServer(), p, g).isEmpty()) p.racing = true;
         } else return;
         data.setDirty();
     }
@@ -560,9 +581,27 @@ public final class RivalParties {
         int share = total <= 0 ? (theirs ? 100 : 0) : Math.round(100 * p.rivalDamage / total);
         List<ServerPlayer> inside = present(server, g);
         p.progress = 1;
+        // with the guild's own hunter in there it was a clear together: the clear is theirs too, the boss's cache the hunter's
+        if (!allies(server, p, g).isEmpty()) {
+            data.addClear(p.rival);
+            end(server, data, p, RivalParty.Outcome.CLEARED, now);
+            for (ServerPlayer pl : inside) {
+                Notifications.send(pl, SystemNotification.of(SystemNotification.Kind.REWARD, Component.translatable(KEY + "notify.title", p.guild.displayName()),
+                        Component.translatable(KEY + "notify.joint", p.partyName(), p.rank.displayName())));
+            }
+            for (UUID id : p.watchers) {
+                ServerPlayer pl = OnlinePlayers.get(server, id);
+                if (pl == null || inside.contains(pl)) continue;
+                Notifications.send(pl, SystemNotification.of(SystemNotification.Kind.INFO, Component.translatable(KEY + "notify.title", p.guild.displayName()),
+                        Component.translatable(KEY + "notify.cleared", p.partyName(), p.rank.displayName())));
+            }
+            com.beyondsolo.news.HunterNews.partyCleared(server, p, p.rank);
+            return false;
+        }
         if (theirs) {
             data.addClear(p.rival);
             end(server, data, p, RivalParty.Outcome.CLEARED, now);
+            com.beyondsolo.news.HunterNews.raceLost(server, inside, p, p.rank);
             for (ServerPlayer pl : inside) {
                 if (SystemAPI.isAwakened(pl)) Hires.record(pl).raceLosses++;
                 Notifications.send(pl, SystemNotification.of(SystemNotification.Kind.ALERT,
@@ -571,6 +610,7 @@ public final class RivalParties {
             }
         } else {
             end(server, data, p, RivalParty.Outcome.BEATEN, now);
+            com.beyondsolo.news.HunterNews.raceWon(server, inside, p, p.rank);
             for (ServerPlayer pl : inside) {
                 Notifications.send(pl, SystemNotification.of(SystemNotification.Kind.REWARD,
                         Component.translatable(KEY + "notify.race_won.title"),
@@ -960,7 +1000,8 @@ public final class RivalParties {
         else {
             boolean outranked = SystemAPI.isAwakened(player) && SystemAPI.get(player).rank().tier() >= p.rank.tier() + DEFER;
             boolean early = p.state == RivalParty.State.EN_ROUTE || p.state == RivalParty.State.GATHERING;
-            if (early && !e.leader() && r.nextInt(3) == 0) {
+            if (com.beyondsolo.scouting.Scouting.allied(player, p.guild) && p.active()) line = "ally";
+            else if (early && !e.leader() && r.nextInt(3) == 0) {
                 line = "ask_leader";
                 args = new Object[]{p.leaderName()};
             } else if (early && outranked) line = "defer";
@@ -990,8 +1031,19 @@ public final class RivalParties {
         for (UUID id : p.watchers) {
             ServerPlayer pl = OnlinePlayers.get(server, id);
             if (pl == null) continue;
-            Notifications.send(pl, SystemNotification.of(kind, Component.translatable(KEY + "notify.title", p.guild.displayName()),
-                    Component.translatable(KEY + "notify." + what, args)));
+            String line = what, title = "notify.title";
+            SystemNotification.Kind k = kind;
+            // one of the guild's own (under contract with it): the party is on their side, there is no race for them
+            if (com.beyondsolo.scouting.Scouting.allied(pl, p.guild)) {
+                if (what.equals("following")) continue;
+                if (what.startsWith("went_in.")) {
+                    line = "went_in.ally";
+                    k = SystemNotification.Kind.INFO;
+                }
+                title = "notify.title.ally";
+            }
+            Notifications.send(pl, SystemNotification.of(k, Component.translatable(KEY + title, p.guild.displayName()),
+                    Component.translatable(KEY + "notify." + line, args)));
         }
     }
 
@@ -1057,6 +1109,7 @@ public final class RivalParties {
             c.putFloat("share", total <= 0 ? -1f : p.rivalDamage / total);
             c.putBoolean("here", here != null && here.id().equals(p.gate));
             c.putBoolean("trespasser", p.trespassers.contains(pl.getUUID()));
+            c.putBoolean("ally", com.beyondsolo.scouting.Scouting.allied(pl, p.guild));
             if (g != null) {
                 c.putLong("gate", g.gatePos().asLong());
                 c.putBoolean("overworld", g.gateDimension().equals(Level.OVERWORLD));

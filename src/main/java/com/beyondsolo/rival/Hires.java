@@ -179,7 +179,8 @@ public final class Hires {
         if (o.kind() == Hire.Kind.PORTER && rec.porter() != null) return no("porter_already");
         if (o.kind() == Hire.Kind.HUNTER && rec.hunters() >= RivalConfig.maxHunters()) return no("hunters_full", RivalConfig.maxHunters());
         if (o.kind() == Hire.Kind.HUNTER && o.rank().tier() > SystemAPI.get(p).rank().tier()) return no("rank");
-        if (!Economy.spend(p, o.fee(), Economy.Reason.HIRE)) return no("gold", o.fee());
+        long fee = com.beyondsolo.scouting.Scouting.hireFee(p, o.fee());
+        if (!Economy.spend(p, fee, Economy.Reason.HIRE)) return no("gold", fee);
         rec.take(QuestEngine.day(p), o.id());
         Hire h = take(p, o);
         return yes(h.porter() ? "porter" : "hunter", h.name, RivalConfig.hireTicks() / 1200);
@@ -300,7 +301,10 @@ public final class Hires {
             c.putInt("level", o.level());
             c.putInt("rank", o.rank().ordinal());
             c.putInt("skin", o.skin());
-            c.putLong("fee", o.fee());
+            long fee = com.beyondsolo.scouting.Scouting.hireFee(p, o.fee());
+            c.putLong("fee", fee);
+            // a guild's contract may take some off ({@code scouting.Scouting}): the full fee too, struck through
+            if (fee != o.fee()) c.putLong("was", o.fee());
             c.putInt("slots", o.kind() == Hire.Kind.PORTER ? RivalConfig.porterSlots() : 0);
             list.add(c);
         }

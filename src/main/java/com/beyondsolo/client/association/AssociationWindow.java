@@ -40,6 +40,9 @@ abstract class AssociationWindow extends Screen {
 
     record Hit(float x, float y, float w, float h, Runnable run) {}
 
+    /** True while the portrait is drawn: a renderer leaves the name over the head off it (it is written under it). */
+    private static boolean drawingPortrait;
+
     protected final float w, h, leftW;
     protected final List<Hit> hits = new ArrayList<>();
     protected Component hint;
@@ -95,6 +98,11 @@ abstract class AssociationWindow extends Screen {
     public void removed() {
         AssociationClient.send(AssociationActionPayload.CLOSE);
         super.removed();
+    }
+
+    /** Whether the one being drawn now is a window's portrait, not someone out in the world. */
+    static boolean drawingPortrait() {
+        return drawingPortrait;
     }
 
     protected float left() {
@@ -164,7 +172,12 @@ abstract class AssociationWindow extends Screen {
             int x1 = Math.round(px - 36), y1 = Math.round(y + 20);
             Shapes.flush(g);
             float o = Gfx.fade(Math.min(1f, (rk - 0.2f) * 2));
-            InventoryScreen.renderEntityInInventoryFollowsMouse(g, x1, y1, x1 + 72, Math.round(ringY + 8), 34, 0.0625f, mouseX, mouseY, living);
+            drawingPortrait = true;
+            try {
+                InventoryScreen.renderEntityInInventoryFollowsMouse(g, x1, y1, x1 + 72, Math.round(ringY + 8), 34, 0.0625f, mouseX, mouseY, living);
+            } finally {
+                drawingPortrait = false;
+            }
             Gfx.setAlpha(o);
         } else if (rk > 0.2f) {
             // opened by a command: the association's seal stands in
