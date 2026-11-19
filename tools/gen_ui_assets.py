@@ -9,7 +9,8 @@ size and can add outlines and glows for free. That is why one 128px texture work
 and a 90px class emblem.
 
 Sources:
-- tools/icons-src/*.svg: Phosphor Icons (bold weight), MIT License, see LICENSE_PhosphorIcons_MIT.txt there.
+- tools/icons-src/*.svg: Phosphor Icons (bold weight), MIT License, see LICENSE_PhosphorIcons_MIT.txt there
+  (lantern.svg is drawn for this project in the same style).
   The licence text ships in the jar as licenses/phosphor_icons_mit.txt.
 - Rank letters: Exo 2 ExtraBold Italic, SIL Open Font License 1.1, see tools/fonts-src/OFL.txt.
 """
@@ -169,6 +170,14 @@ ICONS = {
     "home": "house",
     "bed": "bed",
     "city": "buildings",
+    # rival parties (their guilds' emblems) and hired hands; the lantern is drawn for this project
+    "guild_azure_tide": "waves",
+    "guild_iron_bastion": "castle-turret",
+    "guild_sunfall": "sun-horizon",
+    "guild_red_lantern": "lantern",
+    "guild_independent": "compass",
+    "trail": "footprints",
+    "race": "sneaker-move",
 }
 
 RANKS = "EDCBAS"

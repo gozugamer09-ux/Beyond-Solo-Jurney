@@ -116,7 +116,10 @@ public final class Rankings {
     public static List<Row> gates(MinecraftServer server) {
         long day = day(server);
         List<Row> rows = new ArrayList<>();
-        for (Rival r : Rivals.ALL) rows.add(new Row(r.name(), true, null, r.rank(), r.playerClass().ordinal(), r.guild(), "", r.gatesOn(day), 0));
+        // their record, and the gates their parties cleared in this world
+        com.beyondsolo.rival.RivalData parties = com.beyondsolo.rival.RivalData.get(server);
+        for (Rival r : Rivals.ALL) rows.add(new Row(r.name(), true, null, r.rank(), r.playerClass().ordinal(), r.guild(), "",
+                r.gatesOn(day) + parties.clears(r.id()), 0));
         for (RankingData.Hunter h : RankingData.get(server).all()) {
             rows.add(new Row(h.name, false, h.id, rank(h.rank), h.playerClass, "", h.title, h.gates, 0));
         }

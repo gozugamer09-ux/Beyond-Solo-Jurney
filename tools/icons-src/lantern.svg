@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><!-- drawn for this project in the icons' bold style -->
+ <g fill="none" stroke="#000" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="128" cy="34" r="15"/>
+  <rect x="80" y="90" width="96" height="102" rx="14"/>
+ </g>
+ <path d="M102 50 H154 L178 82 H78 Z" fill="#000"/>
+ <rect x="66" y="200" width="124" height="24" rx="10" fill="#000"/>
+ <path d="M128 110 C142 127 150 140 150 155 A22 22 0 0 1 106 155 C106 140 114 127 128 110 Z" fill="#000"/>
+</svg>

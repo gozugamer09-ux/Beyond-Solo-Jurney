@@ -12,6 +12,7 @@ import com.beyondsolo.client.gfx.SysFont;
 import com.beyondsolo.client.gfx.Ui;
 import com.beyondsolo.client.quest.ClientQuests;
 import com.beyondsolo.network.AssociationActionPayload;
+import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.nbt.CompoundTag;
@@ -30,11 +31,14 @@ import java.util.UUID;
 /**
  * The Hunter Association's office: the officer and the hunter's license on the left; on the right the contract board
  * (bounties on the gates the office watches), gate permits (a gate of the rank you ask for, its clearing rights
- * yours), the rank exam, and the hunter's standing with the national merit board.
+ * yours), the rank exam, the hunter's standing with the national merit board, and the hands for hire (porters and
+ * freelance hunters, {@code rival.Hires}).
  */
 public class AssociationScreen extends AssociationWindow {
-    private static final String[] TABS = {"contracts", "permits", "exam", "standing"};
-    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL};
+    private static final String[] TABS = {"contracts", "permits", "exam", "standing", "hire"};
+    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL, Icons.HANDSHAKE};
+    /** The hired hands' colours: a porter's sand, a freelance hunter's steel blue (as over their heads). */
+    private static final int SAND = 0xFFD9B26F, FREELANCE = 0xFF8FB8D8;
 
     private int tab;
     private double tabAt = Anim.now();
@@ -110,8 +114,8 @@ public class AssociationScreen extends AssociationWindow {
 
     @Override
     void content(GuiGraphics g, float x, float y, float cw, float ch, int mouseX, int mouseY, float t) {
-        // the tabs
-        float tw = (cw - 3 * 4) / 4f;
+        // the tabs (their labels shrink to fit, Spanish runs long)
+        float tw = (cw - (TABS.length - 1) * 4) / TABS.length;
         for (int i = 0; i < TABS.length; i++) {
             float tx = x + i * (tw + 4);
             boolean sel = i == tab;
@@ -120,10 +124,12 @@ public class AssociationScreen extends AssociationWindow {
             Shapes.pill(tx, y, tw, 15).fillV(Gfx.alpha(c, sel ? 0.34f : hover ? 0.16f : 0.06f), Gfx.alpha(Gfx.shade(c, -0.4f), sel ? 0.24f : 0.06f))
                     .border(sel ? 0.9f : 0.6f, Gfx.alpha(c, sel ? 0.95f : 0.35f)).glow(sel ? 4 : 0, Gfx.alpha(c, 0.3f)).draw(g);
             String label = ui("tab." + TABS[i]).getString();
-            float lw = SysFont.spacedWidth(label, 4.8f, true, 1f) + 9;
+            float ls = 4.8f;
+            while (ls > 3.6f && SysFont.spacedWidth(label, ls, true, 1f) + 9 > tw - 4) ls -= 0.2f;
+            float lw = SysFont.spacedWidth(label, ls, true, 1f) + 9;
             float lx = tx + (tw - lw) / 2f;
             Shapes.icon(TAB_ICONS[i], lx + 3, y + 7.5f, 6).fill(sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT).draw(g);
-            SysFont.spaced(g, label, lx + 9, SysFont.centerY(y, 15, 4.8f), 4.8f, sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 1f, 0f);
+            SysFont.spaced(g, label, lx + 9, SysFont.centerY(y, 15, ls), ls, sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 1f, 0f);
             if (!sel) {
                 int pick = i;
                 hits.add(new Hit(tx, y, tw, 15, () -> setTab(pick)));
@@ -136,6 +142,7 @@ public class AssociationScreen extends AssociationWindow {
             case Association.TAB_PERMITS -> permits(g, x, py, cw, ph, mouseX, mouseY);
             case Association.TAB_EXAM -> exam(g, x, py, cw, ph, mouseX, mouseY);
             case Association.TAB_STANDING -> standing(g, x, py, cw, ph);
+            case Association.TAB_HIRE -> hire(g, x, py, cw, ph, mouseX, mouseY);
             default -> contracts(g, x, py, cw, ph, mouseX, mouseY);
         }
         Gfx.setAlpha(o);
@@ -422,5 +429,130 @@ public class AssociationScreen extends AssociationWindow {
         }
         String foot = ui("standing.place", d.getInt("place"), d.getInt("hunters")).getString();
         SysFont.draw(g, foot, bx + bw / 2f, y + ch - 10, 4.4f, SystemTheme.TEXT_DIM, false, 0.5f);
+    }
+
+    // ------------------------------------------------------------------ hands for hire
+
+    private static Component hireUi(String key, Object... args) {
+        return Component.translatable("ui.beyondsolo.association.hire." + key, args);
+    }
+
+    private void hire(GuiGraphics g, float x, float y, float cw, float ch, int mouseX, int mouseY) {
+        CompoundTag d = data().getCompound("hire");
+        int hunters = d.getInt("hunters"), maxHunters = d.getInt("maxHunters");
+        boolean porter = d.getBoolean("porter");
+        int minutes = d.getInt("minutes");
+        SysFont.spaced(g, hireUi("title").getString(), x, y, 5f, SystemTheme.TEXT, true, 1.2f, 0f);
+        String held = hireUi("held", hunters, maxHunters).getString();
+        float hw = SysFont.width(held, 4.8f, true);
+        SysFont.draw(g, held, x + cw, y, 4.8f, hunters >= maxHunters ? AMBER : SystemTheme.TEXT_SOFT, true, 1f);
+        Shapes.icon(Icons.PACKAGE, x + cw - hw - 9, y + 2.4f, 6).fill(porter ? SAND : SystemTheme.TEXT_DIM).draw(g);
+        float ty = para(g, hireUi("desc", minutes), x, y + 10, cw, 4.6f, SystemTheme.TEXT_SOFT) + 4;
+
+        // who is looking for work today
+        ListTag offers = d.getList("offers", Tag.TAG_COMPOUND);
+        int cols = Math.max(6, offers.size());
+        float tileW = (cw - (cols - 1) * 4) / cols, tileH = 62;
+        long gold = EconomyClient.gold();
+        PlayerRank mine = rank(data().getInt("rank"));
+        if (offers.isEmpty()) {
+            Ui.card(g, x, ty, cw, 30, 8, SAND, 0.06f);
+            paraMid(g, hireUi("none"), x + 12, ty + 15, cw - 24, 4.6f, SystemTheme.TEXT_SOFT);
+        }
+        for (int i = 0; i < offers.size(); i++) {
+            CompoundTag o = offers.getCompound(i);
+            float k = Anim.outCubic(Anim.window(Anim.since(openedAt), 0.2f + i * 0.05f, 0.5f + i * 0.05f));
+            float o2 = Gfx.fade(k);
+            offer(g, o, x + i * (tileW + 4), ty + (1 - k) * 8, tileW, tileH, mouseX, mouseY, porter, hunters >= maxHunters, maxHunters, mine, gold, minutes);
+            Gfx.setAlpha(o2);
+        }
+
+        // the hands on the job
+        float hy = ty + tileH + 8;
+        SysFont.spaced(g, hireUi("yours").getString(), x, hy, 4.6f, SystemTheme.TEXT_DIM, true, 1.2f, 0f);
+        hy += 9;
+        ListTag hired = d.getList("hired", Tag.TAG_COMPOUND);
+        float bottom = y + ch - 12;
+        if (hired.isEmpty()) SysFont.text(g, hireUi("nobody").getString(), x, hy, 4.6f, SystemTheme.TEXT_DIM);
+        for (int i = 0; i < hired.size() && hy + 24 <= bottom; i++) {
+            hand(g, hired.getCompound(i), x, hy, cw, 24, mouseX, mouseY);
+            hy += 27;
+        }
+        // the hunter's record against the other parties
+        String record = hireUi("record", d.getInt("raceWins"), d.getInt("raceLosses"), d.getInt("trespasses")).getString();
+        Shapes.icon(Icons.RACE, x + 3, bottom + 4.5f, 6).fill(SystemTheme.TEXT_DIM).draw(g);
+        SysFont.text(g, SysFont.fit(record, 4.4f, false, cw - 10), x + 9, bottom + 2.5f, 4.4f, SystemTheme.TEXT_DIM);
+    }
+
+    /** One hand looking for work, as a tile: who, what they do, what they ask. A click hires them. */
+    private void offer(GuiGraphics g, CompoundTag o, float x, float y, float w, float h, int mouseX, int mouseY, boolean porterHired,
+                       boolean huntersFull, int maxHunters, PlayerRank mine, long gold, int minutes) {
+        boolean isPorter = o.getInt("kind") == 0;
+        PlayerRank r = rank(o.getInt("rank"));
+        PlayerClass cls = PlayerClass.values()[Mth.clamp(o.getInt("class"), 0, PlayerClass.values().length - 1)];
+        long fee = o.getLong("fee");
+        String name = o.getString("name");
+        Component refusal = isPorter && porterHired ? hireUi("hint.porter_already")
+                : !isPorter && huntersFull ? hireUi("hint.hunters_full", maxHunters)
+                : !isPorter && r.tier() > mine.tier() ? hireUi("hint.rank", r.displayName())
+                : gold < fee ? ui("hint.gold", gold(fee)) : null;
+        boolean enabled = refusal == null;
+        boolean hover = Ui.inside(mouseX, mouseY, x, y, w, h);
+        int c = isPorter ? SAND : SystemTheme.rank(r);
+        Shapes.box(x, y, w, h).radius(7).fillV(Gfx.alpha(c, enabled && hover ? 0.3f : enabled ? 0.13f : 0.05f), Gfx.alpha(Gfx.shade(c, -0.5f), enabled ? 0.12f : 0.03f))
+                .border(hover && enabled ? 1f : 0.6f, Gfx.alpha(c, enabled ? (hover ? 1f : 0.55f) : 0.25f)).glow(hover && enabled ? 5 : 0, Gfx.alpha(c, 0.35f)).draw(g);
+        float old = Gfx.fade(enabled ? 1f : 0.55f);
+        float cx = x + w / 2f;
+        // their mark: a porter's pack, or the hunter's class, in a ring of their rank
+        Shapes.circle(cx, y + 13, 8.5f).fillV(Gfx.alpha(c, 0.32f), Gfx.alpha(c, 0.08f)).border(0.7f, Gfx.alpha(c, 0.85f)).draw(g);
+        Shapes.icon(isPorter ? Icons.PACKAGE : Icons.of(cls), cx, y + 13, 10).fill(Gfx.mix(c, 0xFFFFFFFF, 0.6f)).draw(g);
+        Ui.chip(g, cx + 4, y + 17, 7, r.name(), 4.2f, SystemTheme.rank(r), true);
+        SysFont.draw(g, SysFont.fit(name, 4.6f, true, w - 4), cx, y + 26, 4.6f, SystemTheme.TEXT, true, 0.5f);
+        String what = isPorter ? hireUi("porter").getString() : cls.displayName().getString();
+        SysFont.draw(g, SysFont.fit(what, 4f, false, w - 4), cx, y + 33.5f, 4f, isPorter ? SAND : SystemTheme.TEXT_SOFT, false, 0.5f);
+        if (!isPorter) SysFont.draw(g, hireUi("level", o.getInt("level")).getString(), cx, y + 40, 4f, SystemTheme.TEXT_DIM, false, 0.5f);
+        else SysFont.draw(g, hireUi("slots", o.getInt("slots")).getString(), cx, y + 40, 4f, SystemTheme.TEXT_DIM, false, 0.5f);
+        String fw = gold(fee);
+        boolean afford = gold >= fee;
+        Shapes.icon(Icons.COINS, cx - SysFont.width(fw, 4.8f, true) / 2f - 4, y + 52, 5.5f).fill(afford ? GOLD : SystemTheme.DANGER).draw(g);
+        SysFont.draw(g, fw, cx + 3, y + 49.5f, 4.8f, afford ? GOLD : SystemTheme.DANGER, true, 0.5f);
+        Gfx.setAlpha(old);
+        if (hover) hint = refusal != null ? refusal : isPorter ? hireUi("hint.porter", name, minutes, gold(fee))
+                : hireUi("hint.hunter", name, cls.displayName(), o.getInt("level"), minutes, gold(fee));
+        if (enabled) {
+            CompoundTag args = new CompoundTag();
+            args.putUUID("offer", o.getUUID("id"));
+            hits.add(new Hit(x, y, w, h, () -> AssociationClient.send(AssociationActionPayload.HIRE, args)));
+        }
+    }
+
+    /** A hand on the job: who, how long they have left, what they carry or have felled; let them go. */
+    private void hand(GuiGraphics g, CompoundTag hd, float x, float y, float cw, float rh, int mouseX, int mouseY) {
+        boolean isPorter = hd.getInt("kind") == 0;
+        PlayerRank r = rank(hd.getInt("rank"));
+        PlayerClass cls = PlayerClass.values()[Mth.clamp(hd.getInt("class"), 0, PlayerClass.values().length - 1)];
+        int c = isPorter ? SAND : FREELANCE;
+        Shapes.box(x, y, cw, rh).radius(6).fillV(Gfx.alpha(c, 0.12f), Gfx.alpha(Gfx.shade(c, -0.5f), 0.06f)).border(0.6f, Gfx.alpha(c, 0.45f)).draw(g);
+        Shapes.box(x + 1.2f, y + 3, 1.6f, rh - 6).radius(0.8f).fill(c).draw(g);
+        Shapes.circle(x + 13, y + rh / 2f, 7).fillV(Gfx.alpha(c, 0.3f), Gfx.alpha(c, 0.08f)).border(0.6f, Gfx.alpha(c, 0.8f)).draw(g);
+        Shapes.icon(isPorter ? Icons.PACKAGE : Icons.of(cls), x + 13, y + rh / 2f, 8.5f).fill(Gfx.mix(c, 0xFFFFFFFF, 0.6f)).draw(g);
+        float tx = x + 25;
+        float bw = Math.max(40, SysFont.spacedWidth(hireUi("dismiss").getString(), 5.2f, true, 0.8f) + 22);
+        float right = x + cw - bw - 10;
+        String clockText = hd.getBoolean("done") ? hireUi("done").getString() : clock(hd.getLong("left"));
+        float clw = SysFont.width(clockText, 6f, true);
+        String name = SysFont.fit(hd.getString("name"), 5.4f, true, right - clw - 10 - tx);
+        SysFont.text(g, name, tx, y + 4, 5.4f, SystemTheme.TEXT);
+        Ui.chip(g, tx + SysFont.width(name, 5.4f, true) + 4, y + 3, 7.5f, r.name(), 4.2f, SystemTheme.rank(r), true);
+        String line = isPorter ? hireUi("carrying", hd.getInt("carried"), hd.getInt("slots")).getString()
+                : hireUi("hunter_line", cls.displayName(), hd.getInt("level"), hd.getInt("kills")).getString();
+        SysFont.text(g, SysFont.fit(line, 4.5f, false, right - tx - 4), tx, y + 14, 4.5f, SystemTheme.TEXT_SOFT);
+        SysFont.draw(g, clockText, right, SysFont.centerY(y, rh, 6f), 6f, hd.getBoolean("done") ? SystemTheme.GOOD
+                : hd.getLong("left") < 20 * 120 ? AMBER : SystemTheme.TEXT, true, 1f);
+        CompoundTag args = new CompoundTag();
+        args.putUUID("hire", hd.getUUID("id"));
+        button(g, x + cw - bw - 5, y + (rh - 13) / 2f, bw, 13, hireUi("dismiss").getString(), Icons.X, SystemTheme.DANGER, mouseX, mouseY,
+                isPorter ? hireUi("hint.dismiss_porter", hd.getString("name")) : hireUi("hint.dismiss", hd.getString("name")),
+                () -> AssociationClient.send(AssociationActionPayload.DISMISS, args));
     }
 }
