@@ -128,6 +128,7 @@ public final class VitalsHud {
     private static final Meter MP = new Meter();
     private static final Meter FOOD = new Meter();
     private static final Meter FATIGUE = new Meter();
+    private static final Meter MANA_POISON = new Meter();
     private static final Meter MOUNT = new Meter();
     private static final Meter AIR = new Meter();
     private static float armorShown;
@@ -222,6 +223,8 @@ public final class VitalsHud {
         FOOD.update(food.getFoodLevel() / 20f, survival, 0.04f);
         float fatigue = d.exhaustion() / 100f;
         FATIGUE.update(fatigue, survival && d.isAwakened() && d.exhaustion() > 0.5f, 2f);
+        float poison = com.beyondsolo.client.manapoison.ManaPoisonClient.shown();
+        MANA_POISON.update(poison / 100f, survival && com.beyondsolo.client.manapoison.ManaPoisonClient.meter(), 2f);
         Entity vehicle = p.getVehicle();
         LivingEntity mount = vehicle instanceof LivingEntity le && le.showVehicleHealth() ? le : null;
         MOUNT.update(mount == null ? 0 : mount.getHealth() / Math.max(1, mount.getMaxHealth()), mount != null, 0.04f);
@@ -253,6 +256,14 @@ public final class VitalsHud {
             rightTop = h - ry;
             ry -= ROW * FATIGUE.visible;
         }
+        if (MANA_POISON.visible > 0.01f) {
+            float old = Gfx.fade(MANA_POISON.visible);
+            float by = ry + (1 - MANA_POISON.visible) * 6;
+            manaPoisonRow(g, rightX, by, colW);
+            Gfx.setAlpha(old);
+            rightTop = h - ry;
+            ry -= ROW * MANA_POISON.visible;
+        }
         if (MOUNT.visible > 0.01f) {
             float old = Gfx.fade(MOUNT.visible);
             float by = ry + (1 - MOUNT.visible) * 6;
@@ -283,6 +294,28 @@ public final class VitalsHud {
         if (gemTop > 0 && !survival) left = Math.max(left, 68);
         mc.gui.leftHeight = Math.max(mc.gui.leftHeight, left);
         mc.gui.rightHeight = Math.max(mc.gui.rightHeight, right);
+    }
+
+    /**
+     * Mana poisoning (in the thick mana of high-rank gates): violet, marked every tenth so the stages at 30, 60 and 90
+     * can be read; it beats from Mana Poisoning on, flashes as a stage is reached and glows pale while a crystal
+     * purifies it.
+     */
+    private static void manaPoisonRow(GuiGraphics g, float x, float y, float w) {
+        int stage = com.beyondsolo.client.manapoison.ManaPoisonClient.stage();
+        boolean purifying = com.beyondsolo.client.manapoison.ManaPoisonClient.purifying();
+        float pulse = Anim.pulse(stage >= 3 ? 0.6f : 1f);
+        float danger = stage >= 2 ? (stage >= 3 ? 1f : 0.5f) : 0f;
+        int a = purifying ? 0xFF2C9C93 : com.beyondsolo.client.manapoison.ManaPoisonClient.VIOLET_DEEP;
+        int b = purifying ? com.beyondsolo.client.manapoison.ManaPoisonClient.PALE
+                : Gfx.mix(com.beyondsolo.client.manapoison.ManaPoisonClient.VIOLET, 0xFFFFFFFF, stage >= 2 ? pulse * 0.25f : 0);
+        float flash = 1 - Anim.clamp01(com.beyondsolo.client.manapoison.ManaPoisonClient.sinceStage() / 0.8f);
+        drawBar(g, x, y, w, true, MANA_POISON.shown, MANA_POISON.trail, a, b, danger, Math.max(flash, purifying ? 0.35f * Anim.pulse(1.2f) : 0), 2.2f, 10);
+        int iconColor = purifying ? com.beyondsolo.client.manapoison.ManaPoisonClient.PALE
+                : Gfx.mix(com.beyondsolo.client.manapoison.ManaPoisonClient.VIOLET, 0xFFFFFFFF, 0.3f);
+        iconRight(g, Icons.SPIRAL, x + w, y, iconColor, stage >= 2 ? pulse : 0);
+        String text = Math.round(com.beyondsolo.client.manapoison.ManaPoisonClient.level()) + "%";
+        barText(g, text, x + 4, y, stage >= 2 ? Gfx.mix(0xFFFFFFFF, 0xFFE5C9FF, pulse) : SystemTheme.TEXT, 0f);
     }
 
     // ---------------------------------------------------------------- hotbar
@@ -663,6 +696,7 @@ public final class VitalsHud {
         MP.reset();
         FOOD.reset();
         FATIGUE.reset();
+        MANA_POISON.reset();
         MOUNT.reset();
         AIR.reset();
         armorShown = absorbShown = 0;

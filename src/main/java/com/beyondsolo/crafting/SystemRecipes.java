@@ -112,6 +112,7 @@ public final class SystemRecipes {
         add(m, Category.POTIONS, ModItems.CLOTTING_TONIC.get(), 1, 10, E, bottle(), core(E, 1), item(CraftingModule.GLOOMFANG_FANG.get(), 1));
         add(m, Category.POTIONS, ModItems.GREATER_ANTIDOTE.get(), 1, 50, D, bottle(), affinityCore(Affinity.VENOM, E, 1), item(CraftingModule.BROOD_SILK.get(), 2));
         add(m, Category.POTIONS, ModItems.QUENCHING_ELIXIR.get(), 1, 50, D, bottle(), core(D, 1), item(CraftingModule.EMBER_CINDER.get(), 2));
+        add(m, Category.POTIONS, com.beyondsolo.manapoison.ManaPoisonModule.DRAUGHT.get(), 1, 120, B, bottle(), core(B, 1), item(CraftingModule.MANA_STONE.get(), 1));
         // forge materials
         add(m, Category.FORGE, GearModule.REFINING_STONE.get(), 2, 20, E, core(E, 2), item(CraftingModule.MANA_SHARD.get(), 1));
         add(m, Category.FORGE, GearModule.WARD_SEAL.get(), 1, 150, C, bossCore(C, 1), item(CraftingModule.MANA_STONE.get(), 2), item(CraftingModule.ASHEN_PLATE.get(), 2));

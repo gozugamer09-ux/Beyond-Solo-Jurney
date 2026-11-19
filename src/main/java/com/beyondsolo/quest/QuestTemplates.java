@@ -100,6 +100,8 @@ public final class QuestTemplates {
         register(DAILY, (p, c) -> QuestBuilder.of(DAILY, QuestCategory.DAILY, p)
                 .text("daily")
                 .xp(150).statPoints(1)
+                // the System's Random Box, as the daily paid in the story (empty if the config says no)
+                .item(com.beyondsolo.reward.RewardBoxes.daily(p))
                 .penalty(40, 30)
                 .penaltyZone()
                 .fixed()

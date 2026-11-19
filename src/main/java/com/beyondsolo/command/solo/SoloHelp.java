@@ -111,6 +111,14 @@ final class SoloHelp {
                 new Line("association contract [player]", "association.contract"),
                 new Line("association record [player]", "association.record"),
                 new Line("association reset [players]", "association.reset")));
+        TOPICS.put("boxes", List.of(
+                new Line("box give plain|blessed|cursed [rank] [count] [players]", "box.give"),
+                new Line("box curse wardens|frailty|backlash|greed [rank] [players]", "box.curse"),
+                new Line("mana set|add <amount> [players]", "mana.set"),
+                new Line("mana clear [players]", "mana.clear"),
+                new Line("mana crystal", "mana.crystal"),
+                new Line("mana crystals [player]", "mana.crystals"),
+                new Line("mana info [player]", "mana.info")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

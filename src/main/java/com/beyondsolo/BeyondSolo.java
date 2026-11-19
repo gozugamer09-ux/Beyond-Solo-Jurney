@@ -58,6 +58,8 @@ public final class BeyondSolo {
         com.beyondsolo.monarch.MonarchModule.init(modBus, container);
         com.beyondsolo.ruler.RulerModule.init(modBus, container);
         com.beyondsolo.association.AssociationModule.init(modBus, container);
+        com.beyondsolo.reward.RewardModule.init(modBus, container);
+        com.beyondsolo.manapoison.ManaPoisonModule.init(modBus, container);
         com.beyondsolo.chronicle.ChronicleModule.init(modBus);
         container.registerConfig(ModConfig.Type.COMMON, com.beyondsolo.quest.situation.SituationConfig.SPEC, "beyondsolo-situations.toml");
         com.beyondsolo.quest.situation.Secrets.registerTitles();

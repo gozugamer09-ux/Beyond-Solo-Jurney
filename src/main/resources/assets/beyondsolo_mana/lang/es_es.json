@@ -1,0 +1,20 @@
+{
+  "block.beyondsolo.purifying_crystal": "Cristal purificador",
+  "item.beyondsolo.purifying_draught": "Brebaje purificador",
+  "item.beyondsolo.purifying_draught.desc": "Limpia la mitad del envenenamiento por maná y mantiene fuera el maná denso de una puerta durante un rato. También levanta maleficios.",
+  "effect.beyondsolo.clear_breath": "Aliento limpio",
+  "notify.beyondsolo.mana.dense.title": "Maná denso",
+  "notify.beyondsolo.mana.dense": "El maná de esta puerta es tan denso que puede envenenarte. Descansa junto a un cristal purificador para sacarlo.",
+  "notify.beyondsolo.mana.sick.title": "Malestar de maná",
+  "notify.beyondsolo.mana.sick": "Un maná ajeno se te está metiendo dentro. Tus golpes se debilitan.",
+  "notify.beyondsolo.mana.poisoned.title": "Envenenamiento por maná",
+  "notify.beyondsolo.mana.poisoned": "El maná te está consumiendo: golpes más débiles, pasos más pesados, y te muerde la salud.",
+  "notify.beyondsolo.mana.collapse.title": "Colapso de maná",
+  "notify.beyondsolo.mana.collapse": "Tu cuerpo no aguanta más. Descansa junto a un cristal purificador, bebe un brebaje o sal de la puerta, ya.",
+  "notify.beyondsolo.mana.burst.title": "Estallido de maná",
+  "notify.beyondsolo.mana.burst": "El maná se abrió paso fuera de ti.",
+  "notify.beyondsolo.mana.clean.title": "Maná limpio",
+  "notify.beyondsolo.mana.clean": "El envenenamiento ha salido de tu cuerpo.",
+  "death.attack.beyondsolo.mana_poisoning": "%1$s fue destrozado por el maná que llevaba dentro",
+  "death.attack.beyondsolo.mana_poisoning.player": "%1$s fue destrozado por el maná que llevaba dentro mientras luchaba contra %2$s"
+}

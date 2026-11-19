@@ -110,7 +110,9 @@ public final class Secrets {
                 .title(Component.translatable("secret.beyondsolo." + id))
                 .description(Component.translatable("secret.beyondsolo." + id + ".desc"))
                 .line(BeyondSolo.id("secret").toString(), Component.translatable("secret.beyondsolo." + id + ".obj"))
-                .xp(pay[0]).statPoints(pay[1]);
+                .xp(pay[0]).statPoints(pay[1])
+                // a Blessed Random Box: the hunter picks what they need of three (empty if the config says no)
+                .item(com.beyondsolo.reward.RewardBoxes.secret(player));
         // kept with the hunter's titles; the chronicle decides whether it is worn
         b.rewardTitle(title(id));
         return b.build();

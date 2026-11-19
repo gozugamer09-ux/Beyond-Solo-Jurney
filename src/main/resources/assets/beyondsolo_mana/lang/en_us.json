@@ -1,0 +1,20 @@
+{
+  "block.beyondsolo.purifying_crystal": "Purifying Crystal",
+  "item.beyondsolo.purifying_draught": "Purifying Draught",
+  "item.beyondsolo.purifying_draught.desc": "Washes half the mana poisoning out and keeps a gate's thick mana out for a while. Lifts hexes too.",
+  "effect.beyondsolo.clear_breath": "Clear Breath",
+  "notify.beyondsolo.mana.dense.title": "Thick Mana",
+  "notify.beyondsolo.mana.dense": "The mana in this gate is thick enough to poison you. Rest by a purifying crystal to draw it out.",
+  "notify.beyondsolo.mana.sick.title": "Mana Sickness",
+  "notify.beyondsolo.mana.sick": "Foreign mana is seeping into you. Your blows are growing weaker.",
+  "notify.beyondsolo.mana.poisoned.title": "Mana Poisoning",
+  "notify.beyondsolo.mana.poisoned": "The mana is eating at you: weaker blows, heavier steps, and it bites at your health.",
+  "notify.beyondsolo.mana.collapse.title": "Mana Collapse",
+  "notify.beyondsolo.mana.collapse": "Your body can't hold any more. Rest by a purifying crystal, drink a draught or get out of the gate, now.",
+  "notify.beyondsolo.mana.burst.title": "Mana Burst",
+  "notify.beyondsolo.mana.burst": "The mana tore its way out of you.",
+  "notify.beyondsolo.mana.clean.title": "Mana Cleared",
+  "notify.beyondsolo.mana.clean": "The poisoning has left your body.",
+  "death.attack.beyondsolo.mana_poisoning": "%1$s was torn apart by the mana inside them",
+  "death.attack.beyondsolo.mana_poisoning.player": "%1$s was torn apart by the mana inside them while fighting %2$s"
+}
