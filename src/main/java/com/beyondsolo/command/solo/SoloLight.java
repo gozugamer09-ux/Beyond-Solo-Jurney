@@ -26,8 +26,8 @@ import java.util.List;
 /**
  * The light, a hunter's side of it: /solo light swear (sworn at once, with the powers it gives at their level), unswear,
  * invest (a mantle at once: a ruler of light), divest, call (to the Investiture), vigil (begun now, skipped on, or ended),
- * chapel (into the Envoy's chapel of a running awakening trial), power (one of the light's powers now) and reset (the
- * whole record). The rulers of light that come down on the world are /solo ruler ({@link SoloRulers}).
+ * chapel (into the Envoy's chapel of a running awakening trial, or before its wall), power (one of the light's powers
+ * now) and reset (the whole record). The rulers of light that come down on the world are /solo ruler ({@link SoloRulers}).
  */
 final class SoloLight {
     /** The mantles, by name ("verdict"). */
@@ -55,6 +55,10 @@ final class SoloLight {
             if (!Vigil.begin(p, true)) throw Solo.error("vigil_refused", p.getDisplayName());
             return Solo.t("light.vigil", p.getDisplayName());
         });
+
+        LiteralArgumentBuilder<CommandSourceStack> chapel = Commands.literal("chapel");
+        chapel.then(Solo.target(Commands.literal("wall"), (ctx, p) -> chapelWall(p)));
+        Solo.target(chapel, (ctx, p) -> chapel(p));
 
         root.then(Commands.literal("light")
                 .then(Solo.targets(Commands.literal("swear"), (ctx, p) -> {
@@ -90,7 +94,7 @@ final class SoloLight {
                     return Solo.t("light.called", p.getDisplayName());
                 }))
                 .then(vigil)
-                .then(Solo.target(Commands.literal("chapel"), (ctx, p) -> chapel(p)))
+                .then(chapel)
                 .then(Commands.literal("power").then(Solo.targets(Solo.word("power", POWERS::stream), (ctx, p) -> {
                     if (!LightAPI.sworn(p)) throw Solo.error("not_sworn", p.getDisplayName());
                     String name = Solo.lower(StringArgumentType.getString(ctx, "power"));
@@ -125,6 +129,24 @@ final class SoloLight {
         while (y > stand.getY() - 4 && level.getBlockState(new BlockPos(stand.getX(), y - 1, stand.getZ())).isAir()) y--;
         p.teleportTo(level, stand.getX() + 0.5, y, stand.getZ() + 0.5, altar.facing().getOpposite().toYRot(), 0);
         return Solo.t("light.chapel", p.getDisplayName());
+    }
+
+    /** Them in the temple's antechamber before the chapel's wall (open or not), looking at it. */
+    private static net.minecraft.network.chat.Component chapelWall(net.minecraft.server.level.ServerPlayer p) throws CommandSyntaxException {
+        GateInstance g = AwakeningService.trialAt(p);
+        DepthsBuild.Mouth m = g == null || !Chapel.has(g) || SystemAPI.hasSystem(p) ? null : DepthsBuild.sealMouth(g);
+        if (m == null) throw Solo.error("no_chapel", p.getDisplayName());
+        ServerLevel level = p.serverLevel();
+        // the mouth's way points out of the antechamber, into the wall
+        net.minecraft.world.phys.Vec3 dir = new net.minecraft.world.phys.Vec3(m.dir().x, 0, m.dir().z);
+        dir = dir.lengthSqr() < 1.0E-4 ? new net.minecraft.world.phys.Vec3(1, 0, 0) : dir.normalize();
+        net.minecraft.world.phys.Vec3 at = m.center().subtract(dir.scale(m.radius() + 3));
+        BlockPos stand = BlockPos.containing(at);
+        int y = stand.getY() + 2;
+        while (y > stand.getY() - 6 && level.getBlockState(new BlockPos(stand.getX(), y - 1, stand.getZ())).isAir()) y--;
+        float yaw = (float) (net.minecraft.util.Mth.atan2(dir.z, dir.x) * net.minecraft.util.Mth.RAD_TO_DEG) - 90f;
+        p.teleportTo(level, at.x, y, at.z, yaw, 0);
+        return Solo.t("light.chapel_wall", p.getDisplayName());
     }
 
     /** The mantle with this name. */

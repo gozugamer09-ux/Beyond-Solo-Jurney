@@ -118,7 +118,7 @@ final class SoloHelp {
                 new Line("light divest [players]", "light.divest"),
                 new Line("light call [players]", "light.call"),
                 new Line("light vigil [next|stop] [player]", "light.vigil"),
-                new Line("light chapel [player]", "light.chapel"),
+                new Line("light chapel [wall] [player]", "light.chapel"),
                 new Line("light power sanctum|judgement|seraph|authority [players]", "light.power"),
                 new Line("light reset [players]", "light.reset")));
         TOPICS.put("association", List.of(

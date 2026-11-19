@@ -1806,10 +1806,10 @@ far above every other hunter and still someone a monarch can beat. The main stor
 chapter IV is the Investiture and is done when they take up a mantle (`MainStory`). Art: `tools/gen_light_assets.py`
 (the Envoy of Dawn, the seraph's wings and halo, the six shapes of light, their animations, skins and glow masks, the
 power and mantle icons, the feather). Operators: `/solo light swear/unswear/invest <mantle>/divest/call/vigil
-[next|stop]/chapel/power <power>/reset` (`SoloLight`); `/solo info` shows the road and the record.
+[next|stop]/chapel [wall]/power <power>/reset` (`SoloLight`); `/solo info` shows the road and the record.
 
-Testing: `LightGameTests`; in the headless client, `/solo trial awakening` then `/solo light chapel` puts a new player
-before the Envoy, `/solo light swear` and `/solo light invest <mantle>` skip ahead, `/solo light vigil` (then `next`)
+Testing: `LightGameTests`; in the headless client, `/system trial call` and `/system trial enter` take a new player into a
+temple, `/solo light chapel wall` stands them before the chapel's wall and `/solo light chapel` before the Envoy, `/solo light swear` and `/solo light invest <mantle>` skip ahead, `/solo light vigil` (then `next`)
 walks the Investiture and `/solo light power <power>` fires a power.
 
 ## The Hunter Association and the gate broker
@@ -2093,7 +2093,7 @@ has added to `/system` by then).
 | guilds | `guild create <player> <tag> <name>`, `guild level/gold <n>`, `guild hunter <rank> [class]`, `guild heal hunters`, `guild disband`, `raid open <rank>`, `raid make`, `raid start now`, `raid phase barrier/cataclysm` | `SoloGuilds` |
 | monarchs | `monarch crown <crown>`, `monarch uncrown`, `monarch call`, `monarch reset`, `monarch jump 1/2/arbiter/throne/<crown>`, `monarch power domain/dread/crown/authority` | `SoloMonarch` |
 | rulers | `ruler call [verdict/wings/hand/random]`, `ruler war [ruler]`, `ruler sentence [ruler] on [player]`, `ruler land`, `ruler stop`, `ruler status`, `ruler phase <1-3>`, `ruler move <move>`, `ruler kill`, `ruler next <minutes>`, `ruler bless [players]`, `ruler mote [count]`, `ruler record [player]` | `SoloRulers` |
-| light | `light swear`, `light unswear`, `light invest verdict/wings/hand/dawn`, `light divest`, `light call`, `light vigil [next/stop]`, `light chapel`, `light power sanctum/judgement/seraph/authority`, `light reset` | `SoloLight` |
+| light | `light swear`, `light unswear`, `light invest verdict/wings/hand/dawn`, `light divest`, `light call`, `light vigil [next/stop]`, `light chapel [wall]`, `light power sanctum/judgement/seraph/authority`, `light reset` | `SoloLight` |
 | association | `association open [contracts/permits/exam/standing]`, `association broker`, `association post`, `association merit add/set <merit> [players]`, `association exam start/pass/fail [player]`, `association contract [player]`, `association record [player]`, `association reset [players]` | `SoloAssociation` |
 | home | `home info`, `home give studio/family/hall/penthouse/none`, `home go`, `home visit <host>`, `home leave`, `home build`, `home rebuild`, `home rest`, `home ready`, `home trophies <count>` | `SoloHome` |
 
