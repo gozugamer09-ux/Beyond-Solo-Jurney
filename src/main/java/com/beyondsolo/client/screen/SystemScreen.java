@@ -216,7 +216,8 @@ public class SystemScreen extends Screen {
     private static List<float[]> measureLayout(List<String> titles, float x, float y) {
         int n = titles.size();
         float[] text = new float[n];
-        float avail = WIDTH - 24 - 26;
+        // from just past the mark at the window's corner to the right edge's margin
+        float avail = WIDTH - 12 - 30;
         float size = TAB_SIZE, tracking = TAB_TRACKING, gap = 4, minPad = 8, textTotal = 0;
         for (float[] step : TIGHTER) {
             minPad = step[0];
@@ -230,6 +231,13 @@ public class SystemScreen extends Screen {
                 textTotal = measureTabs(titles, size, tracking, text);
             }
             if (textTotal <= budget) break;
+        }
+        // still too wide (many tabs with long words, as in Spanish): the labels get as small as it takes, so the pills
+        // never run over the mark at the window's corner
+        float last = avail - gap * Math.max(0, n - 1) - minPad * n;
+        for (int i = 0; i < 4 && textTotal > last && textTotal > 0; i++) {
+            size *= Math.max(0.8f, last / textTotal);
+            textTotal = measureTabs(titles, size, tracking, text);
         }
         float gaps = gap * Math.max(0, n - 1);
         float room = avail - gaps - textTotal;

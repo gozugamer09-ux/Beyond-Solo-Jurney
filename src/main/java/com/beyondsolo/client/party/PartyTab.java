@@ -212,10 +212,12 @@ public class PartyTab implements SystemTab {
         if (!m.online()) return Component.translatable("ui.beyondsolo.party.place.offline").getString();
         String line;
         if (m.place() != PartySyncPayload.WORLD) {
+            boolean guest = m.place() == PartySyncPayload.HOME && !m.placeName().getString().isEmpty();
             String place = m.place() == PartySyncPayload.GATE && m.placeRank() >= 0
                     ? Component.translatable("ui.beyondsolo.party.place.gate_rank", PlayerRank.values()[m.placeRank()].displayName()).getString()
+                    : guest ? Component.translatable("ui.beyondsolo.party.place.guest", m.placeName()).getString()
                     : Component.translatable("ui.beyondsolo.party.place." + placeKey(m.place())).getString();
-            String name = m.placeName().getString();
+            String name = guest ? "" : m.placeName().getString();
             line = name.isEmpty() ? place : place + " · " + name;
         } else {
             line = dimName(m.dim().toString());
@@ -237,6 +239,7 @@ public class PartyTab implements SystemTab {
             case PartySyncPayload.CITADEL -> 0xFFFF8A94;
             case PartySyncPayload.TRIAL, PartySyncPayload.JOB_TRIAL -> SystemTheme.GOLD;
             case PartySyncPayload.THRONE -> 0xFFB57BFF;
+            case PartySyncPayload.HOME -> 0xFF9FD3FF;
             default -> SystemTheme.TEXT_SOFT;
         };
     }
@@ -250,6 +253,7 @@ public class PartyTab implements SystemTab {
             case PartySyncPayload.TRIAL -> "trial";
             case PartySyncPayload.JOB_TRIAL -> "job_trial";
             case PartySyncPayload.THRONE -> "throne";
+            case PartySyncPayload.HOME -> "home";
             case PartySyncPayload.OFFLINE -> "offline";
             default -> "world";
         };

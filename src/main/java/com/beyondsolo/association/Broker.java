@@ -22,6 +22,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -62,6 +63,11 @@ public final class Broker {
     /** Opens the broker's window where the player stands (commands). */
     public static void openHere(ServerPlayer p) {
         open(p, new Association.Session(0, p.level().dimension(), p.blockPosition(), Association.BROKER), null);
+    }
+
+    /** Opens the broker's window for the gates round {@code office} (the bell in the hunter's home). */
+    public static void openAt(ServerPlayer p, ResourceKey<Level> dim, BlockPos office) {
+        open(p, new Association.Session(0, dim, office, Association.BROKER), null);
     }
 
     static void open(ServerPlayer p, Association.Session s, @Nullable Association.Outcome outcome) {
@@ -126,7 +132,7 @@ public final class Broker {
         Economy.spend(p, price, Economy.Reason.BROKER);
         Association.record(p).buyTip(QuestEngine.day(p));
         QuestEngine.start(p, tipQuest(p, g, Association.giver(p, s)));
-        Component dir = GateSpawner.direction(p.position(), g.gatePos());
+        Component dir = GateSpawner.direction(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos());
         return Association.Outcome.yes(fresh ? "tip.fresh" : "tip.sold", rank.displayName(), Association.blocks(p, g), dir);
     }
 
@@ -136,7 +142,7 @@ public final class Broker {
         QuestBuilder b = QuestBuilder.of(Association.TIP, QuestCategory.ASSOCIATION, g.rank().tier(), SystemAPI.get(p).level()).fixed()
                 .title(Component.translatable("quest.beyondsolo.association.tip", rank))
                 .description(Component.translatable("quest.beyondsolo.association.tip.desc", rank, Association.blocks(p, g),
-                        GateSpawner.direction(p.position(), g.gatePos())))
+                        GateSpawner.direction(com.beyondsolo.home.Homes.worldPosition(p), g.gatePos())))
                 .line(Association.tipKey(g.id()), Component.translatable("quest_objective.beyondsolo.association.find", rank))
                 .extra(extra);
         if (giver != null) b.giver(giver);

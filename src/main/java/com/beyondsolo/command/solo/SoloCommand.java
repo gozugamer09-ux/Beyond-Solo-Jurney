@@ -26,6 +26,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /solo ruler ...                                                rulers of light        (SoloRulers)
  * /solo association ...                                          the Hunter Association (SoloAssociation)
  * /solo box|mana ...                                             random boxes, mana poisoning (SoloBoxes)
+ * /solo story ...                                               the Long Sleep         (SoloStory)
+ * /solo isle ...                                                 the Halcyon raid       (SoloIsle)
+ * /solo home ...                                                 hunters' homes         (SoloHome)
  * /solo dev ...                                                  the older /system testing commands
  * </pre>
  *
@@ -51,6 +54,7 @@ public final class SoloCommand {
         SoloBoxes.register(root);
         SoloStory.register(root);
         SoloIsle.register(root);
+        SoloHome.register(root);
         CommandNode<CommandSourceStack> system = dispatcher.getRoot().getChild("system");
         if (system != null) root.then(Commands.literal("dev").redirect(system));
         dispatcher.register(root);

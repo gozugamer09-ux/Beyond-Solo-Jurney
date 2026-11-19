@@ -165,6 +165,10 @@ ICONS = {
     "party_invite": "paper-plane-tilt",
     "party_leave": "link-break",
     "arrow": "arrow-fat-up",
+    # the hunter's home
+    "home": "house",
+    "bed": "bed",
+    "city": "buildings",
 }
 
 RANKS = "EDCBAS"

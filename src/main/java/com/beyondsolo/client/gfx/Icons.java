@@ -71,6 +71,10 @@ public final class Icons {
     public static final ResourceLocation INVITE = icon("party_invite");
     public static final ResourceLocation LEAVE = icon("party_leave");
     public static final ResourceLocation ARROW = icon("arrow");
+    // the hunter's home
+    public static final ResourceLocation HOME = icon("home");
+    public static final ResourceLocation BED = icon("bed");
+    public static final ResourceLocation CITY = icon("city");
 
     private static final ResourceLocation[] STATS = new ResourceLocation[Stat.values().length];
     private static final ResourceLocation[] CLASSES = new ResourceLocation[PlayerClass.values().length];

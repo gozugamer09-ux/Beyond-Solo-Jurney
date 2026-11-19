@@ -142,6 +142,17 @@ final class SoloHelp {
                 new Line("isle visit [player]", "isle.visit"),
                 new Line("isle record [player]", "isle.record"),
                 new Line("isle reset [players]", "isle.reset")));
+        TOPICS.put("home", List.of(
+                new Line("home info [player]", "home.info"),
+                new Line("home give studio|family|hall|penthouse|none [players]", "home.give"),
+                new Line("home go [player]", "home.go"),
+                new Line("home visit <host> [player]", "home.visit"),
+                new Line("home leave [player]", "home.leave"),
+                new Line("home build", "home.build"),
+                new Line("home rebuild [player]", "home.rebuild"),
+                new Line("home rest [players]", "home.rest"),
+                new Line("home ready [players]", "home.ready"),
+                new Line("home trophies <count> [players]", "home.trophies")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }
