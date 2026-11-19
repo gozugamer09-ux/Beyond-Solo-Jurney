@@ -58,7 +58,10 @@ final class SoloHelp {
                 new Line("spawn crystal", "spawn.crystal"),
                 new Line("gate list", "gate.list"),
                 new Line("gate close [all]", "gate.close"),
-                new Line("gate break", "gate.break")));
+                new Line("gate break", "gate.break"),
+                new Line("village find [players]", "village.find"),
+                new Line("village clear [players]", "village.clear"),
+                new Line("village info [player]", "village.info")));
         TOPICS.put("dungeons", List.of(
                 new Line("dungeon enter [player]", "dungeon.enter"),
                 new Line("dungeon boss [player]", "dungeon.boss"),

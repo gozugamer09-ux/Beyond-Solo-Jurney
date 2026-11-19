@@ -20,6 +20,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /solo info|awaken|evaluate|bind|set|add|heal|reset|wipe ...    the player's System   (SoloProgress, SoloWipe)
  * /solo skill|quest|shadow ...                                   what they know and do  (SoloSkills)
  * /solo spawn|gate|dungeon|trial|tower ...                        the world             (SoloWorld)
+ * /solo village ...                                              the mark on the way to the first village (SoloVillage)
  * /solo give ...                                                 items                  (SoloGive)
  * /solo guild|raid ...                                           guilds and raids       (SoloGuilds)
  * /solo monarch ...                                              monarchs               (SoloMonarch)
@@ -46,6 +47,7 @@ public final class SoloCommand {
         SoloWipe.register(root);
         SoloSkills.register(root);
         SoloWorld.register(root);
+        SoloVillage.register(root);
         SoloGive.register(root);
         SoloGuilds.register(root);
         SoloMonarch.register(root);

@@ -1,9 +1,15 @@
 package com.beyondsolo.system;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.common.util.INBTSerializable;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 /**
@@ -31,6 +37,9 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     private int collapseTicks;
     private boolean firstJoinHandled;
     private String objective = Objectives.NONE;
+    /** Where the objective leads (the Evaluation Zone the System marked for a newcomer), or null. */
+    @Nullable
+    private GlobalPos objectiveTarget;
     private String title = "";
 
     public SystemData() {
@@ -57,6 +66,9 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     public int collapseTicks() { return collapseTicks; }
     public boolean firstJoinHandled() { return firstJoinHandled; }
     public String objective() { return objective; }
+    /** Where the objective leads: drawn in the world, on the objective chip and on Xaero's map. Null: nowhere marked. */
+    @Nullable
+    public GlobalPos objectiveTarget() { return objectiveTarget; }
     /** Optional title shown on the status window (e.g. earned from quests). Empty = none. */
     public String title() { return title; }
 
@@ -76,6 +88,7 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
     void setCollapseTicks(int ticks) { this.collapseTicks = Math.max(0, ticks); }
     void setFirstJoinHandled(boolean handled) { this.firstJoinHandled = handled; }
     void setObjective(String objective) { this.objective = objective == null ? Objectives.NONE : objective; }
+    void setObjectiveTarget(@Nullable GlobalPos target) { this.objectiveTarget = target; }
     void setTitle(String title) { this.title = title == null ? "" : title; }
 
     void resetStats() {
@@ -111,6 +124,10 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
         tag.putInt("collapseTicks", collapseTicks);
         tag.putBoolean("firstJoinHandled", firstJoinHandled);
         tag.putString("objective", objective);
+        if (objectiveTarget != null) {
+            tag.putString("objectiveTargetDim", objectiveTarget.dimension().location().toString());
+            tag.putLong("objectiveTarget", objectiveTarget.pos().asLong());
+        }
         tag.putString("title", title);
         return tag;
     }
@@ -138,6 +155,9 @@ public final class SystemData implements INBTSerializable<CompoundTag> {
         collapseTicks = tag.getInt("collapseTicks");
         firstJoinHandled = tag.getBoolean("firstJoinHandled");
         objective = tag.getString("objective");
+        ResourceLocation targetDim = tag.contains("objectiveTarget") ? ResourceLocation.tryParse(tag.getString("objectiveTargetDim")) : null;
+        objectiveTarget = targetDim == null ? null
+                : GlobalPos.of(ResourceKey.create(Registries.DIMENSION, targetDim), BlockPos.of(tag.getLong("objectiveTarget")));
         title = tag.getString("title");
     }
 }
