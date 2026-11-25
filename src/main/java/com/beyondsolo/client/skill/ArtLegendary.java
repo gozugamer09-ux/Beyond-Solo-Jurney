@@ -400,7 +400,8 @@ final class ArtLegendary {
     /** Constellation: stars wake over every marked foe and are joined one to the next; then their light falls on each. */
     static final class Constellation extends Art {
         static final int C = 0x9FC4FF, CORE = 0xFFFFFF, DEEP = 0x5A78E0;
-        static final float LINK = 0.06f;
+        /** Seconds between one star waking and the next (the light falls about a second after the first). */
+        static final float LINK = 0.09f;
 
         @Override
         float life(Fx fx) {
@@ -462,8 +463,10 @@ final class ArtLegendary {
             for (int i = 0; i < pts.size(); i++) {
                 float a = win(k, i * LINK, i * LINK + 0.08f) * fade;
                 Vec3 p = c.rel(pts.get(i));
-                star(c, p, 0.9f + 0.15f * Mth.sin(c.time * 0.4f + i), a, fx.seed + i);
-                if (k - i * LINK < 0.1f && k >= i * LINK) Skins.spikes(c.pose, c.buffers, c.camera, p, fx.seed + i, 6, 1.4f, 0.06f, CORE, 1 - (k - i * LINK) / 0.1f);
+                star(c, p, 1.5f + 0.2f * Mth.sin(c.time * 0.4f + i), a, fx.seed + i);
+                if (k - i * LINK < 0.18f && k >= i * LINK) {
+                    Skins.spikes(c.pose, c.buffers, c.camera, p, fx.seed + i, 8, 2.4f, 0.08f, CORE, 1 - (k - i * LINK) / 0.18f);
+                }
             }
             // and are joined into the figure, the staff to the first, each to the next
             Vec3 from = c.e != null ? c.rel(ArtFx.staffTip(c.e, c.partial)) : c.rel(fx.at.add(0, 1.6, 0));
@@ -473,9 +476,9 @@ final class ArtLegendary {
                 if (g > 0) {
                     Vec3 end = from.lerp(to, g);
                     float a = (i == 0 ? 0.5f : 0.85f) * fade;
-                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), from, end, 8, 0.09f, Skins.FLAT, a, Skins.FLAT,
+                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), from, end, 8, 0.16f, Skins.FLAT, a, Skins.FLAT,
                             CORE, -c.time * 0.1f, 0.5f);
-                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), from, end, 8, 0.3f, Skins.FLAT, a * 0.4f,
+                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), from, end, 8, 0.6f, Skins.FLAT, a * 0.5f,
                             Skins.FLAT, DEEP, -c.time * 0.05f, 0.3f);
                 }
                 from = to;
@@ -745,7 +748,8 @@ final class ArtLegendary {
     /** Blood Price: blood drawn out of the wielder onto the blade, then thrown as a great crescent wave of it. */
     static final class BloodPrice extends Art {
         static final int C = 0xD0244E, EDGE = 0xFF4A64, DARK = 0x2A0208, BLOOD = 0x8A0A1E;
-        static final float SPEED = 40;
+        /** Blocks a second: the server's {@code LegendaryArts.BLOOD_WAVE_SPEED} a tick. */
+        static final float SPEED = 24;
 
         @Override
         float life(Fx fx) {
@@ -812,11 +816,11 @@ final class ArtLegendary {
             ArtMythic.cut(c, chest(fx), fx.yaw, -8, 2.6f, k, 0.3f, 1, DARK, Skins.Look.SHADOW, 1);
             // the wave of blood running out
             Vec3 at = from.lerp(to, f).add(0, 0.3, 0);
-            float grow = 1.4f + 0.8f * out(f * 2);
-            wave(c, at, fx.yaw, 25, grow, 0.75f, DARK, EDGE, fade, -c.time * 0.05f);
+            float grow = 2.0f + 1.4f * out(f * 2);
+            wave(c, at, fx.yaw, 25, grow, 0.95f, DARK, EDGE, fade, -c.time * 0.05f);
             // the trail it leaves
             Vec3 a = c.rel(from), b = c.rel(at);
-            Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.PLASMA), a, b, 10, 1.4f, s -> 0.2f + 0.8f * s,
+            Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.PLASMA), a, b, 10, 1.8f, s -> 0.2f + 0.8f * s,
                     0.6f * (1 - win(k, tr * 0.6f, tr + 0.4f)), s -> s * s, DARK, c.time * 0.05f, 0.3f);
             if (k >= tr) {
                 Vec3 end = c.rel(to);
@@ -991,7 +995,8 @@ final class ArtLegendary {
     /** Nightglass Fan: seven shards of dark glass form in a fan before the hand and fly, each breaking into venom where it stops. */
     static final class NightglassFan extends Art {
         static final int C = 0x7CFF6A, GLASS = 0x0E1412, LIT = 0x2C3A34, VENOM = 0x3A8A2A;
-        static final float SPEED = 45, FAN = 70;
+        /** Blocks a second (the server's {@code LegendaryArts.SHARD_SPEED} a tick) and the fan's spread in degrees. */
+        static final float SPEED = 30, FAN = 70;
 
         @Override
         float life(Fx fx) {
@@ -1028,7 +1033,7 @@ final class ArtLegendary {
                     float a = win(c.t, i * 0.03f, i * 0.03f + 0.1f);
                     Vec3 dir = look.yRot((-FAN / 2 + i * FAN / 6) * Mth.DEG_TO_RAD);
                     Vec3 base = hand.add(dir.scale(0.15));
-                    glass.add(base, base.add(dir.scale(0.55)), 0.07f, GLASS, LIT, C, C, a, i);
+                    glass.add(base, base.add(dir.scale(0.7)), 0.09f, GLASS, LIT, C, C, a, i);
                 }
                 glass.draw(c.pose, c.buffers);
                 return;
@@ -1045,13 +1050,13 @@ final class ArtLegendary {
                 Vec3 head = c.rel(hand.lerp(end, f));
                 Vec3 d = dir.normalize();
                 float gone = win(k, t + 0.05f, t + 0.25f);
-                glass.add(head.subtract(d.scale(0.75)), head, 0.09f, GLASS, LIT, C, C, 1 - gone, i);
+                glass.add(head.subtract(d.scale(1.25)), head, 0.15f, GLASS, LIT, C, C, 1 - gone, i);
                 if (f < 1) {
-                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), c.rel(hand).lerp(head, 0.4), head, 4, 0.06f,
-                            Skins.FLAT, 0.6f, s -> s, C, 0, 0);
+                    Skins.line(c.pose, c.buffers, c.camera, c.origin, ModRenderTypes.energy(Skins.BEAM), c.rel(hand).lerp(head, 0.2), head, 4, 0.11f,
+                            Skins.FLAT, 0.75f, s -> s, C, 0, 0);
                 } else {
                     float age = k - t;
-                    if (age < 0.1f) Skins.spikes(c.pose, c.buffers, c.camera, head, fx.seed + i, 7, 0.9f, 0.06f, C, 1 - age / 0.1f);
+                    if (age < 0.16f) Skins.spikes(c.pose, c.buffers, c.camera, head, fx.seed + i, 7, 1.4f, 0.08f, C, 1 - age / 0.16f);
                 }
             }
             glass.draw(c.pose, c.buffers);

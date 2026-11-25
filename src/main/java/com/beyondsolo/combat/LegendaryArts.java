@@ -34,8 +34,10 @@ final class LegendaryArts {
     /** Ticks between Titan's Barrage punches, and how many there are before the uppercut. */
     static final int PUNCH_GAP = 2, PUNCHES = 6;
     static final int UPPERCUT = PUNCH_GAP * PUNCHES + 2;
-    /** Ticks from the constellation's stars to their light falling. */
-    static final int STARLIGHT_DELAY = 14;
+    /** Ticks from the constellation's stars to their light falling: long enough to see the figure before it strikes. */
+    static final int STARLIGHT_DELAY = 22;
+    /** How fast Blood Price's wave and the Nightglass shards travel, in blocks a tick (the looks move at the same pace). */
+    static final double BLOOD_WAVE_SPEED = 1.2, SHARD_SPEED = 1.5;
     /** The Ashen Oath's pyre burns this long, biting every {@link #PYRE_TICK} ticks. */
     static final int PYRE_TICKS = 60, PYRE_TICK = 10;
 
@@ -143,7 +145,8 @@ final class LegendaryArts {
                 .sorted(Comparator.comparingDouble(e -> e.distanceToSqr(p))).limit(5).toList();
         float spell = 1f + (float) p.getAttributeValue(ModAttributes.SPELL_POWER);
         List<Vec3> pts = new ArrayList<>();
-        for (LivingEntity e : marked) pts.add(e.position().add(0, e.getBbHeight() + 0.7, 0));
+        // the stars hang well over the heads, clear of name tags and health bars
+        for (LivingEntity e : marked) pts.add(e.position().add(0, e.getBbHeight() + 1.5, 0));
         if (pts.isEmpty()) pts.add(p.position().add(ArsenalAbilities.flatLook(p).scale(5)).add(0, 2.5, 0));
         ArsenalAbilities.sound(level, p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.4f, 1.5f);
         ArsenalAbilities.sound(level, p, SoundEvents.BEACON_POWER_SELECT, 0.8f, 1.8f);
@@ -266,7 +269,7 @@ final class LegendaryArts {
         Vec3 from = p.position().add(0, 1.0, 0);
         Vec3 to = ArsenalAbilities.reach(p, from, from.add(look.scale(12)));
         for (LivingEntity e : ArsenalAbilities.line(p, from, to, 1.6)) {
-            int delay = (int) Math.min(6, e.position().distanceTo(p.position()) / 2);
+            int delay = (int) Math.min(10, e.position().distanceTo(p.position()) / BLOOD_WAVE_SPEED);
             ArsenalAbilities.later(p, level, delay, () -> {
                 if (!e.isAlive()) return;
                 float took = ArsenalAbilities.hitAndMeasure(Signature.BLOOD_PRICE, p, e, Balance.flatDamage(p, 8f) + power * 0.8f);
@@ -348,7 +351,7 @@ final class LegendaryArts {
                     e -> e instanceof LivingEntity l && ArsenalHits.isFoe(p, l), 0.35f);
             if (hit != null && hit.getEntity() instanceof LivingEntity e) {
                 end = hit.getLocation();
-                int delay = (int) Math.min(5, end.distanceTo(eye) / 3);
+                int delay = (int) Math.min(8, end.distanceTo(eye) / SHARD_SPEED);
                 ArsenalAbilities.later(p, level, delay, () -> {
                     if (!e.isAlive()) return;
                     ArsenalHits.artHit(Signature.NIGHTGLASS_FAN, p, e, Balance.flatDamage(p, 3f) + power * 0.25f);
