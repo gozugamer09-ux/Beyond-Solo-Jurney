@@ -853,7 +853,8 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
 - **What fell lies in its pool.** With each soul the server sends what fell there (`ShadowSoulPayload`: the creature's
   form, look included, and whether the soul is the receiving player's own); `ShadowWorldFx` draws the creature in ink
   on its side, half sunk in its pool, and through the ritual it goes down into the ink; a refused try brings it back
-  up. Only the player's own souls get the "Extract shadow" prompt.
+  up. In a soul's last 4 s (`ShadowSoulPayload.life`) the body sinks, the pool thins and a red thread burns down
+  along the prompt. Only the player's own souls get the "Extract shadow" prompt.
 - **Why none answer** (`ShadowService.noneReady`): an empty army, an army of only its steed (it comes with the mount
   key), shadows still recovering (and when the first is back), or every shadow already out; a full field says so
   ("Too many shadows out"). The same pop-up is not sent to a player twice within 1.5 s (`tell`, `ALERT_QUIET_TICKS`).
@@ -952,7 +953,10 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
   portrait that opens the name field (Enter keeps, Escape cancels).
-- **Keys**: H extract / call the army, U recall, Y mount.
+- **Keys**: H extract / call the army, U recall, Y mount. Xaero's Minimap (in the pack) ships with keys on Y, U, B
+  and Z too, and Minecraft fires every key bound to a press: once per game `client.KeyClashes` moves Xaero's keys that
+  clash with the System's to free ones (K, O, ;, ' ...), saves the options and tells the player (flag `keysSorted` in
+  the client config).
 - **Tests**: `ShadowGameTests`, and `ShadowFormGameTests`, which raises a shadow of every living kind in the game
   (whatever mods are loaded) and checks its soul, shape, health and flight, besides looks, roles, fliers, swimmers
   and sizes.
