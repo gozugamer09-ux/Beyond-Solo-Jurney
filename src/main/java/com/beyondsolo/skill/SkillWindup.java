@@ -31,8 +31,8 @@ public final class SkillWindup {
         final ServerPlayer player;
         final Skill skill;
         final long release;
-        /** A bar slot pressed during the wind-up, to go off right after, or -1. */
-        int queued = -1;
+        /** A skill pressed during the wind-up, to go off right after, or null. */
+        Skill queued;
 
         Pending(ServerPlayer player, Skill skill, long release) {
             this.player = player;
@@ -60,18 +60,20 @@ public final class SkillWindup {
     public static boolean pressSlot(ServerPlayer p, int slot) {
         String path = SkillAPI.get(p).slot(slot);
         Skill s = path.isEmpty() ? null : Skills.get(path);
-        if (s == null) return false;
-        Pending pending = PENDING.get(p.getUUID());
-        if (pending != null) {
-            // still winding up: another skill waits its turn and goes off right after (the last one pressed)
-            if (pending.skill != s) pending.queued = slot;
-            return false;
-        }
-        return press(p, s);
+        return s != null && press(p, s);
     }
 
-    /** Winds up for {@code s} (as if its key was pressed), or casts it at once if it has none. */
+    /**
+     * Winds up for {@code s} (as if its key was pressed), or casts it at once if it has none. While a wind-up is under
+     * way nothing new starts: another skill waits its turn and goes off right after (the last one pressed), and the
+     * same skill pressed again is not a second cast.
+     */
     public static boolean press(ServerPlayer p, Skill s) {
+        Pending pending = PENDING.get(p.getUUID());
+        if (pending != null) {
+            if (pending.skill != s) pending.queued = s;
+            return false;
+        }
         Object[] look = Gestures.look(s);
         int delay = (int) look[2] <= Gestures.MAX_DELAY ? (int) look[2] : 0;
         int ticks = Gestures.windup(s, (String) look[0], (int) look[1], delay);
@@ -98,7 +100,7 @@ public final class SkillWindup {
             if (p.level().getGameTime() < pend.release) continue;
             PENDING.remove(p.getUUID(), pend);
             SkillAPI.cast(p, pend.skill);
-            if (pend.queued >= 0) pressSlot(p, pend.queued);
+            if (pend.queued != null) press(p, pend.queued);
         }
     }
 
