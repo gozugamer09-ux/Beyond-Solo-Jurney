@@ -94,6 +94,8 @@ public class ShadowsTab implements SystemTab {
     }
 
     private static @Nullable UUID selected;
+    /** The selected shadow was just raised: the list shows it (scrolled to, its filter lifted) the next time it is drawn. */
+    private static boolean reveal;
     private static Filter filter = Filter.ALL;
     private static Sort sort = Sort.RANK;
 
@@ -142,12 +144,19 @@ public class ShadowsTab implements SystemTab {
     /** A new copy of the army arrived: a climb of the selected shadow, and essence gained, show on the page. */
     static void synced(int essenceBefore, int essenceAfter) {
         boolean first = SEEN.isEmpty();
+        ShadowRecord fresh = null;
         for (ShadowRecord r : ShadowClient.shadows()) {
             ShadowRank before = SEEN.put(r.id(), r.rank());
+            // a shadow just raised: the page opens on it, so its master sees what answered
+            if (!first && before == null && (fresh == null || r.raisedAt() >= fresh.raisedAt())) fresh = r;
             if (!first && before != null && r.rank().ordinal() > before.ordinal() && r.id().equals(selected)) {
                 celebrated = r.id();
                 celebratedAt = Anim.now();
             }
+        }
+        if (fresh != null) {
+            selected = fresh.id();
+            reveal = true;
         }
         if (essenceAfter > essenceBefore && !first) {
             essenceGain = Anim.since(essenceAt) < 2.5f ? essenceGain + (essenceAfter - essenceBefore) : essenceAfter - essenceBefore;
@@ -187,6 +196,9 @@ public class ShadowsTab implements SystemTab {
         }
 
         // ---- filters and order
+        if (reveal) {
+            for (ShadowRecord r : all) if (r.id().equals(selected) && !filter.passes(r)) filter = Filter.ALL;
+        }
         filterRow(g, all, x, y + 12, mouseX, mouseY);
         List<ShadowRecord> shownList = new ArrayList<>();
         for (ShadowRecord r : all) if (filter.passes(r)) shownList.add(r);
@@ -208,6 +220,11 @@ public class ShadowsTab implements SystemTab {
         float lh = h - 25 - FOOT;
         int visible = (int) (lh / ROW_H);
         int maxScroll = Math.max(0, shownList.size() - visible);
+        if (reveal) {
+            int at = shownList.indexOf(sel);
+            if (at >= 0 && (at < scroll || at >= scroll + visible)) scroll = at - visible / 2f;
+            reveal = false;
+        }
         scroll = Mth.clamp(scroll, 0, maxScroll);
         Shapes.flush(g);
         g.enableScissor(x, (int) ly, (int) (x + LIST_W + 2), (int) (ly + lh));

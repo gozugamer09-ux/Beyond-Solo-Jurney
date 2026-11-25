@@ -67,6 +67,14 @@ public final class ShadowService {
     public static final int TRIES = 3;
     /** How close the player has to be to a soul to extract it. */
     public static final double REACH = 7;
+    /** A soul the player looks straight at can be extracted from a little further ({@link SoulAim}). */
+    public static final double AIM_REACH = 10;
+    /** How far a soul of theirs can lie for the raise key to say "come closer" rather than call the army. */
+    public static final double NOTICE = 16;
+    /** How far the necromancer can step from a soul before its ritual breaks off. */
+    public static final double RITUAL_HOLD = AIM_REACH + 4;
+    /** The same pop-up again this soon after (ticks) is not sent: a key held down, or pressed again and again. */
+    static final int ALERT_QUIET_TICKS = 30;
     /** A fallen shadow rests this long (ticks) before it can be called again; a boss shadow longer. */
     public static final int RECOVER_TICKS = 20 * 30;
     public static final int BOSS_RECOVER_TICKS = 20 * 90;
@@ -133,6 +141,11 @@ public final class ShadowService {
     private static final Map<UUID, ServerPlayer> MASTERS = new HashMap<>();
     /** Tests and staging: a player's next extraction succeeds (true) or fails (false) whatever the odds. */
     private static final Map<UUID, Boolean> FORCED = new HashMap<>();
+    /** The last pop-up each player was sent from here, and when (server ticks): the same one is not sent twice in a row. */
+    private static final Map<UUID, Said> SAID = new HashMap<>();
+
+    /** @param count how many pop-ups this player was sent from here in all (for the tests) */
+    private record Said(String title, int at, int count) {}
 
     // ================================================================ who and how many
 
@@ -351,27 +364,45 @@ public final class ShadowService {
         SOULS.add(s);
         MASTERS.put(owner.getUUID(), owner);
         soulFx(level, s, ShadowFxPayload.Kind.SOUL, s.tries, id.toString());
+        // what fell there, drawn in ink in its pool for everyone near, and whose soul it is
+        CompoundTag shape = form.save(true);
+        for (ServerPlayer near : level.players()) {
+            if (near.distanceToSqr(pos) > 64 * 64) continue;
+            PacketDistributor.sendToPlayer(near, new com.beyondsolo.network.ShadowSoulPayload(s.id, bossRank, near == owner,
+                    (int) Math.max(0, s.expires - now), shape));
+        }
         return s;
     }
 
-    private static @Nullable Soul nearestSoul(ServerPlayer p) {
-        Soul best = null;
-        double bestD = REACH * REACH;
+    /** The souls this player could extract now: theirs, in their world, not already in a ritual. */
+    private static List<Soul> soulsFor(ServerPlayer p) {
+        List<Soul> list = new ArrayList<>();
         for (Soul s : SOULS) {
-            if (!s.owner.equals(p.getUUID()) || s.dimension != p.level().dimension() || s.inRitual()) continue;
-            double d = s.pos.distanceToSqr(p.position());
-            if (d <= bestD) {
-                bestD = d;
-                best = s;
-            }
+            if (s.owner.equals(p.getUUID()) && s.dimension == p.level().dimension() && !s.inRitual()) list.add(s);
         }
-        return best;
+        return list;
     }
 
-    /** Starts the extraction ritual on the nearest soul. False if there is none in reach. */
+    /** Which soul the raise key reaches for this player (the one they look at, else the nearest): see {@link SoulAim}. */
+    public static SoulAim.Pick<Soul> aim(ServerPlayer p) {
+        return SoulAim.pick(p.getEyePosition(), p.getLookAngle(), p.position(), soulsFor(p), Soul::pos);
+    }
+
+    /** Whether an extraction ritual of this player's is running in their world. */
+    public static boolean inRitual(ServerPlayer p) {
+        for (Soul s : SOULS) if (s.owner.equals(p.getUUID()) && s.dimension == p.level().dimension() && s.inRitual()) return true;
+        return false;
+    }
+
+    /** Starts the extraction ritual on the soul the player reaches ({@link #aim}). False if there is none in reach. */
     public static boolean startExtraction(ServerPlayer p) {
-        Soul s = nearestSoul(p);
-        if (s == null) return false;
+        Soul s = aim(p).soul();
+        return s != null && startExtraction(p, s);
+    }
+
+    /** Starts the extraction ritual on this soul (true: the key did something, even if only to say the army is full). */
+    public static boolean startExtraction(ServerPlayer p, Soul s) {
+        if (!SOULS.contains(s) || s.inRitual()) return false;
         if (army(p).size() >= capacity(p)) {
             alert(p, "shadow.beyondsolo.army_full", Component.translatable("shadow.beyondsolo.army_full.body", capacity(p)));
             return true;
@@ -431,24 +462,55 @@ public final class ShadowService {
                 s.boss ? 1 : 0, r.wireName()));
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.WARDEN_EMERGE, SoundSource.PLAYERS, 0.8f, 1.4f);
         level.playSound(null, s.pos.x, s.pos.y, s.pos.z, SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1.5f, 0.6f);
-        // it rises where it fell, if there is room in the field
-        if (army.used() < activeLimit(p)) summonAt(p, r, s.pos, false);
+        // it always rises where it fell, so its master sees what answered; with the field already full it kneels a
+        // moment, then sinks into its master's shadow to wait
+        boolean full = army.used() >= activeLimit(p);
+        summonAt(p, r, s.pos, false);
+        if (full) {
+            UUID rid = r.id();
+            ServerScheduler.schedule(RISE_THEN_REST_TICKS, () -> {
+                ShadowData now = army(p);
+                if (!p.isRemoved() && now.get(rid) != null && now.isActive(rid) && now.used() > activeLimit(p)) dismiss(p, rid);
+            });
+        }
+        Component body = Component.translatable("shadow.beyondsolo.extracted.body", r.displayName(), r.rank().displayName());
+        if (full) body = body.copy().append(" ").append(Component.translatable("shadow.beyondsolo.extracted.full", activeLimit(p)));
         Notifications.send(p, SystemNotification.of(SystemNotification.Kind.REWARD,
-                Component.translatable(s.boss ? "shadow.beyondsolo.extracted.boss" : "shadow.beyondsolo.extracted"),
-                Component.translatable("shadow.beyondsolo.extracted.body", r.displayName(), r.rank().displayName())));
+                Component.translatable(s.boss ? "shadow.beyondsolo.extracted.boss" : "shadow.beyondsolo.extracted"), body));
         sync(p);
     }
 
+    /** How long (ticks) a shadow risen into a full field stands before it sinks into its master's shadow. */
+    public static final int RISE_THEN_REST_TICKS = 70;
+
     // ================================================================ calling out and back
 
-    /** The raise key: extract a soul in reach, otherwise call the army out. */
+    /**
+     * The raise key: extract the soul the player reaches (the one they look at, else the nearest), otherwise call the
+     * army out. While a ritual of theirs runs, or with a soul of theirs plainly meant but out of reach, it never calls
+     * the army: the first does nothing more, the second says to come closer.
+     */
     public static void rise(ServerPlayer p) {
         if (!canRaise(p)) {
             alert(p, "shadow.beyondsolo.not_necromancer", Component.translatable("shadow.beyondsolo.not_necromancer.body"));
             return;
         }
-        if (startExtraction(p)) return;
+        SoulAim.Pick<Soul> pick = aim(p);
+        if (pick.soul() != null && startExtraction(p, pick.soul())) return;
+        if (inRitual(p)) return;
+        if (pick.far() != null) {
+            Soul s = pick.far();
+            int blocks = (int) Math.ceil(s.pos.distanceTo(p.position()));
+            tell(p, SystemNotification.Kind.INFO, "shadow.beyondsolo.too_far",
+                    Component.translatable("shadow.beyondsolo.too_far.body", typeName(s.type), blocks));
+            return;
+        }
         summonAll(p);
+    }
+
+    /** A creature kind's name, as the player's game shows it. */
+    private static Component typeName(ResourceLocation type) {
+        return BuiltInRegistries.ENTITY_TYPE.getOptional(type).map(EntityType::getDescription).orElse(Component.literal(type.getPath()));
     }
 
     /** Calls out every ready shadow (not the mounts) up to the limit, strongest first. Returns how many came. */
@@ -478,13 +540,16 @@ public final class ShadowService {
             if (!r.isMount() && !r.posted() && !army.isActive(r.id()) && !r.recovering(now)) ready.add(r);
         }
         if (ready.isEmpty()) {
-            if (!free) alert(p, "shadow.beyondsolo.none_ready", Component.translatable(army.size() == 0
-                    ? "shadow.beyondsolo.none_ready.empty" : "shadow.beyondsolo.none_ready.body"));
+            if (!free) noneReady(p, army, now);
             return 0;
         }
         ready.sort(Comparator.comparingInt((ShadowRecord r) -> r.boss() ? 1 : 0).thenComparingInt(r -> r.rank().ordinal())
                 .thenComparingInt(ShadowRecord::level).reversed());
         int room = activeLimit(p) - army.used();
+        if (room <= 0) {
+            if (!free) alert(p, "shadow.beyondsolo.limit", Component.translatable("shadow.beyondsolo.limit.body", activeLimit(p)));
+            return 0;
+        }
         int n = 0;
         float yaw = p.getYRot() * Mth.DEG_TO_RAD;
         for (ShadowRecord r : ready) {
@@ -510,6 +575,36 @@ public final class ShadowService {
 
     /** Placeholder entity id while a staggered summon is on its way. */
     private static final UUID PENDING = new UUID(0, 0);
+
+    /**
+     * Why no shadow answered the call, said plainly: an empty army, an army of nothing but its steed (it comes with its
+     * own key), shadows still recovering (and when the first is back), or every one already out.
+     */
+    private static void noneReady(ServerPlayer p, ShadowData army, long now) {
+        int fighters = 0, out = 0, resting = 0;
+        long soonest = Long.MAX_VALUE;
+        for (ShadowRecord r : army.shadows()) {
+            if (r.isMount()) continue;
+            fighters++;
+            if (army.isActive(r.id()) || r.posted()) out++;
+            else if (r.recovering(now)) {
+                resting++;
+                soonest = Math.min(soonest, r.recoverUntil() - now);
+            }
+        }
+        if (army.size() == 0) {
+            alert(p, "shadow.beyondsolo.none_ready", Component.translatable("shadow.beyondsolo.none_ready.empty"));
+        } else if (fighters == 0) {
+            tell(p, SystemNotification.Kind.INFO, "shadow.beyondsolo.none_ready.mount_only",
+                    Component.translatable("shadow.beyondsolo.none_ready.mount_only.body", Component.keybind("key.beyondsolo.shadow_mount")));
+        } else if (resting > 0) {
+            alert(p, "shadow.beyondsolo.none_ready.resting", Component.translatable("shadow.beyondsolo.none_ready.resting.body",
+                    resting, Math.max(1, (soonest + 19) / 20)));
+        } else {
+            tell(p, SystemNotification.Kind.INFO, "shadow.beyondsolo.none_ready.all_out",
+                    Component.translatable("shadow.beyondsolo.none_ready.all_out.body", out, Component.keybind("key.beyondsolo.shadow_recall")));
+        }
+    }
 
     /** Calls one shadow out of the ground at a spot. */
     public static @Nullable ShadowEntity summonAt(ServerPlayer p, ShadowRecord r, Vec3 at, boolean fx) {
@@ -1036,7 +1131,7 @@ public final class ShadowService {
             }
             long now = level.getGameTime();
             if (s.inRitual()) {
-                if (owner == null || owner.position().distanceToSqr(s.pos) > (REACH + 3) * (REACH + 3) || !owner.isAlive()) {
+                if (owner == null || owner.position().distanceToSqr(s.pos) > RITUAL_HOLD * RITUAL_HOLD || !owner.isAlive()) {
                     s.ritualEnd = 0; // broken off
                     soulFx(level, s, ShadowFxPayload.Kind.FAILED, s.tries, "");
                 } else if (now >= s.ritualEnd) {
@@ -1063,6 +1158,7 @@ public final class ShadowService {
     static void logout(ServerPlayer p) {
         discardAll(p);
         MASTERS.remove(p.getUUID());
+        SAID.remove(p.getUUID());
         SOULS.removeIf(s -> s.owner.equals(p.getUUID()));
     }
 
@@ -1129,6 +1225,7 @@ public final class ShadowService {
         discardAll(p);
         army(p).clear();
         SOULS.removeIf(s -> s.owner.equals(p.getUUID()));
+        SAID.remove(p.getUUID());
         sync(p);
     }
 
@@ -1212,7 +1309,31 @@ public final class ShadowService {
     }
 
     private static void alert(ServerPlayer p, String title, Component body) {
-        Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT, Component.translatable(title), body));
+        tell(p, SystemNotification.Kind.ALERT, title, body);
+    }
+
+    /**
+     * Sends a pop-up titled {@code title} (a lang key), unless the same one went to this player a moment ago: a key held
+     * down or pressed again and again gets one answer, not a stack of them.
+     */
+    private static void tell(ServerPlayer p, SystemNotification.Kind kind, String title, Component body) {
+        int tick = p.getServer() == null ? 0 : p.getServer().getTickCount();
+        Said last = SAID.get(p.getUUID());
+        if (last != null && last.title().equals(title) && tick - last.at() >= 0 && tick - last.at() < ALERT_QUIET_TICKS) return;
+        SAID.put(p.getUUID(), new Said(title, tick, last == null ? 1 : last.count() + 1));
+        Notifications.send(p, SystemNotification.of(kind, Component.translatable(title), body));
+    }
+
+    /** Tests: the title (a lang key) of the last pop-up this player was sent from here, or null. */
+    public static @Nullable String lastSaid(Player p) {
+        Said s = SAID.get(p.getUUID());
+        return s == null ? null : s.title();
+    }
+
+    /** Tests: how many pop-ups this player was sent from here. */
+    public static int saidCount(Player p) {
+        Said s = SAID.get(p.getUUID());
+        return s == null ? 0 : s.count();
     }
 
     /** Server stopped: forget the souls. */
@@ -1220,6 +1341,7 @@ public final class ShadowService {
         SOULS.clear();
         MASTERS.clear();
         FORCED.clear();
+        SAID.clear();
         ShadowForm.forget();
     }
 

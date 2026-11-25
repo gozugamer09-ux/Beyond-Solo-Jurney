@@ -114,6 +114,11 @@ public final class ShadowClient {
         }
     }
 
+    /** What fell where a soul lingers, and whose soul it is. */
+    public static void onSoul(com.beyondsolo.network.ShadowSoulPayload p) {
+        ShadowWorldFx.soul(p);
+    }
+
     public static void onFx(ShadowFxPayload p) {
         ShadowWorldFx.handle(p);
         ShadowHud.handle(p);

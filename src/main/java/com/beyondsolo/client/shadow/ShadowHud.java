@@ -14,6 +14,7 @@ import com.beyondsolo.shadow.ShadowEntity;
 import com.beyondsolo.shadow.ShadowRank;
 import com.beyondsolo.shadow.ShadowRecord;
 import com.beyondsolo.shadow.ShadowService;
+import com.beyondsolo.shadow.SoulAim;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -140,9 +141,20 @@ public final class ShadowHud {
 
     private static void soulPrompt(GuiGraphics g, Minecraft mc, float partial) {
         if (mc.screen != null) return;
-        ShadowWorldFx.Soul s = ShadowWorldFx.nearestSoul(mc.player.getPosition(partial), ShadowService.REACH);
-        if (s == null) return;
         float now = ShadowWorldFx.now(partial);
+        // the ritual running; else the soul the key reaches (the one looked at, else the nearest), as the server picks
+        // it; else the one meant but too far
+        ShadowWorldFx.Soul s = ShadowWorldFx.inRitual(mc.player.getPosition(partial), now);
+        boolean far = false;
+        if (s == null) {
+            SoulAim.Pick<ShadowWorldFx.Soul> pick = ShadowWorldFx.aim(mc.player, partial, now);
+            s = pick.soul();
+            if (s == null) {
+                s = pick.far();
+                far = true;
+            }
+        }
+        if (s == null) return;
         float[] p = WorldProjector.project(s.pos.add(0, 1.7, 0));
         if (p == null) return;
         float in = Mth.clamp((now - s.born) / 8f, 0, 1);
@@ -159,6 +171,19 @@ public final class ShadowHud {
             Shapes.ring(cx, cy, 17, 0.8f).fill(Gfx.alpha(c, 0.6f)).dashes(14, 0.5f).rotation(Anim.loop(2f)).draw(g);
             Shapes.icon(Icons.SKULL, cx, cy, 13).fill(Gfx.mix(c, 0xFFFFFFFF, 0.5f)).glow(3, Gfx.alpha(c, 0.7f)).draw(g);
             SysFont.spaced(g, tr("shadow.beyondsolo.hud.extracting"), cx, cy + 20, 6.5f, Gfx.mix(c, 0xFFFFFFFF, 0.4f), true, 1.6f, 0.5f);
+        } else if (far) {
+            // out of reach: a dimmer card saying to come closer, no key on it
+            String name = typeName(s.type);
+            String action = tr("shadow.beyondsolo.hud.closer");
+            float tw = Math.max(SysFont.width(action, 7f, true), SysFont.width(name, 6.5f, false));
+            float w = tw + 16;
+            float h = 28;
+            float x = cx - w / 2, y = cy - h / 2;
+            float dim = Gfx.fade(0.8f);
+            Shapes.box(x, y, w, h).radius(7).fillV(0xC0120A22, 0xC0070410).border(0.75f, Gfx.alpha(c, 0.45f), Gfx.alpha(c, 0.15f)).draw(g);
+            SysFont.title(g, action, x + 8, y + 6, 7f, SystemTheme.TEXT_SOFT);
+            SysFont.text(g, name, x + 8, y + 17, 6.5f, Gfx.mix(c, 0xFFFFFFFF, 0.3f));
+            Gfx.setAlpha(dim);
         } else {
             String name = typeName(s.type);
             String key = ShadowClientEvents.RISE.getTranslatedKeyMessage().getString().toUpperCase();
@@ -180,6 +205,13 @@ public final class ShadowHud {
                 boolean left = i < s.tries;
                 Shapes.circle(x + w - 8 - i * 6, y + 21.5f, 1.8f).fill(left ? Gfx.mix(c, 0xFFFFFFFF, 0.3f) : 0x40FFFFFF)
                         .glow(left ? 2 : 0, Gfx.alpha(c, 0.8f)).draw(g);
+            }
+            // its last seconds: a thread along the bottom burning down as the soul fades
+            float time = s.timeLeft(now);
+            if (time < 1f) {
+                Shapes.pill(x + 8, y + h - 3.5f, w - 16, 1.2f).fill(0x30FFFFFF).draw(g);
+                Shapes.pill(x + 8, y + h - 3.5f, Math.max(1.2f, (w - 16) * time), 1.2f).fill(Gfx.alpha(0xFF5060, 0.95f))
+                        .glow(2, Gfx.alpha(0xFF5060, 0.6f)).draw(g);
             }
         }
         Gfx.setAlpha(old);

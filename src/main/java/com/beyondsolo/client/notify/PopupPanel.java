@@ -62,6 +62,8 @@ public final class PopupPanel {
 
         // glass, with a flash of light and a shine sweep when it arrives
         float flash = 1 - Anim.outCubic(Anim.progress(popup.shownAt, 0.9f));
+        // the same message came again: a softer flash, and the count in the header
+        if (popup.repeats > 1) flash = Math.max(flash, 0.6f * (1 - Anim.outCubic(Anim.progress(popup.repeatedAt, 0.6f))));
         float sweep = Anim.progress(popup.shownAt + 0.08, 0.75f);
         Shapes.box(1, 3, w - 2, h - 2).radius(9).fill(0x00000000).glow(12, 0x66000000).draw(g);
         Shapes.box(0, 0, w, h).radius(9)
@@ -75,7 +77,15 @@ public final class PopupPanel {
 
         // header: kind badge, kind name, hide hint
         Ui.iconBadge(g, Icons.of(notification.kind()), TEXT_X + 6.5f, 15, 6.5f, accent);
-        SysFont.spaced(g, notification.kind().header().getString(), TEXT_X + 17, SysFont.centerY(9, 12, 6.8f), 6.8f, Gfx.mix(accent, 0xFFFFFFFF, 0.25f), true, 1.3f, 0f);
+        String header = notification.kind().header().getString();
+        SysFont.spaced(g, header, TEXT_X + 17, SysFont.centerY(9, 12, 6.8f), 6.8f, Gfx.mix(accent, 0xFFFFFFFF, 0.25f), true, 1.3f, 0f);
+        if (popup.repeats > 1) {
+            float hx = TEXT_X + 17 + SysFont.spacedWidth(header, 6.8f, true, 1.3f) + 5;
+            String times = "\u00D7" + popup.repeats;
+            float tw = SysFont.width(times, 6.4f, true) + 7;
+            Shapes.pill(hx, 9.5f, tw, 11).fill(Gfx.alpha(accent, 0.22f)).border(0.6f, Gfx.alpha(accent, 0.7f)).draw(g);
+            SysFont.draw(g, times, hx + tw / 2, SysFont.centerY(9.5f, 11, 6.4f), 6.4f, Gfx.mix(accent, 0xFFFFFFFF, 0.5f), true, 0.5f);
+        }
         if (hint != null) {
             String label = Component.translatable("popup.beyondsolo.hide").getString();
             float lw = SysFont.width(label, 6.2f, true);

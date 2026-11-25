@@ -102,6 +102,7 @@ public final class ClientEvents {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             EvaluationOverlay.tick();
+            KeyClashes.sortOnce(mc);
             while (OPEN_SYSTEM.consumeClick()) {
                 // the throne's question comes first while it waits for an answer
                 if (com.beyondsolo.client.monarch.ThroneScreen.reopen()) continue;

@@ -80,6 +80,8 @@ public final class ShadowModule {
                 (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.shadow.ShadowClient.onFx(p)));
         r.playToClient(ShadowLookPayload.TYPE, ShadowLookPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.shadow.ShadowClient.onLook(p)));
+        r.playToClient(com.beyondsolo.network.ShadowSoulPayload.TYPE, com.beyondsolo.network.ShadowSoulPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.beyondsolo.client.shadow.ShadowClient.onSoul(p)));
         r.playToServer(ShadowActionPayload.TYPE, ShadowActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer player) ShadowService.action(player, p.action(), p.shadow());
