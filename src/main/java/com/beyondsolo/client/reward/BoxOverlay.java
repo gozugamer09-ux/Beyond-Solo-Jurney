@@ -84,7 +84,8 @@ public final class BoxOverlay {
                 && !com.beyondsolo.client.rune.RuneClient.absorbing()
                 && !com.beyondsolo.client.monarch.MonarchHud.bannerUp()
                 && !com.beyondsolo.client.tower.TowerClient.holdsScreen()
-                && !com.beyondsolo.client.raid.RaidClient.holdsScreen();
+                && !com.beyondsolo.client.raid.RaidClient.holdsScreen()
+                && !com.beyondsolo.client.duel.DuelHud.holdsScreen();
     }
 
     public static void frame() {

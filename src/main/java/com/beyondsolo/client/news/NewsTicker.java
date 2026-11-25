@@ -50,6 +50,7 @@ public final class NewsTicker {
             case HunterNews.RACE -> Icons.RACE;
             case HunterNews.BREAK -> Icons.SKULL;
             case HunterNews.BOSS -> Icons.CROWN;
+            case HunterNews.DUEL -> Icons.DUEL;
             default -> Icons.CITY;
         };
     }

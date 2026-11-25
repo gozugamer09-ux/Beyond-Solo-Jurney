@@ -40,13 +40,22 @@ public final class Rankings {
     /** How often a player's standing is taken while they play (ticks). */
     public static final int REFRESH = 1200;
 
-    /** One row of a board. */
+    /**
+     * One row of a board. {@code beaten}: a national-level hunter who lost their last duel with a hunter of this world,
+     * standing under them on the hunters' board whatever their power ({@code duel.Duels}).
+     */
     public record Row(String name, boolean rival, @Nullable UUID player, PlayerRank rank, int playerClass, String guild, String title,
-                      long value, long value2) {
+                      long value, long value2, boolean beaten) {
+        public Row(String name, boolean rival, @Nullable UUID player, PlayerRank rank, int playerClass, String guild, String title,
+                   long value, long value2) {
+            this(name, rival, player, rank, playerClass, guild, title, value, value2, false);
+        }
+
         CompoundTag save(@Nullable UUID me) {
             CompoundTag t = new CompoundTag();
             t.putString("n", name);
             if (rival) t.putBoolean("rv", true);
+            if (beaten) t.putBoolean("dv", true);
             if (player != null && player.equals(me)) t.putBoolean("me", true);
             t.putInt("r", rank.ordinal());
             t.putInt("c", playerClass);
@@ -76,13 +85,26 @@ public final class Rankings {
     public static List<Row> hunters(MinecraftServer server) {
         long day = day(server);
         List<Row> rows = new ArrayList<>();
+        // where each row stands: its power, but a national-level hunter beaten in a duel stands just under the hunter
+        // who beat them (the lowest of them, if several did) while that hunter's last duel with them is a win
+        java.util.Map<Row, Double> place = new java.util.IdentityHashMap<>();
+        java.util.Collection<RankingData.Hunter> players = RankingData.get(server).all();
         for (Rival r : Rivals.ALL) {
-            rows.add(new Row(r.name(), true, null, r.rank(), r.playerClass().ordinal(), r.guild(), "", power(r.levelOn(day)), 0));
+            long power = power(r.levelOn(day));
+            double at = power;
+            for (RankingData.Hunter h : players) {
+                if (h.over.contains(r.id())) at = Math.min(at, power(h.level) - 0.5);
+            }
+            Row row = new Row(r.name(), true, null, r.rank(), r.playerClass().ordinal(), r.guild(), "", power, 0, at < power);
+            rows.add(row);
+            place.put(row, at);
         }
-        for (RankingData.Hunter h : RankingData.get(server).all()) {
-            rows.add(new Row(h.name, false, h.id, rank(h.rank), h.playerClass, "", h.title, power(h.level), 0));
+        for (RankingData.Hunter h : players) {
+            Row row = new Row(h.name, false, h.id, rank(h.rank), h.playerClass, "", h.title, power(h.level), 0);
+            rows.add(row);
+            place.put(row, (double) row.value());
         }
-        rows.sort(Comparator.comparingLong(Row::value).reversed().thenComparing(Row::rival));
+        rows.sort(Comparator.comparingDouble((Row r) -> place.get(r)).reversed().thenComparing(Row::rival));
         return rows;
     }
 

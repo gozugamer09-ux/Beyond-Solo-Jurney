@@ -42,6 +42,8 @@ public final class RankingData extends SavedData {
         public int gates;
         /** Their best place among hunters so far (0 for none yet): climbing past it is announced. */
         public int bestPlace;
+        /** The national-level hunters whose last duel with them they won ({@code duel.Duels}): they stand under them. */
+        public final java.util.Set<String> over = new java.util.HashSet<>();
 
         Hunter(UUID id) {
             this.id = id;
@@ -78,6 +80,8 @@ public final class RankingData extends SavedData {
         h.spire = t.spireBest;
         System.arraycopy(t.rushBest, 0, h.rush, 0, Math.min(h.rush.length, t.rushBest.length));
         h.gates = Economy.data(p).totalClears();
+        h.over.clear();
+        h.over.addAll(com.beyondsolo.duel.Duels.record(p).standingOver());
         setDirty();
         return h;
     }
@@ -107,6 +111,11 @@ public final class RankingData extends SavedData {
             e.putLongArray("rush", h.rush);
             e.putInt("gates", h.gates);
             e.putInt("best", h.bestPlace);
+            if (!h.over.isEmpty()) {
+                ListTag over = new ListTag();
+                for (String id : h.over) over.add(net.minecraft.nbt.StringTag.valueOf(id));
+                e.put("over", over);
+            }
             list.add(e);
         }
         tag.put("hunters", list);
@@ -131,6 +140,8 @@ public final class RankingData extends SavedData {
             for (int t = 0; t < h.rush.length; t++) h.rush[t] = t < rush.length ? rush[t] : -1;
             h.gates = e.getInt("gates");
             h.bestPlace = e.getInt("best");
+            ListTag over = e.getList("over", Tag.TAG_STRING);
+            for (int o = 0; o < over.size(); o++) h.over.add(over.getString(o));
             data.hunters.put(h.id, h);
         }
         return data;

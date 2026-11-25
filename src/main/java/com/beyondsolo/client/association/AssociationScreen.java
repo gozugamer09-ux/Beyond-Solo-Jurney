@@ -33,12 +33,12 @@ import java.util.UUID;
  * The Hunter Association's office: the officer and the hunter's license on the left; on the right the contract board
  * (bounties on the gates the office watches), gate permits (a gate of the rank you ask for, its clearing rights
  * yours), the rank exam, the hunter's standing with the national merit board, the hands for hire (porters and
- * freelance hunters, {@code rival.Hires}), and the great guilds' offers with the hunter's contract
- * ({@code scouting.Scouting}).
+ * freelance hunters, {@code rival.Hires}), the great guilds' offers with the hunter's contract
+ * ({@code scouting.Scouting}), and the national-level hunters, to ask one of them for a duel ({@code duel.Duels}).
  */
 public class AssociationScreen extends AssociationWindow {
-    private static final String[] TABS = {"contracts", "permits", "exam", "standing", "hire", "guilds"};
-    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL, Icons.HANDSHAKE, Icons.CROWN};
+    private static final String[] TABS = {"contracts", "permits", "exam", "standing", "hire", "guilds", "duels"};
+    private static final ResourceLocation[] TAB_ICONS = {Icons.SEAL, Icons.FLAG, Icons.ID_CARD, Icons.MEDAL, Icons.HANDSHAKE, Icons.CROWN, Icons.DUEL};
     /** The hired hands' colours: a porter's sand, a freelance hunter's steel blue (as over their heads). */
     private static final int SAND = 0xFFD9B26F, FREELANCE = 0xFF8FB8D8;
 
@@ -127,11 +127,15 @@ public class AssociationScreen extends AssociationWindow {
                     .border(sel ? 0.9f : 0.6f, Gfx.alpha(c, sel ? 0.95f : 0.35f)).glow(sel ? 4 : 0, Gfx.alpha(c, 0.3f)).draw(g);
             String label = ui("tab." + TABS[i]).getString();
             float ls = 4.8f;
-            while (ls > 3.6f && SysFont.spacedWidth(label, ls, true, 1f) + 9 > tw - 4) ls -= 0.2f;
-            float lw = SysFont.spacedWidth(label, ls, true, 1f) + 9;
+            while (ls > 3.4f && SysFont.spacedWidth(label, ls, true, 1f) + 9 > tw - 4) ls -= 0.2f;
+            // seven tabs: a label that still doesn't fit goes without its mark
+            boolean mark = SysFont.spacedWidth(label, ls, true, 1f) + 9 <= tw - 3;
+            float iconW = mark ? 9 : 0;
+            if (!mark) label = SysFont.fit(label, ls, true, tw - 4);
+            float lw = SysFont.spacedWidth(label, ls, true, 1f) + iconW;
             float lx = tx + (tw - lw) / 2f;
-            Shapes.icon(TAB_ICONS[i], lx + 3, y + 7.5f, 6).fill(sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT).draw(g);
-            SysFont.spaced(g, label, lx + 9, SysFont.centerY(y, 15, ls), ls, sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 1f, 0f);
+            if (mark) Shapes.icon(TAB_ICONS[i], lx + 3, y + 7.5f, 6).fill(sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT).draw(g);
+            SysFont.spaced(g, label, lx + iconW, SysFont.centerY(y, 15, ls), ls, sel ? SystemTheme.TEXT : SystemTheme.TEXT_SOFT, true, 1f, 0f);
             if (!sel) {
                 int pick = i;
                 hits.add(new Hit(tx, y, tw, 15, () -> setTab(pick)));
@@ -146,6 +150,7 @@ public class AssociationScreen extends AssociationWindow {
             case Association.TAB_STANDING -> standing(g, x, py, cw, ph);
             case Association.TAB_HIRE -> hire(g, x, py, cw, ph, mouseX, mouseY);
             case Association.TAB_GUILDS -> guilds(g, x, py, cw, ph, mouseX, mouseY);
+            case Association.TAB_DUELS -> duels(g, x, py, cw, ph, mouseX, mouseY);
             default -> contracts(g, x, py, cw, ph, mouseX, mouseY);
         }
         Gfx.setAlpha(o);
@@ -657,6 +662,157 @@ public class AssociationScreen extends AssociationWindow {
             Gfx.setAlpha(o);
             oy += rowH + gap;
         }
+    }
+
+    // ------------------------------------------------------------------ duels
+
+    private static Component duelUi(String key, Object... args) {
+        return Component.translatable("ui.beyondsolo.duel." + key, args);
+    }
+
+    /**
+     * The national-level hunters: the challenge standing (with its answers), then the four of them, how the hunter
+     * stands against each, and a duel to ask of each; at the foot what a win pays and the rules of the ring.
+     */
+    private void duels(GuiGraphics g, float x, float y, float cw, float ch, int mouseX, int mouseY) {
+        CompoundTag d = data().getCompound("duels");
+        SysFont.spaced(g, duelUi("office.title").getString(), x, y, 5f, SystemTheme.TEXT, true, 1.2f, 0f);
+        float rx = x + cw;
+        if (d.getBoolean("national")) {
+            String nat = duelUi("office.national").getString();
+            float nw = SysFont.width(nat, 4.2f, true) + 8;
+            Ui.chip(g, rx - nw, y - 1.2f, 7.5f, nat, 4.2f, GOLD, true);
+            rx -= nw + 4;
+        }
+        SysFont.draw(g, DuelScreen.record(d), rx, y, 4.6f, SystemTheme.TEXT_SOFT, true, 1f);
+
+        float cy = y + 10;
+        PlayerRank min = rank(d.getInt("minRank")), mine = rank(d.getInt("rank"));
+        boolean ranked = mine.tier() >= min.tier();
+        boolean dueling = d.getBoolean("dueling");
+        CompoundTag c = d.getCompound("challenge");
+        boolean standing = c.contains("who");
+        if (standing) {
+            challenge(g, c, x, cy, cw, 40, mouseX, mouseY);
+            cy += 44;
+        } else if (!ranked) {
+            Ui.card(g, x, cy, cw, 24, 8, STEEL, 0.06f);
+            Shapes.icon(Icons.LOCK, x + 12, cy + 12, 9).fill(Gfx.alpha(STEEL, 0.7f)).draw(g);
+            paraMid(g, duelUi("office.rank", min.displayName()), x + 23, cy + 12, cw - 30, 4.6f, SystemTheme.TEXT_SOFT);
+            cy += 28;
+        }
+
+        // the four
+        ListTag hunters = d.getList("hunters", Tag.TAG_COMPOUND);
+        float cardW = (cw - 4) / 2f, cardH = 58;
+        for (int i = 0; i < hunters.size(); i++) {
+            float k = Anim.outCubic(Anim.window(Anim.since(openedAt), 0.25f + i * 0.05f, 0.55f + i * 0.05f));
+            float o = Gfx.fade(k);
+            CompoundTag h = hunters.getCompound(i);
+            float hx = x + (i % 2) * (cardW + 4) + (1 - k) * 8, hy = cy + (i / 2) * (cardH + 4);
+            Component blocked = dueling ? duelUi("office.no.dueling")
+                    : !ranked ? duelUi("office.no.rank", min.displayName())
+                    : standing ? duelUi("office.no.standing")
+                    : h.getLong("wait") > 0 ? duelUi("office.no.rematch", h.getLong("wait")) : null;
+            nationalHunter(g, h, hx, hy, cardW, cardH, mouseX, mouseY, blocked);
+            Gfx.setAlpha(o);
+        }
+
+        // what a win pays, and the rules: at the foot of the page
+        Component pays = duelUi("office.pays", gold(d.getLong("purse")), gold(d.getInt("merit")), gold(d.getLong("xp")));
+        Component rules = duelUi("office.rules", d.getInt("radius") * 2, clock(d.getInt("seconds") * 20L), d.getInt("outsideSeconds"));
+        int footLines = SysFont.wrap(pays, 4.3f, false, cw).size() + SysFont.wrap(rules, 4.3f, false, cw).size();
+        float fy = Math.max(cy + 2 * (cardH + 4) + 2, y + ch - footLines * 4.3f * SysFont.LINE - 2);
+        Ui.divider(g, x, fy - 4, cw, Gfx.alpha(STEEL, 0.25f));
+        float py = para(g, pays, x, fy, cw, 4.3f, SystemTheme.TEXT_SOFT);
+        para(g, rules, x, py, cw, 4.3f, SystemTheme.TEXT_DIM);
+    }
+
+    /** The challenge standing: who and why, the clock on it, and the three answers. */
+    private void challenge(GuiGraphics g, CompoundTag c, float x, float y, float cw, float h, int mouseX, int mouseY) {
+        com.beyondsolo.duel.NationalHunter who = com.beyondsolo.duel.NationalHunter.byIndex(c.getInt("who"));
+        com.beyondsolo.duel.DuelRecord.Reason why = com.beyondsolo.duel.DuelRecord.Reason.byIndex(c.getInt("why"));
+        int hc = 0xFF000000 | who.color;
+        boolean open = c.getBoolean("open");
+        float pulse = open ? 0.5f + 0.5f * Anim.pulse(1.8f) : 0f;
+        Ui.card(g, x, y, cw, h, 8, hc, 0.12f + 0.06f * pulse);
+        Shapes.box(x + 1.2f, y + 4, 1.6f, h - 8).radius(0.8f).fill(hc).glow(2 + 3 * pulse, Gfx.alpha(hc, 0.5f)).draw(g);
+        Shapes.circle(x + 15, y + h / 2f, 9).fillV(Gfx.alpha(hc, 0.32f), Gfx.alpha(hc, 0.08f)).border(0.7f, Gfx.alpha(hc, 0.9f)).draw(g);
+        Shapes.icon(Icons.DUEL, x + 15, y + h / 2f, 10).fill(Gfx.mix(hc, 0xFFFFFFFF, 0.6f)).draw(g);
+        float bw = 44, bh = 13;
+        float right = x + cw - 3 * (bw + 3) - 4;
+        float tx = x + 29;
+        String head = duelUi("office.challenge", who.displayName()).getString();
+        SysFont.text(g, SysFont.fit(head, 5.4f, true, right - tx), tx, y + 5, 5.4f, Gfx.mix(hc, 0xFFFFFFFF, 0.4f));
+        // why they came, on up to two lines
+        float wy = y + 13;
+        java.util.List<SysFont.Line> why2 = SysFont.wrap(DuelScreen.why(who, why), 4.2f, false, right - tx);
+        for (int i = 0; i < Math.min(2, why2.size()); i++) {
+            SysFont.draw(g, why2.get(i), tx, wy, SystemTheme.TEXT_SOFT, 0f);
+            wy += 4.2f * SysFont.LINE;
+        }
+        long left = c.getLong("left");
+        String clock = duelUi(open ? "office.waiting" : "office.on_way", clock(left)).getString();
+        SysFont.text(g, SysFont.fit(clock, 4.3f, true, right - tx), tx, Math.max(wy + 1, y + 22), 4.3f, open && left < 20 * 120 ? AMBER : SystemTheme.TEXT);
+        float by = y + (h - bh) / 2f;
+        int later = c.getInt("later"), maxLater = c.getInt("maxLater");
+        boolean canLater = later < maxLater;
+        button(g, right + 4, by, bw, bh, duelUi("accept").getString(), Icons.DUEL, hc, mouseX, mouseY,
+                open ? duelUi("hint.accept_office", who.displayName()) : duelUi("hint.not_yet", who.displayName()),
+                open ? () -> AssociationClient.send(AssociationActionPayload.DUEL_ACCEPT) : null);
+        button(g, right + 4 + bw + 3, by, bw, bh, duelUi("later").getString(), Icons.HOURGLASS, STEEL, mouseX, mouseY,
+                canLater ? duelUi("hint.later", maxLater - later) : duelUi("hint.no_later", who.displayName()),
+                canLater ? () -> AssociationClient.send(AssociationActionPayload.DUEL_LATER) : null);
+        button(g, right + 4 + 2 * (bw + 3), by, bw, bh, duelUi("decline").getString(), Icons.X, SystemTheme.DANGER, mouseX, mouseY,
+                duelUi(why == com.beyondsolo.duel.DuelRecord.Reason.ASKED ? "hint.decline_asked" : "hint.decline"),
+                () -> AssociationClient.send(AssociationActionPayload.DUEL_DECLINE));
+    }
+
+    /** One of the four: who they are, their power on the rankings, the hunter's record against them, and a duel to ask. */
+    private void nationalHunter(GuiGraphics g, CompoundTag h, float x, float y, float w, float ch, int mouseX, int mouseY, Component blocked) {
+        com.beyondsolo.duel.NationalHunter who = com.beyondsolo.duel.NationalHunter.byIndex(h.getInt("who"));
+        int hc = 0xFF000000 | who.color;
+        int last = h.getInt("last");
+        boolean beaten = last == com.beyondsolo.duel.DuelRecord.WON;
+        Ui.card(g, x, y, w, ch, 8, hc, beaten ? 0.14f : 0.08f);
+        PlayerClass pc = who.playerClass();
+        Shapes.circle(x + 13, y + 13, 8.5f).fillV(Gfx.alpha(hc, 0.3f), Gfx.alpha(hc, 0.06f)).border(0.7f, Gfx.alpha(hc, 0.9f)).draw(g);
+        Shapes.icon(Icons.of(pc), x + 13, y + 13, 10).fill(Gfx.mix(hc, 0xFFFFFFFF, 0.55f)).draw(g);
+        // their power on the national rankings, top right
+        String power = gold(h.getLong("power"));
+        float pw = SysFont.width(power, 5.2f, true);
+        SysFont.draw(g, power, x + w - 5, y + 4.5f, 5.2f, SystemTheme.TEXT, true, 1f);
+        SysFont.draw(g, duelUi("office.power").getString(), x + w - 5, y + 11.5f, 3.6f, SystemTheme.TEXT_DIM, false, 1f);
+        float nameRoom = w - 26 - Math.max(pw, 22) - 8;
+        SysFont.text(g, SysFont.fit(who.displayName().getString(), 5.6f, true, nameRoom), x + 25, y + 4.5f, 5.6f, Gfx.mix(hc, 0xFFFFFFFF, 0.45f));
+        RivalGuild guild = who.guild();
+        Shapes.icon(Icons.GUILDS[guild.ordinal()], x + 28, y + 16.2f, 5.5f).fill(Gfx.alpha(guild.color, 0.9f)).draw(g);
+        SysFont.text(g, SysFont.fit(guild.displayName().getString(), 4.2f, false, nameRoom - 8), x + 33, y + 14, 4.2f, SystemTheme.TEXT_SOFT);
+        // what the country calls them, and the form they take when pressed
+        Ui.divider(g, x + 7, y + 23.5f, w - 14, Gfx.alpha(hc, 0.25f));
+        String epithet = who.epithet().getString() + "  ·  " + who.unleashed().getString();
+        SysFont.text(g, SysFont.fit(epithet, 4.2f, false, w - 14), x + 7, y + 27, 4.2f, Gfx.mix(hc, 0xFFFFFFFF, 0.3f));
+        // the record, and how the last one went
+        float ry = y + 36;
+        SysFont.text(g, SysFont.fit(DuelScreen.record(h), 4.4f, false, w - 16), x + 7, ry, 4.4f, SystemTheme.TEXT_SOFT);
+        if (last != com.beyondsolo.duel.DuelRecord.NONE) {
+            String chip = duelUi(switch (last) {
+                case com.beyondsolo.duel.DuelRecord.WON -> "office.beaten";
+                case com.beyondsolo.duel.DuelRecord.LOST -> "office.lost";
+                default -> "office.drawn";
+            }).getString();
+            int cc = beaten ? GOLD : last == com.beyondsolo.duel.DuelRecord.LOST ? SystemTheme.DANGER : STEEL;
+            Ui.chip(g, x + 6, ry + 8, 7, chip, 3.8f, cc, beaten);
+        }
+        // a duel to ask
+        float bw = Math.min(58, w * 0.42f), bh = 13;
+        button(g, x + w - bw - 5, y + ch - bh - 5, bw, bh, duelUi("office.ask").getString(), Icons.DUEL, hc, mouseX, mouseY,
+                blocked != null ? blocked : duelUi("office.hint.ask", who.displayName()),
+                blocked != null ? null : () -> {
+                    CompoundTag args = new CompoundTag();
+                    args.putInt("who", who.ordinal());
+                    AssociationClient.send(AssociationActionPayload.DUEL_CHALLENGE, args);
+                });
     }
 
     /** One guild's offer on the table: who, what it pays and asks, the clock on it, and the three answers. */

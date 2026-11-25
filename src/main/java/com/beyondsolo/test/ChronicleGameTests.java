@@ -291,6 +291,7 @@ public final class ChronicleGameTests {
         for (Rankings.Row r : rows) {
             if (r.rival()) rivals++;
             if (p.getUUID().equals(r.player())) me = true;
+            if (r.beaten()) continue; // a national-level hunter the player beat stands just under them
             helper.assertTrue(r.value() <= last, "the board goes from strongest down");
             last = r.value();
         }

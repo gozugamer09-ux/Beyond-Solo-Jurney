@@ -156,6 +156,7 @@ public final class WorldBossWorldFx {
         any |= threat(buffers, time, partial);
         any |= monarchs(buffers, time, partial);
         any |= lightRulers(buffers, time, partial);
+        any |= duels(buffers, time, partial);
         if (any) {
             // ink and black flame first: light is laid over them
             for (ResourceLocation tex : INK) buffers.endBatch(ModRenderTypes.energy(tex));
@@ -786,6 +787,62 @@ public final class WorldBossWorldFx {
             double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
             flatOnLand(seals, land, sx, sz, 2.4f, (time * 1.2f + i * 60) % 360, 0.06f, white, 0.8f * in);
         }
+    }
+
+    // ================================================================ duels
+
+    /** The land under each duel's ring. */
+    private static final java.util.Map<java.util.UUID, Terrain> DUEL_LANDS = new java.util.HashMap<>();
+
+    /**
+     * A duel's ring ({@link com.beyondsolo.client.duel.DuelClient}), marked out on the land in the challenger's colour as
+     * the count begins: a thin band of light with a fainter line inside it and a low curtain of light at its edge, which
+     * rises (and turns red once they are outside) as the hunter comes near it, and four seals (broken rings of light)
+     * turning on it. It fades a few seconds after the duel ends.
+     */
+    private static boolean duels(MultiBufferSource buffers, float time, float partial) {
+        var duels = com.beyondsolo.client.duel.DuelClient.duels();
+        if (duels.isEmpty()) {
+            DUEL_LANDS.clear();
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        boolean drew = false;
+        for (var entry : duels.entrySet()) {
+            var v = entry.getValue();
+            float in = v.presence();
+            if (in <= 0.005f) continue;
+            Vec3 at = v.center();
+            Terrain land = DUEL_LANDS.computeIfAbsent(entry.getKey(), id -> new Terrain((float) at.y));
+            land.around((float) at.y);
+            float mark = outCubic(Mth.clamp((float) (com.beyondsolo.client.gfx.Anim.now() - v.seenAt) / 0.7f, 0, 1));
+            float r = (float) v.radius() * (0.35f + 0.65f * mark);
+            int c = v.who().color & 0xFFFFFF;
+            boolean outside = v.mine() && v.tag.getInt("outside") > 0;
+            float near = 0;
+            if (v.mine() && mc.player != null) {
+                double dx = mc.player.getX() - at.x, dz = mc.player.getZ() - at.z;
+                near = Mth.clamp(((float) Math.sqrt(dx * dx + dz * dz) - (r - 4f)) / 4f, 0, 1);
+            }
+            int edge = outside ? 0xFF4A5A : c;
+            float pulse = 0.85f + 0.15f * Mth.sin(time * (outside ? 0.5f : 0.08f));
+            int white = GateFx.mix(c, 0xFFFFFF, 0.5f);
+            annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.4f, r + 0.4f, 0, Mth.TWO_PI, 0.05f, edge, (0.7f + 0.3f * near) * pulse * in);
+            annulus(buf(buffers, BAND), land, at.x, at.z, r - 1.3f, r - 1.05f, 0, Mth.TWO_PI, 0.05f, white, 0.3f * in);
+            annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.03f, c, 0.05f * in);
+            wall(buf(buffers, BEAM), land, at.x, at.z, r, 1.1f + 1.9f * near, edge, (0.08f + 0.24f * near) * in);
+            // its seals on the ring: four broken rings of light turning slowly, never circles of runes
+            VertexConsumer seals = buffers.getBuffer(ModRenderTypes.energy(Aura.HALO));
+            float turn = (time % 7200) * 0.0015f;
+            for (int i = 0; i < 4; i++) {
+                float ang = turn + i * Mth.HALF_PI;
+                double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
+                flatOnLand(seals, land, sx, sz, 1.7f, (time * 1.5f + i * 90) % 360, 0.06f, white, 0.75f * in);
+            }
+            drew = true;
+        }
+        DUEL_LANDS.keySet().removeIf(id -> !duels.containsKey(id));
+        return drew;
     }
 
     // ================================================================ the hunters who wear a crown

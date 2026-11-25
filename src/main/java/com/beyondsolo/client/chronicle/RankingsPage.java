@@ -62,11 +62,12 @@ final class RankingsPage implements ChronicleTab.Page {
     }
 
     /** One row as the server sent it. */
-    record Row(String name, boolean rival, boolean me, PlayerRank rank, int playerClass, String guild, String title, long value, long value2) {
+    record Row(String name, boolean rival, boolean me, PlayerRank rank, int playerClass, String guild, String title, long value, long value2,
+               boolean beaten) {
         static Row of(CompoundTag t) {
             PlayerRank[] ranks = PlayerRank.values();
             return new Row(t.getString("n"), t.getBoolean("rv"), t.getBoolean("me"), ranks[Mth.clamp(t.getInt("r"), 0, ranks.length - 1)],
-                    t.getInt("c"), t.getString("g"), t.getString("t"), t.getLong("v"), t.getLong("w"));
+                    t.getInt("c"), t.getString("g"), t.getString("t"), t.getLong("v"), t.getLong("w"), t.getBoolean("dv"));
         }
     }
 
@@ -329,7 +330,11 @@ final class RankingsPage implements ChronicleTab.Page {
         }
         String sub;
         int subColor = SystemTheme.TEXT_DIM;
-        if (r.rival()) {
+        if (r.rival() && r.beaten()) {
+            // a national-level hunter the player beat in a duel stands just under them
+            sub = Component.translatable("chronicle.beyondsolo.rankings.beaten", Rivals.guildName(r.guild())).getString();
+            subColor = Gfx.alpha(0xFFE0465A, 0.9f);
+        } else if (r.rival()) {
             sub = Rivals.guildName(r.guild()).getString();
         } else if (!r.title().isEmpty()) {
             sub = Component.translatable(r.title()).getString();

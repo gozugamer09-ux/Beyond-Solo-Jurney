@@ -29,6 +29,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /solo association ...                                          the Hunter Association (SoloAssociation)
  * /solo rival|hire ...                                           rival parties, hands for hire (SoloRivals)
  * /solo scout|contract|news ...                                  the great guilds' scouts, contracts, the hunter news (SoloScouting)
+ * /solo duel ...                                                 duels with the national-level hunters (SoloDuels)
  * /solo box|mana ...                                             random boxes, mana poisoning (SoloBoxes)
  * /solo story ...                                               the Long Sleep         (SoloStory)
  * /solo isle ...                                                 the Halcyon raid       (SoloIsle)
@@ -59,6 +60,7 @@ public final class SoloCommand {
         SoloAssociation.register(root);
         SoloRivals.register(root);
         SoloScouting.register(root);
+        SoloDuels.register(root);
         SoloBoxes.register(root);
         SoloStory.register(root);
         SoloIsle.register(root);

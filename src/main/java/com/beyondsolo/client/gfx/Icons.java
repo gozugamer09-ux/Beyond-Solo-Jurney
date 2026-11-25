@@ -77,6 +77,8 @@ public final class Icons {
     public static final ResourceLocation CITY = icon("city");
     public static final ResourceLocation TRAIL = icon("trail");
     public static final ResourceLocation RACE = icon("race");
+    /** Two blades crossed: a duel with a national-level hunter. */
+    public static final ResourceLocation DUEL = icon("duel");
     /** The rival guilds' emblems, in {@code rival.RivalGuild} order (the last: independents). */
     public static final ResourceLocation[] GUILDS = {icon("guild_azure_tide"), icon("guild_iron_bastion"), icon("guild_sunfall"),
             icon("guild_red_lantern"), icon("guild_independent")};

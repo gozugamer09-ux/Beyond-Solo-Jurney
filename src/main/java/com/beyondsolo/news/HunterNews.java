@@ -43,6 +43,8 @@ public final class HunterNews {
     public static final String KEY = "news.beyondsolo.";
     /** What a headline is about (its mark on the page and the ticker). */
     public static final String RANK = "rank", GUILD = "guild", RACE = "race", BREAK = "break", BOSS = "boss", WORLD = "world";
+    /** A duel with one of the national-level hunters ({@code duel.Duels}). */
+    public static final String DUEL = "duel";
     /** The world's colour for the news itself (headlines of the world at large). */
     public static final int STEEL = 0xFF8FB4FF;
     public static final int BREAK_RED = 0xFFFF5A3C;

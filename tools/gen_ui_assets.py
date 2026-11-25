@@ -10,7 +10,7 @@ and a 90px class emblem.
 
 Sources:
 - tools/icons-src/*.svg: Phosphor Icons (bold weight), MIT License, see LICENSE_PhosphorIcons_MIT.txt there
-  (lantern.svg is drawn for this project in the same style).
+  (lantern.svg and swords.svg are drawn for this project in the same style).
   The licence text ships in the jar as licenses/phosphor_icons_mit.txt.
 - Rank letters: Exo 2 ExtraBold Italic, SIL Open Font License 1.1, see tools/fonts-src/OFL.txt.
 """
@@ -178,6 +178,8 @@ ICONS = {
     "guild_independent": "compass",
     "trail": "footprints",
     "race": "sneaker-move",
+    # duels with the national-level hunters; the crossed blades are drawn for this project
+    "duel": "swords",
 }
 
 RANKS = "EDCBAS"

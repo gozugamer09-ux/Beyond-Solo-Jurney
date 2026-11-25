@@ -107,6 +107,7 @@ public final class QuestOverlay {
                 && !com.beyondsolo.client.worldboss.WorldBossClient.bannerPending() && !com.beyondsolo.client.monarch.MonarchHud.bannerUp()
                 && !com.beyondsolo.client.redgate.RedGateClient.warningUp() && !com.beyondsolo.client.tower.TowerClient.holdsScreen()
                 && !com.beyondsolo.client.raid.RaidClient.holdsScreen()
+                && !com.beyondsolo.client.duel.DuelHud.holdsScreen()
                 // never over a title moment: the two would draw on top of each other
                 && !com.beyondsolo.client.chronicle.TitleOverlay.active()
                 // nor over a box opening, and a box that came in the same moment goes first (a cursed box's wardens)
