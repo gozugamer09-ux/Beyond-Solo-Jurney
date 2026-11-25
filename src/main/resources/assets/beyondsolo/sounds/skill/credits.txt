@@ -1,0 +1,21 @@
+The skills' sounds (sounds/skill/*.ogg) are layered by tools/gen_skill_sounds.py from these recordings, all released
+on OpenGameArt.org under CC0 (public domain), plus synthesis of our own. No attribution is required; this list is a
+thank-you, and says where each one came from.
+
+https://opengameart.org/content/100-cc0-sfx                          100-CC0-SFX_0.zip
+https://opengameart.org/content/100-cc0-sfx-2                        sfx_100_v2.zip
+https://opengameart.org/content/80-cc0-rpg-sfx                       80-CC0-RPG-SFX_0.zip
+https://opengameart.org/content/50-cc0-retro-synth-sfx               50-CC0-retro-synth-SFX.zip
+https://opengameart.org/content/50-cc0-sci-fi-sfx                    sci-fi-sfx.zip
+https://opengameart.org/content/25-cc0-bang-firework-sfx             25-CC0-bang-sfx.zip
+https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx      sfx_breaking_and_falling.zip
+https://opengameart.org/content/37-hitspunches                       independent_nu_ljudbank-hits_and_punches.7z
+https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes   sword_clash_-_starninjas_0.zip (StarNinjas)
+https://opengameart.org/content/impact                               qubodupImpact.7z (qubodup)
+https://opengameart.org/content/punch                                qubodupPunch.7z (qubodup)
+https://opengameart.org/content/energy-drain                         qubodup-PowerDrain.7z (qubodup)
+https://opengameart.org/content/swish-bamboo-stick-weapon-swhoshes   swoshes.7z (qubodup)
+https://opengameart.org/content/magic-spell-sfx                      magical_1_0, 2, 3, 4, 5, 7_0 .ogg
+https://opengameart.org/content/chunky-explosion                     Chunky Explosion.mp3
+https://opengameart.org/content/synthesized-explosion                synthetic_explosion_1.flac
+https://opengameart.org/content/rain-long-thunder                    rain-thunder.ogg

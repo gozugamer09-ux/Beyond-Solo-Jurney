@@ -12,6 +12,7 @@ import dev.kosmx.playerAnim.api.layered.IActualAnimation;
 import dev.kosmx.playerAnim.api.layered.IAnimation;
 import dev.kosmx.playerAnim.api.layered.ModifierLayer;
 import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
+import dev.kosmx.playerAnim.api.layered.modifier.SpeedModifier;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationFactory;
@@ -41,9 +42,45 @@ public final class SkillGestures {
     /** Above Better Combat's attacks (about 1000), under the weapon arts' body layer (2000), runes and keys. */
     private static final int PRIORITY = 1950;
 
+    /** Each player's skill layer runs through a speed control, so the body can hang on a blow (see {@link #hold}). */
+    private static final java.util.Map<AbstractClientPlayer, SpeedModifier> SPEED = new java.util.WeakHashMap<>();
+    /** Until when (on the UI clock) each player's body hangs. */
+    private static final java.util.Map<AbstractClientPlayer, Double> HELD = new java.util.WeakHashMap<>();
+
     @SubscribeEvent
     static void setup(FMLClientSetupEvent event) {
-        PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(LAYER, PRIORITY, player -> new ModifierLayer<>());
+        PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(LAYER, PRIORITY, player -> {
+            SpeedModifier speed = new SpeedModifier(1f);
+            SPEED.put(player, speed);
+            return new ModifierLayer<>(null, speed);
+        });
+    }
+
+    /**
+     * The player's skill gesture hangs for {@code seconds}, as a blade hangs in what it cut: the other half of a
+     * hitstop ({@link SkillImpacts}). Only a gesture still playing is held; it then carries on where it stopped.
+     */
+    static void hold(AbstractClientPlayer player, float seconds) {
+        SpeedModifier speed = SPEED.get(player);
+        if (speed == null || seconds <= 0) return;
+        double until = com.beyondsolo.client.gfx.Anim.now() + seconds;
+        HELD.merge(player, until, Math::max);
+        speed.speed = 0.02f;
+    }
+
+    /** Lets go of bodies whose hold is over. */
+    @SubscribeEvent
+    static void release(net.neoforged.neoforge.client.event.RenderFrameEvent.Pre event) {
+        if (HELD.isEmpty()) return;
+        double now = com.beyondsolo.client.gfx.Anim.now();
+        var it = HELD.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            if (e.getValue() > now) continue;
+            SpeedModifier speed = SPEED.get(e.getKey());
+            if (speed != null) speed.speed = 1f;
+            it.remove();
+        }
     }
 
     public static void cast(SkillCastPayload p) {
@@ -55,6 +92,7 @@ public final class SkillGestures {
         String gesture = pick(skill, p.look(), p.variant());
         play(player, gesture);
         castLight(player, skill, gesture);
+        SkillImpacts.cast(player, skill, gesture);
     }
 
     /** The gesture for a skill that showed {@code look} first. */

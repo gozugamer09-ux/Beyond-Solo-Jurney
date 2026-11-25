@@ -800,6 +800,42 @@ for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools
   (`SkillParticleLooks`); block debris stays vanilla. Heavy blows jolt the camera (`SkillShake`, off with the
   screen effects option), harder the closer they land.
 
+**How skills feel.** Where a blow lands, and how it sounds. None of it changes what a blow does.
+
+- *The weight.* Every blow `SkillActions.hit` (and a sovereign's `MonarchPowers.strike`) lands goes to
+  `SkillFeel.struck` with the creature's health from before it. Its weight (`LIGHT`, `MEDIUM`, `HEAVY`, `MASSIVE`)
+  is the share of the creature's most health it took (a tenth, a quarter, a half), raised to the skill's stature
+  (`SkillFeel.stature`: its grade and cooldown; sovereign powers are `HEAVY`). An ultimate's blow is `MASSIVE`; a
+  kill is at least `MEDIUM` (`MASSIVE` on a boss or elite, `Statuses.tough`); a repeat (the same skill on the same
+  creature within 12 ticks: a storm's ticks, a flurry's cuts) stays `LIGHT` unless it bit a quarter deep. A hunter's
+  blows of one tick go out together at its end (`SkillHitPayload`, the heaviest 24) to everyone who sees the hunter.
+- *Ultimates* (`SkillFeel.ultimate`): sovereign powers, skills that wait a minute or more at level 1, S-grade skills
+  that wait half a minute (about a fifth of the class actives, at least one per subclass: SkillFeelGameTests). Their
+  cast calls it out: the caster's screen gets the cut-in (`SkillCutIn`, "ULTIMATE" and the skill's name stamped in;
+  not for sovereign powers, whose own banner names them), everyone near hears the call and sees focus lines, and its
+  blows land `MASSIVE`.
+- *The screen* (`client.skill.SkillImpacts.onHit`). A struck creature flashes white and hangs for a moment, sized by
+  the weight: the flash is overlay row 10 (mixins on `LivingEntityRenderer.getOverlayCoords` and GeckoLib's
+  `getPackedOverlay`; a renderer that overrides `getPackedOverlay` calls `SkillImpacts.overlay` itself, as
+  `ColossalBossRenderer` and `TrainingDummyRenderer` do), the hang is a hitstop (`ClientLevelMixin` skips its tick,
+  `LevelRendererMixin` pins its partial tick and shudders it). Sparks of the element fly off the side that was hit;
+  `HEAVY` and up add impact streaks and a ripple, `MASSIVE` a shockwave. The hunter's own view kicks and the FOV
+  punches, and a heavy blow holds the caster's swing for a beat (`SkillGestures.hold`). `SkillScreen` is a post pass
+  over the world (a GUI layer under all others, core shader `skill_screen`): ripples from heavy blows, a colour split,
+  zoom blur toward a massive blow, the ink frame (the picture inverted, then inked, for a fraction of a second) on an
+  ultimate's blow or a massive kill, focus lines on an ultimate's call, a vignette. Client config: `combat.hitFeedback`
+  (flash, hang) and `combat.screenEffects` (view kick, ripple, ink, lines, cut-in). The mixins are the mod's own,
+  `com.beyondsolo.mixin` (`beyondsolo.mixins.json`, client side only).
+- *The sound* (`SkillSounds`). The skills' own sounds (`assets/beyondsolo/sounds/skill`, made by
+  `tools/gen_skill_sounds.py` from CC0 recordings, listed in `credits.txt` there): each element's cast and impact,
+  played by every player's game from the cast and blow payloads, with a heavy thump, a massive boom and a kill's crack
+  under bigger blows, and the ultimate's call. The vanilla sounds skills borrowed (TNT, anvil, beacon, thunder, the
+  sweep, the crossbow) are swapped on the server for the skills' own (`PlayLevelSoundEvent`), only while a skill's
+  action runs (`SkillFx.beginCast`/`endCast`) and in what it scheduled (`ServerScheduler.carry`). New skill code may
+  keep playing vanilla sounds: add one to `SkillSounds.swapFor` to give it the skills' version.
+- `/solo skill feel <light|medium|heavy|massive|kill|ultimate> [element]` shows a blow of that weight on the creature
+  you look at, dealing nothing.
+
 New skill code: show a `SkillFxPayload` kind first (it picks the gesture), use `SkillParticles.send` for particles,
 and keep circles for spells. Subclass skills live apart (see "Job change"). Every skill hit goes through `SkillActions.hit`, which is
 where combos, range passives and elements apply; a new damaging skill should use it rather than `hurt`.

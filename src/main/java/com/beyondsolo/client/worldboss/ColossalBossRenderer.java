@@ -127,7 +127,8 @@ public class ColossalBossRenderer<T extends ColossalBoss> extends GeoEntityRende
     public int getPackedOverlay(T boss, float u, float partialTick) {
         // a great threat doesn't flush red under every blow: with a raid's hunters on it, it never would stop, and it
         // falls with its own death animation
-        return OverlayTexture.pack(OverlayTexture.u(u), OverlayTexture.v(false));
+        // a skill's blow still flashes it white (SkillImpacts)
+        return com.beyondsolo.client.skill.SkillImpacts.overlay(boss, OverlayTexture.pack(OverlayTexture.u(u), OverlayTexture.v(false)));
     }
 
     @Override
