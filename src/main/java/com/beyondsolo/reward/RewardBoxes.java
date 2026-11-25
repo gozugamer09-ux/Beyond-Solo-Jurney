@@ -313,11 +313,14 @@ public final class RewardBoxes {
     private static void end(MinecraftServer server, String token) {
         LIVE.remove(token);
         for (ServerLevel level : server.getAllLevels()) {
+            // gathered first, then sent off: taking one out of the level while walking its entities can skip the next
+            List<Mob> wardens = new ArrayList<>();
             for (Entity e : level.getAllEntities()) {
-                if (e instanceof Mob mob && token.equals(mob.getPersistentData().getString(WARDEN))) {
-                    level.sendParticles(ParticleTypes.LARGE_SMOKE, mob.getX(), mob.getY() + 0.8, mob.getZ(), 12, 0.3, 0.5, 0.3, 0.02);
-                    mob.discard();
-                }
+                if (e instanceof Mob mob && token.equals(mob.getPersistentData().getString(WARDEN))) wardens.add(mob);
+            }
+            for (Mob mob : wardens) {
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, mob.getX(), mob.getY() + 0.8, mob.getZ(), 12, 0.3, 0.5, 0.3, 0.02);
+                mob.discard();
             }
         }
     }
