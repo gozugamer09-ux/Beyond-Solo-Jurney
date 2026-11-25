@@ -1,7 +1,8 @@
 package com.beyondsolo.client.shadow;
 
-import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.fx.Aura;
 import com.beyondsolo.client.gate.GateFx;
+import com.beyondsolo.client.skill.FxParticles;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.network.ShadowFxPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -10,16 +11,13 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,18 +26,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The shadow army in the world: lingering souls, the extraction ritual (a widening circle, chains of light drawn up
- * out of the ground, a thread of mana from the necromancer's hand), the burst when a shadow answers, the soul
- * refusing or crumbling, shadows called up and sent back, and the pillar of a rank-up. Light is drawn with the
- * mod's light render type; smoke, embers and souls are vanilla particles. Runs on game time.
+ * The shadow army in the world, drawn the way the series draws it (the art style guide in the project files): ink and
+ * black flame with a burning edge, never circles or pillars of light, which belong to the other side. A soul lingers
+ * as a small pool of ink with a black flame on it and an ember of its light; the extraction ritual spreads the pool,
+ * raises a ring of black flame and draws ink tendrils up to the soul while a hot thread runs from the necromancer's
+ * hand; the shadow answering bursts the pool outward with an eruption of black flame; a refused try splashes the ink
+ * with a red rim, a crumbling soul dries to ash. Shadows called up and sent back splash and close their pools; a
+ * rank-up or a promotion raises a pillar of black flame (a promotion sets a crown of it over the head); essence flies
+ * to its master as a streak of the soul's light. Pools, flame and streaks come from {@link Aura}; smoke and sparks
+ * are the skill effects' own particles ({@link FxParticles}), the smoke ink-dark. Runs on game time.
  */
 public final class ShadowWorldFx {
-    private static final ResourceLocation GLOW = ShadowRenderer.GLOW;
-    private static final ResourceLocation RING = ShadowRenderer.RING;
-    private static final ResourceLocation CIRCLE = ShadowRenderer.CIRCLE;
-    private static final ResourceLocation BEAM = BeyondSolo.id("textures/effect/beam.png");
-    private static final ResourceLocation STREAK = BeyondSolo.id("textures/effect/streak.png");
-    private static final ResourceLocation[] ALL = {GLOW, RING, CIRCLE, BEAM, STREAK};
+    /** The smoke of the shadow side: blue-black, never grey. */
+    private static final int INK_SMOKE = 0x0C0B18;
 
     /** A soul lingering where a creature fell. */
     static final class Soul {
@@ -103,19 +102,20 @@ public final class ShadowWorldFx {
         if (mc.level == null) return;
         Vec3 at = new Vec3(p.x(), p.y(), p.z());
         float t = now(0);
+        int c = p.color();
         switch (p.kindEnum()) {
             case SOUL -> {
                 Soul s = SOULS.get(p.id());
-                if (s == null) SOULS.put(p.id(), new Soul(p.id(), at, p.color(), p.extra(), p.text(), t));
+                if (s == null) SOULS.put(p.id(), new Soul(p.id(), at, c, p.extra(), p.text(), t));
                 else s.tries = p.extra();
-                puff(mc.level, at, 14);
+                FxParticles.smoke(at.x, at.y + 0.2, at.z, 0.3, 6, INK_SMOKE, 0.3f, 0.03f);
             }
             case SOUL_GONE -> {
                 SOULS.remove(p.id());
-                puff(mc.level, at, 8);
+                FxParticles.smoke(at.x, at.y + 0.2, at.z, 0.3, 5, INK_SMOKE, 0.28f, 0.03f);
             }
             case RITUAL -> {
-                Soul s = SOULS.computeIfAbsent(p.id(), id -> new Soul(id, at, p.color(), 3, p.text(), t));
+                Soul s = SOULS.computeIfAbsent(p.id(), id -> new Soul(id, at, c, 3, p.text(), t));
                 s.ritualStart = t;
                 s.ritualTicks = Math.max(1, p.extra());
             }
@@ -127,85 +127,67 @@ public final class ShadowWorldFx {
                     s.failedAt = t;
                 }
                 add(p, at, t);
-                for (int i = 0; i < 20; i++) {
-                    mc.level.addParticle(ParticleTypes.SMOKE, at.x + rnd(0.6), at.y + 0.2 + RANDOM.nextDouble(), at.z + rnd(0.6), rnd(0.08), 0.05, rnd(0.08));
-                }
-                for (int i = 0; i < 10; i++) mc.level.addParticle(ParticleTypes.CRIT, at.x + rnd(0.4), at.y + 1, at.z + rnd(0.4), rnd(0.3), 0.1, rnd(0.3));
+                // the ink splashes out and the ember sputters red
+                FxParticles.smokeRing(at.x, at.y + 0.1, at.z, 14, INK_SMOKE, 0.32f, 0.14f);
+                FxParticles.sparks(at.x, at.y + 0.8, at.z, 10, 0.22f, 0xFF5060, 0.02f);
             }
             case CRUMBLE -> {
                 SOULS.remove(p.id());
                 add(p, at, t);
                 for (int i = 0; i < 40; i++) {
-                    mc.level.addParticle(i % 2 == 0 ? ParticleTypes.ASH : ParticleTypes.WHITE_ASH, at.x + rnd(0.6), at.y + RANDOM.nextDouble() * 1.4, at.z + rnd(0.6), 0, -0.02, 0);
+                    mc.level.addParticle(i % 2 == 0 ? ParticleTypes.ASH : ParticleTypes.WHITE_ASH, at.x + rnd(0.6), at.y + RANDOM.nextDouble() * 1.4,
+                            at.z + rnd(0.6), 0, -0.02, 0);
                 }
-                puff(mc.level, at, 16);
+                FxParticles.smoke(at.x, at.y + 0.3, at.z, 0.4, 10, INK_SMOKE, 0.32f, 0.02f);
             }
             case EXTRACTED -> {
                 SOULS.remove(p.id());
                 add(p, at, t);
                 boolean boss = p.extra() == 1;
-                int n = boss ? 30 : 22;
-                for (int i = 0; i < n; i++) {
-                    double a = RANDOM.nextDouble() * Math.PI * 2;
-                    double sp = 0.15 + RANDOM.nextDouble() * (boss ? 0.5 : 0.3);
-                    mc.level.addParticle(i % 2 == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.SMOKE, at.x, at.y + 0.3, at.z, Math.cos(a) * sp, 0.02 + RANDOM.nextDouble() * 0.06, Math.sin(a) * sp);
-                }
-                for (int i = 0; i < (boss ? 40 : 18); i++) {
-                    mc.level.addParticle(ParticleTypes.SCULK_SOUL, at.x + rnd(0.6), at.y + 0.2, at.z + rnd(0.6), rnd(0.05), 0.12 + RANDOM.nextDouble() * 0.15, rnd(0.05));
-                }
-                DustParticleOptions dust = new DustParticleOptions(rgb(p.color()), 1.4f);
-                for (int i = 0; i < 40; i++) {
-                    double a = i / 40.0 * Math.PI * 2;
-                    mc.level.addParticle(dust, at.x + Math.cos(a) * 0.8, at.y + 0.1, at.z + Math.sin(a) * 0.8, Math.cos(a) * 0.5, 0.05, Math.sin(a) * 0.5);
-                }
+                // the pool bursts: ink thrown out over the ground, black smoke boiling up, sparks of its light
+                FxParticles.smokeRing(at.x, at.y + 0.15, at.z, boss ? 30 : 22, INK_SMOKE, boss ? 0.6f : 0.45f, boss ? 0.32f : 0.22f);
+                FxParticles.smoke(at.x, at.y + 0.5, at.z, 0.5, boss ? 22 : 14, INK_SMOKE, boss ? 0.6f : 0.45f, 0.08f);
+                FxParticles.motes(at.x, at.y + 0.6, at.z, 0.6, boss ? 24 : 14, c, 0.06f);
+                FxParticles.sparks(at.x, at.y + 0.9, at.z, boss ? 20 : 12, 0.3f, c, 0.01f);
             }
             case SUMMON -> {
                 add(p, at, t);
-                for (int i = 0; i < 12; i++) {
-                    mc.level.addParticle(ParticleTypes.LARGE_SMOKE, at.x + rnd(0.5), at.y + 0.1, at.z + rnd(0.5), rnd(0.03), 0.04 + RANDOM.nextDouble() * 0.08, rnd(0.03));
-                }
-                for (int i = 0; i < 12; i++) mc.level.addParticle(ParticleTypes.REVERSE_PORTAL, at.x + rnd(0.5), at.y + 0.2, at.z + rnd(0.5), 0, 0.15, 0);
+                FxParticles.smoke(at.x, at.y + 0.2, at.z, 0.5, 12, INK_SMOKE, 0.45f, 0.07f);
+                FxParticles.smokeRing(at.x, at.y + 0.1, at.z, 10, INK_SMOKE, 0.3f, 0.12f);
             }
             case RECALL -> {
                 add(p, at, t);
-                for (int i = 0; i < 24; i++) {
-                    double a = i / 24.0 * Math.PI * 2;
-                    mc.level.addParticle(ParticleTypes.SMOKE, at.x + Math.cos(a) * 1.0, at.y + 1.2, at.z + Math.sin(a) * 1.0, -Math.cos(a) * 0.08, -0.08, -Math.sin(a) * 0.08);
+                // ink drawn down into the closing pool
+                for (int i = 0, n = FxParticles.count(18); i < n; i++) {
+                    double a = i * Math.PI * 2 / n;
+                    FxParticles.add(FxParticles.Tex.SMOKE, at.x + Math.cos(a) * 1.0, at.y + 1.2, at.z + Math.sin(a) * 1.0, -Math.cos(a) * 0.05, -0.06,
+                                    -Math.sin(a) * 0.05)
+                            .frame(RANDOM.nextInt(16)).blend().life(18).size(0.3f, 0.12f).color(INK_SMOKE).alpha(0.5f).fade(0.15f, 0.5f);
                 }
             }
             case RANK_UP -> {
                 add(p, at, t);
-                for (int i = 0; i < 30; i++) {
-                    mc.level.addParticle(ParticleTypes.END_ROD, at.x + rnd(0.8), at.y + RANDOM.nextDouble() * 0.5, at.z + rnd(0.8), 0, 0.12 + RANDOM.nextDouble() * 0.2, 0);
-                }
+                FxParticles.smoke(at.x, at.y + 0.3, at.z, 0.6, 20, INK_SMOKE, 0.55f, 0.12f);
+                FxParticles.sparks(at.x, at.y + 1.0, at.z, 24, 0.3f, c, 0.01f);
             }
             case PROMOTED -> {
                 add(p, at, t);
-                // a burst of its new rank's light, sparks thrown up and out, souls rising round it
-                DustParticleOptions dust = new DustParticleOptions(rgb(p.color()), 1.6f);
-                for (int i = 0; i < 48; i++) {
-                    double a = i / 48.0 * Math.PI * 2;
-                    mc.level.addParticle(dust, at.x + Math.cos(a) * 0.6, at.y + 0.15, at.z + Math.sin(a) * 0.6, Math.cos(a) * 0.6, 0.08, Math.sin(a) * 0.6);
-                }
-                for (int i = 0; i < 40; i++) {
-                    mc.level.addParticle(ParticleTypes.END_ROD, at.x + rnd(0.7), at.y + RANDOM.nextDouble() * 1.6, at.z + rnd(0.7), rnd(0.12), 0.1 + RANDOM.nextDouble() * 0.3, rnd(0.12));
-                }
-                for (int i = 0; i < 24; i++) {
-                    mc.level.addParticle(ParticleTypes.SCULK_SOUL, at.x + rnd(0.9), at.y + 0.2, at.z + rnd(0.9), rnd(0.03), 0.1 + RANDOM.nextDouble() * 0.15, rnd(0.03));
-                }
+                // a blast of ink over the ground, black smoke rolling up the pillar, sparks of the new rank's light
+                FxParticles.smokeRing(at.x, at.y + 0.15, at.z, 30, INK_SMOKE, 0.6f, 0.35f);
+                FxParticles.smoke(at.x, at.y + 0.6, at.z, 0.7, 28, INK_SMOKE, 0.65f, 0.16f);
+                FxParticles.sparks(at.x, at.y + 1.2, at.z, 40, 0.4f, c, 0.01f);
+                FxParticles.motes(at.x, at.y + 0.8, at.z, 0.9, 24, c, 0.08f);
             }
             case ESSENCE -> {
-                // the soul drifts to its master: the wisp travels (drawn in render), nothing stays behind
+                // the soul drifts to its master: the streak travels (drawn in render), nothing stays behind
                 SOULS.remove(p.id());
                 add(p, at, t);
-                for (int i = 0; i < 6; i++) mc.level.addParticle(ParticleTypes.SOUL, at.x + rnd(0.3), at.y + 0.4, at.z + rnd(0.3), 0, 0.04, 0);
+                FxParticles.motes(at.x, at.y + 0.4, at.z, 0.3, 6, c, 0.03f);
             }
             case NAMED -> {
                 add(p, at, t);
-                for (int i = 0; i < 24; i++) {
-                    double a = i / 24.0 * Math.PI * 2;
-                    mc.level.addParticle(ParticleTypes.END_ROD, at.x + Math.cos(a) * 0.7, at.y + 0.1, at.z + Math.sin(a) * 0.7, 0, 0.06 + RANDOM.nextDouble() * 0.05, 0);
-                }
+                FxParticles.sparks(at.x, at.y + 0.2, at.z, 20, 0.18f, c, 0f);
+                FxParticles.smoke(at.x, at.y + 0.2, at.z, 0.5, 8, INK_SMOKE, 0.35f, 0.08f);
             }
             default -> {
             }
@@ -217,43 +199,30 @@ public final class ShadowWorldFx {
         if (ACTIVE.size() > 64) ACTIVE.remove(0);
     }
 
-    private static void puff(ClientLevel level, Vec3 at, int n) {
-        for (int i = 0; i < n; i++) level.addParticle(ParticleTypes.SMOKE, at.x + rnd(0.4), at.y + RANDOM.nextDouble() * 0.8, at.z + rnd(0.4), 0, 0.03, 0);
-    }
-
-    private static Vector3f rgb(int c) {
-        return new Vector3f(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
-    }
-
     private static double rnd(double s) {
         return (RANDOM.nextDouble() - 0.5) * 2 * s;
     }
 
-    /** Smoke and souls drifting off each soul; the ritual drawing smoke in. */
+    /** Ink smoke and embers drifting off each soul; the ritual drawing smoke in. */
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         float t = now(0);
+        long tick = mc.level.getGameTime();
         for (Soul s : SOULS.values()) {
             Vec3 at = s.pos;
-            if (mc.level.getGameTime() % 3 == 0) {
-                mc.level.addParticle(ParticleTypes.SMOKE, at.x + rnd(0.3), at.y + 0.1, at.z + rnd(0.3), 0, 0.04, 0);
-            }
-            if (mc.level.getGameTime() % 9 == 0) {
-                mc.level.addParticle(ParticleTypes.SOUL, at.x + rnd(0.25), at.y + 0.3, at.z + rnd(0.25), 0, 0.03, 0);
-            }
+            if (tick % 4 == 0) FxParticles.smoke(at.x, at.y + 0.15, at.z, 0.2, 1, INK_SMOKE, 0.2f, 0.035f);
+            if (tick % 9 == 0) FxParticles.motes(at.x, at.y + 0.4, at.z, 0.2, 1, s.color, 0.025f);
             if (s.inRitual(t)) {
                 float k = s.ritualProgress(t);
-                int n = 1 + (int) (k * 2.5f);
-                for (int i = 0; i < n; i++) {
+                for (int i = 0, n = 1 + (int) (k * 2.5f); i < n; i++) {
                     double a = RANDOM.nextDouble() * Math.PI * 2;
                     double r = 2.2 + RANDOM.nextDouble() * 1.2;
-                    mc.level.addParticle(ParticleTypes.SMOKE, at.x + Math.cos(a) * r, at.y + 0.1, at.z + Math.sin(a) * r,
-                            -Math.cos(a) * r * 0.06, 0.02, -Math.sin(a) * r * 0.06);
+                    FxParticles.add(FxParticles.Tex.SMOKE, at.x + Math.cos(a) * r, at.y + 0.1, at.z + Math.sin(a) * r, -Math.cos(a) * r * 0.06, 0.015,
+                                    -Math.sin(a) * r * 0.06)
+                            .frame(RANDOM.nextInt(16)).blend().life(16).size(0.25f, 0.4f).color(INK_SMOKE).alpha(0.45f).fade(0.2f, 0.6f).drag(0.94f);
                 }
-                if (mc.level.getGameTime() % 2 == 0) {
-                    mc.level.addParticle(ParticleTypes.SCULK_SOUL, at.x + rnd(0.4), at.y + 0.2, at.z + rnd(0.4), 0, 0.05 + 0.1 * k, 0);
-                }
+                if (tick % 2 == 0) FxParticles.motes(at.x, at.y + 0.3, at.z, 0.4, 1, s.color, 0.05f + 0.1f * k);
             }
         }
     }
@@ -287,12 +256,15 @@ public final class ShadowWorldFx {
             float pulse = 0.8f + 0.2f * Mth.sin(time * 0.25f + s.id);
             boolean ritual = s.inRitual(time);
             float crack = Mth.clamp(1 - (time - s.failedAt) / 16f, 0, 1);
-            // the wisp
-            dot(buffers, pose, camera, 0, 0.7f + 0.08f * Mth.sin(time * 0.12f), 0, 0.35f * in * pulse, GateFx.mix(s.color, 0xFFFFFF, 0.3f), 0.9f * in);
-            dot(buffers, pose, camera, 0, 0.7f, 0, 0.9f * in, s.color, 0.3f * in * pulse);
-            flat(buffers, RING, pose, 0.04f, 0.9f * in, time * 2, s.color, 0.45f * in);
-            if (crack > 0) flat(buffers, RING, pose, 0.05f, 1.2f + 1.5f * (1 - crack), 0, 0xFF5060, 0.7f * crack);
-            if (ritual) ritual(buffers, pose, camera, s, time, cam, partial);
+            // a small pool of ink, a black flame on it and the ember of the soul over it
+            if (!ritual) {
+                Aura.pool(pose, buffers, 0.03f, 0.55f * in, s.color, 0.85f * in, time, 0.35f);
+                flame(pose, buffers, 0.02f, 0.2f, 0.6f * in * pulse, s.color, 0.85f * in, time, s.id);
+            }
+            spark(buffers, pose, camera, 0, 0.7f + 0.08f * Mth.sin(time * 0.12f), 0, 0.22f * in * pulse, s.color, 0.9f * in);
+            // a try refused: the ink splashes out with a red edge
+            if (crack > 0) Aura.splash(pose, buffers, 0.035f, 0.8f + 1.6f * (1 - crack * crack), 0xFF5060, 0.85f * crack, s.id * 53f);
+            if (ritual) ritual(buffers, pose, camera, s, time, partial);
             pose.popPose();
         }
 
@@ -316,48 +288,50 @@ public final class ShadowWorldFx {
             pose.pushPose();
             pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
             int c = fx.color;
-            int light = GateFx.mix(c, 0xFFFFFF, 0.5f);
             switch (fx.kind) {
                 case EXTRACTED -> {
                     float big = fx.extra == 1 ? 1.8f : 1f;
                     float flash = Mth.clamp(1 - age / 0.35f, 0, 1);
-                    dot(buffers, pose, camera, 0, 1f, 0, 3.5f * big * (0.4f + 0.6f * out), light, flash);
-                    flat(buffers, RING, pose, 0.06f, 6f * big * out, 0, light, fade);
-                    flat(buffers, RING, pose, 0.07f, 3.5f * big * out, 0, c, fade * 0.8f);
-                    flat(buffers, CIRCLE, pose, 0.05f, 2.6f * big, time * 8, c, fade);
-                    float pillar = Mth.clamp(1 - age / (0.8f * big), 0, 1);
-                    column(buffers, pose, camera, at, (0.3f + 1.2f * out) * big, 16 * big * Math.min(1, age * 4), light, pillar);
-                    column(buffers, pose, camera, at, (0.9f + 2f * out) * big, 16 * big * Math.min(1, age * 4), c, pillar * 0.6f);
+                    float rise = Mth.clamp(age / 0.25f, 0, 1);
+                    // the pool bursts outward, ink thrown out over the ground, and a column of black flame erupts out of it
+                    Aura.pool(pose, buffers, 0.03f, (0.8f + 1.4f * out) * big, c, fade, time, 1f - t);
+                    float throwOut = Mth.clamp(age / 0.8f, 0, 1);
+                    if (throwOut < 1) {
+                        float ease = 1 - (1 - throwOut) * (1 - throwOut);
+                        Aura.splash(pose, buffers, 0.035f, (0.8f + 2.2f * ease) * big, c, (1 - throwOut * throwOut) * 0.9f, fx.entityId * 37f);
+                    }
+                    flame(pose, buffers, 0.02f, (0.45f + 0.35f * out) * big, 2.6f * big * rise * (1 - 0.5f * t), c, fade, time, fx.entityId);
+                    spark(buffers, pose, camera, 0, 1f, 0, 1.2f * big * (0.5f + 0.5f * out), c, flash);
                 }
                 case FAILED -> {
-                    flat(buffers, CIRCLE, pose, 0.05f, 2.6f * (1 - 0.6f * out), -time * 12, 0xFF5060, fade * 0.8f);
-                    dot(buffers, pose, camera, 0, 0.8f, 0, 1.5f * (1 - out), 0xFF6070, fade * 0.6f);
+                    Aura.pool(pose, buffers, 0.03f, 2.2f * (1 - 0.6f * out), 0xFF5060, fade * 0.8f, time, 0.5f);
+                    spark(buffers, pose, camera, 0, 0.8f, 0, 0.6f * (1 - out), 0xFF6070, fade * 0.7f);
                 }
                 case CRUMBLE -> {
-                    dot(buffers, pose, camera, 0, 0.7f - 0.5f * out, 0, 0.9f * fade, c, fade * 0.5f);
-                    flat(buffers, RING, pose, 0.05f, 0.9f + 1.4f * out, 0, 0x807890, fade * 0.6f);
+                    // the pool dries to ash: it greys and shrinks away
+                    Aura.pool(pose, buffers, 0.03f, 0.9f * (1 - 0.5f * out), 0x807890, fade * 0.6f, time, 0f);
+                    spark(buffers, pose, camera, 0, 0.7f - 0.5f * out, 0, 0.3f * fade, c, fade * 0.5f);
                 }
                 case SUMMON -> {
                     float k = fx.extra == 1 ? 1.6f : 1f;
-                    flat(buffers, RING, pose, 0.06f, (0.6f + 2.4f * out) * k, 0, light, fade * 0.8f);
-                    column(buffers, pose, camera, at, 0.5f * k * fade, 3.5f * k * out, c, fade * 0.7f);
+                    Aura.pool(pose, buffers, 0.03f, (0.6f + 1.4f * out) * k, c, fade * 0.85f, time, 1f);
+                    flame(pose, buffers, 0.02f, 0.45f * k, 1.6f * k * (1 - t), c, fade, time, fx.entityId);
                 }
                 case RECALL -> {
-                    flat(buffers, CIRCLE, pose, 0.05f, 1.6f * (1 - 0.7f * out), time * 10, c, fade);
-                    flat(buffers, RING, pose, 0.06f, 2.2f * (1 - out), 0, light, fade * 0.8f);
+                    Aura.pool(pose, buffers, 0.03f, 1.4f * (1 - 0.7f * out), c, fade, time, 1f);
+                    flame(pose, buffers, 0.02f, 0.5f * (1 - 0.5f * out), 1.3f * (1 - out), c, fade, time, fx.entityId);
                 }
                 case RANK_UP -> {
                     float up = Mth.clamp(age / 0.3f, 0, 1);
                     float hold = Mth.clamp((life - age) / 0.8f, 0, 1);
-                    column(buffers, pose, camera, at, 0.5f + 0.4f * Mth.sin(time * 0.4f), 22 * up, light, hold);
-                    column(buffers, pose, camera, at, 1.4f, 22 * up, c, hold * 0.55f);
-                    for (int i = 0; i < 3; i++) {
-                        float rt = Mth.clamp((age - i * 0.35f) / 1.0f, 0, 1);
-                        if (rt <= 0 || rt >= 1) continue;
-                        flat(buffers, RING, pose, 0.08f + i * 0.01f, 0.5f + 5f * rt, 0, i == 1 ? light : c, 1 - rt);
+                    // a pillar of black flame from the pool it stands in, and a blast of ink over the ground
+                    Aura.pool(pose, buffers, 0.03f, 1.3f, c, hold, time, 0.6f);
+                    float blast = Mth.clamp(age / 1.0f, 0, 1);
+                    if (blast < 1) {
+                        float ease = 1 - (1 - blast) * (1 - blast);
+                        Aura.splash(pose, buffers, 0.035f, 1.0f + 2.6f * ease, c, (1 - blast * blast) * 0.9f, fx.entityId * 37f);
                     }
-                    flat(buffers, CIRCLE, pose, 0.05f, 2.2f, time * 5, c, hold * 0.9f);
-                    dot(buffers, pose, camera, 0, 1.2f, 0, 2.4f, c, 0.4f * hold * (0.7f + 0.3f * Mth.sin(time * 0.6f)));
+                    flame(pose, buffers, 0.02f, 0.6f + 0.05f * Mth.sin(time * 0.4f), 3.6f * up, c, hold, time, fx.entityId);
                 }
                 case PROMOTED -> {
                     Entity e = mc.level.getEntity(fx.entityId);
@@ -365,84 +339,69 @@ public final class ShadowWorldFx {
                     float up = Mth.clamp(age / 0.25f, 0, 1);
                     float hold = Mth.clamp((life - age) / 1.0f, 0, 1);
                     float flash = Mth.clamp(1 - age / 0.3f, 0, 1);
-                    // the pillar it is raised in, and the flash at the moment
-                    column(buffers, pose, camera, at, 0.7f + 0.3f * Mth.sin(time * 0.5f), 30 * up, light, hold);
-                    column(buffers, pose, camera, at, 2.0f, 30 * up, c, hold * 0.5f);
-                    dot(buffers, pose, camera, 0, eh * 0.6f, 0, 4.5f * (0.5f + 0.5f * out), 0xFFFFFF, flash);
-                    // rings rolling out over the ground, and the circle it stands in
-                    for (int i = 0; i < 4; i++) {
-                        float rt = Mth.clamp((age - i * 0.3f) / 1.2f, 0, 1);
+                    // the pillar of black flame it is raised in, ink blasting out over the ground twice
+                    Aura.pool(pose, buffers, 0.03f, 2.0f, c, hold, time, 0.8f);
+                    for (int i = 0; i < 2; i++) {
+                        float rt = Mth.clamp((age - i * 0.45f) / 1.2f, 0, 1);
                         if (rt <= 0 || rt >= 1) continue;
-                        flat(buffers, RING, pose, 0.08f + i * 0.01f, 0.6f + 7f * rt, 0, i % 2 == 0 ? light : c, 1 - rt);
+                        float ease = 1 - (1 - rt) * (1 - rt);
+                        Aura.splash(pose, buffers, 0.035f + i * 0.004f, 1.2f + 3.6f * ease, c, (1 - rt * rt) * 0.9f, fx.entityId * 37f + i * 140f);
                     }
-                    flat(buffers, CIRCLE, pose, 0.05f, 2.8f, time * 4, c, hold);
-                    flat(buffers, CIRCLE, pose, 0.06f, 1.6f, -time * 7, light, hold * 0.7f);
-                    // rays thrown up and out from over its head, like a crown being set
-                    Vec3 head = new Vec3(0, eh + 0.2, 0);
-                    float rays = Mth.clamp((age - 0.15f) / 0.6f, 0, 1);
-                    for (int i = 0; i < 10; i++) {
-                        float a = i / 10f * Mth.TWO_PI + time * 0.02f;
-                        Vec3 tip = head.add(Mth.cos(a) * 1.6f * rays, 1.4f * rays, Mth.sin(a) * 1.6f * rays);
-                        streak(buffers, pose, camera, at, head, tip, 0.14f, i % 2 == 0 ? light : c, hold * 0.9f * (1 - rays * 0.3f));
-                    }
-                    dot(buffers, pose, camera, 0, eh * 0.55f, 0, 3f, c, 0.45f * hold * (0.7f + 0.3f * Mth.sin(time * 0.6f)));
+                    flame(pose, buffers, 0.02f, 0.85f + 0.08f * Mth.sin(time * 0.5f), 5.2f * up, c, hold, time, fx.entityId);
+                    // a crown of black flame set over its head
+                    float crown = Mth.clamp((age - 0.15f) / 0.6f, 0, 1);
+                    flame(pose, buffers, eh + 0.05f, 0.32f, 0.9f * crown, c, hold, time, fx.entityId + 5);
+                    spark(buffers, pose, camera, 0, eh * 0.6f, 0, 1.6f * (0.5f + 0.5f * out), c, flash);
                 }
                 case ESSENCE -> {
-                    // a wisp flying from the soul to its master's chest, in an arc, with a short tail
+                    // a streak of the soul's light flying from the soul to its master's chest, in an arc
                     Entity master = mc.level.getEntity(fx.extra);
                     if (master == null) break;
                     Vec3 to = master.getPosition(partial).add(0, master.getBbHeight() * 0.6, 0).subtract(at);
                     Vec3 from = new Vec3(0, 0.7, 0);
                     float k = Mth.clamp(age / (life * 0.85f), 0, 1);
                     float e1 = k * k * (3 - 2 * k);
-                    float e0 = Math.max(0, e1 - 0.12f);
+                    float e0 = Math.max(0, e1 - 0.15f);
                     Vec3 p1 = arc(from, to, e1);
                     Vec3 p0 = arc(from, to, e0);
                     if (k < 1) {
-                        streak(buffers, pose, camera, at, p0, p1, 0.16f, c, 0.85f);
-                        dot(buffers, pose, camera, (float) p1.x, (float) p1.y, (float) p1.z, 0.28f, light, 0.95f);
-                        dot(buffers, pose, camera, (float) p1.x, (float) p1.y, (float) p1.z, 0.7f, c, 0.4f);
+                        streak(buffers, pose, camera, at, p1, p0, 0.2f, c, 0.9f);
+                        spark(buffers, pose, camera, (float) p1.x, (float) p1.y, (float) p1.z, 0.3f, c, 0.95f);
                     } else {
                         float pop = Mth.clamp((age - life * 0.85f) / (life * 0.15f), 0, 1);
-                        dot(buffers, pose, camera, (float) to.x, (float) to.y, (float) to.z, 0.5f + 0.6f * pop, light, 0.8f * (1 - pop));
+                        spark(buffers, pose, camera, (float) to.x, (float) to.y, (float) to.z, 0.3f + 0.4f * pop, c, 0.9f * (1 - pop));
                     }
                 }
                 case NAMED -> {
                     Entity e = mc.level.getEntity(fx.entityId);
                     float eh = e != null ? e.getBbHeight() : 1.8f;
-                    // a ring of light rising from its feet to over its head, where the name now hangs
-                    float y = eh * out + 0.1f;
-                    flat(buffers, RING, pose, y, 0.9f + 0.4f * out, 0, light, fade);
-                    flat(buffers, RING, pose, 0.05f, 0.6f + 2.2f * out, 0, c, fade * 0.7f);
-                    dot(buffers, pose, camera, 0, eh + 0.45f, 0, 1.4f * fade, c, 0.5f * fade);
+                    // a ring of black flame rising from its feet to over its head, where the name now hangs
+                    flame(pose, buffers, eh * out + 0.05f, 0.55f, 0.4f, c, fade, time, fx.entityId);
+                    spark(buffers, pose, camera, 0, eh + 0.45f, 0, 0.5f * fade, c, 0.8f * fade);
                 }
                 default -> {
                 }
             }
             pose.popPose();
         }
-        for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
+        buffers.endBatch(ModRenderTypes.flame(Aura.FLAME));
+        for (var tex : new net.minecraft.resources.ResourceLocation[]{Aura.POOL, Aura.SPLASH, Aura.SPARK, Aura.TRAIL}) {
+            buffers.endBatch(ModRenderTypes.energy(tex));
+        }
     }
 
-    /** The ritual on a soul: circle, chains of light rising, smoke drawn in, and the thread from the caster's hand. */
-    private static void ritual(MultiBufferSource buffers, PoseStack pose, Camera camera, Soul s, float time, Vec3 cam, float partial) {
+    /**
+     * The ritual on a soul: the pool spreading under it, a ring of black flame rising round it, ink smoke drawn in to it
+     * (see {@link #tick}) and the hot thread from the caster's hand.
+     */
+    private static void ritual(MultiBufferSource buffers, PoseStack pose, Camera camera, Soul s, float time, float partial) {
         float k = s.ritualProgress(time);
         float ease = 1 - (1 - k) * (1 - k);
         int c = s.color;
-        int light = GateFx.mix(c, 0xFFFFFF, 0.5f);
         float r = 0.6f + 2.2f * ease;
-        flat(buffers, CIRCLE, pose, 0.05f, r, time * (3 + 9 * k), c, 0.95f);
-        flat(buffers, CIRCLE, pose, 0.06f, r * 0.55f, -time * 7, light, 0.6f);
-        flat(buffers, RING, pose, 0.07f, r * 1.15f, 0, light, 0.5f + 0.4f * k);
-        // six chains of light drawn up out of the circle's rim, bending in to the soul
-        for (int i = 0; i < 6; i++) {
-            float a = i / 6f * Mth.TWO_PI + time * 0.05f;
-            Vec3 rim = new Vec3(Mth.cos(a) * r, 0.05, Mth.sin(a) * r);
-            Vec3 top = new Vec3(Mth.cos(a) * 0.3f, 0.8 + 1.2 * ease, Mth.sin(a) * 0.3f);
-            streak(buffers, pose, camera, s.pos, rim, rim.lerp(top, Math.min(1, k * 1.6)), 0.12f, light, 0.8f * Math.min(1, k * 3));
-        }
-        dot(buffers, pose, camera, 0, 1f + 0.6f * ease, 0, 0.5f + 1.6f * ease, c, 0.35f + 0.4f * k);
-        dot(buffers, pose, camera, 0, 1f + 0.6f * ease, 0, 0.25f + 0.5f * ease, 0xFFFFFF, 0.5f * k);
+        Aura.pool(pose, buffers, 0.03f, r, c, 0.95f, time, 0.5f + 0.5f * k);
+        flame(pose, buffers, 0.02f, 0.3f + 0.25f * ease, 0.6f + 1.4f * ease, c, 0.9f, time, s.id);
+        spark(buffers, pose, camera, 0, 1f + 0.6f * ease, 0, 0.18f + 0.3f * ease, c, 0.6f + 0.4f * k);
         // the thread of mana from the caster's hand
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
@@ -453,7 +412,7 @@ public final class ShadowWorldFx {
             }
             Vec3 a = hand.subtract(s.pos);
             Vec3 b = new Vec3(0, 1f + 0.6f * ease, 0);
-            if (a.distanceToSqr(b) < 15 * 15) streak(buffers, pose, camera, s.pos, a, b, 0.08f + 0.06f * Mth.sin(time * 0.8f), light, 0.75f);
+            if (a.distanceToSqr(b) < 15 * 15) streak(buffers, pose, camera, s.pos, b, a, 0.07f + 0.04f * Mth.sin(time * 0.8f), c, 0.8f);
         }
     }
 
@@ -465,22 +424,26 @@ public final class ShadowWorldFx {
 
     // ---- drawing helpers: each fetches its buffer right before drawing (see the gates' "Not building!" note)
 
-    private static void dot(MultiBufferSource buffers, PoseStack pose, Camera camera, float x, float y, float z, float half, int rgb, float alpha) {
-        GateFx.dot(buffers.getBuffer(ModRenderTypes.lightTexture(GLOW)), pose, camera, x, y, z, half, rgb, Math.min(1, alpha));
+    /** Black flame in a ring {@code radius} round the pose's origin, {@code height} tall, over a low haze of its light. */
+    private static void flame(PoseStack pose, MultiBufferSource buffers, float y, float radius, float height, int rgb, float alpha, float time,
+                              int seed) {
+        if (alpha <= 0.01f || height <= 0.02f) return;
+        Aura.ring(pose, buffers, y, radius * 0.9f, height * 0.6f, 0.1f, rgb, alpha * 0.55f, time, seed + 11, false);
+        Aura.ring(pose, buffers, y, radius, height, 0.15f, Aura.dark(rgb, 0.9f), alpha, time, seed, false);
     }
 
-    private static void flat(MultiBufferSource buffers, ResourceLocation tex, PoseStack pose, float y, float radius, float deg, int rgb, float alpha) {
-        if (alpha <= 0.01f || radius <= 0.01f) return;
-        GateFx.flat(buffers.getBuffer(ModRenderTypes.lightTexture(tex)), pose, y, radius, deg, rgb, Math.min(1, alpha));
+    /** A hot point of light with four short glints, facing the camera. */
+    private static void spark(MultiBufferSource buffers, PoseStack pose, Camera camera, float x, float y, float z, float half, int rgb, float alpha) {
+        if (alpha <= 0.01f || half <= 0.005f) return;
+        GateFx.dot(buffers.getBuffer(ModRenderTypes.energy(Aura.SPARK)), pose, camera, x, y, z, half, rgb, Math.min(1, alpha));
     }
 
-    private static void column(MultiBufferSource buffers, PoseStack pose, Camera camera, Vec3 at, float half, float height, int rgb, float alpha) {
-        if (alpha <= 0.01f || height <= 0.01f) return;
-        GateFx.column(buffers.getBuffer(ModRenderTypes.lightTexture(BEAM)), pose, camera, at.x, at.z, half, height, rgb, Math.min(1, alpha));
-    }
-
-    /** A camera-facing streak from a to b (relative to the pose origin, which sits at {@code origin}). */
+    /** A streak of light from a (hot) to b (its tail), facing the camera (relative to the pose origin at {@code origin}). */
     private static void streak(MultiBufferSource buffers, PoseStack pose, Camera camera, Vec3 origin, Vec3 a, Vec3 b, float width, int rgb, float alpha) {
+        ribbon(buffers, pose, camera, origin, a, b, width, rgb, alpha);
+    }
+
+    private static void ribbon(MultiBufferSource buffers, PoseStack pose, Camera camera, Vec3 origin, Vec3 a, Vec3 b, float width, int rgb, float alpha) {
         if (alpha <= 0.01f) return;
         Vec3 dir = b.subtract(a);
         if (dir.lengthSqr() < 1.0e-4) return;
@@ -488,7 +451,7 @@ public final class ShadowWorldFx {
         Vec3 side = dir.cross(camera.getPosition().subtract(mid));
         if (side.lengthSqr() < 1.0e-6) side = dir.cross(new Vec3(0, 1, 0));
         side = side.normalize().scale(width / 2);
-        VertexConsumer out = buffers.getBuffer(ModRenderTypes.lightTexture(STREAK));
+        VertexConsumer out = buffers.getBuffer(ModRenderTypes.energy(Aura.TRAIL));
         Matrix4f m = pose.last().pose();
         int al = Mth.clamp(Math.round(Math.min(1f, alpha) * 255), 0, 255);
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, bl = rgb & 0xFF;

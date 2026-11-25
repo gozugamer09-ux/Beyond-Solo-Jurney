@@ -96,6 +96,31 @@ public final class ModRenderTypes {
         return ENERGY.apply(texture);
     }
 
+    private static final Function<ResourceLocation, RenderType> FLAME = Util.memoize(texture -> RenderType.create("beyondsolo_flame",
+            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, VertexFormat.Mode.QUADS, 1536, false, false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::flame))
+                    .setTextureState(new RenderStateShard.TextureStateShard(texture, true, false))
+                    .setTransparencyState(PREMULTIPLIED)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .createCompositeState(false)));
+
+    /**
+     * Flame standing on a figure's outline: a curtain whose u runs along the outline and whose v runs from its foot (0)
+     * to its top (1), the vertex colour its tint (dark for black flame), the vertex alpha its strength and the normal's
+     * x a quarter of its height in blocks of noise. The shader lifts the texture's noise through it and tears it into
+     * tongues. See {@code shaders/core/flame.fsh}; {@link #flameReady} says whether it loaded.
+     */
+    public static RenderType flame(ResourceLocation texture) {
+        return FLAME.apply(texture);
+    }
+
+    /** False when the flame shader failed to load: nothing else can draw its vertices, so flame is left out. */
+    public static boolean flameReady() {
+        return ModShaders.flame() != null;
+    }
+
     /**
      * Every fragment passes the depth test, whether the test is on or off. Vanilla's {@code NO_DEPTH_TEST} only skips
      * turning the test on, and the particle engine leaves it on, so at {@code AFTER_PARTICLES} (where the world effects

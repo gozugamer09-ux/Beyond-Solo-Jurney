@@ -984,6 +984,11 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         if (level() instanceof ServerLevel server) WorldBosses.slain(server, this, source);
     }
 
+    /** What is left of it as it goes: a puff of dust (a monarch leaves ink). */
+    protected net.minecraft.core.particles.ParticleOptions remains() {
+        return ParticleTypes.POOF;
+    }
+
     @Override
     protected void tickDeath() {
         deathTime++;
@@ -991,7 +996,7 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
             deathTick(server, deathTime);
             if (deathTime >= deathLength()) {
                 WorldBossFx.burst(server, position().add(0, getBbHeight() * 0.4, 0), getBbHeight() * 0.6f, fxColor());
-                server.sendParticles(ParticleTypes.POOF, getX(), getY() + getBbHeight() * 0.3, getZ(), 60, getBbWidth() * 0.5,
+                server.sendParticles(remains(), getX(), getY() + getBbHeight() * 0.3, getZ(), 60, getBbWidth() * 0.5,
                         getBbHeight() * 0.3, getBbWidth() * 0.5, 0.05);
                 remove(RemovalReason.KILLED);
             }

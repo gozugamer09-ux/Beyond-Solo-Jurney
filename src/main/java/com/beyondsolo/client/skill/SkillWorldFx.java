@@ -307,7 +307,7 @@ public final class SkillWorldFx {
                 SkillShake.hit(at, 0.4f, 30, SkillShake.BLAST);
             }
             case NOVA -> {
-                // what the ring throws: flames (duration 0), sparks (1), spray (2), motes of light (3) or soul fire (4)
+                // what the ring throws: flames (duration 0; ink for shadow), sparks (1), spray (2), motes of light (3) or soul fire (4)
                 // seen through the caster's own eyes the ring starts a few steps out, where it reads as a ring and not
                 // as a wall of flame at the feet
                 double from = self ? 2.4 : 0.7;
@@ -337,9 +337,16 @@ public final class SkillWorldFx {
                         FxParticles.wisps(o.x, o.y + 0.6, o.z, 1.2, 10, c, 0.3f);
                     }
                     default -> {
-                        FxParticles.fireRing(o.x, o.y, o.z, from, 34, 0.42f, speed, 0xFFD27A, mix(c, 0xC02000, 0.3f));
-                        FxParticles.smokeRing(o.x, o.y, o.z, 10, 0x4A4440, 0.5f, speed * 0.9f);
-                        if (!self) FxParticles.embers(o.x, o.y + 0.6, o.z, 1.0, 14, c);
+                        if (Skins.Look.of(p.element(), p.color()) == Skins.Look.SHADOW) {
+                            // shadow throws ink, not fire: black smoke running out over the ground, sparks of its colour in it
+                            FxParticles.smokeRing(o.x, o.y, o.z, 22, SkinFx.smokeTint(Skins.Look.SHADOW), 0.6f, speed * 1.1f);
+                            FxParticles.smoke(o.x, o.y + 0.8, o.z, 0.6, 6, SkinFx.smokeTint(Skins.Look.SHADOW), 0.6f, 0.03f);
+                            if (!self) FxParticles.embers(o.x, o.y + 0.6, o.z, 1.0, 10, c);
+                        } else {
+                            FxParticles.fireRing(o.x, o.y, o.z, from, 34, 0.42f, speed, 0xFFD27A, mix(c, 0xC02000, 0.3f));
+                            FxParticles.smokeRing(o.x, o.y, o.z, 10, 0x4A4440, 0.5f, speed * 0.9f);
+                            if (!self) FxParticles.embers(o.x, o.y + 0.6, o.z, 1.0, 14, c);
+                        }
                     }
                 }
                 SkillShake.hit(o, 0.2f, 14, SkillShake.BLAST);
@@ -668,7 +675,7 @@ public final class SkillWorldFx {
                     if (k < 1) {
                         // a burning tail: flames, embers and smoke left hanging where it passed
                         Vec3 at = meteorAt(fx, k);
-                        FxParticles.fire(at.x, at.y, at.z, 0.35 * p.size() / 3 + 0.2, 3, 0.45f + p.size() * 0.06f, 0.02f, 0xFFD27A, mix(c, 0xB01800, 0.3f));
+                        FxParticles.fire(at.x, at.y, at.z, 0.35 * p.size() / 3 + 0.2, 3, 0.45f + p.size() * 0.06f, 0.02f, 0xFFA040, mix(c, 0x9A1000, 0.4f));
                         FxParticles.embers(at.x, at.y, at.z, 0.4, 1, c);
                         FxParticles.add(FxParticles.Tex.SMOKE, at.x + rnd(0.3), at.y + 0.3, at.z + rnd(0.3), 0, 0.02, 0).frame(RANDOM.nextInt(16)).blend()
                                 .life(FxParticles.rf(30, 45)).size(0.5f, 1.3f).color(0x2C2622).alpha(0.5f).fade(0.1f, 0.35f).drag(0.94f).swirl(0.004f);
@@ -1044,7 +1051,8 @@ public final class SkillWorldFx {
                         Skins.spikes(pose, buffers, camera, g.add(0, 0.3, 0), fx.seed, 10, 1.2f + p.size() * 0.35f, 0.35f, fx.look.light(c), f);
                         Skins.billboard(pose, buffers, camera, ModRenderTypes.energy(Skins.FLARE), g.add(0, 0.3, 0), 0.8f + p.size() * 0.2f, 0xFFFFFF, f, 0);
                     }
-                    SkinFx.smoke(pose, buffers, camera, g.add(0, 0.2, 0), p.size() * 0.55f, age, fx.seed, 0x9A8C78, 0.8f * Mth.clamp((life - age) / 0.25f, 0, 1));
+                    SkinFx.smoke(pose, buffers, camera, g.add(0, 0.2, 0), p.size() * 0.55f, age, fx.seed, SkinFx.smokeTint(fx.look),
+                            0.8f * Mth.clamp((life - age) / 0.25f, 0, 1));
                 }
                 case BLINK -> {
                     // where they left, a burst of the element folds in on itself; where they came out one opens, and a

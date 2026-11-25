@@ -120,6 +120,12 @@ public abstract class RulerBoss extends ColossalBoss {
         return 100;
     }
 
+    /** What is left of it as it goes: motes of light, never smoke (the series' light leaves no ash). */
+    @Override
+    protected net.minecraft.core.particles.ParticleOptions remains() {
+        return ParticleTypes.END_ROD;
+    }
+
     @Override
     public void prepareEntrance(ServerLevel level, Vec3 at) {
         entrance(at.add(0, MonarchBoss.GATE_HEIGHT, 0), at, introLength() - 30);
