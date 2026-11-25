@@ -121,6 +121,109 @@ public final class ShadowGameTests {
         });
     }
 
+    @GameTest(template = ARENA)
+    public static void theRaiseKeyHeldThroughARitualCallsNoOne(GameTestHelper helper) {
+        ServerPlayer p = player(helper, Subclass.NECROMANCER);
+        ShadowService.give(p, EntityType.ZOMBIE, ShadowRank.SOLDIER, false);
+        kill(helper, p, helper.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 1)));
+        ShadowService.rise(p);
+        helper.assertTrue(souls(p).size() == 1 && souls(p).get(0).inRitual(), "the first press starts the ritual");
+        int said = ShadowService.saidCount(p);
+        // the key held down through the ritual: its repeats come in as more presses
+        for (int i = 0; i < 10; i++) ShadowService.rise(p);
+        helper.assertTrue(ShadowService.army(p).activeCount() == 0, "no shadow was called out over the ritual");
+        helper.assertTrue(ShadowService.saidCount(p) == said, "and no pop-up was sent: " + ShadowService.lastSaid(p));
+        ShadowService.reset(p);
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void theSoulLookedAtIsTheOneThatRises(GameTestHelper helper) {
+        ServerPlayer p = player(helper, Subclass.NECROMANCER);
+        net.minecraft.world.phys.Vec3 at = p.position();
+        // a wolf fell at the necromancer's side, a skeleton a few steps off: a pack's souls side by side
+        ShadowService.addSoul(p, helper.getLevel(), at.add(1.5, 0, 0), EntityType.WOLF, 8, 2, 0.3f, false, -1);
+        ShadowService.addSoul(p, helper.getLevel(), at.add(0, 0, 5), EntityType.SKELETON, 20, 2, 0.25f, false, -1);
+        // looking south (+z), a little down, at the skeleton's soul
+        p.setYRot(0);
+        p.setXRot(10);
+        ShadowService.Soul aimed = ShadowService.aim(p).soul();
+        helper.assertTrue(aimed != null && aimed.type().getPath().equals("skeleton"), "the soul looked at, though another lies nearer");
+        // looking down at the wolf's (east, +x)
+        p.setYRot(-90);
+        p.setXRot(40);
+        aimed = ShadowService.aim(p).soul();
+        helper.assertTrue(aimed != null && aimed.type().getPath().equals("wolf"), "the wolf's when looked at");
+        // looking up at the sky: the nearest
+        p.setYRot(180);
+        p.setXRot(-40);
+        aimed = ShadowService.aim(p).soul();
+        helper.assertTrue(aimed != null && aimed.type().getPath().equals("wolf"), "none looked at: the nearest");
+        ShadowService.forceNext(p, true);
+        p.setYRot(0);
+        p.setXRot(10);
+        helper.assertTrue(ShadowService.startExtraction(p), "the ritual starts");
+        ShadowService.Soul skeleton = souls(p).stream().filter(s -> s.type().getPath().equals("skeleton")).findFirst().orElse(null);
+        helper.assertTrue(skeleton != null && skeleton.inRitual(), "on the skeleton's soul");
+        ShadowService.reset(p);
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void aSoulOutOfReachSaysComeCloser(GameTestHelper helper) {
+        ServerPlayer p = player(helper, Subclass.NECROMANCER);
+        ShadowService.give(p, EntityType.ZOMBIE, ShadowRank.SOLDIER, false);
+        ShadowService.addSoul(p, helper.getLevel(), p.position().add(0, 0, 12), EntityType.WOLF, 8, 2, 0.3f, false, -1);
+        p.setYRot(0);
+        p.setXRot(5);
+        ShadowService.rise(p);
+        helper.assertTrue(souls(p).size() == 1 && !souls(p).get(0).inRitual(), "too far to extract");
+        helper.assertTrue(ShadowService.army(p).activeCount() == 0, "and the army is not called instead");
+        helper.assertTrue("shadow.beyondsolo.too_far".equals(ShadowService.lastSaid(p)), "it says to come closer: " + ShadowService.lastSaid(p));
+        ShadowService.reset(p);
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void whyNoShadowAnswersIsSaidPlainly(GameTestHelper helper) {
+        ServerPlayer p = player(helper, Subclass.NECROMANCER);
+        ShadowRecord steed = ShadowService.give(p, EntityType.SKELETON_HORSE, ShadowRank.SOLDIER, false);
+        helper.assertTrue(steed.isMount(), "a steed");
+        ShadowService.rise(p);
+        helper.assertTrue("shadow.beyondsolo.none_ready.mount_only".equals(ShadowService.lastSaid(p)),
+                "an army of only its steed says so: " + ShadowService.lastSaid(p));
+        helper.assertTrue(ShadowService.army(p).activeCount() == 0, "the raise key never calls the steed");
+        ShadowService.give(p, EntityType.ZOMBIE, ShadowRank.SOLDIER, false);
+        helper.assertTrue(ShadowService.summonAll(p) == 1, "the zombie answers");
+        ShadowService.rise(p);
+        helper.assertTrue("shadow.beyondsolo.none_ready.all_out".equals(ShadowService.lastSaid(p)),
+                "every shadow already out says so: " + ShadowService.lastSaid(p));
+        int said = ShadowService.saidCount(p);
+        ShadowService.rise(p);
+        helper.assertTrue(ShadowService.saidCount(p) == said, "and is not said again a moment later");
+        ShadowService.reset(p);
+        helper.succeed();
+    }
+
+    @GameTest(template = ARENA, timeoutTicks = 200)
+    public static void aShadowRisesEvenIntoAFullField(GameTestHelper helper) {
+        ServerPlayer p = player(helper, Subclass.NECROMANCER);
+        int limit = ShadowService.activeLimit(p);
+        for (int i = 0; i < limit; i++) ShadowService.give(p, EntityType.ZOMBIE, ShadowRank.SOLDIER, false);
+        helper.assertTrue(ShadowService.summonAll(p) == limit, "the field is full");
+        ShadowService.Soul soul = ShadowService.addSoul(p, helper.getLevel(), p.position().add(2, 0, 0), EntityType.WOLF, 8, 2, 0.3f, false, -1);
+        ShadowRecord r = ShadowService.extractNow(p, soul);
+        helper.assertTrue(r != null && r.type().getPath().equals("wolf"), "the wolf's shadow joins");
+        helper.assertTrue(ShadowService.army(p).isActive(r.id()), "and rises where it fell all the same");
+        helper.runAfterDelay(ShadowService.RISE_THEN_REST_TICKS + 4, () -> {
+            ShadowData army = ShadowService.army(p);
+            helper.assertFalse(army.isActive(r.id()), "then sinks into its master's shadow to wait");
+            helper.assertTrue(army.get(r.id()) != null && army.used() <= limit, "kept in the army, the field back to its limit");
+            ShadowService.reset(p);
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = ARENA, timeoutTicks = 260)
     public static void aSoulRefusesThreeTimesThenCrumbles(GameTestHelper helper) {
         ServerPlayer p = player(helper, Subclass.NECROMANCER);

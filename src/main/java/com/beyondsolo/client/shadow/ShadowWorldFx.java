@@ -5,6 +5,16 @@ import com.beyondsolo.client.gate.GateFx;
 import com.beyondsolo.client.skill.FxParticles;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.network.ShadowFxPayload;
+import com.beyondsolo.network.ShadowSoulPayload;
+import com.beyondsolo.shadow.ShadowForm;
+import com.beyondsolo.shadow.ShadowLook;
+import com.beyondsolo.shadow.ShadowService;
+import com.beyondsolo.shadow.SoulAim;
+import com.mojang.math.Axis;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -52,6 +62,14 @@ public final class ShadowWorldFx {
         int ritualTicks;
         /** Set when a try fails: the circle cracks. */
         float failedAt = -100;
+        /** The player's own soul (only those get the "Extract shadow" prompt). */
+        boolean mine;
+        /** What fell there, drawn lying in its pool in ink (null: not told yet, or it can't be drawn). */
+        @Nullable ShadowForm form;
+        int bossRank = -1;
+        @Nullable ShadowLook body;
+        /** Game time it fades at, unless a ritual holds it (-1: not told). */
+        float fadesAt = -1;
 
         Soul(int id, Vec3 pos, int color, int tries, String type, float born) {
             this.id = id;
@@ -64,6 +82,20 @@ public final class ShadowWorldFx {
 
         boolean inRitual(float now) {
             return ritualStart >= 0 && now - ritualStart < ritualTicks + 2;
+        }
+
+        /**
+         * 1 while the soul lingers, sinking to {@link #FADE_FLOOR} over its last {@link #FADE_TICKS} (not while a ritual holds
+         * it): what fell sinks into its pool and the pool thins, so its master sees the soul is about to go.
+         */
+        float lingering(float now) {
+            return Math.max(FADE_FLOOR, timeLeft(now));
+        }
+
+        /** 1 until the soul's last {@link #FADE_TICKS}, then down to 0 as it goes (1 while a ritual holds it). */
+        float timeLeft(float now) {
+            if (fadesAt < 0 || inRitual(now)) return 1f;
+            return Mth.clamp((fadesAt - now) / FADE_TICKS, 0f, 1f);
         }
 
         float ritualProgress(float now) {
@@ -88,6 +120,11 @@ public final class ShadowWorldFx {
         }
     }
 
+    /** A soul's last ticks, through which it fades. */
+    static final float FADE_TICKS = 80;
+    /** How far a fading soul fades before it goes (the server has the last word on when). */
+    static final float FADE_FLOOR = 0.15f;
+
     static final Map<Integer, Soul> SOULS = new HashMap<>();
     private static final List<Fx> ACTIVE = new ArrayList<>();
     private static final RandomSource RANDOM = RandomSource.create();
@@ -95,6 +132,21 @@ public final class ShadowWorldFx {
     static float now(float partial) {
         ClientLevel level = Minecraft.getInstance().level;
         return level == null ? 0 : level.getGameTime() + partial;
+    }
+
+    /** What fell where a soul lingers, and whose soul it is: drawn in its pool from now on. */
+    static void soul(ShadowSoulPayload p) {
+        Soul s = SOULS.get(p.soul());
+        if (s == null) return;
+        s.mine = p.mine();
+        s.bossRank = p.bossRank();
+        s.fadesAt = now(0) + p.life();
+        s.body = null;
+        try {
+            s.form = ShadowForm.load(p.form());
+        } catch (RuntimeException e) {
+            s.form = null;
+        }
     }
 
     static void handle(ShadowFxPayload p) {
@@ -227,13 +279,24 @@ public final class ShadowWorldFx {
         }
     }
 
+    /**
+     * The player's soul the raise key would reach now, the way the server picks it ({@link SoulAim}): the one under the
+     * crosshair, else the nearest; with none in reach, the one meant but too far.
+     */
+    static SoulAim.Pick<Soul> aim(Player player, float partial, float now) {
+        List<Soul> mine = new ArrayList<>();
+        for (Soul s : SOULS.values()) if (s.mine && !s.inRitual(now)) mine.add(s);
+        return SoulAim.pick(player.getEyePosition(partial), player.getViewVector(partial), player.getPosition(partial), mine, s -> s.pos);
+    }
+
+    /** The player's own soul whose ritual is running nearest them, or null. */
     @Nullable
-    static Soul nearestSoul(Vec3 from, double reach) {
+    static Soul inRitual(Vec3 from, float now) {
         Soul best = null;
-        double bd = reach * reach;
+        double bd = ShadowService.RITUAL_HOLD * ShadowService.RITUAL_HOLD;
         for (Soul s : SOULS.values()) {
             double d = s.pos.distanceToSqr(from);
-            if (d < bd) {
+            if (s.mine && s.inRitual(now) && d < bd) {
                 bd = d;
                 best = s;
             }
@@ -248,6 +311,11 @@ public final class ShadowWorldFx {
         Vec3 cam = camera.getPosition();
         float time = now(partial);
 
+        // what fell, lying in ink in each pool (drawn and finished first: the pools and flames go over it)
+        boolean bodies = false;
+        for (Soul s : SOULS.values()) bodies |= fallen(pose, buffers, cam, s, time, partial);
+        if (bodies) buffers.endBatch();
+
         for (Soul s : SOULS.values()) {
             pose.pushPose();
             pose.translate(s.pos.x - cam.x, s.pos.y - cam.y, s.pos.z - cam.z);
@@ -257,11 +325,12 @@ public final class ShadowWorldFx {
             boolean ritual = s.inRitual(time);
             float crack = Mth.clamp(1 - (time - s.failedAt) / 16f, 0, 1);
             // a small pool of ink, a black flame on it and the ember of the soul over it
+            float left = s.lingering(time);
             if (!ritual) {
-                Aura.pool(pose, buffers, 0.03f, 0.55f * in, s.color, 0.85f * in, time, 0.35f);
-                flame(pose, buffers, 0.02f, 0.2f, 0.6f * in * pulse, s.color, 0.85f * in, time, s.id);
+                Aura.pool(pose, buffers, 0.03f, 0.55f * in * (0.6f + 0.4f * left), s.color, 0.85f * in * left, time, 0.35f);
+                flame(pose, buffers, 0.02f, 0.2f, 0.6f * in * pulse * left, s.color, 0.85f * in * left, time, s.id);
             }
-            spark(buffers, pose, camera, 0, 0.7f + 0.08f * Mth.sin(time * 0.12f), 0, 0.22f * in * pulse, s.color, 0.9f * in);
+            spark(buffers, pose, camera, 0, 0.7f + 0.08f * Mth.sin(time * 0.12f), 0, 0.22f * in * pulse * (0.5f + 0.5f * left), s.color, 0.9f * in * left);
             // a try refused: the ink splashes out with a red edge
             if (crack > 0) Aura.splash(pose, buffers, 0.035f, 0.8f + 1.6f * (1 - crack * crack), 0xFF5060, 0.85f * crack, s.id * 53f);
             if (ritual) ritual(buffers, pose, camera, s, time, partial);
@@ -414,6 +483,58 @@ public final class ShadowWorldFx {
             Vec3 b = new Vec3(0, 1f + 0.6f * ease, 0);
             if (a.distanceToSqr(b) < 15 * 15) streak(buffers, pose, camera, s.pos, b, a, 0.07f + 0.04f * Mth.sin(time * 0.8f), c, 0.8f);
         }
+    }
+
+    /**
+     * The creature that fell, in ink, lying on its side half sunk in its pool: what will rise if its shadow answers.
+     * Through the ritual it sinks into the ink; a refused try brings it back up. False if nothing was drawn.
+     */
+    private static boolean fallen(PoseStack pose, MultiBufferSource buffers, Vec3 cam, Soul s, float time, float partial) {
+        if (s.form == null || s.pos.distanceToSqr(cam) > 48 * 48) return false;
+        Minecraft mc = Minecraft.getInstance();
+        try {
+            if (s.body == null || s.body.stale()) {
+                s.body = ShadowLook.make(mc.level, s.type, s.form, s.bossRank);
+                LivingEntity b = s.body.body();
+                // it fell facing some way of its own
+                float yaw = (s.id * 137.508f) % 360f;
+                b.setPos(s.pos.x, s.pos.y, s.pos.z);
+                b.setYRot(yaw);
+                b.yRotO = yaw;
+                b.yBodyRot = b.yBodyRotO = yaw;
+                b.yHeadRot = b.yHeadRotO = yaw;
+                b.setXRot(0);
+                b.xRotO = 0;
+            }
+        } catch (RuntimeException | LinkageError e) {
+            // a creature that can't be made here: the pool alone shows the soul
+            s.form = null;
+            s.body = null;
+            return false;
+        }
+        LivingEntity b = s.body.body();
+        float in = Mth.clamp((time - s.born) / 12f, 0, 1);
+        float k = s.form.fit() * s.body.scale();
+        // its width (lying on its side, how high it stands off the ground), in blocks
+        float wide = s.form.width() * s.form.fit();
+        float sink = s.inRitual(time) ? s.ritualProgress(time) : 0.7f * (1 - s.lingering(time));
+        // a quarter of it under the ink; through the ritual it goes down into it
+        float y = wide * 0.25f - sink * sink * wide * 0.9f - (1 - in) * wide * 0.5f;
+        pose.pushPose();
+        pose.translate(s.pos.x - cam.x, s.pos.y - cam.y + y, s.pos.z - cam.z);
+        pose.scale(k, k, k);
+        // tipped onto its side the way a creature falls when it dies (without the red of a death), its middle over the
+        // middle of the pool
+        float turn = 180f - b.yBodyRot;
+        pose.mulPose(Axis.YP.rotationDegrees(turn));
+        pose.translate(s.form.height() / Math.max(0.05f, s.body.scale()) * 0.5f, 0, 0);
+        pose.mulPose(Axis.ZP.rotationDegrees(90f));
+        pose.mulPose(Axis.YP.rotationDegrees(-turn));
+        int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(s.pos.x, s.pos.y + 0.5, s.pos.z));
+        boolean drawn = ShadowDraw.render(ShadowDraw.renderer(b), b, b.yBodyRot, partial, pose,
+                ShadowTint.ink(buffers, 0.85f, Aura.mix(s.color, 0xFFFFFF, 0.25f)), light);
+        pose.popPose();
+        return drawn;
     }
 
     /** A point on the arc from a to b, rising a little over the straight line. */

@@ -46,6 +46,10 @@ public final class ClientConfig {
             .comment("Tint the screen edges while you burn, bleed, carry heavy venom or a crimson brand.")
             .define("combat.screenEffects", true);
 
+    public static final ModConfigSpec.BooleanValue KEYS_SORTED = B
+            .comment("Set once the keys Xaero's Minimap shares with the System have been moved to free ones (see KeyClashes).")
+            .define("keysSorted", false);
+
     public static final ModConfigSpec SPEC = B.build();
 
     public static NotificationMode cycleMode() {

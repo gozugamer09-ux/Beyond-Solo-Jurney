@@ -62,6 +62,9 @@ Mod id `beyondsolo`, base package `com.beyondsolo`.
    `Collapsed`, `ObjectiveChanged`.
 4. **Talk to the player with pop-ups:** `Notifications.send(player, SystemNotification.of(Kind.QUEST, title, body))`.
    Kinds: INFO, QUEST, ALERT, LEVEL_UP, REWARD. They show in whatever mode the player picked and land in the Log tab.
+   The same message again while it still shows is one pop-up with a repeat count ("×3") and a fresh timer, never a
+   stack (`NotificationManager.push`: the same kind and words, or for an ALERT the same title); the Log keeps one line
+   for a message repeated word for word within 10 s. Still, don't send a pop-up on every tick or key repeat.
 
 5. **Every feature owns its animations**, and they should look smooth. For a screen, use `client.gfx`. For light in
    the world, draw it in a renderer with `ModRenderTypes` instead of spawning dust particles (see "The evaluation").
@@ -840,6 +843,20 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   can't be read (a broken mod creature) leaves no soul and is logged once (`ShadowHooks.onDeath`). The raise key (H) next to a soul starts the extraction
   ritual (2 s); each soul has 3 tries. The chance (`ShadowService.chance`) falls with the creature's health against
   the player's level and INT; bosses are much harder. `/system shadow next success|fail|random` decides the next try.
+- **Which soul the key reaches** (`SoulAim`, the same on both sides: the server's `ShadowService.aim` and the HUD's
+  prompt): the one under the crosshair, from up to 10 blocks (`AIM_REACH`), else the nearest within 7 (`REACH`), so
+  where a pack's souls lie side by side the one looked at rises. While one of the player's rituals runs the key does
+  nothing more (a held key's repeats, a second press), and with a soul of theirs plainly meant but out of reach
+  (looked at, or a few steps too far, up to 16 blocks: `NOTICE`) it says "Out of reach" with the creature's name and
+  the distance instead of calling the army. A ritual holds while its necromancer stays within 14 blocks (`RITUAL_HOLD`).
+  The client sends the shadow keys once per press, never for a held key's repeats (`ShadowClientEvents.pressed`).
+- **What fell lies in its pool.** With each soul the server sends what fell there (`ShadowSoulPayload`: the creature's
+  form, look included, and whether the soul is the receiving player's own); `ShadowWorldFx` draws the creature in ink
+  on its side, half sunk in its pool, and through the ritual it goes down into the ink; a refused try brings it back
+  up. Only the player's own souls get the "Extract shadow" prompt.
+- **Why none answer** (`ShadowService.noneReady`): an empty army, an army of only its steed (it comes with the mount
+  key), shadows still recovering (and when the first is back), or every shadow already out; a full field says so
+  ("Too many shadows out"). The same pop-up is not sent to a player twice within 1.5 s (`tell`, `ALERT_QUIET_TICKS`).
 - **Shadows** (`ShadowRecord` in `ShadowData`): the creature type, a role (`ShadowForm.roleOf`: tags
   `shadow/mounts`, `shadow/casters`, `shadow/warriors` first; then a steed carries, a creature that shoots or throws
   casts, bolts at range, unless it holds a blade; the rest fight up close), its form (below), a rank (`ShadowRank`: Husk, Soldier, Vanguard, Knight, Captain,
@@ -888,7 +905,10 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (`ShadowRecord.bestow` keeps it). The first name earns the title *Keeper of Names*.
 - **Commanders lead**: shadows within 12 blocks of one of their master's Commanders (or higher) hit 10% harder
   (`LEAD`); a boss shadow's +15% still counts first (`ShadowService.auraBonus`).
-- **In the world** (`ShadowEntity`): rises out of the ground (`RISE_TICKS`), follows its master and slips to them when
+- **In the world** (`ShadowEntity`): a newly extracted shadow always rises where its creature fell, so its master sees
+  what answered; into a field already full it stands a few seconds (`RISE_THEN_REST_TICKS`), then sinks into its
+  master's shadow to wait (said in the extraction pop-up), and the Shadows page opens on it. Rises out of the ground
+  (`RISE_TICKS`), follows its master and slips to them when
   left behind, fights whatever hurts its master or what they hurt and monsters near them, never players or allies.
   Its hits go through `SkillCombat.strike` with the shadow element, so they can set off reactions. A flier's shadow
   flies (`FlyingMoveControl`, `FlyingPathNavigation`, no gravity), hovers over its master's head (`hoverOver`) and

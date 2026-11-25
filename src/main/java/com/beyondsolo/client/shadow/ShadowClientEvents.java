@@ -66,9 +66,11 @@ public final class ShadowClientEvents {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             ShadowWorldFx.tick();
-            while (RISE.consumeClick()) if (mc.screen == null) send(ShadowActionPayload.RISE);
-            while (RECALL.consumeClick()) if (mc.screen == null) send(ShadowActionPayload.RECALL);
-            while (MOUNT.consumeClick()) if (mc.screen == null) send(ShadowActionPayload.MOUNT);
+            // once a press: a key held down repeats its clicks (the ritual takes two seconds, long enough for that),
+            // and each would be another call
+            if (pressed(RISE, 0) && mc.screen == null) send(ShadowActionPayload.RISE);
+            if (pressed(RECALL, 1) && mc.screen == null) send(ShadowActionPayload.RECALL);
+            if (pressed(MOUNT, 2) && mc.screen == null) send(ShadowActionPayload.MOUNT);
         }
 
         @SubscribeEvent
@@ -81,6 +83,18 @@ public final class ShadowClientEvents {
         static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
             ShadowClient.clear();
         }
+    }
+
+    /** Whether each key was held at the end of the last tick. */
+    private static final boolean[] HELD = new boolean[3];
+
+    /** True once for each press of the key: its clicks are used up, and while it stays held its repeats are not. */
+    private static boolean pressed(KeyMapping key, int slot) {
+        boolean clicked = false;
+        while (key.consumeClick()) clicked = true;
+        boolean fresh = clicked && !HELD[slot];
+        HELD[slot] = key.isDown();
+        return fresh;
     }
 
     private static void send(int action) {
