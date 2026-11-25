@@ -41,9 +41,9 @@ public final class BossLoot {
             new Table(PlayerRank.B, BossSets.GLOOMREAVER, SkillElement.SHADOW, 0.36f, List.of(
                     e(Arsenal.KNIGHTSBANE, 4), e(Arsenal.SWARM_KING_TALONS, 4), e(Arsenal.NIGHTVEIL_KRIS, 2))),
             new Table(PlayerRank.A, BossSets.EMBERWROUGHT, SkillElement.FIRE, 0.38f, List.of(
-                    e(Arsenal.EMBER_SAGE_STAFF, 5), e(Arsenal.HELLHOUND_HALBERD, 4), e(Arsenal.HELLSOVEREIGN_FANG, 1))),
+                    e(Arsenal.EMBER_SAGE_STAFF, 12), e(Arsenal.HELLHOUND_HALBERD, 7), e(Arsenal.HELLSOVEREIGN_FANG, 1))),
             new Table(PlayerRank.S, BossSets.SOVEREIGN, SkillElement.LIGHTNING, 0.40f, List.of(
-                    e(Arsenal.CRIMSON_COMMANDER_BLADE, 4), e(Arsenal.IRONBLOOD_CLAYMORE, 4), e(Arsenal.STORMCALLER_EDICT, 1))));
+                    e(Arsenal.CRIMSON_COMMANDER_BLADE, 10), e(Arsenal.IRONBLOOD_CLAYMORE, 7), e(Arsenal.STORMCALLER_EDICT, 1))));
 
     private static Entry e(DeferredItem<? extends Item> item, int weight) {
         return new Entry(item, weight);

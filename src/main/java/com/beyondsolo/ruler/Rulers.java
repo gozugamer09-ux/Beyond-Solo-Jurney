@@ -476,8 +476,8 @@ public final class Rulers {
         loot.add(new ItemStack(RulerModule.MOTE.get(), 2 + (top ? 1 : 0) + (share >= 0.2f ? 1 : 0)));
         loot.add(new ItemStack(CraftingModule.GREATER_MANA_STONE.get(), 3 + r.nextInt(2) + (share >= 0.2f ? 1 : 0)));
         loot.add(new ItemStack(CraftingModule.SUPREME_HEALING_ELIXIR.get(), 1 + (top ? 1 : 0)));
-        loot.add(GateLoot.weapon(5, r));
-        if (r.nextFloat() < 0.5f + share) loot.add(GateLoot.weapon(5, r));
+        loot.add(GateLoot.greatThreatWeapon(r));
+        if (r.nextFloat() < 0.5f + share) loot.add(GateLoot.greatThreatWeapon(r));
         loot.add(new ItemStack(CraftingModule.ELIXIR_OF_REBIRTH.get()));
         for (ItemStack s : loot) WorldBosses.give(p, s);
         p.getData(RulerModule.RECORD.get()).addSlain(kind, top);

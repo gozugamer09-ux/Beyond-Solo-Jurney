@@ -1455,7 +1455,7 @@ public final class IsleRaids {
         }
         WorldBosses.give(p, new ItemStack(CraftingModule.GREATER_MANA_STONE.get(), 2 + rnd.nextInt(2) + (share >= 0.2f ? 1 : 0)));
         if (top) WorldBosses.give(p, new ItemStack(CraftingModule.SUPREME_HEALING_ELIXIR.get()));
-        if (kind == WorldBossKind.KING && rnd.nextFloat() < 0.35f + share) WorldBosses.give(p, GateLoot.weapon(5, rnd));
+        if (kind == WorldBossKind.KING && rnd.nextFloat() < 0.35f + share) WorldBosses.give(p, GateLoot.greatThreatWeapon(rnd));
         WorldBosses.countSlain(p, kind, top);
         IsleRecord rec = record(p);
         if (kind == WorldBossKind.KING) rec.kings++;
@@ -1526,7 +1526,7 @@ public final class IsleRaids {
         RandomSource rnd = p.getRandom();
         WorldBosses.give(p, RewardBoxItem.of(BoxKind.BLESSED, PlayerRank.S, 1));
         WorldBosses.give(p, new ItemStack(CraftingModule.GREATER_MANA_STONE.get(), 3 + rnd.nextInt(3)));
-        if (!fallen && rnd.nextFloat() < 0.5f) WorldBosses.give(p, GateLoot.weapon(5, rnd));
+        if (!fallen && rnd.nextFloat() < 0.5f) WorldBosses.give(p, GateLoot.greatThreatWeapon(rnd));
         IsleRecord rec = record(p);
         rec.cleared++;
         boolean best = false;

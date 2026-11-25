@@ -6,6 +6,8 @@ import com.beyondsolo.item.arsenal.ArsenalWeapon;
 import com.beyondsolo.item.arsenal.Signature;
 import com.beyondsolo.item.arsenal.Trait;
 import com.beyondsolo.network.CombatFxPayload;
+import com.beyondsolo.skill.SkillElement;
+import com.beyondsolo.skill.SkillFeel;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -141,6 +143,60 @@ public final class ArsenalHits {
         });
     }
 
+    /**
+     * A blow of a signature art: magic damage as {@link #magicHit}, and it lands the way a class skill's blows land
+     * ({@link com.beyondsolo.skill.SkillFeel}): the creature flashes white and hangs, sparks of the art's element fly,
+     * the hit is heard, the wielder's view kicks. A divine art's blows weigh in at the heaviest, a mythic's heavy, a
+     * legendary's solid; what a blow takes of the creature can make it heavier. Never an ultimate's ink frame: the
+     * art's own screen show answers its strike.
+     */
+    public static void artHit(Signature art, LivingEntity wielder, LivingEntity target, float amount) {
+        artHit(art, "", wielder, target, amount);
+    }
+
+    /**
+     * The blow an art builds to (an uppercut after the barrage, the wounds opening behind a dash, the last cut of three):
+     * it lands with its full weight even on a creature the art struck a moment ago, where a flurry's next blow would
+     * only spark.
+     */
+    public static void artFinisher(Signature art, LivingEntity wielder, LivingEntity target, float amount) {
+        artHit(art, "/finisher", wielder, target, amount);
+    }
+
+    private static void artHit(Signature art, String part, LivingEntity wielder, LivingEntity target, float amount) {
+        float before = target.getHealth();
+        magicHit(wielder, target, amount);
+        if (wielder instanceof ServerPlayer p) {
+            SkillFeel.struck(p, "art/" + art.key() + part, artStature(art), false, artElement(art), target, before);
+        }
+    }
+
+    /** How hard an art's blows feel before what they took is counted (see {@link com.beyondsolo.skill.SkillFeel}). */
+    static byte artStature(Signature art) {
+        if (art == Signature.VERDANT_BLESSING) return SkillFeel.HEAVY; // a blessing's bloom, not a blow
+        return switch (art.grade()) {
+            case DIVINE -> SkillFeel.MASSIVE;
+            case MYTHIC -> SkillFeel.HEAVY;
+            default -> SkillFeel.MEDIUM;
+        };
+    }
+
+    /** The element an art's blows spark and sound in (the skills' elements; blood and crimson strike as flesh). */
+    static SkillElement artElement(Signature art) {
+        return switch (art) {
+            case INFERNAL_REND, CATACLYSM_CLEAVE, THREE_HEADED_MAW, PYRE_OF_OATHS -> SkillElement.FIRE;
+            case ABSOLUTE_ZERO -> SkillElement.WATER;
+            case HEAVENS_VERDICT, STORMBREAK -> SkillElement.LIGHTNING;
+            case DEVOURING_STAR, VEILSTEP -> SkillElement.SHADOW;
+            case COLOSSUS_STANCE, TITANS_BARRAGE -> SkillElement.EARTH;
+            case VERDANT_BLESSING, NIGHTGLASS_FAN -> SkillElement.NATURE;
+            case STARFALL, SAINTS_DAWN, SUNDERING_VERDICT -> SkillElement.LIGHT;
+            case CONSTELLATION -> SkillElement.ARCANE;
+            case GALE_LANCE -> SkillElement.AIR;
+            case DRAGONS_WRATH, BLOOD_PRICE, REQUIEM_OF_THORNS -> SkillElement.PHYSICAL;
+        };
+    }
+
     // ------------------------------------------------------------------ damage in
 
     @SubscribeEvent(priority = EventPriority.HIGH)
@@ -236,6 +292,8 @@ public final class ArsenalHits {
         if (attacker.hasEffect(ModEffects.INFERNAL_REND) && hit.melee()) {
             Statuses.apply(target, DamageElement.FIRE, 40, attacker);
             proc(() -> CombatDamage.deal(target, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(attacker, 4f), attacker));
+            ArsenalAbilities.send(attacker, Signature.INFERNAL_REND, com.beyondsolo.network.SignatureFxPayload.PASSIVE,
+                    List.of(target.position().add(0, target.getBbHeight() * 0.55, 0)));
         }
         if (!refused && w.signature() == Signature.STARFALL && hit.arrow() != null && hit.arrow().isCritArrow()) {
             starfall(attacker, target);
@@ -302,7 +360,7 @@ public final class ArsenalHits {
         Vec3 at = target.position();
         level.playSound(null, at.x, at.y, at.z, SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 1.2f, 1.5f);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 1.4f, 0.7f);
-        ArsenalAbilities.send(attacker, Signature.STARFALL, com.beyondsolo.network.SignatureFxPayload.IMPACT, List.of(at));
+        ArsenalAbilities.send(attacker, Signature.STARFALL, com.beyondsolo.network.SignatureFxPayload.PASSIVE, List.of(at));
     }
 
     /** NOVA effect parameter: colour and radius in blocks. */
@@ -325,6 +383,8 @@ public final class ArsenalHits {
         arrow.getPersistentData().putString(BOW_TAG, BuiltInRegistries.ITEM.getKey(sb).toString());
         com.beyondsolo.gear.Infusions.tagArrow(arrow, bow);
         boolean refused = refuses(owner, sb);
+        // a charged draw: the arrow carries the bow's art (the volley's split arrows do not)
+        if (!refused && sb.signature() != null && sb.signature().drawn()) ArsenalAbilities.arrowLoosed(owner, arrow);
         arrow.setBaseDamage(arrow.getBaseDamage() * sb.damageMultiplier() * (refused ? REFUSED_DAMAGE : 1f));
         if (refused && owner instanceof Player p) warnRefused(p, sb);
 

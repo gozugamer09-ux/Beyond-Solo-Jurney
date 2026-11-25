@@ -88,11 +88,20 @@ public final class SkillFeel {
      * creature's health before the blow, so what it actually took (after armour and the rest) decides the weight.
      */
     public static void struck(ServerPlayer p, Skill s, SkillElement element, LivingEntity e, float healthBefore) {
+        struck(p, s.path(), stature(s), ultimate(s), element, e, healthBefore);
+    }
+
+    /**
+     * A blow from something other than a class skill (a weapon's signature art), weighed the same way: {@code source}
+     * tells its blows apart for the repeats, {@code stature} is how big it is ({@link #stature(Skill)} for a skill).
+     */
+    public static void struck(ServerPlayer p, String source, byte stature, boolean ultimate, SkillElement element, LivingEntity e,
+                              float healthBefore) {
         if (p.level().isClientSide) return;
         long now = p.level().getGameTime();
         long key = ((long) p.getId() << 32) | (e.getId() & 0xFFFFFFFFL);
         long[] last = LAST.get(key);
-        int skill = s.path().hashCode();
+        int skill = source.hashCode();
         boolean repeat = last != null && last[0] == skill && now >= last[1] && now - last[1] <= REPEAT_TICKS;
         if (LAST.size() > 1024) LAST.values().removeIf(l -> now - l[1] > REPEAT_TICKS || now < l[1]);
         LAST.put(key, new long[]{skill, now});
@@ -100,8 +109,7 @@ public final class SkillFeel {
         float max = Math.max(1, e.getMaxHealth());
         float dealt = Math.max(0, healthBefore - Math.max(0, e.getHealth()));
         boolean killed = !e.isAlive() || e.isDeadOrDying();
-        boolean ultimate = ultimate(s);
-        byte weight = weigh(stature(s), dealt / max, killed, repeat, com.beyondsolo.combat.Statuses.tough(e), ultimate);
+        byte weight = weigh(stature, dealt / max, killed, repeat, com.beyondsolo.combat.Statuses.tough(e), ultimate);
         byte flags = (byte) ((killed ? KILL : 0) | (repeat ? REPEAT : 0));
 
         long batchKey = ((long) p.getId() << 8) | element.ordinal();

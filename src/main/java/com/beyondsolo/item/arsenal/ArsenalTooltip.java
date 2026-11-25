@@ -66,6 +66,10 @@ public final class ArsenalTooltip {
             if (sig.active()) {
                 lines.add(Component.literal("   ").append(Component.translatable("tooltip.beyondsolo.signature.use", sig.cooldownSeconds()))
                         .withStyle(ChatFormatting.DARK_GRAY));
+            } else if (sig.drawn()) {
+                String hold = String.valueOf(sig.drawTicks() / 20f).replaceAll("\\.0$", "");
+                lines.add(Component.literal("   ").append(Component.translatable("tooltip.beyondsolo.signature.draw", hold, sig.cooldownSeconds()))
+                        .withStyle(ChatFormatting.DARK_GRAY));
             }
         }
         com.beyondsolo.armory.DivinePassives.tooltip(w, lines);
