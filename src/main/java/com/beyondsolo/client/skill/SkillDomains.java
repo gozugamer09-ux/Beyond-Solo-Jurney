@@ -69,6 +69,8 @@ public final class SkillDomains {
         int bodyColor;
         boolean stars;
         boolean storm;
+        /** How high its body hangs over the horizon, in degrees. */
+        float high = 15;
         /** The fog starts at once: the dark is right round you, not only far off. */
         boolean close;
         Air air = Air.NONE;
@@ -85,6 +87,12 @@ public final class SkillDomains {
         Look body(Body b, int color) {
             body = b;
             bodyColor = color;
+            return this;
+        }
+
+        /** The body sits just over the horizon: a sun rising. */
+        Look rise() {
+            high = 4;
             return this;
         }
 
@@ -137,21 +145,23 @@ public final class SkillDomains {
         put("worldshaker_roar", new Look(0x48331A, 0x957044, 0.45f, 56, 2.5f).air(Air.DUST, 0xC8A070));
         // ---- the healer's
         put("blood_tempest", new Look(0x1C0207, 0x520913, 0.88f, 38, 6).body(Body.MOON, 0xFF4646).air(Air.ASH, 0xC0202A));
-        put("avatar_of_dawn", new Look(0xFFE4AA, 0xFFF0D4, 0.55f, 90, 6).body(Body.SUN, 0xFFFFFF).air(Air.MOTES, 0xFFE8A0));
-        put("miracle_of_dawn", new Look(0xFFDC9A, 0xFFEECC, 0.5f, 90, 5).body(Body.SUN, 0xFFF2C8).air(Air.MOTES, 0xFFE8A0));
-        put("solstice", new Look(0xFFD07A, 0xFFE4AC, 0.5f, 90, 5).body(Body.SUN, 0xFFFFFF));
-        put("eternal_spring", new Look(0xB4E6A4, 0xDDF2CC, 0.45f, 70, 6).air(Air.PETALS, 0xFFC4E0));
+        // a dawn is a deep sky over a burning horizon with the sun just rising, never a washed-out white
+        put("avatar_of_dawn", new Look(0x1C2A64, 0xF4A468, 0.82f, 80, 8).body(Body.SUN, 0xFFE6B0).rise().air(Air.MOTES, 0xFFE8A0));
+        put("miracle_of_dawn", new Look(0x22306E, 0xF6B27A, 0.78f, 90, 5).body(Body.SUN, 0xFFEFC8).rise().air(Air.MOTES, 0xFFE8A0));
+        put("solstice", new Look(0x103C8C, 0xFFD48C, 0.72f, 90, 5).body(Body.SUN, 0xFFFFFF));
+        put("eternal_spring", new Look(0x3C8CD0, 0xF6D6E6, 0.55f, 70, 6).air(Air.PETALS, 0xFFC4E0));
         put("elderwood", new Look(0x243A16, 0x587A36, 0.62f, 40, 6).air(Air.SPORES, 0xC8FF80));
         // ---- the guardian's
         put("day_of_reckoning", new Look(0x280A04, 0x66200E, 0.78f, 48, 5).body(Body.SUN, 0xFF7444).air(Air.EMBERS, 0xFF8A50));
-        put("dawnbreaker", new Look(0xFFDA9C, 0xFFEFCE, 0.5f, 90, 3).body(Body.SUN, 0xFFFFFF));
+        put("dawnbreaker", new Look(0x241E5C, 0xFF9A64, 0.8f, 90, 3.5f).body(Body.SUN, 0xFFE8C0).rise());
         put("earthen_domain", new Look(0x56401E, 0x9E7A46, 0.72f, 36, 6).air(Air.DUST, 0xC8A070));
         put("pillars_of_creation", new Look(0x382A1A, 0x886842, 0.72f, 44, 5).air(Air.DUST, 0xC8A070));
         put("colossus_form", new Look(0x463216, 0x967242, 0.55f, 56, 4).air(Air.DUST, 0xC8A070));
         // ---- the ranger's
         put("storm_of_a_thousand", new Look(0x121824, 0x323E58, 0.82f, 56, 4.5f).storm());
         put("stormfall", new Look(0x0E1422, 0x2A344E, 0.88f, 50, 5).storm());
-        put("fall_of_heaven", new Look(0xFFF2D2, 0xFFFDF4, 0.55f, 96, 3).body(Body.SUN, 0xFFFFFF).air(Air.MOTES, 0xFFF4C0));
+        // the heavens open over the whole rain of arrows, till the last one lands
+        put("fall_of_heaven", new Look(0x08163E, 0xC8D8FF, 0.82f, 96, 8).body(Body.SUN, 0xFFFFFF).stars().air(Air.MOTES, 0xFFF4C0));
         put("wild_hunt", new Look(0x180E06, 0x3E2618, 0.86f, 44, 9).body(Body.MOON, 0xFFB466));
         put("call_of_the_pack", new Look(0x0A1024, 0x18223E, 0.86f, 44, 4).body(Body.MOON, 0xEAF2FF).stars());
     }
@@ -445,7 +455,8 @@ public final class SkillDomains {
     private static void body(MultiBufferSource.BufferSource buffers, PoseStack pose, Domain d, float k, float time) {
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(-d.yaw));
-        pose.mulPose(Axis.XP.rotationDegrees(-30));
+        // low over the horizon ahead, where a fighter's eyes are, not overhead
+        pose.mulPose(Axis.XP.rotationDegrees(-d.look.high));
         pose.translate(0, 0, 10.5);
         Matrix4f m = pose.last().pose();
         int c = d.look.bodyColor;

@@ -1048,9 +1048,12 @@ public final class HealerPath {
         sound(p, SoundEvents.BEACON_ACTIVATE, 1f, 0.8f);
         sound(p, SoundEvents.ENDER_DRAGON_FLAP, 1f, 0.8f);
         sound(p, SoundEvents.TOTEM_USE, 0.4f, 1.4f);
+        // the dawn comes down on the healer: a column of light, wings opening in it, the light thrown out round them
+        fx(p, Kind.HEAL, 0xFFF2D0, p.position(), 2.6f, 0);
         fx(p, Kind.WINGS, s.color(), p.position(), 1.6f, 300);
         fx(p, Kind.HALO, 0xFFFFFF, p.position(), 1.3f, 300);
         fx(p, Kind.ROAR, s.color(), p.position(), 8, 0);
+        fx(p, Kind.NOVA, s.color(), p.position(), 12, 3);
         repeat(p, 300, 20, () -> {
             for (Player ally : allies(p, 12)) mend(p, ally, avatarHeal(l) + wit(p, 0.04f));
         });

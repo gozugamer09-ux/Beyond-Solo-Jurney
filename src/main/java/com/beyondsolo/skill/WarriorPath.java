@@ -478,13 +478,24 @@ public final class WarriorPath {
         sound(p, SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1f, 0.6f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.8f);
         later(p, 12, () -> {
-            Vec3 dir = facing(p);
-            Vec3 a = p.position().add(0, 1, 0), b = a.add(dir.scale(18));
-            for (LivingEntity e : along(p, a, b, 1.8)) {
+            Vec3 dir = facing(p), from = p.position();
+            Vec3 a = from.add(0, 1, 0), b = a.add(dir.scale(18));
+            List<LivingEntity> cut = new ArrayList<>(along(p, a, b, 1.8));
+            for (LivingEntity e : cut) {
                 float dmg = 20 * m(l, tier(p)) + stat(p, Stat.AGI, 0.3f) + stat(p, Stat.STR, 0.2f);
                 hit(p, s, e, e.getHealth() < e.getMaxHealth() * 0.25f ? dmg * 2 : dmg);
                 fx(e, Kind.SLASH, s.color(), e.position(), 2.6f, 0);
             }
+            // a breath later the cut catches up: the ground parts along the line and what stood on it is cut again
+            later(p, 10, () -> {
+                for (int i = 0; i < 4; i++) fxAt(level, Kind.CRACK, s.color(), from.add(dir.scale(2.5 + i * 4.5)), 2.8f, 0);
+                for (LivingEntity e : cut) {
+                    if (!e.isAlive()) continue;
+                    fx(e, Kind.SLASH, 0xFFFFFF, e.position(), 2.2f, 1);
+                    fxAt(level, Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.5, 0), 1.8f, 1);
+                }
+                sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.4f);
+            });
             sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 1.2f, 0.5f);
             sound(p, SoundEvents.TRIDENT_THUNDER.value(), 0.5f, 1.8f);
             fx(p, Kind.SLASH, s.color(), p.position(), 6, 0);

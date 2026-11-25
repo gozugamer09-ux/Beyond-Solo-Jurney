@@ -234,7 +234,7 @@ seraph_wings WINGS 200
 chakram_of_dawn DISCUS 4
 rapture PILLAR 12
 sanctum DOME 100
-avatar_of_dawn WINGS 300
+avatar_of_dawn HEAL 0
 piercing_shot SHOT 0
 hunters_mark MARK 240
 arrow_rain ZONE 56

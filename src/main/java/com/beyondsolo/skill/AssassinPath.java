@@ -644,13 +644,16 @@ public final class AssassinPath {
         sound(p, SoundEvents.WITHER_SKELETON_AMBIENT, 0.6f, 0.6f);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
         fx(target, Kind.BIND, s.color(), target.position(), 1.4f, 40);
-        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 3, 10);
+        // the contract is sealed with a blade the size of a verdict, dropped on the one it names
+        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 6, 10);
         later(p, 10, () -> {
             if (!target.isAlive()) return;
             hit(p, s, target, 15 * m(l, tier(p)) + stat(p, Stat.AGI, 0.3f));
             stun(target, 40);
             sound(target, SoundEvents.ANVIL_LAND, 0.6f, 0.6f);
-            fxAt(level, Kind.CRACK, s.color(), target.position(), 3.5f, 0);
+            fxAt(level, Kind.CRACK, s.color(), target.position(), 5.5f, 0);
+            fxAt(level, Kind.NOVA, s.color(), target.position(), 6, 4);
+            fxAt(level, Kind.GEYSER, s.color(), target.position(), 5, 4);
         });
         return true;
     }

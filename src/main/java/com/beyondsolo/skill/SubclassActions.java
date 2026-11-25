@@ -575,6 +575,7 @@ public final class SubclassActions {
         sound(p, SoundEvents.PORTAL_TRIGGER, 0.7f, 1.6f);
         SkillFx.play(p, SkillFxPayload.Kind.ZONE, s.color(), center.add(0, -1.2, 0), 9, ticks);
         fxAt(level, SkillFxPayload.Kind.DOME, s.color(), center.add(0, -1, 0), 1.4f, ticks);
+        fxAt(level, SkillFxPayload.Kind.VORTEX, s.color(), center.add(0, -1.2, 0), 3.5f, ticks);
         for (int t = 0; t <= ticks; t += 2) {
             final int k = t;
             ServerScheduler.schedule(t, () -> {
@@ -595,7 +596,10 @@ public final class SubclassActions {
                     e.setDeltaMovement(away.x * 1.2, 0.8, away.z * 1.2);
                     e.hurtMarked = true;
                 }
-                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), center.add(0, -1, 0), 6, 1);
+                // everything it swallowed comes back out at once
+                fxAt(level, SkillFxPayload.Kind.NOVA, s.color(), center.add(0, -1, 0), 14, 1);
+                fxAt(level, SkillFxPayload.Kind.GEYSER, s.color(), center.add(0, -1.2, 0), 9, 2);
+                fxAt(level, SkillFxPayload.Kind.CRACK, s.color(), center.add(0, -1.2, 0), 8, 0);
                 SkillParticles.send(level, ParticleTypes.EXPLOSION_EMITTER, center.x, center.y, center.z, 1, 0, 0, 0, 0);
                 level.playSound(null, center.x, center.y, center.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.4f, 0.6f);
             });

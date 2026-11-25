@@ -1312,6 +1312,8 @@ public final class RangerPath {
                 sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 1f, 0.6f);
                 sound(level, at, SoundEvents.BREEZE_WIND_CHARGE_BURST.value(), 1.2f, 0.6f);
                 fxAt(level, Kind.CRACK, s.color(), at, 7, 0);
+                fxAt(level, Kind.NOVA, s.color(), at, 11, 1);
+                fxAt(level, Kind.GEYSER, 0xFFFFFF, at, 8, 2);
             });
         });
         return true;
