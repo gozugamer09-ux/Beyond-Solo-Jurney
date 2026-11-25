@@ -217,11 +217,14 @@ public final class GuardianPath {
         Vec3 at = target.position();
         float dmg = 16 * m(l, tier(p)) + vit(p, 0.3f);
         sound(level, at, SoundEvents.BELL_BLOCK, 1f, 0.6f);
-        fxAt(level, Kind.THUNDER, s.color(), at, 3, 0);
+        fxAt(level, Kind.THUNDER, s.color(), at, 4.5f, 0);
         hit(p, s, target, undead(target) ? dmg * 1.5f : dmg);
         stun(target, 30);
         for (LivingEntity e : foes(p, at, 3)) if (e != target) magic(p, s, e, dmg * 0.4f);
-        fxAt(level, Kind.CRACK, s.color(), at, 3, 0);
+        // the verdict stands where it fell: a column of light over the judged, the ground scorched round them
+        fxAt(level, Kind.CRACK, s.color(), at, 4.5f, 0);
+        fxAt(level, Kind.HEAL, s.color(), at, 1.8f, 0);
+        fxAt(level, Kind.NOVA, s.color(), at, 5, 3);
         return true;
     }
 
@@ -289,6 +292,9 @@ public final class GuardianPath {
         sound(p, SoundEvents.ANVIL_LAND, 0.4f, 1.2f);
         fx(p, Kind.SHIELD, s.color(), at, 1.4f, 7);
         debris(p.serverLevel(), at.add(facing(p).scale(2)), 14, 0.6);
+        // the shield meets them like a wall
+        fxAt(p.serverLevel(), Kind.SLAM, s.color(), at.add(facing(p).scale(2)), 3.2f, 0);
+        for (LivingEntity e : cone(p, 5.5, 0.4)) fx(e, Kind.SPLASH, s.color(), mid(e), 1.6f, 1);
         return true;
     }
 
@@ -456,7 +462,10 @@ public final class GuardianPath {
         if (!hits.isEmpty()) SystemAPI.restoreMana(p, 4);
         sound(p, SoundEvents.AMETHYST_BLOCK_HIT, 1.6f, 0.7f);
         sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.8f);
-        fx(p, Kind.SLASH, s.color(), p.position(), 3, 0);
+        fx(p, Kind.SLASH, s.color(), p.position(), 3.6f, 0);
+        // the rune the blade carries is cut into what it hits, and into the ground before them
+        for (LivingEntity e : hits) fx(e, Kind.SPLASH, s.color(), mid(e), 1.6f, 1);
+        fxAt(p.serverLevel(), Kind.CRACK, s.color(), p.position().add(facing(p).scale(2.5)), 2.6f, 0);
         return true;
     }
 
@@ -490,8 +499,9 @@ public final class GuardianPath {
         magic(p, s, target, 10 * m(l, tier(p)) + vit(p, 0.2f));
         p.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 120, 0, false, false, true));
         sound(p, SoundEvents.AMETHYST_CLUSTER_BREAK, 1.6f, 1.2f);
-        fx(p, Kind.BEAM, s.color(), mid(target), 0.25f, 5);
-        fx(target, Kind.SPLASH, s.color(), mid(target), 1.6f, 1);
+        fx(p, Kind.BEAM, s.color(), mid(target), 0.45f, 6);
+        fx(target, Kind.SPLASH, s.color(), mid(target), 2.1f, 1);
+        fx(target, Kind.NOVA, s.color(), target.position(), 2.6f, 3);
         return true;
     }
 

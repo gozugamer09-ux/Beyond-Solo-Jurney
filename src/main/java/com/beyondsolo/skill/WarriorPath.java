@@ -135,6 +135,8 @@ public final class WarriorPath {
         sound(p, SoundEvents.SLIME_SQUISH, 0.9f, 0.5f);
         fx(p, Kind.SLASH, s.color(), p.position(), 2.8f, 1);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), 110);
+        fxAt(level, Kind.SPLASH, s.color(), target.position().add(0, target.getBbHeight() * 0.55, 0), 1.6f, 1);
+        fxAt(level, Kind.GEYSER, s.color(), target.position(), 2.2f, 0);
         for (int i = 1; i <= 5; i++) {
             later(p, i * 20, () -> {
                 if (!target.isAlive()) return;
@@ -250,7 +252,11 @@ public final class WarriorPath {
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.8f);
         sound(level, to, SoundEvents.TRIDENT_HIT_GROUND, 1f, 0.8f);
         fx(p, Kind.SHOT, s.color(), to, 1, 0);
-        fxAt(level, Kind.CLEAVE, s.color(), ground(level, to), 1.3f, 2);
+        fxAt(level, Kind.CLEAVE, s.color(), ground(level, to), 2.4f, 2);
+        later(p, 2, () -> {
+            fxAt(level, Kind.CRACK, s.color(), ground(level, to), 2.6f, 0);
+            fxAt(level, Kind.SPLASH, s.color(), ground(level, to).add(0, 0.6, 0), 1.6f, 1);
+        });
         return true;
     }
 
@@ -311,11 +317,13 @@ public final class WarriorPath {
         target.addEffect(new MobEffectInstance(MobEffects.GLOWING, ticks, 0, false, false));
         sound(p, SoundEvents.BELL_RESONATE, 1f, 1.4f);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
-        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 2f, 7);
+        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 3.6f, 7);
         later(p, 7, () -> {
             if (!target.isAlive()) return;
             hit(p, s, target, 6 * m(l, tier(p)) + stat(p, Stat.STR, 0.1f));
             sound(target, SoundEvents.TRIDENT_HIT, 1f, 0.6f);
+            fxAt(level, Kind.CRACK, s.color(), target.position(), 3f, 0);
+            fxAt(level, Kind.SPLASH, s.color(), target.position().add(0, target.getBbHeight() * 0.5, 0), 1.8f, 1);
         });
         return true;
     }
@@ -392,7 +400,7 @@ public final class WarriorPath {
         sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.3f);
         sound(p, SoundEvents.BREEZE_SHOOT, 0.8f, 1.2f);
         fx(p, Kind.SLASH, s.color(), p.position(), 3.4f, 0);
-        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(14)), 1.5f, 2);
+        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(14)), 2.4f, 2);
         for (int i = 1; i <= 7; i++) {
             Vec3 a = start.add(dir.scale((i - 1) * 2)), b = start.add(dir.scale(i * 2));
             later(p, i, () -> {
@@ -605,8 +613,9 @@ public final class WarriorPath {
                 push(e, at, 0.6, 0.4);
             }
             sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.8f, 1f);
-            fxAt(level, Kind.SLAM, s.color(), at, 3.2f, 0);
-            fxAt(level, Kind.CRACK, s.color(), at, 3.6f, 0);
+            fxAt(level, Kind.SLAM, s.color(), at, 4.4f, 0);
+            fxAt(level, Kind.CRACK, s.color(), at, 5f, 0);
+            fxAt(level, Kind.GEYSER, s.color(), at, 3f, 1);
         });
         return true;
     }

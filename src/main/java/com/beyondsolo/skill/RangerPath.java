@@ -300,6 +300,7 @@ public final class RangerPath {
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 1.2f);
         fx(p, Kind.ARROW, s.color(), mid(first), 0.8f, 0);
         shot(p, s, first, dmg);
+        fx(p, Kind.SPLASH, s.color(), mid(first), 1.2f, 1);
         for (int i = 1; i < path.size(); i++) {
             LivingEntity from = path.get(i - 1), e = path.get(i);
             float d = dmg * (float) Math.pow(0.85, i);
@@ -308,6 +309,7 @@ public final class RangerPath {
                 if (!e.isAlive()) return;
                 fx(from, Kind.ARROW, s.color(), mid(e), 0.8f, 0);
                 shot(p, s, e, d);
+                fx(p, Kind.SPLASH, s.color(), mid(e), 1.2f, 1);
                 sound(e, SoundEvents.ARROW_HIT, 0.8f, pitch);
             });
         }
@@ -322,6 +324,9 @@ public final class RangerPath {
         hold(p, target, ticks);
         // the bolt stays in the ground through its foot for as long as it holds
         fx(p, Kind.ARROW, s.color(), target.position().add(0, 0.05, 0), 1.2f, ticks);
+        // the blow bursts on it, and bands of light lash it to the bolt for as long as it holds
+        fx(p, Kind.SPLASH, s.color(), mid(target), 1.6f, 1);
+        fx(target, Kind.BIND, s.color(), target.position(), 0.9f, ticks);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.8f);
         sound(target, SoundEvents.TRIDENT_HIT_GROUND, 1f, 1.3f);
         return true;
@@ -332,7 +337,8 @@ public final class RangerPath {
         Vec3 end = aimPoint(p, 24);
         Vec3 dir = flat(end.subtract(eye), p);
         float dmg = (9 * m(l, tier(p)) + agi(p, 0.2f)) * takeAim(p);
-        for (LivingEntity e : along(p, eye, end, 0.9)) {
+        List<LivingEntity> carried = along(p, eye, end, 0.9);
+        for (LivingEntity e : carried) {
             shot(p, s, e, dmg);
             // the wind it drags along carries them off
             e.setDeltaMovement(dir.x * 1.3, 0.35, dir.z * 1.3);
@@ -342,6 +348,7 @@ public final class RangerPath {
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.6f);
         sound(p, SoundEvents.BREEZE_SHOOT, 0.8f, 1.2f);
         fx(p, Kind.GALE, s.color(), end, 1.3f, 0);
+        for (LivingEntity e : carried) fx(p, Kind.SPLASH, s.color(), mid(e), 1.4f, 1);
         return true;
     }
 
@@ -367,7 +374,12 @@ public final class RangerPath {
             shot(p, s, target, ending ? dmg * 2.5f : dmg);
             sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.5f);
             sound(target, SoundEvents.TRIDENT_HIT, 1f, ending ? 0.6f : 0.9f);
-            if (ending) fxAt(p.serverLevel(), Kind.SPLASH, s.color(), mid(target), 1.6f, 1);
+            fx(p, Kind.BEAM, s.color(), mid(target), 0.22f, 5);
+            fxAt(p.serverLevel(), Kind.SPLASH, s.color(), mid(target), ending ? 2.6f : 1.6f, 1);
+            if (ending) {
+                fxAt(p.serverLevel(), Kind.NOVA, s.color(), target.position(), 3.6f, 1);
+                fxAt(p.serverLevel(), Kind.CRACK, s.color(), target.position(), 2.6f, 0);
+            }
         });
         return true;
     }
@@ -382,7 +394,10 @@ public final class RangerPath {
                 LivingEntity target = aim(p, 32, x -> canHit(p, x));
                 fx(p, Kind.ARROW, s.color(), target != null ? mid(target) : aimPoint(p, 32), 0.85f, 0);
                 sound(p, SoundEvents.ARROW_SHOOT, 0.8f, pitch);
-                if (target != null) shot(p, s, target, (4 * m(l, tier(p)) + agi(p, 0.08f)) * aimed);
+                if (target != null) {
+                    shot(p, s, target, (4 * m(l, tier(p)) + agi(p, 0.08f)) * aimed);
+                    fx(p, Kind.SPLASH, s.color(), mid(target), 0.9f, 1);
+                }
             });
         }
         return true;
@@ -458,6 +473,9 @@ public final class RangerPath {
             sound(target, SoundEvents.PHANTOM_BITE, 1f, 1.4f);
             Vec3 at = mid(target);
             SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, at.x, at.y, at.z, 6, 0.2, 0.2, 0.2, 0.2);
+            // the talons rake it as the bird goes by
+            fxAt(p.serverLevel(), Kind.CLAW, s.color(), at, 1.3f, 0);
+            fxAt(p.serverLevel(), Kind.SPLASH, s.color(), at, 1.3f, 1);
         });
         return true;
     }
@@ -475,6 +493,8 @@ public final class RangerPath {
                 Buildups.add(e, Buildups.BLOOD, 20, p);
                 fxAt(level, Kind.CLAW, s.color(), mid(e), 1.1f, 0);
             }
+            // the landing throws the dust out in a ring
+            fxAt(level, Kind.SLAM, s.color(), land, 2.4f, 0);
             sound(level, land, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.7f);
             sound(level, land, SoundEvents.WOLF_GROWL, 0.8f, 1.3f);
         });
@@ -499,6 +519,8 @@ public final class RangerPath {
                 e.setDeltaMovement(out.x * 0.8 + dir.x * 0.35, 0.45, out.z * 0.8 + dir.z * 0.35);
                 e.hurtMarked = true;
                 stun(e, 20);
+                fx(p, Kind.SPLASH, s.color(), mid(e), 1.4f, 1);
+                fx(p, Kind.GEYSER, s.color(), e.position(), 1.6f, 1);
                 sound(e, SoundEvents.HOGLIN_ATTACK, 0.8f, 1.1f);
             });
         }
@@ -743,6 +765,8 @@ public final class RangerPath {
                     // duration 0: the open jaws are gone from where they lay, and snap shut on the creature's legs
                     fxAt(level, Kind.TRAP, s.color(), trap.at, 0, 0);
                     fxAt(level, Kind.TRAP, s.color(), victim.position(), TRAP_SIZE, 0);
+                    fxAt(level, Kind.SPLASH, s.color(), victim.position().add(0, victim.getBbHeight() * 0.3, 0), 1.5f, 1);
+                    fx(victim, Kind.BIND, s.color(), victim.position(), 0.8f, 60);
                     return;
                 }
             }
@@ -894,6 +918,8 @@ public final class RangerPath {
             sound(level, at, SoundEvents.GENERIC_EXPLODE.value(), 0.7f, 0.6f);
             sound(level, at, SoundEvents.DEEPSLATE_BREAK, 1.5f, 0.6f);
             fxAt(level, Kind.QUAKE, s.color(), at, 4, 16);
+            fxAt(level, Kind.CRACK, s.color(), at, 4.2f, 0);
+            fxAt(level, Kind.GEYSER, s.color(), at, 3f, 1);
             SkillParticles.send(level, GRIT, at.x, at.y + 0.3, at.z, 40, 1.6, 0.3, 1.6, 0.3);
             SkillParticles.send(level, ParticleTypes.POOF, at.x, at.y + 0.3, at.z, 14, 1.6, 0.2, 1.6, 0.03);
         });
@@ -995,8 +1021,12 @@ public final class RangerPath {
                     zap(p, s, e, 3 * m(l, tier(p)) + agi(p, 0.06f));
                     // a bolt is the same from either end
                     fx(e, Kind.BOLT, s.color(), top, 0.2f, 0);
+                    fxAt(level, Kind.SPLASH, s.color(), mid(e), 1f, 1);
                 }
-                if (any) sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 0.4f, 1.8f);
+                if (any) {
+                    sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 0.4f, 1.8f);
+                    fxAt(level, Kind.NOVA, s.color(), at, 2.2f, 1);
+                }
             });
         }
         return true;
@@ -1056,6 +1086,9 @@ public final class RangerPath {
         sound(p, SoundEvents.TRIDENT_THUNDER.value(), 0.35f, 1.8f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.6f);
         fx(p, Kind.STATIC, s.color(), p.position(), 0.9f, 200);
+        // they call a bolt down onto themselves and keep it
+        fx(p, Kind.THUNDER, s.color(), p.position(), 1.4f, 0);
+        fx(p, Kind.NOVA, s.color(), p.position(), 3f, 1);
         return true;
     }
 
@@ -1161,6 +1194,7 @@ public final class RangerPath {
                     if (!e.isAlive()) return;
                     float dmg = 6 * m(l, tier(p)) + agi(p, 0.15f) + sense(p, 0.1f);
                     shot(p, s, e, struck.add(e) ? dmg : dmg * 0.5f);
+                    fx(p, Kind.SPLASH, s.color(), mid(e), 1.1f, 1);
                     sound(e, SoundEvents.ARROW_HIT, 0.8f, 1.6f);
                 });
             });
@@ -1186,6 +1220,10 @@ public final class RangerPath {
                 shot(p, s, e, 13 * m(l, tier(p)) + agi(p, 0.3f) + sense(p, 0.15f));
                 launch(e, 0.55);
             }
+            // the star lands: a ring of light and the ground cracked under it
+            fxAt(level, Kind.NOVA, s.color(), at, 3.6f, 1);
+            fxAt(level, Kind.CRACK, s.color(), at, 3f, 0);
+            fxAt(level, Kind.SPLASH, s.color(), at.add(0, 0.8, 0), 2.2f, 1);
             sound(level, at, SoundEvents.TRIDENT_HIT_GROUND, 1.2f, 0.7f);
             sound(level, at, SoundEvents.BREEZE_WIND_CHARGE_BURST.value(), 1f, 0.9f);
         });
@@ -1212,7 +1250,9 @@ public final class RangerPath {
                 fx(p, Kind.SEEKER, s.color(), mid(e), 0.8f, 5);
                 sound(p, SoundEvents.ARROW_SHOOT, 0.7f, 1.6f);
                 later(p, 5, () -> {
-                    if (e.isAlive()) shot(p, s, e, 7 * m(l, tier(p)) + agi(p, 0.15f));
+                    if (!e.isAlive()) return;
+                    shot(p, s, e, 7 * m(l, tier(p)) + agi(p, 0.15f));
+                    fx(p, Kind.SPLASH, s.color(), mid(e), 1f, 1);
                 });
             });
         }
@@ -1229,6 +1269,7 @@ public final class RangerPath {
             later(p, (int) Math.round(Mth.clamp(e.position().subtract(from).dot(dir), 0, 16) * 0.4), () -> {
                 if (!e.isAlive()) return;
                 shot(p, s, e, dmg);
+                fx(p, Kind.SPLASH, s.color(), mid(e), 1.4f, 1);
                 e.setDeltaMovement(dir.x, 0.3, dir.z);
                 e.hurtMarked = true;
             });

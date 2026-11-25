@@ -40,6 +40,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -233,7 +234,9 @@ public final class SkillActions {
         }
         sound(p, SoundEvents.FIRECHARGE_USE, 1f, 0.6f);
         sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f, 0.6f);
-        SkillFx.play(p, SkillFxPayload.Kind.WAVE, s.color(), p.position().add(look.scale(9)), 1.5f, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.WAVE, s.color(), p.position().add(look.scale(9)), 2.4f, 0);
+        // the sweep that throws it
+        SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), 3.4f, 0);
         return true;
     }
 
@@ -391,6 +394,7 @@ public final class SkillActions {
         sound(p, SoundEvents.BLAZE_SHOOT, 0.6f, 1.7f);
         sound(p, SoundEvents.AMETHYST_BLOCK_HIT, 1f, 0.8f);
         SkillFx.play(p, SkillFxPayload.Kind.BOLT, s.color(), end, 0.3f, 0);
+        if (target != null) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), end, 1.5f, 1);
         return true;
     }
 
@@ -548,10 +552,12 @@ public final class SkillActions {
         Vec3 end = aimPoint(p, 32);
         float dmg = 6 * mult(p, l) + statBonus(p, Stat.AGI, 0.15f);
         AABB sweep = new AABB(eye, end).inflate(1);
+        List<Vec3> pierced = new ArrayList<>();
         for (LivingEntity e : p.level().getEntitiesOfClass(LivingEntity.class, sweep, x -> canHit(p, x))) {
             Optional<Vec3> hitAt = e.getBoundingBox().inflate(0.35).clip(eye, end);
             if (hitAt.isEmpty()) continue;
             hit(p, s, e, dmg, false);
+            pierced.add(hitAt.get());
             Vec3 dir = end.subtract(eye).normalize();
             e.knockback(0.3, -dir.x, -dir.z);
             SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, hitAt.get().x, hitAt.get().y, hitAt.get().z, 8, 0.1, 0.1, 0.1, 0.3);
@@ -559,6 +565,9 @@ public final class SkillActions {
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.7f);
         sound(p, SoundEvents.ARROW_SHOOT, 0.8f, 1.6f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 0.4f, 0);
+        // a streak hangs where the arrow went, and each creature it went through bursts
+        SkillFx.play(p, SkillFxPayload.Kind.BEAM, s.color(), end, 0.18f, 4);
+        for (Vec3 at : pierced) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 1.3f, 1);
         return true;
     }
 
@@ -676,6 +685,7 @@ public final class SkillActions {
             struck.add(next);
             Vec3 mid = next.position().add(0, next.getBbHeight() * 0.55, 0);
             SkillFx.play(from, SkillFxPayload.Kind.BOLT, s.color(), mid, 0.3f, 0);
+            SkillFx.play(next, SkillFxPayload.Kind.SPLASH, s.color(), mid, 1.4f, 1);
             hit(p, s, next, dmg, true);
             SkillParticles.send(p.serverLevel(), ParticleTypes.ELECTRIC_SPARK, mid.x, mid.y, mid.z, 10, 0.25, 0.25, 0.25, 0.25);
             dmg *= 0.8f;
@@ -727,7 +737,8 @@ public final class SkillActions {
         SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, at.x, at.y, at.z, 16, 0.3, 0.3, 0.3, 0.5);
         sound(p, SoundEvents.SHIELD_BLOCK, 1f, 0.7f);
         sound(p, SoundEvents.ANVIL_LAND, 0.4f, 1.2f);
-        SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 1.6f, 1);
+        SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 2.1f, 1);
+        SkillFx.play(p, SkillFxPayload.Kind.SHIELD, s.color(), p.position(), 1.2f, 5);
         return true;
     }
 
@@ -735,7 +746,8 @@ public final class SkillActions {
     public static boolean stoneSpikes(ServerPlayer p, Skill s, int l) {
         Vec3 look = flat(p.getLookAngle(), p);
         float dmg = 6 * mult(p, l) + statBonus(p, Stat.VIT, 0.15f);
-        for (LivingEntity e : inLine(p, look, 8, 1.3)) {
+        List<LivingEntity> struck = new ArrayList<>(inLine(p, look, 8, 1.3));
+        for (LivingEntity e : struck) {
             hit(p, s, e, dmg, false);
             e.setDeltaMovement(e.getDeltaMovement().x * 0.3, 0.75, e.getDeltaMovement().z * 0.3);
             e.hurtMarked = true;
@@ -743,7 +755,9 @@ public final class SkillActions {
         }
         sound(p, SoundEvents.DRIPSTONE_BLOCK_BREAK, 1f, 0.6f);
         sound(p, SoundEvents.GENERIC_EXPLODE.value(), 0.4f, 1.3f);
-        SkillFx.play(p, SkillFxPayload.Kind.WAVE, s.color(), p.position().add(look.scale(8)), 1.3f, 1);
+        SkillFx.play(p, SkillFxPayload.Kind.WAVE, s.color(), p.position().add(look.scale(8)), 2f, 1);
+        // a spike bursts up under each one it throws
+        for (LivingEntity e : struck) SkillFx.play(p, SkillFxPayload.Kind.GEYSER, s.color(), e.position(), 2.4f, 1);
         return true;
     }
 
@@ -780,6 +794,12 @@ public final class SkillActions {
         sound(p, SoundEvents.AMETHYST_BLOCK_CHIME, 1f, 1.9f);
         sound(p, SoundEvents.BEACON_POWER_SELECT, 0.5f, 2f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end, 0.4f, 0);
+        // the lance stays a breath as a beam of light, and bursts where it struck
+        SkillFx.play(p, SkillFxPayload.Kind.BEAM, s.color(), end, 0.3f, 5);
+        for (LivingEntity e : p.level().getEntitiesOfClass(LivingEntity.class, new AABB(eye, end).inflate(1), x -> canHit(p, x))) {
+            Optional<Vec3> hitAt = e.getBoundingBox().inflate(0.4).clip(eye, end);
+            if (hitAt.isPresent()) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), hitAt.get(), 1.5f, 1);
+        }
         return true;
     }
 
@@ -842,6 +862,10 @@ public final class SkillActions {
         p.level().playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.6f, 1.3f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), at, 0.4f, 0);
         SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 3, 1);
+        // the arrowhead bursts: a ring of flame on the ground and embers rising out of it
+        Vec3 foot = target != null ? target.position() : ground(p.serverLevel(), at);
+        SkillFx.play(p, SkillFxPayload.Kind.NOVA, s.color(), foot, 3.2f, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.GEYSER, s.color(), foot, 2f, 0);
         return true;
     }
 
@@ -850,7 +874,8 @@ public final class SkillActions {
         Vec3 look = flat(p.getLookAngle(), p);
         Vec3 start = p.position();
         float dmg = 4.5f * mult(p, l) + statBonus(p, Stat.AGI, 0.15f);
-        for (LivingEntity e : inCone(p, look, 6, 0.5)) {
+        List<LivingEntity> struck = inCone(p, look, 6, 0.5);
+        for (LivingEntity e : struck) {
             hit(p, s, e, dmg, false);
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
         }
@@ -861,6 +886,7 @@ public final class SkillActions {
         sound(p, SoundEvents.BREEZE_JUMP, 0.8f, 1.4f);
         SkillFx.play(p, SkillFxPayload.Kind.FAN, s.color(), start.add(look.scale(6)), 6, 0);
         SkillFx.play(p, SkillFxPayload.Kind.DASH, s.color(), start, 1, 10);
+        for (LivingEntity e : struck) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.5, 0), 1.2f, 1);
         return true;
     }
 

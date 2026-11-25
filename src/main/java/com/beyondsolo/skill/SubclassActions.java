@@ -193,13 +193,18 @@ public final class SubclassActions {
                 if (!p.isAlive() || p.level() != level) return;
                 Vec3 look = flat(p.getLookAngle(), p);
                 float dmg = cutDamage(l, tier(p)) + stat(p, Stat.STR, 0.06f) + stat(p, Stat.AGI, 0.06f);
+                List<LivingEntity> cut = new ArrayList<>();
                 for (LivingEntity e : around(p, p.position(), 4.5, x -> canHit(p, x))) {
                     Vec3 to = e.position().subtract(p.position()).multiply(1, 0, 1);
                     if (to.lengthSqr() > 1.0e-3 && to.normalize().dot(look) < 0.3) continue;
                     hit(p, s, e, dmg, false);
+                    cut.add(e);
                 }
                 sound(p, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.1f + k * 0.12f);
                 SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), 3.6f + k * 0.2f, 0);
+                // every cut opens on the body it finds
+                for (LivingEntity e : cut)
+                    SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.5, 0), 1.1f, 1);
             });
         }
         return true;
@@ -327,6 +332,13 @@ public final class SubclassActions {
         sound(p, execute ? SoundEvents.WITHER_BREAK_BLOCK : SoundEvents.PLAYER_ATTACK_CRIT, 0.8f, 1.4f);
         SkillFx.play(p, SkillFxPayload.Kind.BLINK, s.color(), from, 1, 0);
         SkillFx.play(p, SkillFxPayload.Kind.SLASH, s.color(), p.position(), execute ? 4 : 3, 0);
+        // out of the shadow, through the back: the cut bursts out of the front, and an execution takes the soul with it
+        Vec3 chest = target.position().add(0, target.getBbHeight() * 0.55, 0);
+        SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), chest, execute ? 2.4f : 1.7f, 1);
+        if (execute) {
+            SkillFx.play(p, SkillFxPayload.Kind.GEYSER, s.color(), target.position(), 3.2f, 4);
+            SkillFx.play(p, SkillFxPayload.Kind.CRACK, s.color(), target.position(), 2.6f, 0);
+        }
         return true;
     }
 
@@ -382,6 +394,9 @@ public final class SubclassActions {
         sound(p, SoundEvents.BELL_BLOCK, 1f, 0.6f);
         sound(p, SoundEvents.WITHER_SKELETON_AMBIENT, 0.5f, 1.4f);
         SkillFx.play(target, SkillFxPayload.Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
+        // the sentence is read out: shadow takes hold of the condemned and a toll of souls rises round them
+        SkillFx.play(target, SkillFxPayload.Kind.BIND, s.color(), target.position(), 1.2f, 30);
+        SkillFx.play(target, SkillFxPayload.Kind.GEYSER, s.color(), target.position(), 2.4f, 4);
         return true;
     }
 
@@ -484,6 +499,7 @@ public final class SubclassActions {
             struck.add(current.getId());
             Vec3 end = current.position().add(0, current.getBbHeight() * 0.55, 0);
             SkillFx.play(from, SkillFxPayload.Kind.BOLT, s.color(), end, 0.3f, 0);
+            SkillFx.play(current, SkillFxPayload.Kind.SPLASH, s.color(), end, 1.5f, 1);
             hit(p, s, current, dmg * (float) Math.pow(0.85, jump), true);
             SkillParticles.send(level, ParticleTypes.ELECTRIC_SPARK, end.x, end.y, end.z, 12, 0.25, 0.25, 0.25, 0.25);
             from = current;
@@ -794,6 +810,9 @@ public final class SubclassActions {
         sound(p, SoundEvents.HONEY_DRINK, 1f, 0.6f);
         SkillFx.play(target, SkillFxPayload.Kind.BOLT, s.color(), p.position().add(0, 1, 0), 0.35f, 0);
         SkillFx.play(p, SkillFxPayload.Kind.HEAL, s.color(), p.position(), 1, 0);
+        // the blood is drawn out of them in a stream, and bursts where it leaves
+        SkillFx.play(p, SkillFxPayload.Kind.STREAM, s.color(), target.position().add(0, target.getBbHeight() * 0.6, 0), 0.4f, 16);
+        SkillFx.play(target, SkillFxPayload.Kind.SPLASH, s.color(), target.position().add(0, target.getBbHeight() * 0.55, 0), 1.7f, 1);
         return true;
     }
 
@@ -843,12 +862,16 @@ public final class SubclassActions {
 
     public static boolean deadeyeShot(ServerPlayer p, Skill s, int l) {
         float dmg = deadeyeDamage(l, tier(p)) + stat(p, Stat.AGI, 0.3f) + stat(p, Stat.SENSE, 0.2f);
+        List<Vec3> marks = onTheLine(p, 48, 0.4);
         // a skill's arrow is a projectile like any other (see RangerPath.shooting)
         Vec3[] end = new Vec3[1];
         RangerPath.asShot(() -> end[0] = line(p, s, 48, 0.4, dmg, 0.6, SkillFxPayload.Kind.SHOT, s.color()));
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.5f);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 1.3f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end[0], 0.6f, 0);
+        // the shot hangs in the air as a line of light, and everything it went through bursts
+        SkillFx.play(p, SkillFxPayload.Kind.BEAM, s.color(), end[0], 0.35f, 7);
+        for (Vec3 at : marks) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 2f, 1);
         return true;
     }
 
@@ -926,12 +949,18 @@ public final class SubclassActions {
 
     public static boolean heavensArrow(ServerPlayer p, Skill s, int l) {
         float dmg = heavensDamage(l, tier(p)) + stat(p, Stat.AGI, 0.5f) + stat(p, Stat.SENSE, 0.3f);
+        List<Vec3> marks = onTheLine(p, 80, 1.1);
         Vec3[] end = new Vec3[1];
         RangerPath.asShot(() -> end[0] = line(p, s, 80, 1.1, dmg, 1.4, SkillFxPayload.Kind.SHOT, s.color()));
         sound(p, SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.5f);
         sound(p, SoundEvents.CROSSBOW_SHOOT, 1f, 0.4f);
         SkillFx.play(p, SkillFxPayload.Kind.SHOT, s.color(), end[0], 1.4f, 0);
         SkillFx.play(p, SkillFxPayload.Kind.ROAR, s.color(), p.position(), 4, 0);
+        // the arrow is a lance of light that stays laid across the field: all it pierced burst, and the light breaks where it ends
+        SkillFx.play(p, SkillFxPayload.Kind.BEAM, s.color(), end[0], 1.1f, 12);
+        for (Vec3 at : marks) SkillFx.play(p, SkillFxPayload.Kind.SPLASH, s.color(), at, 2.6f, 1);
+        SkillFx.play(p, SkillFxPayload.Kind.SPLASH, 0xFFFFFF, end[0], 3.4f, 1);
+        SkillFx.play(p, SkillFxPayload.Kind.GEYSER, s.color(), p.position(), 2.2f, 2);
         return true;
     }
 
@@ -1001,6 +1030,15 @@ public final class SubclassActions {
             SkillParticles.send(p.serverLevel(), ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() / 2, e.getZ(), 10, 0.15, 0.15, 0.15, 0.3);
         }
         return end;
+    }
+
+    /** Where a shot along the player's aim would strike each creature on it (before it is fired, while they all stand). */
+    private static List<Vec3> onTheLine(ServerPlayer p, double range, double width) {
+        Vec3 eye = p.getEyePosition();
+        List<Vec3> out = new ArrayList<>();
+        for (LivingEntity e : struckAlong(p, eye, clip(p, eye, eye.add(p.getLookAngle().scale(range))), width))
+            out.add(e.position().add(0, e.getBbHeight() * 0.55, 0));
+        return out;
     }
 
     private static List<LivingEntity> struckAlong(ServerPlayer p, Vec3 from, Vec3 to, double width) {

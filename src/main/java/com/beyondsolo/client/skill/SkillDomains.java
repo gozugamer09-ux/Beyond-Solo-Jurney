@@ -143,12 +143,15 @@ public final class SkillDomains {
         put("end_of_ages", new Look(0x1C0302, 0x521006, 0.9f, 40, 6).body(Body.ECLIPSE, 0xFF5A20).air(Air.ASH, 0xFF6A2A));
         put("last_stand", new Look(0x300606, 0x6E1810, 0.55f, 60, 4).air(Air.EMBERS, 0xFF4030));
         put("worldshaker_roar", new Look(0x48331A, 0x957044, 0.45f, 56, 2.5f).air(Air.DUST, 0xC8A070));
+        put("mountainfall", new Look(0x4A361C, 0x9A7448, 0.6f, 50, 4).air(Air.DUST, 0xC8A070));
+        // the conqueror's sun: a crimson sky, a gold sun, gold ash falling on the judged
+        put("conquerors_verdict", new Look(0x2C0E08, 0x8A3A1A, 0.82f, 52, 4).body(Body.SUN, 0xFFC24A).air(Air.ASH, 0xFFB040));
         // ---- the healer's
         put("blood_tempest", new Look(0x1C0207, 0x520913, 0.88f, 38, 6).body(Body.MOON, 0xFF4646).air(Air.ASH, 0xC0202A));
         // a dawn is a deep sky over a burning horizon with the sun just rising, never a washed-out white
         put("avatar_of_dawn", new Look(0x1C2A64, 0xF4A468, 0.82f, 80, 8).body(Body.SUN, 0xFFE6B0).rise().air(Air.MOTES, 0xFFE8A0));
         put("miracle_of_dawn", new Look(0x22306E, 0xF6B27A, 0.78f, 90, 5).body(Body.SUN, 0xFFEFC8).rise().air(Air.MOTES, 0xFFE8A0));
-        put("solstice", new Look(0x103C8C, 0xFFD48C, 0.72f, 90, 5).body(Body.SUN, 0xFFFFFF));
+        put("solstice", new Look(0x103C8C, 0xFFD48C, 0.72f, 90, 5).body(Body.SUN, 0xFFE7A0));
         put("eternal_spring", new Look(0x3C8CD0, 0xF6D6E6, 0.55f, 70, 6).air(Air.PETALS, 0xFFC4E0));
         put("elderwood", new Look(0x243A16, 0x587A36, 0.62f, 40, 6).air(Air.SPORES, 0xC8FF80));
         // ---- the guardian's
@@ -157,12 +160,20 @@ public final class SkillDomains {
         put("earthen_domain", new Look(0x56401E, 0x9E7A46, 0.72f, 36, 6).air(Air.DUST, 0xC8A070));
         put("pillars_of_creation", new Look(0x382A1A, 0x886842, 0.72f, 44, 5).air(Air.DUST, 0xC8A070));
         put("colossus_form", new Look(0x463216, 0x967242, 0.55f, 56, 4).air(Air.DUST, 0xC8A070));
+        // a steel overcast over the fortress for as long as it stands
+        put("citadel", new Look(0x262E38, 0x56606C, 0.72f, 46, 9.5f).air(Air.DUST, 0xB8C0CC));
+        // the warden's ward fills the sky: arcane night, a sun eclipsed by runes, until the ward breaks outward
+        put("arcanum", new Look(0x080A26, 0x24306A, 0.88f, 50, 8.5f).body(Body.ECLIPSE, 0x8FB8FF).stars());
         // ---- the ranger's
         put("storm_of_a_thousand", new Look(0x121824, 0x323E58, 0.82f, 56, 4.5f).storm());
         put("stormfall", new Look(0x0E1422, 0x2A344E, 0.88f, 50, 5).storm());
         // the heavens open over the whole rain of arrows, till the last one lands
-        put("fall_of_heaven", new Look(0x08163E, 0xC8D8FF, 0.82f, 96, 8).body(Body.SUN, 0xFFFFFF).stars().air(Air.MOTES, 0xFFF4C0));
+        put("fall_of_heaven", new Look(0x08163E, 0x9CB4EC, 0.86f, 96, 8).stars().air(Air.MOTES, 0xFFF4C0));
         put("wild_hunt", new Look(0x180E06, 0x3E2618, 0.86f, 44, 9).body(Body.MOON, 0xFFB466));
+        // the marksman's breath held: the world drains and narrows to the marks
+        put("hunters_verdict", new Look(0x0C1018, 0x1E2633, 0.86f, 64, 2).air(Air.MOTES, 0xE6FF70));
+        // the hunting ground at dusk, closing in, till the roof comes down
+        put("no_way_out", new Look(0x1A1408, 0x4A3A1E, 0.82f, 48, 10.5f).air(Air.DUST, 0xC8A878));
         put("call_of_the_pack", new Look(0x0A1024, 0x18223E, 0.86f, 44, 4).body(Body.MOON, 0xEAF2FF).stars());
     }
 

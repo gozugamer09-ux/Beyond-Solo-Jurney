@@ -78,7 +78,7 @@ updraft GEYSER 0
 afterimage_barrage BOLT 0 2
 tempest_waltz VORTEX 50
 death_sentence MARK 200
-chain_hook BOLT 0
+chain_hook CHAIN 10
 reaping_arc SLASH 0 1
 crippling_shot SHOT 0
 pursuit DASH 8
@@ -125,7 +125,7 @@ maelstrom VORTEX 80
 tsunami ROAR 0
 abyssal_deluge AURA 60
 soul_harvest BOLT 0
-bone_spear SPLASH 0
+bone_spear SPLASH 1
 withering_curse BOLT 0
 grave_burst CRACK 0
 life_drain AURA 40
@@ -167,7 +167,7 @@ mana_barrier DOME 240
 rune_strike BIND 16
 null_field DOME 120
 mirror_ward SHIELD 84
-warding_bolt BEAM 5
+warding_bolt BEAM 6
 binding_glyph ZONE 200
 purge HEAL 0
 arcanum DOME 160
