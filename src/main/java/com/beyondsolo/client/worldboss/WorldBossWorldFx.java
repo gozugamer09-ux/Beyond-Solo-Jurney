@@ -1,11 +1,11 @@
 package com.beyondsolo.client.worldboss;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.client.fx.Aura;
 import com.beyondsolo.client.gate.GateFx;
 import com.beyondsolo.client.render.ModRenderTypes;
 import com.beyondsolo.network.WorldBossFxPayload;
 import com.beyondsolo.worldboss.ColossalBoss;
-import com.beyondsolo.worldboss.MonarchArmor;
 import com.beyondsolo.worldboss.MonarchBoss;
 import com.beyondsolo.worldboss.WorldBossKind;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,9 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -29,23 +27,26 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * The great threats' light in the world, drawn with the mod's light render type:
+ * The great threats' light in the world, drawn with the mod's light render type, and their ink and the rulers' broken
+ * rings with the energy shader, in the series' look (docs/ARCHITECTURE.md, "Series look"):
  * <ul>
  *   <li><b>Warnings on the ground</b> ({@link WorldBossFxPayload}): discs, bands, strips, wedges and squares that lie on
- *   the land as it is (a hillside, a riverbank, steps of stone: {@link Terrain}), fill from the middle as the blow comes
- *   and flash as it lands; waves of light that run out along the ground, a wall you can see to jump.</li>
- *   <li><b>Blows</b>: stones falling out of the sky, lightning, pillars of light, flashes, and cracks of light that run
- *   out over the ground from a heavy blow.</li>
+ *   the land as it is (a hillside, a riverbank, steps of stone: {@link Terrain}), thin rims that fill from the middle as
+ *   the blow comes and flash as it lands (never a circle of runes); waves of light that run out along the ground, a
+ *   wall you can see to jump.</li>
+ *   <li><b>Blows</b>: stones falling out of the sky as streaks of fire with a white-hot head, lightning, pillars of light,
+ *   hard stars of light for flashes (no ball of glow), and cracks of light that run out over the ground from a heavy
+ *   blow.</li>
  *   <li><b>The threat itself</b> ({@link WorldBossClient}): a column of light over a world boss seen from far off; the
- *   gate torn open in the sky that a monarch comes down through; a monarch's domain, a ring of its light on the land
- *   round it; a ruler of light's rift and its sanctum (the ruler has its own slot: it can be abroad beside a monarch).</li>
+ *   gate torn open in the sky that a monarch comes down through; a monarch's domain, the land turned to ink round it;
+ *   a ruler of light's rift (a still tear of white light) and its sanctum (the ruler has its own slot: it can be
+ *   abroad beside a monarch).</li>
  * </ul>
  * Runs on game time, so it pauses with the game and follows /tick rate.
  */
 public final class WorldBossWorldFx {
     private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");
     private static final ResourceLocation RING = BeyondSolo.id("textures/effect/ring.png");
-    private static final ResourceLocation CIRCLE = BeyondSolo.id("textures/effect/magic_circle.png");
     private static final ResourceLocation BEAM = BeyondSolo.id("textures/effect/beam.png");
     private static final ResourceLocation VORTEX = BeyondSolo.id("textures/effect/vortex.png");
     /** Radial profiles (v from the middle to the edge, see tools/gen_worldboss_assets.py). */
@@ -57,7 +58,11 @@ public final class WorldBossWorldFx {
     private static final ResourceLocation LINE = BeyondSolo.id("textures/effect/wb_line.png");
     private static final ResourceLocation CELL = BeyondSolo.id("textures/effect/wb_cell.png");
     private static final ResourceLocation CELL_FILL = BeyondSolo.id("textures/effect/wb_cell_fill.png");
-    private static final ResourceLocation[] ALL = {GLOW, RING, CIRCLE, BEAM, VORTEX, RIM, FILL, BAND, LINE, CELL, CELL_FILL};
+    private static final ResourceLocation[] ALL = {GLOW, RING, BEAM, VORTEX, RIM, FILL, BAND, LINE, CELL, CELL_FILL};
+    /** The series' ink (drawn with the energy shader: dark bodies with burning edges, see {@link Aura}). */
+    private static final ResourceLocation[] INK = {Aura.VEIN, Aura.SHAFT, Aura.POOL, Aura.SPLASH};
+    /** The series' light (the rulers' broken halos and glints, drawn with the energy shader). */
+    private static final ResourceLocation[] LIGHT = {Aura.HALO, Aura.SPARK};
 
     /** One warning or blow, with the land under it. */
     private static final class Fx {
@@ -149,10 +154,15 @@ public final class WorldBossWorldFx {
             }
         }
         any |= threat(buffers, time, partial);
-        any |= regalia(buffers, partial);
         any |= monarchs(buffers, time, partial);
         any |= lightRulers(buffers, time, partial);
-        if (any) for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
+        if (any) {
+            // ink and black flame first: light is laid over them
+            for (ResourceLocation tex : INK) buffers.endBatch(ModRenderTypes.energy(tex));
+            buffers.endBatch(ModRenderTypes.flame(Aura.FLAME));
+            for (ResourceLocation tex : LIGHT) buffers.endBatch(ModRenderTypes.energy(tex));
+            for (ResourceLocation tex : ALL) buffers.endBatch(ModRenderTypes.lightTexture(tex));
+        }
     }
 
     private static VertexConsumer buf(MultiBufferSource buffers, ResourceLocation tex) {
@@ -189,8 +199,8 @@ public final class WorldBossWorldFx {
         int c = p.color();
         float r = p.size();
         float beat = urgency(k, time);
+        // a thin rim and the fill running out to it: a blow's warning, never a circle of runes
         annulus(buf(buffers, RIM), fx.land, p.x(), p.z(), 0, r, 0, Mth.TWO_PI, 0.05f, c, 0.85f * a * beat);
-        if (r > 2.5f) flatOnLand(buf(buffers, CIRCLE), fx.land, p.x(), p.z(), r * 0.92f, (time * 1.5f) % 360, 0.06f, c, 0.16f * a);
         if (k > 0.01f) annulus(buf(buffers, FILL), fx.land, p.x(), p.z(), 0, r * k, 0, Mth.TWO_PI, 0.07f, c, (0.32f + 0.3f * k) * a);
         if (f > 0) annulus(buf(buffers, FILL), fx.land, p.x(), p.z(), 0, r * (1 + 0.15f * (1 - f)), 0, Mth.TWO_PI, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.55f), 0.9f * f);
     }
@@ -272,18 +282,19 @@ public final class WorldBossWorldFx {
         int c = p.color();
         float s = p.size();
         float in = Mth.clamp(age / 4f, 0, 1);
-        // the tail of fire behind it, then its glow and its white-hot heart
-        ribbon(buf(buffers, LINE), x, y, z, x - dir.x * s * 9, y - dir.y * s * 9, z - dir.z * s * 9, s * 1.3f, s * 0.2f, c, 0.75f * in);
-        ribbon(buf(buffers, LINE), x, y, z, x - dir.x * s * 5, y - dir.y * s * 5, z - dir.z * s * 5, s * 0.5f, s * 0.1f, GateFx.mix(c, 0xFFFFFF, 0.7f), 0.8f * in);
-        billboard(buf(buffers, GLOW), x, y, z, s * 3.2f, 0, c, 0.65f * in);
-        billboard(buf(buffers, GLOW), x, y, z, s * 1.2f, 0, GateFx.mix(c, 0xFFFFFF, 0.75f), 0.95f * in);
+        // a long streak of fire behind it and a white-hot point at its head: motion leaves light, no ball of glow
+        ribbon(buf(buffers, LINE), x, y, z, x - dir.x * s * 12, y - dir.y * s * 12, z - dir.z * s * 12, s * 1.1f, s * 0.1f, c, 0.8f * in);
+        ribbon(buf(buffers, LINE), x, y, z, x - dir.x * s * 7, y - dir.y * s * 7, z - dir.z * s * 7, s * 0.4f, s * 0.05f, GateFx.mix(c, 0xFFFFFF, 0.7f), 0.9f * in);
+        VertexConsumer sparks = buffers.getBuffer(ModRenderTypes.energy(Aura.SPARK));
+        billboard(sparks, x, y, z, s * 1.6f, age * 9, GateFx.mix(c, 0xFFFFFF, 0.6f), in);
+        // sparks of it torn off behind
         for (int i = 1; i <= 6; i++) {
             float b = i / 6f;
-            double tx = x - dir.x * s * 1.6 * i + Mth.sin(age * 0.9f + i) * 0.25, ty = y - dir.y * s * 1.6 * i, tz = z - dir.z * s * 1.6 * i;
-            billboard(buf(buffers, GLOW), tx, ty, tz, s * (1.5f - b), 0, c, 0.45f * (1 - b) * in);
+            double tx = x - dir.x * s * 1.6 * i + Mth.sin(age * 0.9f + i) * 0.3 * s, ty = y - dir.y * s * 1.6 * i, tz = z - dir.z * s * 1.6 * i;
+            billboard(sparks, tx, ty, tz, s * (0.7f - 0.4f * b), i * 40, c, 0.8f * (1 - b) * in);
         }
-        // its shadow of light on the ground grows as it comes
-        flatOnLand(buf(buffers, GLOW), fx.land, p.x(), p.z(), s * (1.5f + 2.5f * k), 0, 0.09f, c, 0.35f * k);
+        // where it will land: a thin rim closing in as it comes
+        annulus(buf(buffers, RIM), fx.land, p.x(), p.z(), 0, s * (4f - 2.5f * k), 0, Mth.TWO_PI, 0.09f, c, 0.6f * k);
     }
 
     /** Lightning onto the point: a jagged bolt from high above that flickers, forking. */
@@ -309,8 +320,9 @@ public final class WorldBossWorldFx {
             strand(buffers, fork, s * 0.8f, c, 0.4f * a);
             strand(buffers, fork, s * 0.16f, hot, 0.8f * a);
         }
-        billboard(buf(buffers, GLOW), p.x(), p.y() + 0.8, p.z(), s * 5, 0, c, 0.6f * a);
-        flatOnLand(buf(buffers, GLOW), fx.land, p.x(), p.z(), s * 4.5f, 0, 0.09f, hot, 0.8f * (1 - k));
+        // a star of light where it strikes, and the ground flashing under it
+        billboard(buffers.getBuffer(ModRenderTypes.energy(Aura.SPARK)), p.x(), p.y() + 0.8, p.z(), s * 4, frame * 37, hot, a);
+        annulus(buf(buffers, FILL), fx.land, p.x(), p.z(), 0, s * 3.5f, 0, Mth.TWO_PI, 0.09f, hot, 0.6f * (1 - k) * flicker);
     }
 
     /** A jagged path between two points: n segments, pushed aside most in the middle. */
@@ -341,8 +353,10 @@ public final class WorldBossWorldFx {
         float h = p.length() * rise;
         column(buf(buffers, BEAM), p.x(), p.y(), p.z(), p.size() * (1.3f - 0.6f * t), h, c, 0.85f * (1 - t));
         column(buf(buffers, BEAM), p.x(), p.y(), p.z(), p.size() * 0.45f, h * 0.92f, GateFx.mix(c, 0xFFFFFF, 0.8f), 0.9f * (1 - t));
-        flatOnLand(buf(buffers, GLOW), fx.land, p.x(), p.z(), p.size() * 2.4f, 0, 0.09f, c, 0.75f * (1 - t));
-        billboard(buf(buffers, GLOW), p.x(), p.y() + h, p.z(), p.size() * 1.6f, 0, c, 0.5f * (1 - t));
+        // a thin ring of it where it stands on the ground, and a star of light at its head (no ball of glow)
+        annulus(buf(buffers, RIM), fx.land, p.x(), p.z(), 0, p.size() * (1.6f + 0.8f * t), 0, Mth.TWO_PI, 0.09f, c, 0.7f * (1 - t));
+        billboard(buffers.getBuffer(ModRenderTypes.energy(Aura.SPARK)), p.x(), p.y() + h, p.z(), p.size() * 1.4f, age * 6, GateFx.mix(c, 0xFFFFFF, 0.6f),
+                0.8f * (1 - t));
     }
 
     private static void burst(MultiBufferSource buffers, Fx fx, float age) {
@@ -350,8 +364,10 @@ public final class WorldBossWorldFx {
         float t = Mth.clamp(age / Math.max(1, p.ticks()), 0, 1);
         float out = 1 - (1 - t) * (1 - t);
         int c = p.color();
-        billboard(buf(buffers, GLOW), p.x(), p.y(), p.z(), p.size() * (0.5f + out), 0, GateFx.mix(c, 0xFFFFFF, 0.5f), 1 - t);
-        billboard(buf(buffers, GLOW), p.x(), p.y(), p.z(), p.size() * (1 + 1.6f * out), 0, c, 0.5f * (1 - t));
+        // a hard star of light at once, gone in a moment, and a thin ring of it running out: never a ball of glow
+        float flash = (1 - t) * (1 - t);
+        billboard(buffers.getBuffer(ModRenderTypes.energy(Aura.SPARK)), p.x(), p.y(), p.z(), p.size() * (1.2f + 2.2f * out), 0,
+                GateFx.mix(c, 0xFFFFFF, 0.6f), flash);
         billboard(buf(buffers, RING), p.x(), p.y(), p.z(), p.size() * (0.4f + 1.8f * out), 0, c, 0.8f * (1 - t));
     }
 
@@ -442,8 +458,14 @@ public final class WorldBossWorldFx {
                 beaconLand.around((float) at.y);
                 float ground = beaconLand.at(at.x, at.z);
                 float pulse = 0.85f + 0.15f * Mth.sin(time * 0.08f);
-                column(buf(buffers, BEAM), at.x, ground, at.z, 3.2f, 240, c, 0.32f * far * pulse);
-                column(buf(buffers, BEAM), at.x, ground, at.z, 0.9f, 220, GateFx.mix(c, 0xFFFFFF, 0.7f), 0.55f * far);
+                if (t.kind.ruler()) {
+                    column(buf(buffers, BEAM), at.x, ground, at.z, 3.2f, 240, c, 0.32f * far * pulse);
+                    column(buf(buffers, BEAM), at.x, ground, at.z, 0.9f, 220, GateFx.mix(c, 0xFFFFFF, 0.7f), 0.55f * far);
+                } else {
+                    // a dark threat: a pillar of ink pouring up out of the land, its light burning inside it
+                    inkColumn(buffers, at.x, ground, at.z, 2.6f, 240, Aura.dark(c, 0.9f), 0.85f * far, time * 0.004f);
+                    column(buf(buffers, BEAM), at.x, ground, at.z, 1.2f, 220, c, 0.32f * far * pulse);
+                }
                 drew = true;
             }
         }
@@ -465,41 +487,84 @@ public final class WorldBossWorldFx {
         return drew;
     }
 
-    // ================================================================ monarch armor's aura
+    // ================================================================ its breath
 
-    private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+    /** Smoke off dark power is ink, never grey. */
+    private static final int INK_SMOKE = 0x0C0B18;
 
     /**
-     * Monarch armor is the wearer's own aura made solid, and some of it never settles: motes and wisps of that light
-     * rise off whoever wears it, more the more pieces they have on, and a whole regalia burns with a faint halo.
+     * Every tick: the breath round the great threat abroad and the ruler of light abroad, where they can be seen (their
+     * flame burns off their outline, see {@link ColossalBossRenderer}): the frost queen's cold mist and frost motes, the
+     * wolf king's blood mist, sparks crackling off the storm lord, light dust off a ruler; in a world boss's last phase,
+     * embers and black smoke off the flame giant and dark blood smoking off the beast. Ink smoke pours off a monarch as
+     * it dies, black smoke off a world boss, and a ruler's light rises off it.
      */
-    private static boolean regalia(MultiBufferSource buffers, float partial) {
+    public static void breathe() {
         Minecraft mc = Minecraft.getInstance();
-        Entity viewer = mc.getCameraEntity();
-        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
-        double time = mc.level.getGameTime() + (double) partial;
-        boolean drew = false;
-        for (Entity e : mc.level.entitiesForRendering()) {
-            if (!(e instanceof LivingEntity wearer) || wearer.isInvisible() || (e == viewer && firstPerson)) continue;
-            if (e.distanceToSqr(camX, camY, camZ) > 48 * 48) continue;
-            int pieces = 0, aura = MonarchArmor.DEFAULT_AURA;
-            for (EquipmentSlot slot : ARMOR) {
-                ItemStack worn = wearer.getItemBySlot(slot);
-                if (MonarchArmor.is(worn)) {
-                    pieces++;
-                    aura = MonarchArmor.aura(worn);
+        if (mc.level == null || mc.player == null || mc.isPaused()) return;
+        breathe(mc, WorldBossClient.tracked());
+        breathe(mc, WorldBossClient.ruler());
+    }
+
+    private static void breathe(Minecraft mc, @org.jetbrains.annotations.Nullable WorldBossClient.Tracked t) {
+        if (t == null) return;
+        ColossalBoss boss = t.boss();
+        if (boss == null || !boss.isAwake() || boss.isInvisible() || boss.distanceToSqr(mc.player) > 64 * 64) return;
+        long tick = mc.level.getGameTime();
+        RandomSource rnd = mc.level.random;
+        double x = boss.getX(), y = boss.getY(), z = boss.getZ();
+        float h = boss.getBbHeight(), w = boss.getBbWidth();
+        int c = boss.fxColor();
+        boolean last = boss.phase() >= 3;
+        if (boss.deathTime > 0) {
+            if (t.kind.ruler()) {
+                // its light leaving it, rising
+                com.beyondsolo.client.skill.FxParticles.motes(x, y + h * (0.2 + 0.6 * rnd.nextDouble()), z, w * 0.6, 2, c, 0.06f);
+            } else if (t.kind.monarch() && tick % 2 == 0) {
+                com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * (0.2 + 0.6 * rnd.nextDouble()), z, w * 0.5, 1, INK_SMOKE, 0.9f, 0.03f);
+            } else if (!t.kind.sovereign() && tick % 3 == 0) {
+                com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.5 * rnd.nextDouble(), z, w * 0.5, 1, INK_SMOKE, 1.4f, 0.03f);
+            }
+            return;
+        }
+        switch (t.kind) {
+            case STILLNESS -> {
+                if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + 0.1, z, 0.9, 1, 0xCFEFFF, 0.8f, 0.004f);
+                if (tick % 2 == 0) com.beyondsolo.client.skill.FxParticles.motes(x, y + h * 0.5, z, w * 0.6, last ? 2 : 1, c, 0.025f);
+            }
+            case HUNGER -> {
+                if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + 0.1, z, 0.9, 1, 0x3A0612, 0.75f, 0.006f);
+            }
+            case STORMS -> {
+                if (tick % (last ? 2 : 4) == 0) {
+                    double sy = y + h * (0.2 + 0.7 * rnd.nextDouble());
+                    com.beyondsolo.client.skill.FxParticles.sparks(x + (rnd.nextDouble() - 0.5) * w, sy, z + (rnd.nextDouble() - 0.5) * w, 3, 0.2f, c,
+                            0.02f);
                 }
             }
-            if (pieces == 0) continue;
-            aura(buf(buffers, GLOW), wearer, e.getPosition(partial), time, aura, pieces, 1);
-            drew = true;
+            case TITAN -> {
+                if (last) {
+                    com.beyondsolo.client.skill.FxParticles.embers(x, y + h * 0.75, z, w * 0.6, 2, 0xFF5A1E);
+                    if (tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.95, z, w * 0.4, 1, INK_SMOKE, 1.6f, 0.05f);
+                }
+            }
+            case BEHEMOTH -> {
+                if (last && tick % 3 == 0) com.beyondsolo.client.skill.FxParticles.smoke(x, y + h * 0.7, z, w * 0.4, 1, 0x2A040C, 1.2f, 0.03f);
+            }
+            // a ruler sheds light dust, more of it in its last phase
+            case VERDICT, WINGS, HAND -> {
+                if (last || tick % 2 == 0) com.beyondsolo.client.skill.FxParticles.motes(x, y + h * (0.3 + 0.6 * rnd.nextDouble()), z, w * 0.8, 1, c, 0.03f);
+            }
+            default -> {
+            }
         }
-        return drew;
     }
+
+    // ================================================================ an aura of light
 
     /**
      * An aura burning off someone: motes of its light drifting up off them and wisps of it licking upward, more the
-     * stronger it is ({@code pieces}: monarch armour pieces worn, 6 for a crown form), with a halo from 4 on.
+     * stronger it is ({@code pieces}: monarch armour pieces worn, 6 for a crown form). No ball of glow round them.
      */
     private static void aura(VertexConsumer glow, LivingEntity e, Vec3 at, double time, int aura, int pieces, float strength) {
         {
@@ -536,11 +601,6 @@ public final class WorldBossWorldFx {
                 ribbon(glow, x, y, z, x + Mth.cos(ang) * sway, y + len, z + Mth.sin(ang) * sway, 0.075f, 0.015f, aura,
                         0.55f * Mth.sin(k * Mth.PI) * strength);
             }
-            if (pieces >= ARMOR.length) {
-                float breath = 0.75f + 0.25f * Mth.sin((float) (time * 0.11));
-                billboard(glow, at.x, at.y + h * 0.55, at.z, h * 0.6f, 0, aura, 0.38f * breath * strength);
-                billboard(glow, at.x, at.y + h * 0.6, at.z, h * 1.05f, 0, aura, 0.15f * breath * strength);
-            }
         }
     }
 
@@ -564,17 +624,22 @@ public final class WorldBossWorldFx {
         return 0;
     }
 
+    /**
+     * A monarch's gate torn in the sky: a hole of ink with a burning rim, turning, its light churning in the dark of it,
+     * the sky rent round it in jagged tears of light, and while the monarch comes, a column of ink pouring down to the
+     * ground under it.
+     */
     private static void gate(MultiBufferSource buffers, WorldBossClient.Tracked t, float open, float time) {
         int c = t.kind.color;
         double x = t.anchor.getX() + 0.5, z = t.anchor.getZ() + 0.5;
         double y = t.anchor.getY() + MonarchBoss.GATE_HEIGHT + 4.5;
         float spin = time % 7200;
         float breathe = 0.9f + 0.1f * Mth.sin(time * 0.06f);
-        flat(buf(buffers, GLOW), x, y + 0.2, z, 30 * open, 0, c, 0.45f * open);
-        flat(buf(buffers, VORTEX), x, y, z, 11.5f * open * breathe, spin * 1.6f, GateFx.mix(c, 0xFFFFFF, 0.15f), 0.95f * open);
-        flat(buf(buffers, VORTEX), x, y - 0.05, z, 7f * open, -spin * 2.4f, 0xFFFFFF, 0.45f * open);
-        flat(buf(buffers, CIRCLE), x, y + 0.05, z, 15.5f * open, -spin * 0.4f, c, 0.8f * open);
-        flat(buf(buffers, RING), x, y + 0.1, z, 17f * open, 0, GateFx.mix(c, 0xFFFFFF, 0.4f), 0.9f * open);
+        int ink = Aura.dark(c, 0.92f);
+        flat(buffers.getBuffer(ModRenderTypes.energy(Aura.POOL)), x, y, z, 17f * open * breathe, spin * 0.5f, ink, 0.95f * open);
+        flat(buffers.getBuffer(ModRenderTypes.energy(Aura.POOL)), x, y - 0.03, z, 10.5f * open, -spin * 1.1f + 60, ink, 0.9f * open);
+        flat(buf(buffers, VORTEX), x, y - 0.08, z, 12f * open * breathe, spin * 1.6f, c, 0.55f * open);
+        flat(buf(buffers, VORTEX), x, y - 0.1, z, 6f * open, -spin * 2.4f, GateFx.mix(c, 0xFFFFFF, 0.5f), 0.3f * open);
         // the sky torn round it: jagged rents of light that flicker
         RandomSource r = RandomSource.create(t.event ^ ((long) (time / 3)) * 7919L);
         VertexConsumer tear = buf(buffers, LINE);
@@ -587,40 +652,55 @@ public final class WorldBossWorldFx {
                 float step = len / 4;
                 float a2 = ang + (r.nextFloat() - 0.5f) * 0.6f;
                 double nx = px + Mth.cos(a2) * step, nz = pz + Mth.sin(a2) * step;
-                flatRibbon(tear, px, y, pz, nx, y, nz, 0.7f * (1 - s / 4f) + 0.15f, GateFx.mix(c, 0xFFFFFF, 0.3f), 0.85f * open * (0.6f + 0.4f * r.nextFloat()));
+                flatRibbon(tear, px, y, pz, nx, y, nz, 0.45f * (1 - s / 4f) + 0.1f, GateFx.mix(c, 0xFFFFFF, 0.3f), 0.85f * open * (0.6f + 0.4f * r.nextFloat()));
                 px = nx;
                 pz = nz;
             }
         }
-        // a shaft of light down to the ground as the monarch comes
+        // ink pouring down to the ground as the monarch comes
         int land = t.landIn();
         float shaft = t.descending() ? Mth.clamp(1 - land / 80f, 0, 1) : open;
         if (shaft > 0.01f) {
             double ground = t.anchor.getY();
-            column(buf(buffers, BEAM), x, ground, z, 3.5f * shaft, (float) (y - ground), c, 0.35f * shaft * open);
-            column(buf(buffers, BEAM), x, ground, z, 1.1f * shaft, (float) (y - ground), GateFx.mix(c, 0xFFFFFF, 0.7f), 0.45f * shaft * open);
-        }
-    }
-
-    /** A monarch's domain: a ring of its light on the land round it, a faint wall at its edge, sigils turning on it. */
-    private static void domain(MultiBufferSource buffers, Terrain land, Vec3 at, int radius, int c, float in, float time) {
-        land.around((float) at.y);
-        float r = radius * outCubic(in);
-        float pulse = 0.8f + 0.2f * Mth.sin(time * 0.1f);
-        annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.7f, r + 0.7f, 0, Mth.TWO_PI, 0.05f, c, 0.6f * pulse * in);
-        wall(buf(buffers, BEAM), land, at.x, at.z, r, 3.2f, c, 0.22f * in);
-        float turn = (time % 7200) * 0.004f;
-        for (int i = 0; i < 8; i++) {
-            float ang = turn + i * Mth.TWO_PI / 8;
-            double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
-            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 1.7f, (time * 3 + i * 45) % 360, 0.06f, c, 0.6f * in);
+            inkColumn(buffers, x, ground, z, 2.8f * shaft, (float) (y - ground), ink, 0.9f * shaft * open, -time * 0.02f);
+            column(buf(buffers, BEAM), x, ground, z, 0.9f * shaft, (float) (y - ground), c, 0.3f * shaft * open);
         }
     }
 
     /**
-     * The rift a ruler of light comes down through: a wound of white light in the sky, still and bright where a
-     * monarch's gate is a dark storm; straight rays standing out from it, rings of gold turning slowly, and a broad
-     * shaft of light falling to the ground under it.
+     * A monarch's domain: the land under it turned to ink with its light running in veins through it, a thin burning
+     * line where it ends, and black flame standing on that line over a low haze of its light.
+     */
+    private static void domain(MultiBufferSource buffers, Terrain land, Vec3 at, int radius, int c, float in, float time) {
+        land.around((float) at.y);
+        float r = radius * outCubic(in);
+        if (r < 0.5f) return;
+        float pulse = 0.8f + 0.2f * Mth.sin(time * 0.1f);
+        inkLand(buffers.getBuffer(ModRenderTypes.energy(Aura.VEIN)), land, at.x, at.z, r, 12f, 0.04f, Aura.dark(c, 0.88f), 0.85f * in);
+        annulus(buf(buffers, BAND), land, at.x, at.z, r - 0.22f, r + 0.22f, 0, Mth.TWO_PI, 0.05f, c, 0.55f * pulse * in);
+        flameRim(buffers, land, at, r, c, in, time, Float.floatToIntBits((float) at.x) ^ radius);
+    }
+
+    /** Black flame standing round (at) on the land at radius r, over a low haze of its light. */
+    private static void flameRim(MultiBufferSource buffers, Terrain land, Vec3 at, float r, int c, float in, float time, int seed) {
+        int n = Mth.clamp(Mth.ceil(Mth.TWO_PI * r / 0.8f), 12, 240);
+        float[] feet = new float[n * 3];
+        for (int j = 0; j < n; j++) {
+            float ang = Mth.TWO_PI * j / n;
+            double fx = at.x + Mth.cos(ang) * r, fz = at.z + Mth.sin(ang) * r;
+            feet[j * 3] = (float) (fx - camX);
+            feet[j * 3 + 1] = (float) (land.at(fx, fz) + 0.02 - camY);
+            feet[j * 3 + 2] = (float) (fz - camZ);
+        }
+        float cx = (float) (at.x - camX), cz = (float) (at.z - camZ);
+        Aura.wall(mat, buffers, feet, n, cx, cz, 1.2f, 0.1f, 1.2f, c, 0.45f * in, time, seed + 3);
+        Aura.wall(mat, buffers, feet, n, cx, cz, 2.0f, 0.16f, 1.2f, Aura.dark(c, 0.9f), 0.95f * in, time, seed);
+    }
+
+    /**
+     * The rift a ruler of light comes down through: a tear of white light in the sky, long, thin and still where a
+     * monarch's gate is a dark storm, cool white at its heart and gold at its lips; broken rings of light turning slowly
+     * round it, straight rays standing out from it, and a shaft of light falling to the ground under it.
      */
     private static void rift(MultiBufferSource buffers, WorldBossClient.Tracked t, float open, float time) {
         int c = t.kind.color;
@@ -628,23 +708,27 @@ public final class WorldBossWorldFx {
         double x = t.anchor.getX() + 0.5, z = t.anchor.getZ() + 0.5;
         double y = t.anchor.getY() + MonarchBoss.GATE_HEIGHT + 4.5;
         float spin = time % 7200;
-        float breathe = 0.92f + 0.08f * Mth.sin(time * 0.05f);
-        flat(buf(buffers, GLOW), x, y + 0.2, z, 36 * open, 0, c, 0.5f * open);
-        flat(buf(buffers, GLOW), x, y + 0.15, z, 13 * open * breathe, 0, 0xFFFFFF, 0.85f * open);
-        flat(buf(buffers, CIRCLE), x, y + 0.05, z, 19f * open, spin * 0.25f, c, 0.75f * open);
-        flat(buf(buffers, CIRCLE), x, y, z, 10.5f * open, -spin * 0.6f, white, 0.6f * open);
-        flat(buf(buffers, RING), x, y + 0.1, z, 9f * open * breathe, 0, white, 0.95f * open);
-        flat(buf(buffers, RING), x, y + 0.12, z, 15f * open, 0, c, 0.7f * open);
+        float breathe = 0.94f + 0.06f * Mth.sin(time * 0.05f);
+        // each rift lies its own way across the sky
+        float lie = (t.event & 1023) / 1023f * Mth.PI;
+        float len = 40f * open, wide = 10f * open * breathe;
+        tear(buf(buffers, LINE), x, y + 0.2, z, lie, len * 1.05f, wide * 1.8f, c, 0.6f * open);
+        tear(buf(buffers, LINE), x, y + 0.22, z, lie, len, wide, white, open);
+        tear(buf(buffers, LINE), x, y + 0.24, z, lie, len * 0.85f, wide * 0.45f, BRILLIANT, open);
+        // broken rings of light round it, fainter than the tear: never a disc
+        VertexConsumer halo = buffers.getBuffer(ModRenderTypes.energy(Aura.HALO));
+        flat(halo, x, y + 0.1, z, 24f * open, spin * 0.12f, c, 0.55f * open);
+        flat(halo, x, y + 0.12, z, 15f * open, -spin * 0.25f + 30, white, 0.4f * open);
         // rays of light standing out from it, straight and still
         VertexConsumer rays = buf(buffers, LINE);
         for (int i = 0; i < 16; i++) {
             float ang = i / 16f * Mth.TWO_PI + spin * 0.002f;
             float r0 = 8.5f * open;
-            float len = (i % 2 == 0 ? 17 : 10) * open;
+            float len2 = (i % 2 == 0 ? 17 : 10) * open;
             double x0 = x + Mth.cos(ang) * r0, z0 = z + Mth.sin(ang) * r0;
-            double x1 = x + Mth.cos(ang) * (r0 + len), z1 = z + Mth.sin(ang) * (r0 + len);
+            double x1 = x + Mth.cos(ang) * (r0 + len2), z1 = z + Mth.sin(ang) * (r0 + len2);
             float shimmer = 0.7f + 0.3f * Mth.sin(time * 0.15f + i * 1.3f);
-            flatRibbon(rays, x0, y, z0, x1, y, z1, i % 2 == 0 ? 1.1f : 0.7f, white, 0.75f * open * shimmer);
+            flatRibbon(rays, x0, y, z0, x1, y, z1, i % 2 == 0 ? 0.8f : 0.5f, white, 0.65f * open * shimmer);
         }
         // the shaft of light down to the ground as it comes
         int land = t.landIn();
@@ -652,13 +736,37 @@ public final class WorldBossWorldFx {
         double ground = t.anchor.getY();
         column(buf(buffers, BEAM), x, ground, z, 5.5f * shaft, (float) (y - ground), c, 0.3f * shaft * open);
         column(buf(buffers, BEAM), x, ground, z, 1.6f * shaft, (float) (y - ground), white, 0.5f * shaft * open);
-        // and the ground lit under it
-        flat(buf(buffers, GLOW), x, ground + 0.1, z, 9 * shaft, 0, c, 0.4f * shaft * open);
+        // and its broken rings of light laid on the ground under it
+        flat(buffers.getBuffer(ModRenderTypes.energy(Aura.HALO)), x, ground + 0.1, z, 7 * shaft, -spin * 0.3f, c, 0.6f * shaft * open);
+    }
+
+    /** The light's purest: cool white, the heart of a rift. */
+    private static final int BRILLIANT = 0xE6F7FF;
+
+    /**
+     * A tear lying level at (x, y, z): a lens {@code len} long, {@code wide} across at its middle and pointed at both
+     * ends, at {@code angle} radians, bright along its middle line.
+     */
+    private static void tear(VertexConsumer out, double x, double y, double z, float angle, float len, float wide, int rgb, float alpha) {
+        int a = alpha(alpha);
+        if (a <= 2 || len <= 0.05f) return;
+        int n = 16;
+        double ax = Mth.cos(angle), az = Mth.sin(angle), px = -az, pz = ax;
+        for (int i = 0; i < n; i++) {
+            float s0 = i / (float) n, s1 = (i + 1) / (float) n;
+            float w0 = wide * 0.5f * (float) Math.pow(Mth.sin(s0 * Mth.PI), 0.7), w1 = wide * 0.5f * (float) Math.pow(Mth.sin(s1 * Mth.PI), 0.7);
+            double x0 = x + ax * len * (s0 - 0.5), z0 = z + az * len * (s0 - 0.5);
+            double x1 = x + ax * len * (s1 - 0.5), z1 = z + az * len * (s1 - 0.5);
+            vtx(out, x0 - px * w0, y, z0 - pz * w0, s0, 0, rgb, a);
+            vtx(out, x0 + px * w0, y, z0 + pz * w0, s0, 1, rgb, a);
+            vtx(out, x1 + px * w1, y, z1 + pz * w1, s1, 1, rgb, a);
+            vtx(out, x1 - px * w1, y, z1 - pz * w1, s1, 0, rgb, a);
+        }
     }
 
     /**
      * A ruler's sanctum: a golden ring on the land round it with a soft curtain of light at its edge and its seals
-     * turning slowly on the ring; the ground inside glows faintly. Inside, the light stands between hunters who are not
+     * (broken rings of light) turning slowly on the ring; the ground inside glows faintly. Inside, the light stands between hunters who are not
      * its foes and a monarch's dread.
      */
     private static void sanctum(MultiBufferSource buffers, Terrain land, Vec3 at, int radius, int c, float in, float time) {
@@ -671,11 +779,12 @@ public final class WorldBossWorldFx {
         annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.03f, c, 0.07f * in * pulse);
         wall(buf(buffers, BEAM), land, at.x, at.z, r, 3.5f, c, 0.13f * in);
         float turn = -(time % 7200) * 0.0025f;
+        // its seals on the ring: broken rings of light turning, never circles of runes
+        VertexConsumer seals = buffers.getBuffer(ModRenderTypes.energy(Aura.HALO));
         for (int i = 0; i < 6; i++) {
             float ang = turn + i * Mth.TWO_PI / 6;
             double sx = at.x + Mth.cos(ang) * r, sz = at.z + Mth.sin(ang) * r;
-            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 2.3f, (time * 1.2f + i * 60) % 360, 0.06f, white, 0.55f * in);
-            flatOnLand(buf(buffers, GLOW), land, sx, sz, 3.2f, 0, 0.05f, c, 0.35f * in);
+            flatOnLand(seals, land, sx, sz, 2.4f, (time * 1.2f + i * 60) % 360, 0.06f, white, 0.8f * in);
         }
     }
 
@@ -683,16 +792,17 @@ public final class WorldBossWorldFx {
 
     /** The land under each hunter monarch's domain (each follows its own monarch). */
     private static final java.util.Map<Integer, Terrain> REIGN_LANDS = new java.util.HashMap<>();
+    private static final Terrain DREAD_LAND = new Terrain(64);
 
     /**
-     * A hunter monarch's domain and crown form ({@link com.beyondsolo.client.monarch.MonarchClient}). The domain is a
-     * monarch's from beyond the gates in the hunter's own colour, with the ground inside it tinted and the crown's circle
-     * turning under their feet; the crown form is a crown of light over their head and their aura burning off them.
+     * A hunter monarch's domain and dread ({@link com.beyondsolo.client.monarch.MonarchClient}). The domain is a
+     * monarch's from beyond the gates in the hunter's own colour; dread throws a ring of ink out over the land. Their
+     * crown form burns off their own outline ({@link MonarchAuraLayer}).
      */
     private static boolean monarchs(MultiBufferSource buffers, float time, float partial) {
         var domains = com.beyondsolo.client.monarch.MonarchClient.domains();
-        var forms = com.beyondsolo.client.monarch.MonarchClient.forms();
-        if (domains.isEmpty() && forms.isEmpty()) {
+        var dreads = com.beyondsolo.client.monarch.MonarchClient.dreads();
+        if (domains.isEmpty() && dreads.isEmpty()) {
             REIGN_LANDS.clear();
             return false;
         }
@@ -707,45 +817,21 @@ public final class WorldBossWorldFx {
             Vec3 at = owner.getPosition(partial);
             int c = d.color;
             domain(buffers, land, at, d.size, c, in, time);
-            float r = d.size * outCubic(in);
-            float breath = 0.85f + 0.15f * Mth.sin(time * 0.07f);
-            annulus(buf(buffers, FILL), land, at.x, at.z, 0, r, 0, Mth.TWO_PI, 0.04f, c, 0.13f * in * breath);
-            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 3.4f, (time * 0.9f) % 360, 0.07f, c, 0.5f * in);
-            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 2.1f, (-time * 1.6f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.4f), 0.35f * in);
             drew = true;
         }
         REIGN_LANDS.keySet().removeIf(id -> domains.stream().noneMatch(d -> d.entity == id));
-        Entity viewer = mc.getCameraEntity();
-        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
-        for (var f : forms) {
-            Entity e = mc.level.getEntity(f.entity);
-            float k = f.strength(now);
-            if (!(e instanceof LivingEntity monarch) || k <= 0.005f || monarch.isInvisible()) continue;
-            // their own crown shows on their screen instead (MonarchHud)
-            if (e == viewer && firstPerson) continue;
-            Vec3 at = e.getPosition(partial);
-            int c = f.color;
-            // their aura burns off them, more than any armour's
-            aura(buf(buffers, GLOW), monarch, at, time, c, 6, k);
-            // a crown of light over their head: a ring, and points of light standing up from it
-            float h = e.getBbHeight();
-            double y = at.y + h + 0.28;
-            float spin = (time * 1.4f) % 360;
-            int light = GateFx.mix(c, 0xFFFFFF, 0.55f);
-            flat(buf(buffers, RING), at.x, y, at.z, 0.42f * k, spin, light, 0.9f * k);
-            // asked for again: asking for the ring's buffer closed the glow's (drawing into it then crashes the game)
-            VertexConsumer glow = buf(buffers, GLOW);
-            flat(glow, at.x, y, at.z, 0.7f * k, 0, c, 0.45f * k);
-            for (int i = 0; i < 7; i++) {
-                float ang = i / 7f * Mth.TWO_PI + time * 0.015f;
-                float tall = (i % 2 == 0 ? 0.3f : 0.2f) * k;
-                double bx = at.x + Mth.cos(ang) * 0.3, bz = at.z + Mth.sin(ang) * 0.3;
-                double tx = at.x + Mth.cos(ang) * 0.34, tz = at.z + Mth.sin(ang) * 0.34;
-                ribbon(glow, bx, y, bz, tx, y + tall, tz, 0.07f, 0.01f, light, 0.95f * k);
-                ribbon(glow, bx, y, bz, tx, y + tall, tz, 0.16f, 0.03f, c, 0.4f * k);
-            }
-            // the crown's circle under their feet
-            flat(buf(buffers, CIRCLE), at.x, at.y + 0.06, at.z, 1.5f * k, -spin * 1.5f, c, 0.45f * k);
+        // dread: a ring of ink thrown out over the land from the monarch, the pressure of their killing intent
+        for (var dr : dreads) {
+            Entity owner = mc.level.getEntity(dr.entity());
+            float age = (float) (now - dr.at()) / 20f;
+            if (owner == null || age < 0 || age > 1.3f) continue;
+            Vec3 at = owner.getPosition(partial);
+            DREAD_LAND.around((float) at.y);
+            float out = outCubic(Mth.clamp(age / 0.7f, 0, 1));
+            float fade = 1 - Mth.clamp(age / 1.3f, 0, 1);
+            float reach = Math.max(2f, dr.radius()) * out;
+            flatOnLand(buffers.getBuffer(ModRenderTypes.energy(Aura.SPLASH)), DREAD_LAND, at.x, at.z, reach / 0.86f, dr.entity() * 37f, 0.06f,
+                    Aura.dark(dr.color(), 0.9f), 0.9f * fade);
             drew = true;
         }
         return drew;
@@ -761,7 +847,7 @@ public final class WorldBossWorldFx {
     /**
      * A hunter ruler of light's sanctum and seraph form ({@link com.beyondsolo.client.light.LightClient}). The sanctum
      * is a ruler's from beyond the gates in the hunter's own light, following them, with the ground inside it lit and a
-     * sun of light turning under their feet; in seraph form the light burns off them like a crowned monarch's aura (its
+     * ruler's seal (broken rings of light) turning under their feet; in seraph form the light burns off them like a crowned monarch's aura (its
      * wings and halo are a model of their own, {@code client.light.SeraphLayer}). The ring of a hunter's vigil before
      * the Investiture is drawn here too.
      */
@@ -793,9 +879,9 @@ public final class WorldBossWorldFx {
             int c = g.color;
             sanctum(buffers, land, at, g.size, c, in, time);
             float breath = 0.85f + 0.15f * Mth.sin(time * 0.07f);
-            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 3.0f, (time * 0.8f) % 360, 0.07f, c, 0.5f * in);
-            flatOnLand(buf(buffers, CIRCLE), land, at.x, at.z, 1.8f, (-time * 1.5f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.5f), 0.4f * in);
-            flatOnLand(buf(buffers, GLOW), land, at.x, at.z, 4.2f, 0, 0.06f, c, 0.3f * in * breath);
+            VertexConsumer seal = buffers.getBuffer(ModRenderTypes.energy(Aura.HALO));
+            flatOnLand(seal, land, at.x, at.z, 3.2f, (time * 0.8f) % 360, 0.07f, c, 0.75f * in * breath);
+            flatOnLand(seal, land, at.x, at.z, 1.9f, (-time * 1.5f) % 360, 0.08f, GateFx.mix(c, 0xFFFFFF, 0.5f), 0.6f * in);
             drew = true;
         }
         LIGHT_LANDS.keySet().removeIf(id -> sanctums.stream().noneMatch(g -> g.entity == id));
@@ -814,7 +900,7 @@ public final class WorldBossWorldFx {
 
     /**
      * A vigil's ring: a line of gold on the land with a white core, the light spilling a little way inside it, a low wall
-     * of light standing on it and four small circles turning round it (the four mantles waiting), so the hunter always
+     * of light standing on it and four small seals of broken rings turning round it (the four mantles waiting), so the hunter always
      * sees where the ring ends, by day too.
      */
     private static void vigilRing(MultiBufferSource buffers, Terrain land, com.beyondsolo.client.light.LightClient.Ring g, float in, float time) {
@@ -829,11 +915,11 @@ public final class WorldBossWorldFx {
         wall(buf(buffers, BEAM), land, g.x, g.z, r, 1.6f, c, 0.4f * pulse * in);
         wall(buf(buffers, BEAM), land, g.x, g.z, r, 0.7f, white, 0.3f * in);
         float turn = (time % 7200) * 0.003f;
+        VertexConsumer seals = buffers.getBuffer(ModRenderTypes.energy(Aura.HALO));
         for (int i = 0; i < 4; i++) {
             float ang = turn + i * Mth.HALF_PI;
             double sx = g.x + Mth.cos(ang) * r, sz = g.z + Mth.sin(ang) * r;
-            flatOnLand(buf(buffers, CIRCLE), land, sx, sz, 1.7f, (time * 1.4f + i * 90) % 360, 0.07f, white, 0.6f * in);
-            flatOnLand(buf(buffers, GLOW), land, sx, sz, 2.6f, 0, 0.06f, c, 0.35f * in);
+            flatOnLand(seals, land, sx, sz, 1.8f, (time * 1.4f + i * 90) % 360, 0.07f, white, 0.85f * in);
         }
     }
 
@@ -1063,6 +1149,61 @@ public final class WorldBossWorldFx {
         vtx(out, x + px, y, z + pz, 1, 1, rgb, a);
         vtx(out, x + px, y + height, z + pz, 1, 0, rgb, a);
         vtx(out, x - px, y + height, z - pz, 0, 0, rgb, a);
+    }
+
+    /**
+     * Ink over the land round (x, z) out to r, its texture tiled every {@code tile} blocks of the world (so it never
+     * swims as the domain moves), thinning away over its last two blocks.
+     */
+    private static void inkLand(VertexConsumer out, Terrain land, double x, double z, float r, float tile, float lift, int rgb, float alpha) {
+        int a = alpha(alpha);
+        if (a <= 2 || r < 0.3f) return;
+        int segs = Mth.clamp(Mth.ceil(Mth.TWO_PI * r / 1.2f), 12, 200);
+        int rings = Mth.clamp(Mth.ceil(r / 1.2f), 2, 40);
+        float[] cos = new float[segs + 1], sin = new float[segs + 1];
+        for (int j = 0; j <= segs; j++) {
+            float ang = Mth.TWO_PI * j / segs;
+            cos[j] = Mth.cos(ang);
+            sin[j] = Mth.sin(ang);
+        }
+        for (int i = 0; i < rings; i++) {
+            float ra = r * i / rings, rb = r * (i + 1) / rings;
+            int aa = Math.round(a * Mth.clamp((r - ra) / 2f, 0, 1)), ab = Math.round(a * Mth.clamp((r - rb) / 2f, 0, 1));
+            if (aa <= 2 && ab <= 2) continue;
+            for (int j = 0; j < segs; j++) {
+                inkVertex(out, land, x + cos[j] * ra, z + sin[j] * ra, lift, tile, rgb, aa);
+                inkVertex(out, land, x + cos[j + 1] * ra, z + sin[j + 1] * ra, lift, tile, rgb, aa);
+                inkVertex(out, land, x + cos[j + 1] * rb, z + sin[j + 1] * rb, lift, tile, rgb, ab);
+                inkVertex(out, land, x + cos[j] * rb, z + sin[j] * rb, lift, tile, rgb, ab);
+            }
+        }
+    }
+
+    private static void inkVertex(VertexConsumer out, Terrain land, double x, double z, float lift, float tile, int rgb, int a) {
+        vtx(out, x, land.at(x, z) + lift, z, (float) (x / tile % 1024), (float) (z / tile % 1024), rgb, a);
+    }
+
+    /**
+     * A column of ink at (x, z) from y up {@code height}, turning to face the camera, its edges burning; {@code scroll}
+     * runs the ink along it (falling as it shrinks, rising as it grows).
+     */
+    private static void inkColumn(MultiBufferSource buffers, double x, double y, double z, float half, float height, int rgb, float alpha, float scroll) {
+        int a = alpha(alpha);
+        if (a <= 2 || height <= 0.01f || half <= 0.01f) return;
+        double dx = camX - x, dz = camZ - z;
+        double l = Math.sqrt(dx * dx + dz * dz);
+        if (l < 1e-4) {
+            dx = 1;
+            l = 1;
+        }
+        double px = -dz / l * half, pz = dx / l * half;
+        // the texture is four times as tall as it is wide
+        float v0 = scroll % 64, v1 = v0 + height / (half * 8);
+        VertexConsumer out = buffers.getBuffer(ModRenderTypes.energy(Aura.SHAFT));
+        vtx(out, x - px, y, z - pz, 0, v1, rgb, a);
+        vtx(out, x + px, y, z + pz, 1, v1, rgb, a);
+        vtx(out, x + px, y + height, z + pz, 1, v0, rgb, a);
+        vtx(out, x - px, y + height, z - pz, 0, v0, rgb, a);
     }
 
     /** The kind's colour, for callers that only know the kind. */

@@ -6,25 +6,32 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.FastColor;
 
 /**
- * Draws any creature as a shadow: wraps a buffer source so every vertex colour is multiplied by a deep violet-black,
- * which keeps the shape and a faint trace of the texture. Glowing layers (eyes, energy) turn to violet light instead.
+ * Draws any creature as a shadow: wraps a buffer source so every vertex colour is multiplied by blue-black ink (the
+ * series' darks are blue-black, never grey or violet-brown), which keeps the shape and only a cold trace of the
+ * texture: the silhouette is everything, and its burning edge is drawn over it ({@code client.fx.Aura}). Glowing
+ * layers (a creature's eyes and glow marks, energy) burn in the shadow's own light instead: light showing through the
+ * seams of the ink.
  */
 public final class ShadowTint implements MultiBufferSource {
     private final MultiBufferSource inner;
     private final float r, g, b;
     private final float alpha;
+    private final float lr, lg, lb;
 
-    public ShadowTint(MultiBufferSource inner, float r, float g, float b, float alpha) {
+    public ShadowTint(MultiBufferSource inner, float r, float g, float b, float alpha, int light) {
         this.inner = inner;
         this.r = r;
         this.g = g;
         this.b = b;
         this.alpha = alpha;
+        this.lr = ((light >> 16) & 0xFF) / 255f;
+        this.lg = ((light >> 8) & 0xFF) / 255f;
+        this.lb = (light & 0xFF) / 255f;
     }
 
-    /** The usual ink: nearly black with a violet sheen. */
-    public static ShadowTint ink(MultiBufferSource inner, float brightness) {
-        return new ShadowTint(inner, 0.085f * brightness, 0.065f * brightness, 0.16f * brightness, 1f);
+    /** The usual ink: blue-black (art style {@code #0E1020} on a lit face), its glowing layers in {@code light}. */
+    public static ShadowTint ink(MultiBufferSource inner, float brightness, int light) {
+        return new ShadowTint(inner, 0.055f * brightness, 0.064f * brightness, 0.13f * brightness, 1f, light);
     }
 
     @Override
@@ -32,7 +39,7 @@ public final class ShadowTint implements MultiBufferSource {
         VertexConsumer out = inner.getBuffer(type);
         String name = type.toString();
         if (name.contains("eyes") || name.contains("energy") || name.contains("beyondsolo_light")) {
-            return new Tinted(out, 0.75f, 0.45f, 1f, 1f);
+            return new Tinted(out, lr, lg, lb, 1f);
         }
         return new Tinted(out, r, g, b, alpha);
     }

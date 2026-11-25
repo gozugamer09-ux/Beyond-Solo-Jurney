@@ -10,14 +10,15 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 
 /**
- * Loads the mod's shaders: the one behind every rounded, glowing shape in the System UI, the one for light in the world
- * and the one for the skins of skill effects.
+ * Loads the mod's shaders: the one behind every rounded, glowing shape in the System UI, the one for light in the world,
+ * the one for the skins of skill effects and the one for the flame on a figure's outline.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID, value = Dist.CLIENT)
 public final class ModShaders {
     private static ShaderInstance shape;
     private static ShaderInstance light;
     private static ShaderInstance energy;
+    private static ShaderInstance flame;
 
     @SubscribeEvent
     static void register(RegisterShadersEvent event) {
@@ -43,6 +44,13 @@ public final class ModShaders {
         } catch (Exception e) {
             BeyondSolo.LOGGER.error("Could not load the skill skin shader. Skill effects fall back to plain light.", e);
         }
+        flame = null;
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), BeyondSolo.id("flame"), DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL),
+                    loaded -> flame = loaded);
+        } catch (Exception e) {
+            BeyondSolo.LOGGER.error("Could not load the aura flame shader. Auras fall back to the skill skin shader.", e);
+        }
     }
 
     /** Null if the shader failed to load. */
@@ -61,6 +69,15 @@ public final class ModShaders {
      */
     public static ShaderInstance energy() {
         return energy != null ? energy : light();
+    }
+
+    /**
+     * The shader for flame standing on a figure's outline: tiling noise lifted through a curtain and torn into tongues
+     * (shaders/core/flame.fsh). Null if it failed to load: the flame is then left out (no other shader reads its
+     * vertices).
+     */
+    public static ShaderInstance flame() {
+        return flame;
     }
 
     private ModShaders() {}

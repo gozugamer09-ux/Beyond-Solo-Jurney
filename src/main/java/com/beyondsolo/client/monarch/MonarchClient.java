@@ -1,5 +1,6 @@
 package com.beyondsolo.client.monarch;
 
+import com.beyondsolo.client.skill.FxParticles;
 import com.beyondsolo.monarch.Dominion;
 import com.beyondsolo.network.MonarchFxPayload;
 import com.beyondsolo.network.MonarchSyncPayload;
@@ -8,8 +9,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -62,6 +65,11 @@ public final class MonarchClient {
     private static final Map<Integer, Aura> DOMAINS = new HashMap<>();
     private static final Map<Integer, Aura> FORMS = new HashMap<>();
 
+    /** A monarch's dread let loose: who, how far it reaches, its colour, and when (game time). */
+    public record Dread(int entity, float radius, int color, double at) {}
+
+    private static final List<Dread> DREADS = new ArrayList<>();
+
     // ================================================================ the player's own crown
 
     public static @Nullable Dominion dominion() {
@@ -99,7 +107,13 @@ public final class MonarchClient {
                 aura(FORMS, p, now);
                 if (p.ticks() > 0 && mc.player != null && p.entity() == mc.player.getId()) MonarchHud.crowned(p.color());
             }
-            case MonarchFxPayload.DREAD -> MonarchHud.dread(p);
+            case MonarchFxPayload.DREAD -> {
+                DREADS.add(new Dread(p.entity(), p.size(), p.color(), now));
+                Entity who = mc.level.getEntity(p.entity());
+                // ink thrown out flat from their feet with the pressure of it
+                if (who != null) FxParticles.smokeRing(who.getX(), who.getY() + 0.1, who.getZ(), 26, INK_SMOKE, 1.1f, 0.42f);
+                MonarchHud.dread(p);
+            }
             case MonarchFxPayload.AUTHORITY -> MonarchHud.authority(p);
             case MonarchFxPayload.CLASH -> MonarchHud.clash(p);
             case MonarchFxPayload.CHOOSE -> ThroneScreen.open(Dominion.byIndex(p.size()), p.ticks());
@@ -124,6 +138,11 @@ public final class MonarchClient {
     /** Domains laid down round monarchs nearby (some may be fading out). */
     public static Collection<Aura> domains() {
         return DOMAINS.values();
+    }
+
+    /** Dreads let loose nearby in the last two seconds. */
+    public static List<Dread> dreads() {
+        return DREADS;
     }
 
     /** Crown forms taken by monarchs nearby (some may be fading out). */
@@ -162,7 +181,51 @@ public final class MonarchClient {
         double now = now(0);
         DOMAINS.values().removeIf(a -> a.over(now) || mc.level.getEntity(a.entity) == null && now - a.since > 40);
         FORMS.values().removeIf(a -> a.over(now) || mc.level.getEntity(a.entity) == null && now - a.since > 40);
+        DREADS.removeIf(d -> now - d.at() > 40 || now < d.at() - 40);
     }
+
+    /**
+     * Every tick: the breath of each crown form's element round the monarch in it (the flame itself burns off their
+     * outline, see {@code MonarchAuraLayer}): ink smoke at a Night monarch's feet, cold mist and frost motes round a
+     * Winter one, embers and black smoke off a Cinders one, sparks crackling off a Thunder one.
+     */
+    static void breathe() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || FORMS.isEmpty() || mc.isPaused()) return;
+        double now = now(0);
+        long tick = mc.level.getGameTime();
+        for (Aura a : FORMS.values()) {
+            Entity e = mc.level.getEntity(a.entity);
+            float k = a.strength(now);
+            if (e == null || k < 0.3f || e.isInvisible() || e.distanceToSqr(mc.player) > 48 * 48) continue;
+            double x = e.getX(), y = e.getY(), z = e.getZ();
+            float h = e.getBbHeight();
+            int c = a.color;
+            switch (a.dominion()) {
+                case NIGHT -> {
+                    if (tick % 3 == 0) FxParticles.smoke(x, y + 0.15, z, 0.45, 1, INK_SMOKE, 0.55f, 0.012f);
+                }
+                case WINTER -> {
+                    if (tick % 3 == 0) FxParticles.smoke(x, y + 0.1, z, 0.6, 1, 0xCFEFFF, 0.5f, 0.004f);
+                    if (tick % 2 == 0) FxParticles.motes(x, y + h * 0.5, z, 0.5, 1, c, 0.025f);
+                }
+                case CINDERS -> {
+                    FxParticles.embers(x, y + h * 0.4, z, 0.4, 1, c);
+                    if (tick % 4 == 0) FxParticles.smoke(x, y + h * 0.9, z, 0.3, 1, INK_SMOKE, 0.5f, 0.035f);
+                }
+                case THUNDER -> {
+                    if (tick % 3 == 0) {
+                        double sy = y + h * (0.2 + 0.7 * mc.level.random.nextDouble());
+                        FxParticles.sparks(x + (mc.level.random.nextDouble() - 0.5) * 0.7, sy, z + (mc.level.random.nextDouble() - 0.5) * 0.7, 3,
+                                0.18f, c, 0.02f);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Ink smoke: black with the faintest cold tint (the series' dark smoke is ink, never grey). */
+    private static final int INK_SMOKE = 0x0C0B18;
 
     /** Game time, with the frame's part of a tick. */
     public static double now(float partial) {
@@ -174,6 +237,7 @@ public final class MonarchClient {
     static void clearWorld() {
         DOMAINS.clear();
         FORMS.clear();
+        DREADS.clear();
     }
 
     /** Logging out. */

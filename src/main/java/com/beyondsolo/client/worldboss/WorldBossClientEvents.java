@@ -105,6 +105,7 @@ public final class WorldBossClientEvents {
         @SubscribeEvent
         static void tick(ClientTickEvent.Post event) {
             WorldBossClient.tick();
+            WorldBossWorldFx.breathe();
         }
 
         @SubscribeEvent

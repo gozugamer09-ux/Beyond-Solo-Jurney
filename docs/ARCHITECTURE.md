@@ -910,20 +910,24 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   exchange). A dimension change, logout or respawn leaves the guards posted. *Leave post* takes it off (it follows
   again, or rests if it was away); summoning it by name or sending it back does too. `PostMarkers` marks each post in
   this world on the HUD, with the distance, brighter on the one Umbral Exchange would take.
-- **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to a
-  violet-black), burning eyes, aura and a ring. The creature is made on the client from the shadow's look
-  (`ShadowLook`: any kind, with its own renderer, vanilla's, GeckoLib's or another mod's), takes the shadow's place
-  and pose every tick and runs its own tick with its particles held back (a bat's wings, a slime's squish; a
-  swimmer and the dragon are posed by hand, the dragon's wings and neck kept as Minecraft keeps them). `ShadowDraw`
-  keeps whatever goes wrong in a renderer inside the shadow: it draws on its own copy of the pose and finishes any
-  vertex or quad a failing renderer left half written. A kind that can't be made or drawn is told in the log once and
-  drawn from then on as a stand-in of its size and way of moving (a zombie or a spider, a vex or a phantom, a
-  dolphin); one whose own tick fails is only posed. The rank shows: from Knight a moving energy shell in the rank's
-  colour (`ShadowShell`, vanilla `energySwirl` over `textures/entity/shadow/shell.png` from
-  `tools/gen_shadow_assets.py`; only the entity-format parts of the model are redrawn), each rank above a little
-  bigger (`tierScale`) and brighter; from Commander a crown of flame over the head and a rune circle at the feet; a
-  Regent wears a second shell. `ShadowWorldFx` draws souls, the ritual, the extraction burst, refusals, summons,
-  recalls, rank-up pillars, promotions, essence wisps and the naming ring; `ShadowHud` the extract prompt, ritual
+- **Client**: `ShadowRenderer` draws the creature it was through `ShadowTint` (every vertex colour multiplied to
+  blue-black ink) and records its outline as it draws (`client.fx.Outline`); `client.fx.Aura` then burns that
+  outline in the series' style (see "Series look" below): a hot rim, black flame standing on it, ink wisps, eyes
+  with comet trails, and a pool of ink when it rises, sinks or falls. The creature is made on the client from the
+  shadow's look (`ShadowLook`: any kind, with its own renderer, vanilla's, GeckoLib's or another mod's), takes the
+  shadow's place and pose every tick and runs its own tick with its particles held back (a bat's wings, a slime's
+  squish; a swimmer and the dragon are posed by hand, the dragon's wings and neck kept as Minecraft keeps them).
+  `ShadowDraw` keeps whatever goes wrong in a renderer inside the shadow: it draws on its own copy of the pose and
+  finishes any vertex or quad a failing renderer left half written. A kind that can't be made or drawn is told in the
+  log once and drawn from then on as a stand-in of its size and way of moving (a zombie or a spider, a vex or a
+  phantom, a dolphin); one whose own tick fails is only posed. The rank shows in the burning (`LOOKS`): a husk barely
+  holds an edge, from Vanguard light shows through the seams, from Knight a taller crest of flame, from Commander a
+  crown of flame spikes; a Regent has a second, violet rim and stands in its own pool; each rank above Knight is a
+  little bigger (`tierScale`). `ShadowWorldFx` draws souls (a small pool with a black flame and an ember), the ritual
+  (the pool spreads, a ring of black flame rises, ink smoke is drawn in, a hot thread from the hand), the extraction
+  burst (ink thrown out and an eruption of black flame), refusals (a red-edged ink splash), summons, recalls, rank-up
+  and promotion pillars of black flame (a promotion sets a crown of it), essence streaks and the naming ring, with ink
+  smoke from `FxParticles`; `ShadowHud` the extract prompt, ritual
   ring, banners (cinematic for bosses and promotions) and the army counter; `ShadowsTab` the System window page
   (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
@@ -1089,6 +1093,48 @@ model.
   parts only show with the helmet and so on. Arms are a hair bigger than the body so the shoulders don't flicker.
 - **Looking at it without the game:** `python3 tools/armor_preview.py <set>` (a mannequin from five sides,
   `--walk`), `python3 tools/armor_icons.py <set>` (the four icons, big).
+
+## Series look
+
+How the anime this game is inspired by draws power, darkness and light is written down in the project files
+(`art-style/STYLE-GUIDE.md`, with `palettes.png`); the series' own pictures never go into the repo, the pack or the
+project files, and its names, characters, emblems and designs are never copied. In short: dark power is a black body
+with a burning edge, black flame and ink; light is a white-gold body with flame of light, broken halos and wings of
+light; energy is thin and sharp; nothing glows like a ball; circles of runes belong only to spells.
+
+- **`client.fx.Outline` and `client.fx.Aura`.** `Outline` records a figure's outline as its model draws, through any
+  renderer (`tap` a buffer source, optionally only one render type: a GeckoLib boss taps its body, not its glow
+  layer), and `Aura.burnWorld` burns it in an `Aura.Style` (hue, rim, seams, flame, crest, crown, glow, lean, wisps;
+  `light()` for flame of light): the rim, flame curtains (flame shader), the light in the seams, ink wisps (`State`,
+  one per figure) and eyes. Beside it: `pool` and `splash` (ink on the ground) for the dark, and for the light `halo`
+  (a broken halo upright behind a head), `seal` (the same lying on the ground), `wings` (a fan of feathers of light on
+  each side, `open` 0 folded to 1 spread, `beat`) and `glint` (a hot point with four short rays: a mote, light
+  gathering). The pictures are `textures/effect/series`, made by `tools/gen_series_fx.py` (red = heat, alpha =
+  cover, drawn by the energy shader); feathers and halo lines carry a little cover so they read against a bright sky.
+- **Who burns.** Shadows (`ShadowRenderer`, the rank looks), worn monarch armour and crown forms (`MonarchAuraLayer`),
+  monarchs and world bosses (`ColossalBossRenderer`: a calm, a wrath and a death style per kind), the rulers (flame of
+  light; the Verdict's model wings are hidden in `preRender` and drawn as wings of light; a shadow's stand-in keeps
+  them, in ink), heralds (`HeraldRenderer`, a small flame of light and small wings of light in place of their model's
+  feathers) and the Envoy (broken rings and glints, no soft sun). Only the real entity burns: a shadow's stand-in
+  drawn with the same renderer is checked against the level's own entity.
+- **Breath** (`WorldBossWorldFx.breathe`, each tick within 64 blocks of the threat or the ruler abroad): the frost
+  queen's cold mist and frost motes, the wolf king's blood mist, sparks off the storm lord, the flame giant's embers
+  and black smoke and the beast's dark blood in their last phase, light dust off a ruler; ink smoke pours off a dying
+  monarch, black smoke off a dying world boss, light rises off a dying ruler. Server particles keep the rule: a
+  monarch's descent, death and army leave ink dust (`MonarchBoss.ink`, `ColossalBoss.remains`), a ruler leaves motes
+  of light (`END_ROD`).
+- **Sky and land.** A monarch's gate is a hole of ink with a burning rim and its domain turns the land to ink with
+  veins of its light; a ruler's rift is a still tear of white light with broken rings and rays, and every seal of the
+  light (a sanctum's, a light hunter's, the vigil's) is a broken ring (`Aura.HALO`), never runes. Warnings are thin
+  rims and fills; blows are streaks with white-hot heads, stars of light (`Aura.SPARK`) and thin rings.
+- **Skills** (`client.skill`). A blast (`SkinFx.blast`) is a white flash with long rays and a shell of the element
+  gone in a quarter of a second (never standing long enough to read as a dome), a low shock wall, a scorch, and smoke
+  of its element (`smokeTint`: black for fire, ink for shadow, dust otherwise); a war cry (`SkinFx.shells`) is a band
+  of thin rings of shuddering air running out from the chest; a shadow blast throws ink instead of flame
+  (`SkillWorldFx`, NOVA); vanilla explosion and smoke particles are drawn dark (`SkillParticleLooks`).
+- **Checking it.** Look from outside, by day and by night (`tools/uitest`: `camera`, `time set`): light washes out
+  against a bright sky, ink disappears in the dark.
+
 ## Enemy roster and boss pool
 
 Gates no longer hold the same creatures and the same boss every time.
@@ -1651,13 +1697,16 @@ and how many have been slain.
   depth, so they only light the plate itself and never the see-through parts of a wing or a crest. Monarch pieces
   have no enchantment glint (it would cover the aura's colour). `WorldBossWorldFx.regalia` adds motes and wisps of the
   aura rising off whoever wears pieces (more for more pieces) and a faint halo for a whole set.
-- **Looks** (`client.worldboss`): `ColossalBossRenderer` and `WorldBossModel` (GeckoLib, glowing parts, the Walking
-  Mountain's molten skin in its last phase, a monarch's sigil underfoot, the pillar of light as one dies; a world
-  boss rising from or sinking into the earth stays on the ground and is drawn sunk by `ColossalBoss.buried`, because
-  the renderer skips an entity whose block is in a chunk section that was never drawn, as buried rock is),
-  `BossProjectileRenderer`, `WorldBossWorldFx` (the warnings lying on the land as it is through `Terrain`, waves,
-  falling stones, lightning, pillars, cracks of light; a column of light over a far world boss; the gate in the sky; a
-  monarch's domain ring), `WorldBossHud` (the bar with phase notches and your share, its name in the threat colours
+- **Looks** (`client.worldboss`, in the series look: see "Series look"): `ColossalBossRenderer` and `WorldBossModel`
+  (GeckoLib, glowing parts, the Walking Mountain's molten skin in its last phase; a monarch burns in black flame over
+  a rim of its colour and stands in a pool of ink, black flame taking it as it dies; a world boss's seams and edges
+  open and burn in its last phase; a world boss rising from or sinking into the earth stays on the ground and is drawn
+  sunk by `ColossalBoss.buried`, because the renderer skips an entity whose block is in a chunk section that was never
+  drawn, as buried rock is), `BossProjectileRenderer`, `WorldBossWorldFx` (the warnings lying on the land as it is
+  through `Terrain` as thin rims that fill, waves, falling stones as streaks with white-hot heads, lightning, pillars,
+  stars of light, cracks of light; a column of light over a far world boss, a pillar of ink over a far monarch; the
+  gate in the sky, a hole of ink; a monarch's domain, the land turned to ink with veins of its light; each threat's
+  breath, `breathe`), `WorldBossHud` (the bar with phase notches and your share, its name in the threat colours
   of `enemy/HiddenLevel` like every System creature's, a marker with distance and arrow when it is far, the domain's
   edge tint, banners). Ground textures are `textures/effect/wb_*.png`.
 - **Art** is made by scripts: `tools/gen_worldboss_assets.py <titan|behemoth|stillness|hunger|storms|fx>` writes a
@@ -1793,7 +1842,7 @@ are the mod's own.
 | Heralds | `HeraldEntity`: lesser beings of light in white plate with a spear and a crown of crystal, called round a ruler as it lands (4) and as it angers (3 at its second phase) by `RulerHost`, each in a pillar of light. They fight their ruler's foes and only them, and fade when it falls or leaves, when they are left without it, or when their land loads after its event ended (`Rulers.onJoin`) |
 | `RulerRecord` | The hunter's record with the light (the `beyondsolo:rulers` attachment, kept through death): rulers felled by kind and how often they did the most, wars won at a ruler's side, sentences passed and overturned, heralds cut down, blessings received. `/solo info` and `/solo ruler record` show it |
 | `RulerJournal` | Titles: Rulerbreaker (a share in a ruler's fall, mythic), Eclipse (the most damage to a ruler that fell, mythic, secret), Ally of the Dawn (a monarch brought down at a ruler's side, legendary), Herald's Bane (25 heralds, epic), Unsentenced (felled the ruler come to judge you, mythic, secret). The rulers' journal pages come with the great threats' |
-| Client | `WorldBossClient` keeps two slots (the great threat abroad and the ruler) and `WorldBossHud` draws two bars, the ruler's under the other with whom it fights under it ("at war with Thyrax", or "it has come for you" for the hunter it judges), and the light's banners: the rift opening, the Eternal War (the ruler's name against the monarch's), the Sentence (yours, or another's), Blessed, the ruler slain. `WorldBossWorldFx` draws a ruler's rift as a still rent of light in the sky (rings, sigils, rays and a shaft down to the land while it comes down) and its sanctum as a ring of gold with six seals on the land; `ColossalBossRenderer` gives a ruler a halo. Art: `tools/gen_ruler_assets.py` (the three rulers and the herald, their animations, the mote and the blessing's icon) |
+| Client | `WorldBossClient` keeps two slots (the great threat abroad and the ruler) and `WorldBossHud` draws two bars, the ruler's under the other with whom it fights under it ("at war with Thyrax", or "it has come for you" for the hunter it judges), and the light's banners: the rift opening, the Eternal War (the ruler's name against the monarch's), the Sentence (yours, or another's), Blessed, the ruler slain. `WorldBossWorldFx` draws a ruler's rift as a still tear of white light in the sky (a cool white heart and gold lips, broken rings turning round it, rays, and a shaft down to the land while it comes down) and its sanctum as a ring of gold with six seals of broken rings on the land; `ColossalBossRenderer` burns a ruler in flame of light with a broken halo behind its head, the Verdict's wings of light, its seal underfoot in its last phase, and glints of light gathering as a pillar of light takes it (see "Series look"). Art: `tools/gen_ruler_assets.py` (the three rulers and the herald, their animations, the mote and the blessing's icon) |
 
 Config: `beyondsolo-rulers.toml` (`rulers.enabled` true, `rulers.warChance` 0.4, `rulers.descentSeconds` 30,
 `rulers.sentences` true, `rulers.firstSentenceMinutes` 30, `rulers.sentenceMinutes` 120, `rulers.abandonMinutes` 8,
