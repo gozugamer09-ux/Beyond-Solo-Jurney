@@ -167,8 +167,9 @@ public final class SkillDomains {
         // ---- the ranger's
         put("storm_of_a_thousand", new Look(0x121824, 0x323E58, 0.82f, 56, 4.5f).storm());
         put("stormfall", new Look(0x0E1422, 0x2A344E, 0.88f, 50, 5).storm());
-        // the heavens open over the whole rain of arrows, till the last one lands
-        put("fall_of_heaven", new Look(0x08163E, 0x9CB4EC, 0.86f, 96, 8).stars().air(Air.MOTES, 0xFFF4C0));
+        // the heavens open over the whole rain of arrows, till the last one lands: a starlit night down to a deep blue
+        // horizon, so the falling light is the brightest thing in it (a pale horizon washed the rain out on film)
+        put("fall_of_heaven", new Look(0x040A24, 0x2C4688, 0.9f, 96, 8).stars().air(Air.MOTES, 0xFFF4C0));
         put("wild_hunt", new Look(0x180E06, 0x3E2618, 0.86f, 44, 9).body(Body.MOON, 0xFFB466));
         // the marksman's breath held: the world drains and narrows to the marks
         put("hunters_verdict", new Look(0x0C1018, 0x1E2633, 0.86f, 64, 2).air(Air.MOTES, 0xE6FF70));
