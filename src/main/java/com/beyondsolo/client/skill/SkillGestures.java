@@ -2,10 +2,10 @@ package com.beyondsolo.client.skill;
 
 import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.network.SkillCastPayload;
-import com.beyondsolo.network.SkillFxPayload;
+import com.beyondsolo.network.SkillWindupPayload;
+import com.beyondsolo.skill.Gestures;
 import com.beyondsolo.skill.Skill;
 import com.beyondsolo.skill.Skills;
-import com.beyondsolo.system.PlayerClass;
 import dev.kosmx.playerAnim.api.firstPerson.FirstPersonConfiguration;
 import dev.kosmx.playerAnim.api.firstPerson.FirstPersonMode;
 import dev.kosmx.playerAnim.api.layered.IActualAnimation;
@@ -83,6 +83,76 @@ public final class SkillGestures {
         }
     }
 
+    // ================================================================ the wind-up and the blow
+
+    /**
+     * A strike waiting for its tick after a wind-up: the gesture, timed so its blow lands as the skill goes off, or,
+     * for a skill that takes its own time first ({@code late}), as its first blow does.
+     */
+    private static final class Strike {
+        final String gesture;
+        final String skill;
+        final boolean late;
+        int ticks;
+
+        Strike(String gesture, String skill, int ticks, boolean late) {
+            this.gesture = gesture;
+            this.skill = skill;
+            this.ticks = ticks;
+            this.late = late;
+        }
+    }
+
+    private static final java.util.Map<AbstractClientPlayer, Strike> STRIKES = new java.util.WeakHashMap<>();
+    /** The skill each player's wind-up last struck for, and on which client tick, so its cast doesn't swing again. */
+    private static final java.util.Map<AbstractClientPlayer, Object[]> STRUCK = new java.util.WeakHashMap<>();
+    private static long ticks;
+
+    /**
+     * A hunter winds up for a skill ({@link SkillWindupPayload}): the body draws back into the pose the gesture strikes
+     * from and holds it while the power gathers ({@link SkillCharge}), then the gesture plays so its blow lands on the
+     * tick the skill goes off. An ultimate's call and cut-in come now, at the start ({@link SkillImpacts#windup}).
+     */
+    public static void windup(SkillWindupPayload p) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        Entity e = mc.level.getEntity(p.entityId());
+        Skill skill = Skills.get(p.skill());
+        if (!(e instanceof AbstractClientPlayer player) || skill == null) return;
+        String gesture = Gestures.pick(skill, p.look(), p.variant());
+        // a skill with a stance of its own goes off first and lands its blow a moment later: the body holds till then
+        int blow = p.ticks() + p.delay();
+        int hold = blow - Gestures.strike(gesture);
+        SkillCharge.begin(player, skill, gesture, blow);
+        SkillImpacts.windup(player, skill, gesture, blow);
+        SkillDomains.windup(player, skill, blow);
+        if (hold > 0) {
+            play(player, gesture + "_windup");
+            STRIKES.put(player, new Strike(gesture, skill.path(), hold, p.delay() > 0));
+        } else {
+            strike(player, gesture, skill.path());
+        }
+    }
+
+    /** The blow after a wind-up starts: the gesture itself, the charge bursting into a glint. */
+    private static void strike(AbstractClientPlayer player, String gesture, String skill) {
+        STRIKES.remove(player);
+        play(player, gesture);
+        STRUCK.put(player, new Object[]{skill, ticks});
+        SkillCharge.release(player);
+        SkillImpacts.swing(player, gesture);
+    }
+
+    @SubscribeEvent
+    static void tick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        ticks++;
+        if (STRIKES.isEmpty()) return;
+        for (var entry : new java.util.ArrayList<>(STRIKES.entrySet())) {
+            Strike s = entry.getValue();
+            if (--s.ticks <= 0) strike(entry.getKey(), s.gesture, s.skill);
+        }
+    }
+
     public static void cast(SkillCastPayload p) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
@@ -90,89 +160,24 @@ public final class SkillGestures {
         Skill skill = Skills.get(p.skill());
         if (!(e instanceof AbstractClientPlayer player) || skill == null) return;
         String gesture = pick(skill, p.look(), p.variant());
-        play(player, gesture);
+        // after a wind-up the blow has already started (a moment early, so it lands now): no second swing
+        Strike waiting = STRIKES.get(player);
+        if (waiting != null && waiting.skill.equals(p.skill())) {
+            // went off, its blow still to come: the body keeps its stance
+            if (waiting.late && p.look().isEmpty()) return;
+            strike(player, waiting.gesture, waiting.skill);
+        }
+        Object[] struck = STRUCK.remove(player);
+        boolean wound = struck != null && struck[0].equals(p.skill()) && ticks - (long) struck[1] <= 12;
+        if (!wound) play(player, gesture);
         castLight(player, skill, gesture);
-        SkillImpacts.cast(player, skill, gesture);
+        SkillImpacts.cast(player, skill, gesture, wound);
+        SkillDomains.cast(player, skill);
     }
 
     /** The gesture for a skill that showed {@code look} first. */
     static String pick(Skill skill, String look, int variant) {
-        PlayerClass owner = skill.owner();
-        boolean melee = owner == PlayerClass.WARRIOR || owner == PlayerClass.ASSASSIN || owner == PlayerClass.GUARDIAN;
-        boolean heavy = owner == PlayerClass.WARRIOR || owner == PlayerClass.GUARDIAN;
-        if (look.startsWith("rune:")) {
-            return switch (look.substring(5)) {
-                case "BREATH", "DREAD", "HOWL" -> "roar";
-                case "FLURRY" -> "slash";
-                case "IMPACT" -> "slam";
-                case "SIGIL" -> "point";
-                case "WEB" -> "place";
-                case "WALL" -> "guard";
-                case "SWARM" -> "summon";
-                case "SHARDS" -> "burst";
-                default -> "cast";
-            };
-        }
-        SkillFxPayload.Kind kind = null;
-        for (SkillFxPayload.Kind k : SkillFxPayload.Kind.values()) if (k.name().equals(look)) kind = k;
-        if (kind == null) return byClass(owner);
-        return switch (kind) {
-            case SLASH -> variant == 1 ? "slash_back" : "slash";
-            case DASH -> "lunge";
-            case BLINK, VEIL, EXCHANGE -> "vanish";
-            // the hand nobody sees: reached out to take, thrown with the arm, pushed out with both palms
-            case GRASP -> "point";
-            case HURL -> "throw";
-            case FORCE -> "cast_both";
-            case SLAM, CRACK -> melee ? "slam" : "ground";
-            case QUAKE -> "stomp";
-            case ROAR -> "roar";
-            case AURA -> melee || owner == PlayerClass.RANGER ? "power" : "channel";
-            case ZONE, VORTEX, MIST -> "channel";
-            case HEAL, HALO, WINGS, BUBBLE, ORBIT -> "pray";
-            case BOLT, ORB, BALL, STREAM -> "cast";
-            case SPLASH -> owner == PlayerClass.GUARDIAN ? "lunge" : melee ? "slash" : owner == PlayerClass.RANGER ? "bow" : "cast";
-            case BEAM -> "cast_both";
-            case SHOT -> owner == PlayerClass.RANGER ? "bow" : melee ? "throw" : "cast";
-            case ARROW, GALE, SEEKER -> "bow";
-            case SKYSHOT -> "bow_sky";
-            case DOME, SHIELD -> "guard";
-            case NOVA, PULSE -> heavy ? "stomp" : "burst";
-            case BLOSSOM, SPIN -> "spin";
-            case MARK, SIGHT, BIND -> "point";
-            // fire rolls out from a swept hand, rock spikes are called up from the ground, a charge leaves a wake, wind is cut loose
-            case WAVE -> switch (variant) {
-                case 1 -> melee ? "slam" : "ground";
-                case 2 -> "lunge";
-                case 3 -> "slash";
-                default -> melee ? "slash" : "sweep";
-            };
-            case BEAST, SWARM -> "summon";
-            case FAN, DISCUS -> "throw_side";
-            case PILLAR, METEOR, RAIN, THUNDER, CLOUD -> "raise";
-            case CLEAVE -> melee ? "chop" : "raise";
-            case HAMMER, CHAIN, NET -> "throw";
-            case TRAP, WIRE, ROPE -> "place";
-            case UPDRAFT -> "leap";
-            case STATIC, QUIVER, BLADES -> "power";
-            case WINDWALL -> "sweep";
-            case CLAW -> "claw";
-            case GEYSER -> owner == PlayerClass.ASSASSIN ? "slash" : melee ? "slam" : "ground";
-            case BANNER -> "slam";
-            // the casting circle and element marks say nothing about the body; a kind added later falls back the same way
-            default -> byClass(owner);
-        };
-    }
-
-    private static String byClass(PlayerClass owner) {
-        if (owner == null) return "cast";
-        return switch (owner) {
-            case WARRIOR, ASSASSIN -> "slash";
-            case GUARDIAN -> "guard";
-            case HEALER -> "pray";
-            case RANGER -> "bow";
-            case MAGE -> "cast";
-        };
+        return Gestures.pick(skill, look, variant);
     }
 
     /** Plays {@code skill_<gesture>} on the player's skill layer. */
@@ -185,7 +190,7 @@ public final class SkillGestures {
             return false;
         }
         IActualAnimation<?> anim = playable.playAnimation();
-        if (gesture.equals("spin")) {
+        if (gesture.startsWith("spin")) {
             // a full turn of the body would carry the arms round behind the eyes: the wielder keeps their own view
             anim.setFirstPersonMode(FirstPersonMode.NONE);
         } else {
@@ -194,6 +199,8 @@ public final class SkillGestures {
         }
         @SuppressWarnings("unchecked")
         ModifierLayer<IAnimation> layer = (ModifierLayer<IAnimation>) raw;
+        // a spin starts a whole turn round: fading into it from a wind-up would turn the body twice
+        if (gesture.equals("spin")) layer.setAnimation(null);
         layer.replaceAnimationWithFade(AbstractFadeModifier.standardFadeIn(2, Ease.OUTQUAD), anim);
         return true;
     }

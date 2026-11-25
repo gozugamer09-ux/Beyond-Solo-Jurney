@@ -68,6 +68,7 @@ public final class SkillClientEvents {
         static void renderLevel(RenderLevelStageEvent event) {
             if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
             float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            SkillAftermath.render(event.getPoseStack(), event.getCamera(), partial);
             SkillWorldFx.render(event.getPoseStack(), event.getCamera(), partial);
             FxParticles.render(event.getPoseStack(), event.getCamera(), partial);
         }

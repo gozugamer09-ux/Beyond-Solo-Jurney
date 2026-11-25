@@ -31,6 +31,7 @@ public final class BeyondSolo {
         ModItems.ITEMS.register(modBus);
         com.beyondsolo.skill.Skills.init();
         com.beyondsolo.skill.SkillFeel.init(modBus);
+        com.beyondsolo.skill.SkillWindup.init(modBus);
         ModItems.TABS.register(modBus);
         Statuses.init();
         ModBlockEntities.BLOCK_ENTITIES.register(modBus);

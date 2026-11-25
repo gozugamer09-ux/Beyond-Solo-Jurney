@@ -209,7 +209,7 @@ public final class SubclassPassives {
                     bonus += quiverBonus(quiver);
                     if (p.getRandom().nextFloat() * 100 < quiverSpark(quiver)) {
                         amount += 2 + quiver;
-                        SkillFx.play(target, SkillFxPayload.Kind.HEAL, SubclassSkills.CHARGED_QUIVER.color(), target.position(), 0.8f, 0);
+                        SkillFx.aside(() -> SkillFx.play(target, SkillFxPayload.Kind.HEAL, SubclassSkills.CHARGED_QUIVER.color(), target.position(), 0.8f, 0));
                         target.level().playSound(null, target.blockPosition(), SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 0.25f, 2f);
                     }
                 }
@@ -289,7 +289,7 @@ public final class SubclassPassives {
                     && BalanceHooks.avoids(p, event.getSource(), chance / 100f)) {
                 event.setCanceled(true);
                 p.level().playSound(null, p.blockPosition(), SoundEvents.BREEZE_JUMP, SoundSource.PLAYERS, 0.6f, 1.6f);
-                SkillFx.play(p, SkillFxPayload.Kind.DASH, SubclassSkills.EVASIVE_STEP.color(), p.position(), 0.8f, 6);
+                SkillFx.aside(() -> SkillFx.play(p, SkillFxPayload.Kind.DASH, SubclassSkills.EVASIVE_STEP.color(), p.position(), 0.8f, 6));
                 return;
             }
             int ward = data.level(SubclassSkills.ARCANE_WARD.path());
@@ -344,8 +344,10 @@ public final class SubclassPassives {
                 p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 1));
                 SkillAPI.setBuff(p, BUFF_SAVED, Math.round(undyingCooldown(undying) * 20));
                 p.level().playSound(null, p.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.8f, 1.2f);
-                SkillFx.play(p, SkillFxPayload.Kind.DOME, SubclassSkills.UNDYING.color(), p.position(), 2, 40);
-                SkillFx.play(p, SkillFxPayload.Kind.HEAL, SubclassSkills.UNDYING.color(), p.position(), 1.5f, 0);
+                SkillFx.aside(() -> {
+                    SkillFx.play(p, SkillFxPayload.Kind.DOME, SubclassSkills.UNDYING.color(), p.position(), 2, 40);
+                    SkillFx.play(p, SkillFxPayload.Kind.HEAL, SubclassSkills.UNDYING.color(), p.position(), 1.5f, 0);
+                });
                 return;
             }
         }
@@ -361,7 +363,7 @@ public final class SubclassPassives {
         if (pact > 0) {
             p.heal(pactHeal(pact));
             SystemAPI.restoreMana(p, pactMana(pact));
-            SkillFx.play(dead, SkillFxPayload.Kind.BOLT, SubclassSkills.GRAVE_PACT.color(), p.position().add(0, 1, 0), 0.2f, 0);
+            SkillFx.aside(() -> SkillFx.play(dead, SkillFxPayload.Kind.BOLT, SubclassSkills.GRAVE_PACT.color(), p.position().add(0, 1, 0), 0.2f, 0));
         }
         long[] sentence = SubclassActions.SENTENCES.remove(dead);
         if (sentence != null && sentence[0] > p.level().getGameTime() && sentence[2] == p.getId()) {

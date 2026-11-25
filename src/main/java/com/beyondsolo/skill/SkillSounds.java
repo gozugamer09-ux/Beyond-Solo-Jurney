@@ -78,13 +78,17 @@ public final class SkillSounds {
         SOUNDS.register(modBus);
         NeoForge.EVENT_BUS.addListener(SkillSounds::swap);
         // what a skill schedules runs later, outside its action: it takes the skill's sounds along
-        ServerScheduler.carry(task -> depth <= 0 ? task : () -> {
-            enter();
-            try {
-                task.run();
-            } finally {
-                exit();
-            }
+        // (and the cast it belongs to, whose first blow may be one of them: SkillFx)
+        ServerScheduler.carry(task -> {
+            Runnable part = SkillFx.carry(task);
+            return depth <= 0 ? part : () -> {
+                enter();
+                try {
+                    part.run();
+                } finally {
+                    exit();
+                }
+            };
         });
     }
 

@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Body animations for skill casts (playerAnimator emote JSON): one gesture per way of casting.
 
-A skill's effect starts the moment it is cast, so every gesture strikes fast: the pose it fades in from is the
-wind-up, the strike lands by tick 2 to 4, then a short follow-through and the ease back. Which gesture a skill plays
-is decided in client/skill/SkillGestures (from the first effect the cast sends and the caster's class).
+Every gesture strikes fast: the pose it starts from is the wind-up, the strike lands by tick 2 to 6, then a short
+follow-through and the ease back. Which gesture a skill plays is decided in skill/Gestures (from the first effect the
+cast sends and the caster's class), together with the tick its blow lands (Gestures.strike: keep it in step with the
+keyframes here).
+
+Each gesture also gets a wind-up, skill_<name>_windup: the body eases from standing into the pose the gesture strikes
+from, drawn back a little further (the way a body loads a blow), and holds it with a slight tremor while the power
+gathers. A class skill winds up before it goes off (skill/SkillWindup); the client plays the wind-up, then the gesture
+itself so that its blow lands on the tick the skill does.
 
 Same conventions as tools/gen_signature_anims.py (degrees here, radians in the files):
   arms/legs pitch: negative raises the limb forward (-90 straight ahead, -180 straight up), positive swings it back
@@ -118,12 +124,64 @@ def legs(front=-18, back=14, spread=0):
     }
 
 
+RAW = {}
+
+
 def gesture(name, description, end, stop, frames, stance=None):
     parts = dict(frames)
     if stance:
         for part, keys in stance.items():
             parts.setdefault(part, [(t, p) for t, p in keys if t <= end])
+    RAW[name] = parts
     G[name] = emote("skill_" + name, description, end, stop, parts)
+
+
+# the tick each gesture's blow lands (the same table as skill/Gestures.strike)
+STRIKE = {
+    "claw": 2, "lunge": 2, "throw_side": 2, "cast": 2, "cast_both": 2, "burst": 2, "guard": 2, "point": 2,
+    "slash": 3, "slash_back": 3, "spin": 3, "stomp": 3, "ground": 3, "roar": 3, "power": 3, "leap": 3, "vanish": 3,
+    "place": 3, "throw": 3, "raise": 3,
+    "chop": 4, "slam": 4, "sweep": 4,
+    "channel": 5, "summon": 5,
+    "bow": 6, "bow_sky": 6,
+    "pray": 8,
+}
+# how far past its first pose a wind-up draws back (a share of the way the strike then travels), and at most
+LOAD, LOAD_MAX = 0.2, 24
+# ticks to reach the wind-up pose from standing, and how long the held pose lasts at most
+REACH, HOLD_END = 4, 40
+
+
+def windup(name):
+    """The wind-up of a gesture: from standing into its first pose drawn back a little further, then held with a tremor."""
+    raw = RAW[name]
+    strike = STRIKE[name]
+    parts = {}
+    for part, keys in raw.items():
+        axes = sorted({a for k in keys for a in k[1]})
+        pose = {}
+        for a in axes:
+            start, hit = interp(keys, a, 0), interp(keys, a, strike)
+            if part == "body":
+                # the whole player turned about (a spin's run-up): a quarter-turn back the other way is plenty, and a
+                # full turn here would spin the body round while it winds up
+                pose[a] = round(max(-LOAD_MAX, min(LOAD_MAX, (start - hit) * LOAD)), 2) if a == "yaw" else start
+                continue
+            pose[a] = round(start + max(-LOAD_MAX, min(LOAD_MAX, (start - hit) * LOAD)), 2)
+        if not pose:
+            continue
+        held = [(REACH, pose, OUTQ)]
+        if part in ("rightArm", "leftArm") and "pitch" in pose:
+            # the power filling the arms: they shiver, a degree and a half either way
+            sign = 1 if part == "rightArm" else -1
+            for i, t in enumerate(range(REACH + 2, HOLD_END, 2)):
+                shake = dict(pose)
+                shake["pitch"] = round(pose["pitch"] + (1.5 if (i % 2 == 0) == (sign > 0) else -1.5), 2)
+                held.append((t, shake, LIN))
+        else:
+            held.append((HOLD_END, pose))
+        parts[part] = held
+    G[name + "_windup"] = emote("skill_" + name + "_windup", "Winding up for: " + name, HOLD_END, HOLD_END + 6, parts)
 
 
 # ---- blades
@@ -345,6 +403,10 @@ gesture("sweep", "An open hand swept across, left to right", 12, 18, {
 
 
 def main():
+    for name in list(RAW):
+        windup(name)
+    missing = set(RAW) - set(STRIKE)
+    assert not missing, "no strike tick for " + ", ".join(sorted(missing))
     os.makedirs(OUT, exist_ok=True)
     for name, data in G.items():
         with open(os.path.join(OUT, "skill_" + name + ".json"), "w") as f:

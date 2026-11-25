@@ -382,12 +382,28 @@ public final class ArsenalGameTests {
         helper.assertTrue(z.getHealth() == 2000, sig + " lands nothing as it is unleashed");
         if (sig.impactTicks() > 1) {
             helper.runAfterDelay(sig.impactTicks() - 1, () -> helper.assertTrue(z.getHealth() == 2000 && z.getActiveEffects().size() == effects,
-                    sig + " lands nothing before its strike frame (tick " + sig.impactTicks() + ")"));
+                    sig + " lands nothing before its strike frame (tick " + sig.impactTicks() + ")" + touched(z)));
         }
         helper.runAfterDelay(sig.impactTicks() + 24, () -> {
             helper.assertTrue(z.getHealth() < 2000, sig + " reaches a zombie three blocks ahead");
             helper.succeed();
         });
+    }
+
+    /** What touched a target, for a failure: its health, its effects and the last blow that landed, and from whom. */
+    private static String touched(net.minecraft.world.entity.LivingEntity e) {
+        StringBuilder b = new StringBuilder(": health ").append(e.getHealth());
+        for (net.minecraft.world.effect.MobEffectInstance m : e.getActiveEffects()) {
+            b.append(", ").append(m.getEffect().getRegisteredName()).append(" for ").append(m.getDuration());
+        }
+        net.minecraft.world.damagesource.DamageSource last = e.getLastDamageSource();
+        if (last != null) {
+            b.append(", last hit: ").append(last.getMsgId());
+            if (last.getEntity() != null) b.append(" by ").append(last.getEntity().getName().getString()).append(" at ").append(last.getEntity().blockPosition().toShortString());
+            if (last.getDirectEntity() != null && last.getDirectEntity() != last.getEntity()) b.append(" through ").append(last.getDirectEntity().getType().toShortString());
+        }
+        if (e.getRemainingFireTicks() > 0) b.append(", burning");
+        return b.toString();
     }
 
     /**

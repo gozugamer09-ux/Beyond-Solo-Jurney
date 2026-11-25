@@ -407,6 +407,8 @@ public final class HealerPath {
         sound(p, SoundEvents.SWEET_BERRY_BUSH_BREAK, 1f, 1.3f);
         sound(p, SoundEvents.ARROW_SHOOT, 0.8f, 1.5f);
         fx(p, Kind.FAN, s.color(), p.position().add(dir.scale(9)), 1, 0);
+        // the thorns stick and burst where they land
+        for (LivingEntity e : cone(p, 9, 0.6)) fx(e, Kind.SPLASH, s.color(), mid(e), 1.5f, 1);
         return true;
     }
 
@@ -609,6 +611,9 @@ public final class HealerPath {
         sound(p, SoundEvents.BOTTLE_EMPTY, 1f, 1.3f);
         sound(target, SoundEvents.PLAYER_SPLASH, 0.6f, 1.5f);
         fx(p, Kind.SPLASH, s.color(), mid(target), 1.4f, 0);
+        // a spring bursts up under them
+        fx(p, Kind.GEYSER, s.color(), target.position(), 2.6f, 3);
+        fx(p, Kind.BOLT, s.color(), mid(target), 0.3f, 0);
         return true;
     }
 
@@ -652,6 +657,9 @@ public final class HealerPath {
             magic(p, s, target, 12 * m(l, tier(p)) + wit(p, 0.4f) + (float) fate[1] * 0.3f);
             sound(level, at, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1f, 0.8f);
             fxAt(level, Kind.GEYSER, s.color(), at, 4, 3);
+            // fate lands: a pillar of light on the marked and a ring thrown out from it
+            fxAt(level, Kind.PILLAR, s.color(), at, 1.4f, 0);
+            fxAt(level, Kind.NOVA, s.color(), at, 4.5f, 3);
         });
         return true;
     }
@@ -771,6 +779,9 @@ public final class HealerPath {
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 1.5f);
         sound(p, SoundEvents.SLIME_ATTACK, 0.7f, 0.7f);
         fx(p, Kind.SHOT, s.color(), end, 0.6f, 0);
+        // a lance of blood: it hangs in the air a breath and bursts out of what it pierced
+        fx(p, Kind.BEAM, s.color(), end, 0.35f, 6);
+        for (LivingEntity e : along(p, eye, end, 0.5)) fx(e, Kind.SPLASH, s.color(), mid(e), 1.7f, 1);
         return true;
     }
 
@@ -800,7 +811,8 @@ public final class HealerPath {
         target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1));
         sound(target, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.6f);
         sound(target, SoundEvents.SLIME_SQUISH, 0.8f, 0.6f);
-        fx(target, Kind.SPLASH, s.color(), mid(target), 1.2f, 1);
+        fx(target, Kind.SPLASH, s.color(), mid(target), 1.8f, 1);
+        fx(target, Kind.GEYSER, s.color(), target.position(), 2f, 0);
         repeat(p, 100, 10, () -> {
             if (!target.isAlive()) return;
             magic(p, s, target, 1.5f * m(l, tier(p)) + wit(p, 0.05f));
@@ -1048,9 +1060,12 @@ public final class HealerPath {
         sound(p, SoundEvents.BEACON_ACTIVATE, 1f, 0.8f);
         sound(p, SoundEvents.ENDER_DRAGON_FLAP, 1f, 0.8f);
         sound(p, SoundEvents.TOTEM_USE, 0.4f, 1.4f);
+        // the dawn comes down on the healer: a column of light, wings opening in it, the light thrown out round them
+        fx(p, Kind.HEAL, 0xFFF2D0, p.position(), 2.6f, 0);
         fx(p, Kind.WINGS, s.color(), p.position(), 1.6f, 300);
         fx(p, Kind.HALO, 0xFFFFFF, p.position(), 1.3f, 300);
         fx(p, Kind.ROAR, s.color(), p.position(), 8, 0);
+        fx(p, Kind.NOVA, s.color(), p.position(), 12, 3);
         repeat(p, 300, 20, () -> {
             for (Player ally : allies(p, 12)) mend(p, ally, avatarHeal(l) + wit(p, 0.04f));
         });

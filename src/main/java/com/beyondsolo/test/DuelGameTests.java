@@ -42,10 +42,13 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
@@ -58,8 +61,10 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -103,11 +108,56 @@ public final class DuelGameTests {
         Duels.reset(p);
         Scouting.reset(p);
         RankingData.get(p.server).forget(p.getUUID());
+        letGoOfGround(p);
+    }
+
+    /**
+     * The ground under the duels running now: chunks kept loaded and ticking, by how many duels stand on them. A ring
+     * runs 13 blocks out from the hunter, past the arena's own chunks (the only ones a game test keeps loaded); a
+     * challenger who steps out there before its chunk is loaded is in the world but can't be found ({@link TestChunks}),
+     * and at the edge of the test grid a full run lost one that way.
+     */
+    private static final Map<Long, Integer> GROUND = new HashMap<>();
+    private static final Map<UUID, List<ChunkPos>> GROUND_OF = new HashMap<>();
+
+    /** Keeps the ground of a ring marked out from the hunter towards {@code at} loaded and ticking (let go in {@link #done}). */
+    private static void holdGround(GameTestHelper helper, ServerPlayer p, Vec3 at) {
+        ServerLevel level = helper.getLevel();
+        Vec3 dir = at.subtract(p.position()).multiply(1, 0, 1);
+        Vec3 center = p.position().add(dir.lengthSqr() < 1e-4 ? Vec3.ZERO : dir.normalize().scale(DuelConfig.ringRadius() * 0.5));
+        int r = DuelConfig.ringRadius() + 2;
+        List<ChunkPos> all = new ArrayList<>();
+        List<ChunkPos> mine = new ArrayList<>();
+        for (int x = Mth.floor(center.x - r) >> 4; x <= Mth.floor(center.x + r) >> 4; x++) {
+            for (int z = Mth.floor(center.z - r) >> 4; z <= Mth.floor(center.z + r) >> 4; z++) {
+                ChunkPos c = new ChunkPos(x, z);
+                all.add(c);
+                long k = c.toLong();
+                // forced already (an arena's own chunk, kept for the whole run): not ours to let go
+                if (!GROUND.containsKey(k) && level.getForcedChunks().contains(k)) continue;
+                if (GROUND.merge(k, 1, Integer::sum) == 1) level.setChunkForced(x, z, true);
+                mine.add(c);
+            }
+        }
+        GROUND_OF.put(p.getUUID(), mine);
+        helper.assertTrue(TestChunks.ticking(level, all), "the ground of the ring is loaded");
+    }
+
+    private static void letGoOfGround(ServerPlayer p) {
+        List<ChunkPos> mine = GROUND_OF.remove(p.getUUID());
+        if (mine == null) return;
+        for (ChunkPos c : mine) {
+            if (GROUND.merge(c.toLong(), -1, Integer::sum) <= 0) {
+                GROUND.remove(c.toLong());
+                p.serverLevel().setChunkForced(c.x, c.z, false);
+            }
+        }
     }
 
     /** A duel with them begun in the arena: the challenger set down at its far corner (the ring is marked out towards them). */
     private static Duel duel(GameTestHelper helper, ServerPlayer p, NationalHunter who) {
         BlockPos at = helper.absolutePos(new BlockPos(5, 2, 5));
+        holdGround(helper, p, Vec3.atBottomCenterOf(at));
         Duel d = Duels.startWith(p, who, DuelRecord.Reason.ASKED, Vec3.atBottomCenterOf(at));
         helper.assertTrue(d != null, "a duel with " + who.id + " begins");
         DuelistEntity e = Duels.duelist(p.server, d);

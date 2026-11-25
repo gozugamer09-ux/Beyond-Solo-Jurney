@@ -86,7 +86,8 @@ public final class AssassinPath {
             float dmg = 9 * m(l, tier(p)) + stat(p, Stat.AGI, 0.2f);
             boolean behind = flat(e.getLookAngle(), e).dot(dir) > 0.3;
             hit(p, s, e, behind || unaware(p, e) ? dmg * 1.5f : dmg);
-            fx(e, Kind.SLASH, s.color(), e.position(), 2.2f, behind ? 1 : 0);
+            fx(e, Kind.SLASH, s.color(), e.position(), 2.8f, behind ? 1 : 0);
+            fx(e, Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.55, 0), 1.5f, 1);
             sound(e, SoundEvents.PLAYER_ATTACK_CRIT, 0.8f, 1.3f);
         }, null);
         return true;
@@ -251,7 +252,9 @@ public final class AssassinPath {
         sound(p, SoundEvents.LLAMA_SPIT, 1f, 0.8f);
         sound(target, SoundEvents.SLIME_SQUISH, 1f, 1.2f);
         fx(p, Kind.SHOT, s.color(), at, 1, 0);
-        fxAt(p.serverLevel(), Kind.SPLASH, s.color(), at, 1.8f, 0);
+        fxAt(p.serverLevel(), Kind.SPLASH, s.color(), at, 2.4f, 0);
+        // and hangs round them as a sick green haze
+        fxAt(p.serverLevel(), Kind.MIST, s.color(), target.position(), 1.8f, 50);
         return true;
     }
 
@@ -264,6 +267,8 @@ public final class AssassinPath {
         sound(p, SoundEvents.BREWING_STAND_BREW, 0.8f, 1.6f);
         fx(p, Kind.SLASH, s.color(), p.position(), 3.8f, 0);
         fx(p, Kind.FAN, s.color(), p.position().add(facing(p).scale(4.5)), 1, 0);
+        // the poison on the blade spatters what it opened
+        for (LivingEntity e : cone(p, 4.5, 0.25)) fx(e, Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.5, 0), 1.5f, 0);
         return true;
     }
 
@@ -409,7 +414,8 @@ public final class AssassinPath {
         }
         sound(p, SoundEvents.WIND_CHARGE_BURST.value(), 1f, 1.2f);
         fx(p, Kind.FAN, s.color(), p.position().add(dir.scale(5)), 1, 0);
-        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(7)), 1.4f, 2);
+        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(7)), 2.2f, 2);
+        for (LivingEntity e : cone(p, 4, 0.3)) fx(e, Kind.SPLASH, s.color(), e.position().add(0, e.getBbHeight() * 0.5, 0), 1.6f, 1);
         return true;
     }
 
@@ -549,8 +555,10 @@ public final class AssassinPath {
         target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 2));
         sound(p, SoundEvents.CHAIN_BREAK, 1.5f, 0.7f);
         sound(p, SoundEvents.FISHING_BOBBER_RETRIEVE, 1f, 0.6f);
-        fx(p, Kind.BOLT, s.color(), target.position().add(0, target.getBbHeight() / 2, 0), 0.3f, 0);
+        // a real chain, thrown, that bites and drags
+        fx(p, Kind.CHAIN, s.color(), target.position().add(0, target.getBbHeight() / 2, 0), 1.4f, 10);
         fx(target, Kind.BIND, s.color(), target.position(), 1.2f, 20);
+        fx(target, Kind.SPLASH, s.color(), target.position().add(0, target.getBbHeight() / 2, 0), 1.4f, 1);
         return true;
     }
 
@@ -579,7 +587,9 @@ public final class AssassinPath {
         Vec3 at = target.position().add(0, target.getBbHeight() * 0.3, 0);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 1.5f);
         fx(p, Kind.SHOT, s.color(), at, 1, 0);
-        fxAt(p.serverLevel(), Kind.SPLASH, s.color(), at, 1.4f, 1);
+        fxAt(p.serverLevel(), Kind.SPLASH, s.color(), at, 2f, 1);
+        // the legs it was thrown at are held to the ground
+        fx(target, Kind.BIND, s.color(), target.position(), 0.9f, 30);
         return true;
     }
 
@@ -644,13 +654,16 @@ public final class AssassinPath {
         sound(p, SoundEvents.WITHER_SKELETON_AMBIENT, 0.6f, 0.6f);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
         fx(target, Kind.BIND, s.color(), target.position(), 1.4f, 40);
-        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 3, 10);
+        // the contract is sealed with a blade the size of a verdict, dropped on the one it names
+        fxAt(level, Kind.CLEAVE, s.color(), target.position(), 6, 10);
         later(p, 10, () -> {
             if (!target.isAlive()) return;
             hit(p, s, target, 15 * m(l, tier(p)) + stat(p, Stat.AGI, 0.3f));
             stun(target, 40);
             sound(target, SoundEvents.ANVIL_LAND, 0.6f, 0.6f);
-            fxAt(level, Kind.CRACK, s.color(), target.position(), 3.5f, 0);
+            fxAt(level, Kind.CRACK, s.color(), target.position(), 5.5f, 0);
+            fxAt(level, Kind.NOVA, s.color(), target.position(), 6, 4);
+            fxAt(level, Kind.GEYSER, s.color(), target.position(), 5, 4);
         });
         return true;
     }
@@ -690,6 +703,8 @@ public final class AssassinPath {
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.6f);
         fx(p, Kind.SHOT, s.color(), to, 1, 0);
         fx(p, Kind.WAVE, s.color(), ground(level, to), 0.8f, 2);
+        // the lance hangs in the air a breath after it struck
+        fx(p, Kind.BEAM, s.color(), to, 0.5f, 8);
         return true;
     }
 

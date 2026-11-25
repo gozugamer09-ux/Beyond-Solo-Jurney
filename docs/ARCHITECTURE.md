@@ -843,6 +843,35 @@ for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools
   sweep, the crossbow) are swapped on the server for the skills' own (`PlayLevelSoundEvent`), only while a skill's
   action runs (`SkillFx.beginCast`/`endCast`) and in what it scheduled (`ServerScheduler.carry`). New skill code may
   keep playing vanilla sounds: add one to `SkillSounds.swapFor` to give it the skills' version.
+- *The wind-up* (`SkillWindup`). A bar-key press does not cast at once: `ModNetwork` hands it to
+  `SkillWindup.pressSlot`, which checks the skill is ready (`SkillAPI.ready`), tells everyone near
+  (`SkillWindupPayload`) and casts through `SkillAPI.cast` when it ends. Nothing is spent before; another key pressed
+  meanwhile goes off right after. Its length comes
+  from `Gestures.heft`: 4 ticks for a light skill, 6 mid, 9 big (S grade or a cooldown of 25 s), 16 an ultimate, and
+  never shorter than the gesture's own reach to its strike. Dashes, blinks, veils, guards, grasps and throws, shared
+  skills, rune skills, sovereign powers and recasts go at once. Commands, tests and anything calling `SkillAPI.cast`
+  stay instant. On the client `SkillGestures.windup` plays `skill_<gesture>_windup`, `SkillCharge` gathers power round
+  the hand and an ultimate's cut-in plays during the charge.
+- *The looks table* (`beyondsolo/skill_looks.txt`: `path look variant [delay]`) says which gesture a skill makes
+  before it has been cast once; `Gestures` learns the rest as skills go off. A skill whose first effect comes later (a
+  stance, a step, `later`/`ServerScheduler` work) has a delay column: what its scheduled tasks show is tied to the cast
+  through `SkillFx.carry`, the body winds up, holds the stance and strikes with the real blow (up to
+  `Gestures.MAX_DELAY` ticks). `SkillWindupGameTests.theLooksTableIsTrueToTheSkills` casts every class active and
+  prints the table as it should read when one changes its first effect: paste it in. A passive's own effect (a
+  proc on a blow the cast dealt: a spark, a dodge, a pact paid) is never a cast's look: show it through
+  `SkillFx.aside`.
+- *Where it lands*: a skill that deals damage shows the blow on what it struck (a burst on each creature, a crack or a
+  ring where it landed, a beam that hangs a breath after a shot), not only on the caster. Add such effects after the
+  skill's first one, or its line in the looks table changes too.
+- *The aftermath* (`SkillAftermath`, client): a big blow leaves scorch scars and fissures where it landed, the caster
+  breathes out, vents steam or embers after an ultimate.
+- *Domains* (`SkillDomains`, client): most ultimates, at least one in every subclass, change the world while they
+  last (the table there, keyed by skill path): the sky (a coloured dome drawn after the sky), the fog's colour and
+  reach, a body hung where the caster faced (an eclipse, a moon, a sun, a void), stars, storm flashes, ash, embers,
+  petals or spores in the air. It dims during the wind-up, takes the world on the blow, holds and lifts slowly.
+  Everyone within 72 blocks sees it. Keep a bright domain's zenith deep (a dawn is indigo over an orange horizon):
+  white skies and white suns wash the fight out. The clouds take the domain's colour too (`SkillDomains.clouds`
+  through `ClientLevelMixin`): Sodium draws clouds with a fog of its own, so without it they hung white over a night.
 - `/solo skill feel <light|medium|heavy|massive|kill|ultimate> [element]` shows a blow of that weight on the creature
   you look at, dealing nothing.
 

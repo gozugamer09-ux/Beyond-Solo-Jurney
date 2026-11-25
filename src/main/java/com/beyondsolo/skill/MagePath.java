@@ -110,6 +110,9 @@ public final class MagePath {
         }
         sound(p, SoundEvents.BLAZE_SHOOT, 1f, 0.8f);
         fx(p, Kind.BEAM, s.color(), ray[1], 0.45f, 6);
+        // what the lance goes through bursts into flame, and it ends in a burst of its own
+        for (LivingEntity e : along(p, ray[0], ray[1], 0.9)) fx(e, Kind.SPLASH, s.color(), mid(e), 1.7f, 1);
+        fxAt(level, Kind.NOVA, s.color(), ray[1], 2.4f, 0);
         return true;
     }
 
@@ -311,8 +314,10 @@ public final class MagePath {
             fx(e, Kind.SPLASH, s.color(), mid(e), 1.4f, 0);
         }
         sound(p, SoundEvents.TRIDENT_THUNDER.value(), 0.6f, 1.6f);
-        fx(p, Kind.BEAM, s.color(), ray[1], 0.25f, 4);
+        fx(p, Kind.BEAM, s.color(), ray[1], 0.4f, 5);
         fx(p, Kind.BOLT, s.color(), ray[1], 0.3f, 0);
+        // the sky answers the spear: a bolt comes down on each one it ran through
+        for (LivingEntity e : along(p, ray[0], ray[1], 0.8)) fxAt(p.serverLevel(), Kind.THUNDER, s.color(), e.position(), 1.6f, 0);
         return true;
     }
 
@@ -500,8 +505,8 @@ public final class MagePath {
             drench(p.serverLevel(), e.position(), 16, 0.4);
         }
         sound(p, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 0.8f, 1.4f);
-        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(7)), 1.4f, 2);
-        fx(p, Kind.SLASH, s.color(), p.position(), 3.4f, 0);
+        fx(p, Kind.WAVE, s.color(), p.position().add(dir.scale(7)), 2.2f, 2);
+        fx(p, Kind.SLASH, s.color(), p.position(), 4f, 0);
         return true;
     }
 
@@ -677,7 +682,7 @@ public final class MagePath {
         for (LivingEntity e : along(p, ray[0], ray[1], 0.8)) {
             hit(p, s, e, 10 * m(l, tier(p)) + wis(p, 0.25f));
             e.addEffect(new MobEffectInstance(MobEffects.WITHER, 60, 0));
-            fx(e, Kind.SPLASH, BONE, mid(e), 1.4f, 0);
+            fx(e, Kind.SPLASH, BONE, mid(e), 1.9f, 1);
         }
         for (int i = 2; i < 18; i += 2) {
             Vec3 pt = ray[0].lerp(ray[1], i / 18.0);
@@ -685,7 +690,7 @@ public final class MagePath {
         }
         sound(p, SoundEvents.SKELETON_HURT, 1f, 0.6f);
         sound(p, SoundEvents.TRIDENT_THROW.value(), 1f, 0.7f);
-        fx(p, Kind.BEAM, BONE, ray[1], 0.22f, 4);
+        fx(p, Kind.BEAM, BONE, ray[1], 0.34f, 5);
         fx(p, Kind.SHOT, s.color(), ray[1], 1, 0);
         return true;
     }
@@ -701,6 +706,8 @@ public final class MagePath {
         fx(p, Kind.BOLT, s.color(), mid(target), 0.3f, 0);
         fx(target, Kind.MARK, s.color(), target.position(), target.getBbHeight(), ticks);
         fx(target, Kind.VEIL, s.color(), target.position(), 1.1f, Math.min(ticks, 60));
+        // the life it takes rises off them as souls
+        fx(target, Kind.GEYSER, s.color(), target.position(), 2.2f, 4);
         return true;
     }
 
@@ -869,7 +876,8 @@ public final class MagePath {
                 if (!target.isAlive()) return;
                 magic(p, s, target, 5 * m(l, tier(p)) + wis(p, 0.12f));
                 fx(p, Kind.SHOT, s.color(), mid(target), 1, 0);
-                fxAt(level, Kind.ORB, s.color(), mid(target), 0.5f, 4);
+                fxAt(level, Kind.ORB, s.color(), mid(target), 0.8f, 4);
+                fxAt(level, Kind.SPLASH, s.color(), mid(target), 1.3f + 0.3f * k, 1);
                 stars(level, mid(target), 6, 0.2);
                 sound(p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.4f, 1.2f + 0.2f * k);
             });

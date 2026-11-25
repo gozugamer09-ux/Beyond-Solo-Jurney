@@ -208,15 +208,45 @@ public final class SkillAPI {
         return s != null && cast(player, s);
     }
 
+    /** True if nothing about the player stops them casting the skill right now (cooldown and mana aside). */
+    private static boolean free(ServerPlayer player, Skill skill, SystemData sys) {
+        return sys.isAwakened() && !sys.isCollapsed() && player.isAlive() && !player.isSpectator() && !player.isSleeping()
+                && !(skill.monarch() && !com.beyondsolo.monarch.MonarchAPI.crowned(player))
+                && !(skill.ruler() && !com.beyondsolo.light.LightAPI.sworn(player));
+    }
+
+    /**
+     * True if the skill could go off now: it is known and active, nothing stops the player, it is off cooldown and the
+     * mana is there. Spends nothing; says why to the player when it can't ({@link SkillWindup} asks before winding up).
+     */
+    static boolean ready(ServerPlayer player, Skill skill) {
+        SkillData data = get(player);
+        SystemData sys = SystemAPI.get(player);
+        int level = data.level(skill.path());
+        if (!skill.isActive() || level <= 0 || skill.action() == null) return false;
+        if (!free(player, skill, sys)) {
+            refuse(player, skill, SkillMomentPayload.BLOCKED);
+            return false;
+        }
+        if (data.cooldownLeft(skill.path(), player.level().getGameTime()) > 0) {
+            refuse(player, skill, SkillMomentPayload.COOLDOWN);
+            return false;
+        }
+        float cost = player.isCreative() ? 0 : com.beyondsolo.rune.Runes.manaCost(player, skill, level);
+        if (sys.mana() < cost) {
+            refuse(player, skill, SkillMomentPayload.NO_MANA);
+            return false;
+        }
+        return true;
+    }
+
     /** Casts a known active skill: checks state, cooldown and mana, runs it, then spends and starts the cooldown. */
     public static boolean cast(ServerPlayer player, Skill skill) {
         SkillData data = get(player);
         SystemData sys = SystemAPI.get(player);
         int level = data.level(skill.path());
         if (!skill.isActive() || level <= 0 || skill.action() == null) return false;
-        if (!sys.isAwakened() || sys.isCollapsed() || !player.isAlive() || player.isSpectator() || player.isSleeping()
-                || skill.monarch() && !com.beyondsolo.monarch.MonarchAPI.crowned(player)
-                || skill.ruler() && !com.beyondsolo.light.LightAPI.sworn(player)) {
+        if (!free(player, skill, sys)) {
             refuse(player, skill, SkillMomentPayload.BLOCKED);
             return false;
         }
