@@ -17,7 +17,9 @@ import com.beyondsolo.shadow.ShadowRecord;
 import com.beyondsolo.shadow.ShadowService;
 import com.beyondsolo.skill.Skill;
 import com.beyondsolo.skill.SkillAPI;
+import com.beyondsolo.skill.SkillElement;
 import com.beyondsolo.skill.SkillEvent;
+import com.beyondsolo.skill.SkillFeel;
 import com.beyondsolo.skill.Skills;
 import com.beyondsolo.system.SystemAPI;
 import com.beyondsolo.system.SystemData;
@@ -38,7 +40,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -75,7 +83,51 @@ final class SoloSkills {
                     int n = 0;
                     for (Skill s : Skills.known(SkillAPI.get(p))) if (SkillAPI.addLevels(p, s, Skill.MAX_LEVEL) > 0) n++;
                     return Solo.t("skill.maxed", p.getDisplayName(), n, Skill.MAX_LEVEL);
-                }));
+                }))
+                .then(feel());
+    }
+
+    /** How hard each blow {@code /solo skill feel} shows lands, as written. */
+    private static final List<String> FEELS = List.of("light", "medium", "heavy", "massive", "kill", "ultimate");
+
+    /**
+     * {@code feel <weight> [element] [players]}: a skill's blow of that weight lands on the creature the player looks
+     * at, seen and heard by everyone near, with nothing dealt. The elements are words of their own (not an argument), so
+     * a player's name is never read as one.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> feel() {
+        LiteralArgumentBuilder<CommandSourceStack> feel = Commands.literal("feel");
+        for (String weight : FEELS) {
+            LiteralArgumentBuilder<CommandSourceStack> node = Commands.literal(weight);
+            for (SkillElement e : SkillElement.values()) {
+                node.then(Solo.targets(Commands.literal(Solo.lower(e.name())), (ctx, p) -> feel(p, weight, e)));
+            }
+            feel.then(Solo.targets(node, (ctx, p) -> feel(p, weight, SkillElement.PHYSICAL)));
+        }
+        return feel;
+    }
+
+    private static Component feel(ServerPlayer p, String weight, SkillElement element) throws CommandSyntaxException {
+        LivingEntity target = lookedAt(p);
+        if (target == null) throw Solo.error("nothing_in_sight", p.getDisplayName());
+        byte w = switch (weight) {
+            case "light" -> SkillFeel.LIGHT;
+            case "medium", "kill" -> SkillFeel.MEDIUM;
+            case "heavy" -> SkillFeel.HEAVY;
+            default -> SkillFeel.MASSIVE;
+        };
+        SkillFeel.preview(p, target, element, w, weight.equals("kill"), weight.equals("ultimate"));
+        return Solo.t("skill.felt", p.getDisplayName(), target.getDisplayName());
+    }
+
+    /** The living thing the player is looking at, within 24 blocks. */
+    private static @Nullable LivingEntity lookedAt(ServerPlayer p) {
+        Vec3 eye = p.getEyePosition();
+        Vec3 to = eye.add(p.getLookAngle().scale(24));
+        AABB box = p.getBoundingBox().expandTowards(p.getLookAngle().scale(24)).inflate(1);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(p, eye, to, box, e -> e instanceof LivingEntity && e != p && e.isAlive(), 24 * 24);
+        Entity e = hit == null ? null : hit.getEntity();
+        return e instanceof LivingEntity l ? l : null;
     }
 
     /**

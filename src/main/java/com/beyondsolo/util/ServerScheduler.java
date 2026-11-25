@@ -26,7 +26,20 @@ public final class ServerScheduler {
         }
     }
 
+    /** Wraps each task as it is scheduled (see {@link #carry}), or null. */
+    private static java.util.function.UnaryOperator<Runnable> carry;
+
+    /**
+     * What a task scheduled now takes along to when it runs: a skill's later blasts are still the skill's (see
+     * {@code SkillSounds}). Only one is kept.
+     */
+    public static void carry(java.util.function.UnaryOperator<Runnable> wrap) {
+        carry = wrap;
+    }
+
     public static void schedule(int ticks, Runnable action) {
+        java.util.function.UnaryOperator<Runnable> wrap = carry;
+        if (wrap != null) action = wrap.apply(action);
         synchronized (PENDING) {
             PENDING.add(new Task(Math.max(0, ticks), action));
         }

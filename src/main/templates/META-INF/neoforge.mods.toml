@@ -12,6 +12,10 @@ description='''${mod_description}'''
 [[accessTransformers]]
 file="META-INF/accesstransformer.cfg"
 
+# How skill blows land: the struck creature's white flash, hitstop and shudder (client only, see com.beyondsolo.mixin)
+[[mixins]]
+config="beyondsolo.mixins.json"
+
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"

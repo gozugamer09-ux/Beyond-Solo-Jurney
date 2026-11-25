@@ -925,7 +925,7 @@ public final class SkillActions {
     /**
      * A skill's hit: the hunter's power ({@link com.beyondsolo.system.Balance#power}: level and the stats their class
      * leans on), the combo chain and the passives scale it, the skill's element is left on the creature or reacts
-     * with the one already there ({@link SkillCombat#strike}), then the damage lands.
+     * with the one already there ({@link SkillCombat#strike}), then the damage lands and is felt ({@link SkillFeel}).
      */
     static void hit(ServerPlayer p, Skill s, LivingEntity e, float damage, boolean magic) {
         damage *= (float) com.beyondsolo.system.Balance.power(p);
@@ -934,7 +934,10 @@ public final class SkillActions {
         if (steady > 0 && e.distanceTo(p) > STEADY_RANGE) damage *= 1 + 0.03f * steady;
         damage = SkillCombat.strike(p, e, s.element(), damage);
         e.invulnerableTime = 0;
-        e.hurt(magic ? p.damageSources().indirectMagic(p, p) : p.damageSources().playerAttack(p), damage);
+        float before = e.getHealth();
+        if (e.hurt(magic ? p.damageSources().indirectMagic(p, p) : p.damageSources().playerAttack(p), damage)) {
+            SkillFeel.struck(p, s, s.element(), e, before);
+        }
     }
 
     /** Creatures in a strip in front of the player: {@code length} long, {@code halfWidth} to each side. */

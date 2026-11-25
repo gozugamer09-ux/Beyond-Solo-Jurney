@@ -45,8 +45,13 @@ public final class ClientConfig {
             .comment("Show element buildup meters and statuses over the heads of creatures in a fight.")
             .define("combat.enemyMeters", true);
     public static final ModConfigSpec.BooleanValue SCREEN_EFFECTS = B
-            .comment("Tint the screen edges while you burn, bleed, carry heavy venom or a crimson brand.")
+            .comment("Tint the screen edges while you burn, bleed, carry heavy venom or a crimson brand; jolt and punch in the view",
+                    "under heavy skill blows, and let the screen ripple, flash and cut in with ultimates.")
             .define("combat.screenEffects", true);
+    public static final ModConfigSpec.BooleanValue HIT_FEEDBACK = B
+            .comment("Show how skill blows land on creatures: the struck flash white, hang for a moment (hitstop) and shudder,",
+                    "and the caster's body hangs on the blow with them.")
+            .define("combat.hitFeedback", true);
 
     public static final ModConfigSpec.ConfigValue<List<? extends String>> KEYS_MOVED = B
             .comment("Other mods' keys that were on the System's keys and have been moved to free ones (see KeyClashes).",
