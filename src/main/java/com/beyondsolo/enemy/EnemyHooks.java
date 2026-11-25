@@ -226,7 +226,10 @@ public final class EnemyHooks {
         var r = level.random;
         add(event, e, new ItemStack(Items.EMERALD, 1 + r.nextInt(2) + (v == Variant.CHAMPION ? 2 + tier : 0)));
         if (r.nextFloat() < (v == Variant.CHAMPION ? 0.35f : 0.12f)) add(event, e, new ItemStack(com.beyondsolo.registry.ModItems.CLOTTING_TONIC.get()));
-        if (r.nextFloat() < (v == Variant.CHAMPION ? 0.25f : 0.06f)) add(event, e, com.beyondsolo.gate.GateLoot.weapon(tier, r));
+        // never a mythic or a divine: those come from caches, bosses and the great threats
+        if (r.nextFloat() < (v == Variant.CHAMPION ? 0.25f : 0.06f)) {
+            add(event, e, com.beyondsolo.gate.GateLoot.weapon(tier, com.beyondsolo.item.ItemGrade.LEGENDARY, r));
+        }
     }
 
     private static void add(LivingDropsEvent event, LivingEntity e, ItemStack stack) {

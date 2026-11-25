@@ -1,5 +1,7 @@
 package com.beyondsolo.item;
 
+import com.beyondsolo.combat.ArsenalAbilities;
+import com.beyondsolo.combat.ArsenalHits;
 import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.item.arsenal.ArsenalTooltip;
 import com.beyondsolo.item.arsenal.ArsenalWeapon;
@@ -11,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -101,14 +104,34 @@ public class SystemBowItem extends BowItem implements ArsenalWeapon {
         return 10 + grade.tier() * 3;
     }
 
-    /** The string creaks softly as the draw begins (the game's own bow is silent until it looses). */
+    /**
+     * The string creaks softly as the draw begins (the game's own bow is silent until it looses). A bow with a drawn
+     * art gathers it while the string is held: once it has been held long enough the art is charged.
+     */
     @Override
     public void onUseTick(Level level, LivingEntity user, ItemStack stack, int remaining) {
         super.onUseTick(level, user, stack, remaining);
-        if (!level.isClientSide && getUseDuration(stack, user) - remaining == DRAW_SOUND_TICK) {
+        if (level.isClientSide) return;
+        int drawn = getUseDuration(stack, user) - remaining;
+        if (drawn == DRAW_SOUND_TICK) {
             level.playSound(null, user.getX(), user.getY(), user.getZ(), SoundEvents.CROSSBOW_LOADING_START.value(),
                     SoundSource.PLAYERS, 0.35f, 1.15f + level.random.nextFloat() * 0.15f);
         }
+        if (signature != null && signature.drawn() && drawn == signature.drawTicks() && user instanceof Player p
+                && !ArsenalHits.refuses(p, this) && ArsenalAbilities.drawReady(p, signature)) {
+            ArsenalAbilities.charged(p, signature);
+        }
+    }
+
+    /** Loosing a charged draw sends the bow's art with the arrow. */
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity user, int timeLeft) {
+        boolean art = !level.isClientSide && signature != null && signature.drawn() && user instanceof Player p
+                && getUseDuration(stack, user) - timeLeft >= signature.drawTicks()
+                && !ArsenalHits.refuses(p, this) && ArsenalAbilities.drawReady(p, signature);
+        if (art) ArsenalAbilities.loosing((Player) user, signature);
+        super.releaseUsing(stack, level, user, timeLeft);
+        if (art) ArsenalAbilities.loosed((Player) user, signature);
     }
 
     @Override

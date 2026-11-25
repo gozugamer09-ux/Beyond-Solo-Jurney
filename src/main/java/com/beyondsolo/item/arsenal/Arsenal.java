@@ -94,14 +94,14 @@ public final class Arsenal {
     public static final DeferredItem<SystemBowItem> SERPENTSTING_BOW = w("serpentsting_bow", BOW, EPIC).bowPower(1.25f).element(DamageElement.POISON, 18).favored(PlayerClass.RANGER).bow();
 
     // ---------------------------------------------------------------- legendary
-    public static final DeferredItem<SystemWeaponItem> STORMLORD_LONGSWORD = w("stormlord_longsword", SWORD, LEGENDARY).trait(THUNDERCLAP, 0.4f).favored(PlayerClass.WARRIOR).melee();
-    public static final DeferredItem<SystemWeaponItem> TITANS_KNUCKLES = w("titans_knuckles", FIST, LEGENDARY).trait(BULWARK, 0.12f).trait(ARMOR_BREAKER, 0.02f).favored(PlayerClass.GUARDIAN).melee();
-    public static final DeferredItem<SystemWeaponItem> HELLHOUND_HALBERD = w("hellhound_halberd", HALBERD, LEGENDARY).element(DamageElement.FIRE, 28).trait(EXECUTIONER, 0.25f).melee();
-    public static final DeferredItem<SystemWeaponItem> STARSEER_STAFF = w("starseer_staff", STAFF, LEGENDARY).spell(0.45f).trait(THUNDERCLAP, 0.2f).favored(PlayerClass.MAGE).melee();
-    public static final DeferredItem<SystemWeaponItem> SAINTS_SUNSTAFF = w("saints_sunstaff", STAFF, LEGENDARY).trait(MENDING, 0.45f).spell(0.2f).favored(PlayerClass.HEALER).melee();
-    public static final DeferredItem<SystemBowItem> GALEBREAKER_WARBOW = w("galebreaker_warbow", BOW, LEGENDARY).bowPower(1.4f).trait(SPLIT_SHOT, 2).favored(PlayerClass.RANGER).bow();
-    public static final DeferredItem<SystemWeaponItem> NIGHTVEIL_KRIS = w("nightveil_kris", DAGGER, LEGENDARY).trait(BACKSTAB, 0.6f).trait(EXECUTIONER, 0.3f).favored(PlayerClass.ASSASSIN).melee();
-    public static final DeferredItem<SystemWeaponItem> IRONBLOOD_CLAYMORE = w("ironblood_claymore", CLAYMORE, LEGENDARY).element(DamageElement.BLOOD, 26).trait(LIFESTEAL, 0.06f).favored(PlayerClass.WARRIOR).melee();
+    public static final DeferredItem<SystemWeaponItem> STORMLORD_LONGSWORD = w("stormlord_longsword", SWORD, LEGENDARY).trait(THUNDERCLAP, 0.4f).favored(PlayerClass.WARRIOR).signature(Signature.STORMBREAK).melee();
+    public static final DeferredItem<SystemWeaponItem> TITANS_KNUCKLES = w("titans_knuckles", FIST, LEGENDARY).trait(BULWARK, 0.12f).trait(ARMOR_BREAKER, 0.02f).favored(PlayerClass.GUARDIAN).signature(Signature.TITANS_BARRAGE).melee();
+    public static final DeferredItem<SystemWeaponItem> HELLHOUND_HALBERD = w("hellhound_halberd", HALBERD, LEGENDARY).element(DamageElement.FIRE, 28).trait(EXECUTIONER, 0.25f).signature(Signature.THREE_HEADED_MAW).melee();
+    public static final DeferredItem<SystemWeaponItem> STARSEER_STAFF = w("starseer_staff", STAFF, LEGENDARY).spell(0.45f).trait(THUNDERCLAP, 0.2f).favored(PlayerClass.MAGE).signature(Signature.CONSTELLATION).melee();
+    public static final DeferredItem<SystemWeaponItem> SAINTS_SUNSTAFF = w("saints_sunstaff", STAFF, LEGENDARY).trait(MENDING, 0.45f).spell(0.2f).favored(PlayerClass.HEALER).signature(Signature.SAINTS_DAWN).melee();
+    public static final DeferredItem<SystemBowItem> GALEBREAKER_WARBOW = w("galebreaker_warbow", BOW, LEGENDARY).bowPower(1.4f).trait(SPLIT_SHOT, 2).favored(PlayerClass.RANGER).signature(Signature.GALE_LANCE).bow();
+    public static final DeferredItem<SystemWeaponItem> NIGHTVEIL_KRIS = w("nightveil_kris", DAGGER, LEGENDARY).trait(BACKSTAB, 0.6f).trait(EXECUTIONER, 0.3f).favored(PlayerClass.ASSASSIN).signature(Signature.VEILSTEP).melee();
+    public static final DeferredItem<SystemWeaponItem> IRONBLOOD_CLAYMORE = w("ironblood_claymore", CLAYMORE, LEGENDARY).element(DamageElement.BLOOD, 26).trait(LIFESTEAL, 0.06f).favored(PlayerClass.WARRIOR).signature(Signature.BLOOD_PRICE).melee();
 
     // ---------------------------------------------------------------- mythic: very scarce, any class
     public static final DeferredItem<SystemWeaponItem> HELLSOVEREIGN_FANG = w("hellsovereign_fang", DAGGER, MYTHIC).element(DamageElement.FIRE, 30).trait(TWIN, 0.35f).signature(Signature.INFERNAL_REND).melee();

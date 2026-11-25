@@ -50,20 +50,43 @@ public final class GateLoot {
         return out;
     }
 
-    /** Chance (out of 1000) of each grade, by gate rank E..S: common, rare, epic, legendary, mythic, divine. */
+    /**
+     * Chance (out of 10,000) of each grade, by gate rank E..S: common, rare, epic, legendary, mythic, divine. The top
+     * grades are kept scarce on purpose (Yordan, 2026-11-25: divines dropped "way too" often): a divine is 3 in 1,000
+     * of an S cache's weapons (it was 2 in 100), a mythic 27 in 1,000; A gates almost never give either. What else can drop
+     * a weapon is capped below them ({@link #weapon(int, ItemGrade, RandomSource)}): creatures never drop a mythic or a
+     * divine, and an ascended boss's extra weapon is lifted a grade only up to legendary.
+     */
     static final int[][] GRADE_WEIGHTS = {
-            {850, 150, 0, 0, 0, 0},
-            {600, 350, 50, 0, 0, 0},
-            {250, 500, 220, 30, 0, 0},
-            {0, 450, 400, 140, 10, 0},
-            {0, 200, 465, 310, 20, 5},
-            {0, 0, 400, 520, 60, 20},
+            {8500, 1500, 0, 0, 0, 0},
+            {6000, 3500, 500, 0, 0, 0},
+            {2700, 5100, 2050, 150, 0, 0},
+            {0, 4800, 4500, 680, 20, 0},
+            {0, 2600, 5800, 1520, 75, 5},
+            {0, 0, 6150, 3550, 270, 30},
     };
+
+    /**
+     * The great threats' table (world bosses, monarchs, rulers, the isle's royals): S gear with the best odds in the
+     * game at the top grades, still rare (a divine is 8 in 1,000 of their weapons). The series' greatest weapons are
+     * taken from its greatest foes.
+     */
+    static final int[] GREAT_THREAT_WEIGHTS = {0, 0, 5000, 4500, 420, 80};
 
     /** Rolls a weapon's grade for a gate of this rank. */
     public static ItemGrade rollGrade(int tier, RandomSource r) {
-        int[] w = GRADE_WEIGHTS[Math.max(0, Math.min(tier, GRADE_WEIGHTS.length - 1))];
-        int roll = r.nextInt(1000);
+        return roll(GRADE_WEIGHTS[Math.max(0, Math.min(tier, GRADE_WEIGHTS.length - 1))], r);
+    }
+
+    /** Rolls a weapon's grade for a great threat's loot. */
+    public static ItemGrade rollGreatThreatGrade(RandomSource r) {
+        return roll(GREAT_THREAT_WEIGHTS, r);
+    }
+
+    private static ItemGrade roll(int[] w, RandomSource r) {
+        int total = 0;
+        for (int x : w) total += x;
+        int roll = r.nextInt(Math.max(1, total));
         for (int i = 0; i < w.length; i++) {
             roll -= w[i];
             if (roll < 0) return ItemGrade.values()[i];
@@ -74,7 +97,7 @@ public final class GateLoot {
     /**
      * A boss's signature loot: its kind's loot table ({@code data/beyondsolo/loot_table/gate_boss/<kind>.json}, rolled
      * with the gate's rank as luck), then whatever {@link BossLootEvent} listeners add. An ascended boss rolls its
-     * table twice and always adds one weapon a grade up from the rank's roll.
+     * table twice and always adds one weapon a grade up from the rank's roll, up to legendary ({@link #ascendedGrade}).
      */
     public static List<ItemStack> signature(net.minecraft.server.level.ServerLevel level, BossKind boss, PlayerRank rank, boolean ascended,
                                             net.minecraft.core.BlockPos at) {
@@ -87,10 +110,7 @@ public final class GateLoot {
                 .create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
         for (int i = 0; i < (ascended ? 2 : 1); i++) out.addAll(table.getRandomItems(params));
         if (ascended) {
-            ItemGrade g = rollGrade(rank.tier(), level.random);
-            // a grade up, but never past divine: no weapon is of the monarch grade
-            ItemGrade up = ItemGrade.values()[Math.min(ItemGrade.DIVINE.ordinal(), g.ordinal() + 1)];
-            ItemStack w = Arsenal.random(up, level.random);
+            ItemStack w = Arsenal.random(ascendedGrade(rank.tier(), level.random), level.random);
             if (w != null) out.add(w);
         }
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new BossLootEvent(level, boss, rank, ascended, out));
@@ -117,8 +137,40 @@ public final class GateLoot {
         }
     }
 
+    /**
+     * An ascended boss's extra weapon: the rank's roll lifted a grade, but only up to legendary. A mythic or a divine
+     * still comes only when the roll itself is one (it used to lift a legendary roll to mythic and a mythic to divine,
+     * which made the top grades common from ascended bosses).
+     */
+    public static ItemGrade ascendedGrade(int tier, RandomSource r) {
+        ItemGrade g = rollGrade(tier, r);
+        return g.atLeast(ItemGrade.LEGENDARY) ? g : ItemGrade.values()[g.ordinal() + 1];
+    }
+
+    /** A weapon from a gate cache of this rank (or anything that drops like one), any grade the rank's table allows. */
     public static ItemStack weapon(int tier, RandomSource r) {
-        ItemStack stack = Arsenal.random(rollGrade(tier, r), r);
+        return weapon(tier, ItemGrade.DIVINE, r);
+    }
+
+    /**
+     * A weapon rolled for a gate of this rank, never above {@code cap}: a creature's drop is capped at legendary, so a
+     * mythic or a divine only comes from caches, bosses and the great threats.
+     */
+    public static ItemStack weapon(int tier, ItemGrade cap, RandomSource r) {
+        return stackOf(capped(rollGrade(tier, r), cap), r);
+    }
+
+    /** A weapon from a great threat's loot (world bosses, monarchs, rulers, the isle's royals). */
+    public static ItemStack greatThreatWeapon(RandomSource r) {
+        return stackOf(rollGreatThreatGrade(r), r);
+    }
+
+    public static ItemGrade capped(ItemGrade g, ItemGrade cap) {
+        return g.ordinal() > cap.ordinal() ? cap : g;
+    }
+
+    private static ItemStack stackOf(ItemGrade grade, RandomSource r) {
+        ItemStack stack = Arsenal.random(grade, r);
         return GearRolls.roll(stack != null ? stack : new ItemStack(ModItems.KNIGHT_SWORD.get()), r);
     }
 

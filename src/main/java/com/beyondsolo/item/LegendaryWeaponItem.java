@@ -1,6 +1,7 @@
 package com.beyondsolo.item;
 
 import com.beyondsolo.combat.DamageElement;
+import com.beyondsolo.item.arsenal.Signature;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -11,18 +12,22 @@ import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.Unbreakable;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 
 /**
  * One of the legendary weapons: the strongest weapons in the game, and the hidden reward for killing the Hollow
- * Arbiter in the awakening trial. They never break, don't burn, and carry far more element than anything else.
+ * Arbiter in the awakening trial. They never break, don't burn, carry far more element than anything else, and each
+ * has a signature art of its own (right-click).
  */
 public class LegendaryWeaponItem extends SystemWeaponItem {
     public static final int GOLD = 0xFFD166;
 
-    public LegendaryWeaponItem(Tier tier, int damage, float speed, DamageElement element, float buildup, float weight) {
+    public LegendaryWeaponItem(Tier tier, int damage, float speed, DamageElement element, float buildup, float weight,
+                               @Nullable Signature signature) {
         super(tier, net.minecraft.world.item.SwordItem.createAttributes(tier, damage, speed), element, buildup, weight,
-                ItemGrade.LEGENDARY, null, List.of(), null, null, new Properties().rarity(Rarity.EPIC).fireResistant()
+                ItemGrade.LEGENDARY, null, List.of(), null, signature, new Properties().rarity(Rarity.EPIC).fireResistant()
                 .component(DataComponents.UNBREAKABLE, new Unbreakable(false)));
     }
 
