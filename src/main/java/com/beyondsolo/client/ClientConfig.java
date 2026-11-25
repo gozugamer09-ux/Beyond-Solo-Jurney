@@ -2,6 +2,8 @@ package com.beyondsolo.client;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import java.util.List;
+
 /** Per-player display options. Lives in config/beyondsolo-client.toml. */
 public final class ClientConfig {
     public enum NotificationMode {
@@ -46,9 +48,10 @@ public final class ClientConfig {
             .comment("Tint the screen edges while you burn, bleed, carry heavy venom or a crimson brand.")
             .define("combat.screenEffects", true);
 
-    public static final ModConfigSpec.BooleanValue KEYS_SORTED = B
-            .comment("Set once the keys Xaero's Minimap shares with the System have been moved to free ones (see KeyClashes).")
-            .define("keysSorted", false);
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> KEYS_MOVED = B
+            .comment("Other mods' keys that were on the System's keys and have been moved to free ones (see KeyClashes).",
+                    "Each is moved only once, so a key bound back by hand stays where it was put.")
+            .defineListAllowEmpty("keysMoved", List.of(), () -> "", o -> o instanceof String);
 
     public static final ModConfigSpec SPEC = B.build();
 

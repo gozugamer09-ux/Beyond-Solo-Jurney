@@ -4,57 +4,101 @@ import com.beyondsolo.BeyondSolo;
 import com.beyondsolo.client.notify.NotificationManager;
 import com.beyondsolo.notify.SystemNotification;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 import net.neoforged.neoforge.client.settings.KeyModifier;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Set;
+
 /**
- * The pack's map mod (Xaero's Minimap) comes with keys of its own on Y, U, B and Z, which the System uses too (the shadow
- * steed, recall, hiding pop-ups, the first skill). Minecraft fires every key bound to what is pressed, so one press meant
- * for the System also opens a map screen. Once per game (remembered in the client config, {@link ClientConfig#KEYS_SORTED})
- * the map's keys that clash with the System's move to free ones, and the player is told where they went. Only Xaero's
- * keys are moved, never Minecraft's own or the System's; a key the player binds back afterwards stays where they put it.
+ * Other mods in the pack come with keys of their own on keys the System uses: Xaero's Minimap on Y, U, B and Z (the
+ * shadow steed, recall, hiding pop-ups, the first skill), Xaero's Head Tracker on H (raising a shadow), Curios on G
+ * (the fourth skill). Minecraft fires every key bound to what is pressed, so one press meant for the System also opens
+ * another mod's screen. The first time each game that the player stands in a world with no screen open, another mod's
+ * key that still sits on its own default, fires in game and shares a System key moves to a free one, and the player is
+ * told where it went.
+ *
+ * <p>Minecraft's own keys and the System's never move. A key moves only once ({@link ClientConfig#KEYS_MOVED}), so one
+ * the player binds back stays where they put it, and a key the player chose themselves (not its default) is left
+ * alone; a mod added to the pack later is sorted out the first game it is there.</p>
  */
 public final class KeyClashes {
-    /** Free keys to move a clashing key to, in order (each is used only if nothing else has it). */
+    /** Free keys to move a clashing key to, in order (each is used only if no key at all is on it). */
     private static final int[] FREE = {GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_O, GLFW.GLFW_KEY_SEMICOLON, GLFW.GLFW_KEY_APOSTROPHE,
             GLFW.GLFW_KEY_COMMA, GLFW.GLFW_KEY_PERIOD, GLFW.GLFW_KEY_LEFT_BRACKET, GLFW.GLFW_KEY_RIGHT_BRACKET,
             GLFW.GLFW_KEY_BACKSLASH, GLFW.GLFW_KEY_HOME, GLFW.GLFW_KEY_END, GLFW.GLFW_KEY_PAGE_UP, GLFW.GLFW_KEY_PAGE_DOWN,
             GLFW.GLFW_KEY_INSERT};
+    private static final String MINE = "key.beyondsolo.";
 
-    /** Checks once (the first tick in a world) and moves the map's clashing keys. */
+    private static boolean checked;
+
+    /** Looks once a game, the first tick the player is in a world with no screen open, and moves the clashing keys. */
     public static void sortOnce(Minecraft mc) {
-        if (ClientConfig.KEYS_SORTED.get() || mc.options == null) return;
-        ClientConfig.KEYS_SORTED.set(true);
-        ClientConfig.KEYS_SORTED.save();
-        MutableComponent moved = null;
+        if (checked || mc.player == null || mc.screen != null || mc.options == null) return;
+        checked = true;
+        Set<KeyMapping> minecrafts = minecrafts(mc.options);
+        List<String> done = new ArrayList<>(ClientConfig.KEYS_MOVED.get());
+        List<Component> lines = new ArrayList<>();
         for (KeyMapping other : mc.options.keyMappings) {
-            if (!other.getName().startsWith("gui.xaero") || other.isUnbound() || !clashes(mc, other)) continue;
+            if (minecrafts.contains(other) || other.getName().startsWith(MINE) || other.isUnbound() || !other.isDefault()
+                    || done.contains(other.getName()) || !firesInGame(other) || !clashes(mc, other)) {
+                continue;
+            }
             InputConstants.Key to = free(mc);
+            if (to == InputConstants.UNKNOWN) break;
             Component was = other.getTranslatedKeyMessage();
             other.setKeyModifierAndCode(KeyModifier.NONE, to);
-            Component line = Component.translatable("message.beyondsolo.key_moved", Component.translatable(other.getName()), was,
-                    other.getTranslatedKeyMessage());
-            moved = moved == null ? line.copy() : moved.append(", ").append(line);
+            done.add(other.getName());
+            lines.add(Component.translatable("message.beyondsolo.key_moved", Component.translatable(other.getName()),
+                    was.copy().withStyle(ChatFormatting.GRAY), other.getTranslatedKeyMessage().copy().withStyle(ChatFormatting.AQUA)));
             BeyondSolo.LOGGER.info("Moved {} off a key the System uses: {} -> {}", other.getName(), was.getString(), to.getName());
         }
-        if (moved == null) return;
+        if (lines.isEmpty()) return;
+        ClientConfig.KEYS_MOVED.set(List.copyOf(done));
+        ClientConfig.KEYS_MOVED.save();
         KeyMapping.resetMapping();
         mc.options.save();
-        Component body = Component.translatable("message.beyondsolo.keys_moved", moved);
         if (ClientSystemData.get().hasSystem()) {
-            NotificationManager.push(SystemNotification.of(SystemNotification.Kind.INFO, Component.translatable("popup.beyondsolo.keys_moved"), body));
+            NotificationManager.push(SystemNotification.of(SystemNotification.Kind.INFO, Component.translatable("popup.beyondsolo.keys_moved"),
+                    Component.translatable("popup.beyondsolo.keys_moved.body", lines.size())));
         }
-        if (mc.player != null) mc.player.sendSystemMessage(body);
+        // one line a key, so a key like ; or , never runs into the punctuation around it
+        mc.player.sendSystemMessage(Component.translatable("message.beyondsolo.keys_moved"));
+        for (Component line : lines) mc.player.sendSystemMessage(Component.literal("  ").append(line));
     }
 
-    /** Whether one of the System's keys is on the same key as this one. */
+    /** Minecraft's own keys, which are never moved. */
+    private static Set<KeyMapping> minecrafts(Options o) {
+        Set<KeyMapping> own = Collections.newSetFromMap(new IdentityHashMap<>());
+        own.addAll(List.of(o.keyUp, o.keyLeft, o.keyDown, o.keyRight, o.keyJump, o.keyShift, o.keySprint, o.keyInventory,
+                o.keySwapOffhand, o.keyDrop, o.keyUse, o.keyAttack, o.keyPickItem, o.keyChat, o.keyPlayerList, o.keyCommand,
+                o.keySocialInteractions, o.keyScreenshot, o.keyTogglePerspective, o.keySmoothCamera, o.keyFullscreen,
+                o.keySpectatorOutlines, o.keyAdvancements, o.keySaveHotbarActivator, o.keyLoadHotbarActivator));
+        own.addAll(Arrays.asList(o.keyHotbarSlots));
+        return own;
+    }
+
+    /**
+     * Whether the key is live while the player walks around (checked with no screen open): a key of a screen only, like
+     * JEI's keys over an item list, never fires with the System's.
+     */
+    private static boolean firesInGame(KeyMapping key) {
+        return key.getKeyConflictContext().isActive();
+    }
+
+    /** Whether one of the System's keys is on the same key, with the same modifier, as this one. */
     private static boolean clashes(Minecraft mc, KeyMapping other) {
         for (KeyMapping mine : mc.options.keyMappings) {
-            if (mine.getName().startsWith("key.beyondsolo.") && !mine.isUnbound() && mine.getKey().equals(other.getKey())
+            if (mine.getName().startsWith(MINE) && !mine.isUnbound() && mine.getKey().equals(other.getKey())
                     && mine.getKeyModifier() == other.getKeyModifier()) {
                 return true;
             }

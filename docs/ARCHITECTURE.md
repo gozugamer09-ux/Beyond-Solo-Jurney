@@ -953,10 +953,14 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   (necromancers only), the portrait in the creature's own look with a "Flies" or "Swims" chip: filters (all, out, ready, named) and an order (rank, kills, newest, name), essence and names
   used under the card, the promotion strip (what it needs, ticked off) with *Promote*, and the name tag on the
   portrait that opens the name field (Enter keeps, Escape cancels).
-- **Keys**: H extract / call the army, U recall, Y mount. Xaero's Minimap (in the pack) ships with keys on Y, U, B
-  and Z too, and Minecraft fires every key bound to a press: once per game `client.KeyClashes` moves Xaero's keys that
-  clash with the System's to free ones (K, O, ;, ' ...), saves the options and tells the player (flag `keysSorted` in
-  the client config).
+- **Keys**: H extract / call the army, U recall, Y mount. Other mods in the pack ship keys on the System's too (Xaero's
+  Minimap on Y, U, B and Z, Xaero's Head Tracker settings on H, Curios on G), and Minecraft fires every key bound to a
+  press, so H also opened the Head Tracker's settings. `client.KeyClashes` looks once a game, the first tick in a world
+  with no screen open: another mod's key that is still on its default, is live in game (its conflict context is active
+  with no screen, so JEI's item-list keys don't count) and shares a System key and modifier moves to a free key (K, O,
+  ;, ' ...). Minecraft's own keys never move; the names moved are kept (`keysMoved` in the client config) so each moves
+  only once, and a mod added later is sorted out the first game it is there. The player gets one chat line a key and a
+  pop-up.
 - **Tests**: `ShadowGameTests`, and `ShadowFormGameTests`, which raises a shadow of every living kind in the game
   (whatever mods are loaded) and checks its soul, shape, health and flight, besides looks, roles, fliers, swimmers
   and sizes.
