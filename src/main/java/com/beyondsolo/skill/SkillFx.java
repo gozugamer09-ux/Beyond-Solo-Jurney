@@ -36,6 +36,7 @@ public final class SkillFx {
 
     /** A skill's action is about to run (server thread). */
     static void beginCast(ServerPlayer player, Skill skill) {
+        SkillSounds.enter();
         casting = true;
         look = "";
         variant = 0;
@@ -61,6 +62,7 @@ public final class SkillFx {
     /** It has run, whether it went off or not. */
     static void endCast() {
         casting = false;
+        SkillSounds.exit();
     }
 
     /** An effect is going out. The first one of a running cast is the one the caster's body acts out. */

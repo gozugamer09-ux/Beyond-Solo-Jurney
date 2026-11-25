@@ -39,6 +39,7 @@ final class SoloHelp {
                 new Line("skill learn <skill>|all [level] [players]", "skill.learn"),
                 new Line("skill forget <skill>|all [players]", "skill.forget"),
                 new Line("skill max [players]", "skill.max"),
+                new Line("skill feel light|medium|heavy|massive|kill|ultimate [element] [players]", "skill.feel"),
                 new Line("quest list [player]", "quest.list"),
                 new Line("quest start <quest> [players]", "quest.start"),
                 new Line("quest complete <quest>|all [players]", "quest.complete"),

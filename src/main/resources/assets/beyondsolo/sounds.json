@@ -1,0 +1,382 @@
+{
+  "skill.impact.physical": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.physical",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_physical_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_physical_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_physical_3"
+      }
+    ]
+  },
+  "skill.cast.physical": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.physical",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_physical_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_physical_2"
+      }
+    ]
+  },
+  "skill.impact.fire": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.fire",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_fire_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_fire_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_fire_3"
+      }
+    ]
+  },
+  "skill.cast.fire": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.fire",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_fire_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_fire_2"
+      }
+    ]
+  },
+  "skill.impact.water": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.water",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_water_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_water_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_water_3"
+      }
+    ]
+  },
+  "skill.cast.water": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.water",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_water_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_water_2"
+      }
+    ]
+  },
+  "skill.impact.lightning": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.lightning",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_lightning_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_lightning_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_lightning_3"
+      }
+    ]
+  },
+  "skill.cast.lightning": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.lightning",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_lightning_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_lightning_2"
+      }
+    ]
+  },
+  "skill.impact.air": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.air",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_air_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_air_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_air_3"
+      }
+    ]
+  },
+  "skill.cast.air": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.air",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_air_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_air_2"
+      }
+    ]
+  },
+  "skill.impact.earth": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.earth",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_earth_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_earth_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_earth_3"
+      }
+    ]
+  },
+  "skill.cast.earth": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.earth",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_earth_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_earth_2"
+      }
+    ]
+  },
+  "skill.impact.shadow": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.shadow",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_shadow_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_shadow_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_shadow_3"
+      }
+    ]
+  },
+  "skill.cast.shadow": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.shadow",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_shadow_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_shadow_2"
+      }
+    ]
+  },
+  "skill.impact.light": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.light",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_light_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_light_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_light_3"
+      }
+    ]
+  },
+  "skill.cast.light": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.light",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_light_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_light_2"
+      }
+    ]
+  },
+  "skill.impact.nature": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.nature",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_nature_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_nature_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_nature_3"
+      }
+    ]
+  },
+  "skill.cast.nature": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.nature",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_nature_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_nature_2"
+      }
+    ]
+  },
+  "skill.impact.arcane": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.arcane",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_arcane_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_arcane_2"
+      },
+      {
+        "name": "beyondsolo:skill/impact_arcane_3"
+      }
+    ]
+  },
+  "skill.cast.arcane": {
+    "subtitle": "subtitles.beyondsolo.skill.cast.arcane",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/cast_arcane_1"
+      },
+      {
+        "name": "beyondsolo:skill/cast_arcane_2"
+      }
+    ]
+  },
+  "skill.impact.heavy": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.heavy",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_heavy_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_heavy_2"
+      }
+    ]
+  },
+  "skill.impact.massive": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.massive",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_massive_1",
+        "attenuation_distance": 32
+      },
+      {
+        "name": "beyondsolo:skill/impact_massive_2",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "skill.impact.kill": {
+    "subtitle": "subtitles.beyondsolo.skill.impact.kill",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/impact_kill_1"
+      },
+      {
+        "name": "beyondsolo:skill/impact_kill_2"
+      }
+    ]
+  },
+  "skill.ultimate": {
+    "subtitle": "subtitles.beyondsolo.skill.ultimate",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/ultimate_1",
+        "attenuation_distance": 32
+      },
+      {
+        "name": "beyondsolo:skill/ultimate_2",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "skill.swing": {
+    "subtitle": "subtitles.beyondsolo.skill.swing",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/swing_1"
+      },
+      {
+        "name": "beyondsolo:skill/swing_2"
+      },
+      {
+        "name": "beyondsolo:skill/swing_3"
+      }
+    ]
+  },
+  "skill.blast": {
+    "subtitle": "subtitles.beyondsolo.skill.blast",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/blast_1",
+        "attenuation_distance": 32
+      },
+      {
+        "name": "beyondsolo:skill/blast_2",
+        "attenuation_distance": 32
+      },
+      {
+        "name": "beyondsolo:skill/blast_3",
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "skill.slam": {
+    "subtitle": "subtitles.beyondsolo.skill.slam",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/slam_1",
+        "attenuation_distance": 24
+      },
+      {
+        "name": "beyondsolo:skill/slam_2",
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "skill.shot": {
+    "subtitle": "subtitles.beyondsolo.skill.shot",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/shot_1"
+      },
+      {
+        "name": "beyondsolo:skill/shot_2"
+      },
+      {
+        "name": "beyondsolo:skill/shot_3"
+      }
+    ]
+  },
+  "skill.thunder": {
+    "subtitle": "subtitles.beyondsolo.skill.thunder",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/thunder_1",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "beyondsolo:skill/thunder_2",
+        "attenuation_distance": 48
+      }
+    ]
+  },
+  "skill.charge": {
+    "subtitle": "subtitles.beyondsolo.skill.charge",
+    "sounds": [
+      {
+        "name": "beyondsolo:skill/charge_1"
+      },
+      {
+        "name": "beyondsolo:skill/charge_2"
+      }
+    ]
+  }
+}

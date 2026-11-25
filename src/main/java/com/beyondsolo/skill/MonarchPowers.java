@@ -450,7 +450,8 @@ public final class MonarchPowers {
         damage *= SkillCombat.comboMultiplier(p) * com.beyondsolo.rune.Runes.damageMultiplier(p, s);
         damage = SkillCombat.strike(p, e, element, damage);
         e.invulnerableTime = 0;
-        e.hurt(p.damageSources().indirectMagic(p, p), damage);
+        float before = e.getHealth();
+        if (e.hurt(p.damageSources().indirectMagic(p, p), damage)) SkillFeel.struck(p, s, element, e, before);
     }
 
     /** An authority is used: counted, and named on the screens of everyone near ({@code ticks} = how long it lasts). */

@@ -41,7 +41,8 @@ public class TrainingDummyRenderer extends GeoEntityRenderer<TrainingDummy> {
     @Override
     public int getPackedOverlay(TrainingDummy dummy, float u, float partialTick) {
         // straw doesn't flush red under every blow: it only rocks
-        return OverlayTexture.pack(OverlayTexture.u(u), OverlayTexture.v(false));
+        // a skill's blow still flashes it white (SkillImpacts)
+        return com.beyondsolo.client.skill.SkillImpacts.overlay(dummy, OverlayTexture.pack(OverlayTexture.u(u), OverlayTexture.v(false)));
     }
 
     @Override
