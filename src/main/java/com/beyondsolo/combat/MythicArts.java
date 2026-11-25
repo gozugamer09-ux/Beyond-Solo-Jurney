@@ -31,9 +31,12 @@ final class MythicArts {
     /** Hellsovereign's Fang: three cuts of hellfire ahead, then six seconds of hellfire on every strike. */
     static List<Vec3> infernalRend(ServerLevel level, Player p, float power) {
         for (int i = 0; i < 3; i++) {
+            boolean last = i == 2;
             ArsenalAbilities.later(p, level, i * REND_GAP, () -> {
                 for (LivingEntity e : ArsenalAbilities.cone(p, p.position(), ArsenalAbilities.flatLook(p), 4.5, 70)) {
-                    ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 2.5f) + power * 0.25f);
+                    float dmg = Balance.flatDamage(p, 2.5f) + power * 0.25f;
+                    if (last) ArsenalHits.artFinisher(Signature.INFERNAL_REND, p, e, dmg);
+                    else ArsenalHits.artHit(Signature.INFERNAL_REND, p, e, dmg);
                     Statuses.apply(e, DamageElement.FIRE, 25, p);
                 }
                 ArsenalAbilities.sound(level, p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.7f + level.random.nextFloat() * 0.2f);
@@ -54,7 +57,7 @@ final class MythicArts {
         List<LivingEntity> held = new ArrayList<>();
         for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 8)) {
             ArsenalHits.freeze(e, p, REQUIEM_DELAY + 30);
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f));
+            ArsenalHits.artHit(Signature.ABSOLUTE_ZERO, p, e, Balance.flatDamage(p, 4f));
             held.add(e);
             if (frozen.size() < 24) frozen.add(e.position());
         }
@@ -66,7 +69,7 @@ final class MythicArts {
             for (LivingEntity e : held) {
                 if (!e.isAlive() || !e.hasEffect(ModEffects.FROZEN) || e.distanceTo(p) > 14) continue;
                 e.removeEffect(ModEffects.FROZEN);
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
+                ArsenalHits.artFinisher(Signature.ABSOLUTE_ZERO, p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
                 if (shattered.size() < 24) shattered.add(e.position());
             }
             for (Vec3 at : shattered) ArsenalAbilities.soundAt(level, at, SoundEvents.GLASS_BREAK, 1.2f, 0.7f + level.random.nextFloat() * 0.3f);
@@ -85,7 +88,7 @@ final class MythicArts {
                 .sorted(Comparator.comparingDouble(e -> e.distanceToSqr(p))).limit(6).toList();
         List<Vec3> struck = new ArrayList<>();
         for (LivingEntity e : foes) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
+            ArsenalHits.artHit(Signature.HEAVENS_VERDICT, p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
             struck.add(e.position());
         }
         if (struck.isEmpty()) struck.add(p.position().add(ArsenalAbilities.flatLook(p).scale(4)));
@@ -95,7 +98,7 @@ final class MythicArts {
             LivingEntity judged = foes.stream().filter(e -> e.isAlive() && e.distanceTo(p) < 20)
                     .max(Comparator.comparingDouble(LivingEntity::getHealth)).orElse(null);
             if (judged == null) return;
-            ArsenalHits.magicHit(p, judged, Balance.flatDamage(p, 7f) + power * 0.4f);
+            ArsenalHits.artFinisher(Signature.HEAVENS_VERDICT, p, judged, Balance.flatDamage(p, 7f) + power * 0.4f);
             judged.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 4, false, true, true), p);
             ArsenalAbilities.soundAt(level, judged.position(), SoundEvents.LIGHTNING_BOLT_THUNDER, 1.8f, 0.6f);
             ArsenalAbilities.soundAt(level, judged.position(), SoundEvents.TRIDENT_THUNDER.value(), 1.4f, 0.7f);

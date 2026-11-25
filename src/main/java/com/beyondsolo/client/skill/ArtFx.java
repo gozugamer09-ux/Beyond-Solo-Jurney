@@ -220,6 +220,8 @@ public final class ArtFx {
                 fx.look = forward(fx.yaw);
             }
             if (e == mc.player && p.signature().drawn()) READY.put(p.signature(), mc.level.getGameTime() + p.signature().cooldownSeconds() * 20L);
+            // the body hangs on the strike frame for a beat: the heavier the grade, the longer
+            if (p.signature().active() && e instanceof AbstractClientPlayer player) BodyAnimator.hold(player, strikeHold(p.signature()));
             Fx struck = fx;
             guard(struck, () -> art.impact(struck, e, mc.level));
             return;
@@ -237,6 +239,15 @@ public final class ArtFx {
         fx.beatPoints[n] = p.points();
         Fx beaten = fx;
         guard(beaten, () -> art.beat(beaten, n, e, mc.level));
+    }
+
+    /** Seconds the wielder's body hangs on an art's strike frame. */
+    static float strikeHold(Signature sig) {
+        return switch (sig.grade()) {
+            case DIVINE -> 0.13f;
+            case MYTHIC -> 0.09f;
+            default -> 0.06f;
+        };
     }
 
     private static final java.util.Set<Signature> BROKEN = java.util.EnumSet.noneOf(Signature.class);

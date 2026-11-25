@@ -51,14 +51,14 @@ final class LegendaryArts {
         cut.sort(Comparator.comparingDouble(e -> Math.atan2(e.getZ() - c.z, e.getX() - c.x)));
         List<Vec3> pts = new ArrayList<>(List.of(c));
         for (LivingEntity e : cut) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 5f) + power * 0.5f);
+            ArsenalHits.artHit(Signature.STORMBREAK, p, e, Balance.flatDamage(p, 5f) + power * 0.5f);
             if (pts.size() < 24) pts.add(ArsenalAbilities.chest(e));
         }
         ArsenalAbilities.sound(level, p, SoundEvents.PLAYER_ATTACK_SWEEP, 1.3f, 0.8f);
         ArsenalAbilities.sound(level, p, SoundEvents.TRIDENT_THUNDER.value(), 0.9f, 1.5f);
         if (!cut.isEmpty()) {
             ArsenalAbilities.later(p, level, CHAIN_DELAY, () -> {
-                for (LivingEntity e : cut) if (e.isAlive()) ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 2f));
+                for (LivingEntity e : cut) if (e.isAlive()) ArsenalHits.artHit(Signature.STORMBREAK, p, e, Balance.flatDamage(p, 2f));
                 ArsenalAbilities.sound(level, p, SoundEvents.LIGHTNING_BOLT_IMPACT, 1.1f, 1.4f);
             });
         }
@@ -78,7 +78,7 @@ final class LegendaryArts {
             ArsenalAbilities.later(p, level, i * PUNCH_GAP, () -> {
                 Vec3 look = ArsenalAbilities.flatLook(p);
                 for (LivingEntity e : ArsenalAbilities.cone(p, p.position(), look, 3.5, 50)) {
-                    ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 1.4f) + power * 0.12f);
+                    ArsenalHits.artHit(Signature.TITANS_BARRAGE, p, e, Balance.flatDamage(p, 1.4f) + power * 0.12f);
                     ArsenalAbilities.knock(e, look.x * 0.12, 0.02, look.z * 0.12);
                 }
                 ArsenalAbilities.sound(level, p, SoundEvents.PLAYER_ATTACK_STRONG, 0.9f, pitch);
@@ -88,7 +88,7 @@ final class LegendaryArts {
             Vec3 look = ArsenalAbilities.flatLook(p);
             List<Vec3> pts = new ArrayList<>(List.of(p.position()));
             for (LivingEntity e : ArsenalAbilities.cone(p, p.position(), look, 3.8, 55)) {
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f) + power * 0.4f);
+                ArsenalHits.artFinisher(Signature.TITANS_BARRAGE, p, e, Balance.flatDamage(p, 4f) + power * 0.4f);
                 ArsenalAbilities.knock(e, look.x * 0.3, 1.0, look.z * 0.3);
                 if (pts.size() < 24) pts.add(ArsenalAbilities.chest(e));
             }
@@ -118,7 +118,7 @@ final class LegendaryArts {
             if (bitten != null) {
                 float dmg = Balance.flatDamage(p, 5f) + power * 0.45f;
                 if (bitten.getHealth() < bitten.getMaxHealth() * 0.3f) dmg *= 1.4f;
-                ArsenalHits.magicHit(p, bitten, dmg);
+                ArsenalHits.artHit(Signature.THREE_HEADED_MAW, p, bitten, dmg);
                 Statuses.apply(bitten, DamageElement.FIRE, 40, p);
                 ArsenalAbilities.knock(bitten, dir.x * 0.5, 0.25, dir.z * 0.5);
                 end = ArsenalAbilities.chest(bitten);
@@ -151,7 +151,7 @@ final class LegendaryArts {
             List<Vec3> fell = new ArrayList<>();
             for (LivingEntity e : marked) {
                 if (!e.isAlive()) continue;
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f) * spell);
+                ArsenalHits.artHit(Signature.CONSTELLATION, p, e, Balance.flatDamage(p, 6f) * spell);
                 fell.add(e.position());
                 ArsenalAbilities.soundAt(level, e.position(), SoundEvents.AMETHYST_BLOCK_BREAK, 1.2f, 0.9f);
             }
@@ -177,7 +177,7 @@ final class LegendaryArts {
         }
         List<Vec3> foes = new ArrayList<>();
         for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 8)) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f));
+            ArsenalHits.artHit(Signature.SAINTS_DAWN, p, e, Balance.flatDamage(p, 4f));
             e.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 40, 0, false, true, true), p);
             if (foes.size() < 12) foes.add(e.position());
         }
@@ -202,7 +202,7 @@ final class LegendaryArts {
         Vec3 end = ArsenalAbilities.reach(p, eye, eye.add(dir.scale(30)));
         List<Vec3> pts = new ArrayList<>(List.of(eye, end));
         for (LivingEntity e : ArsenalAbilities.line(p, eye, end, 1.3)) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f));
+            ArsenalHits.artHit(Signature.GALE_LANCE, p, e, Balance.flatDamage(p, 6f));
             ArsenalAbilities.knock(e, dir.x * 1.3, 0.25, dir.z * 1.3);
             if (pts.size() < 24) pts.add(ArsenalAbilities.chest(e));
         }
@@ -243,7 +243,7 @@ final class LegendaryArts {
         else p.teleportTo(to.x, to.y, to.z);
         p.resetFallDistance();
         float dmg = (Balance.flatDamage(p, 6f) + power * 0.7f) * (unseen ? 1.5f : 1f);
-        ArsenalHits.magicHit(p, target, dmg);
+        ArsenalHits.artHit(Signature.VEILSTEP, p, target, dmg);
         p.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 40, 0, false, false, true));
         for (Mob m : level.getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(12), m -> m.getTarget() == p && m != target)) {
             m.setTarget(null);
@@ -269,7 +269,7 @@ final class LegendaryArts {
             int delay = (int) Math.min(6, e.position().distanceTo(p.position()) / 2);
             ArsenalAbilities.later(p, level, delay, () -> {
                 if (!e.isAlive()) return;
-                float took = ArsenalAbilities.hitAndMeasure(p, e, Balance.flatDamage(p, 8f) + power * 0.8f);
+                float took = ArsenalAbilities.hitAndMeasure(Signature.BLOOD_PRICE, p, e, Balance.flatDamage(p, 8f) + power * 0.8f);
                 Statuses.apply(e, DamageElement.BLOOD, 40, p);
                 if (took > 0) Balance.healRaw(p, took * 0.25f);
                 ArsenalAbilities.soundAt(level, e.position(), SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.6f);
@@ -292,7 +292,7 @@ final class LegendaryArts {
         Vec3 stop = ArsenalAbilities.reach(p, from, from.add(look.scale(6)));
         Vec3 at = ArsenalAbilities.ground(level, stop.subtract(look.scale(stop.distanceTo(from) < 5.9 ? 0.8 : 0)).add(0, -0.8, 0));
         for (LivingEntity e : ArsenalHits.foesAround(p, at, 4)) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 9f) + power * 0.8f);
+            ArsenalHits.artHit(Signature.SUNDERING_VERDICT, p, e, Balance.flatDamage(p, 9f) + power * 0.8f);
             Statuses.apply(e, DamageElement.CRIMSON, 40, p);
             Vec3 out = e.position().subtract(at).multiply(1, 0, 1);
             out = out.lengthSqr() < 1.0e-4 ? look : out.normalize();
@@ -313,13 +313,13 @@ final class LegendaryArts {
     static List<Vec3> pyreOfOaths(ServerLevel level, Player p, float power) {
         Vec3 c = p.position();
         for (LivingEntity e : ArsenalHits.foesAround(p, c, 5)) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
+            ArsenalHits.artHit(Signature.PYRE_OF_OATHS, p, e, Balance.flatDamage(p, 5f) + power * 0.4f);
             Statuses.apply(e, DamageElement.FIRE, 60, p);
         }
         for (int t = PYRE_TICK; t <= PYRE_TICKS; t += PYRE_TICK) {
             ArsenalAbilities.later(p, level, t, () -> {
                 for (LivingEntity e : ArsenalHits.foesAround(p, c, 5)) {
-                    ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 1.5f));
+                    ArsenalHits.artHit(Signature.PYRE_OF_OATHS, p, e, Balance.flatDamage(p, 1.5f));
                     Statuses.apply(e, DamageElement.FIRE, 10, p);
                 }
             });
@@ -351,7 +351,7 @@ final class LegendaryArts {
                 int delay = (int) Math.min(5, end.distanceTo(eye) / 3);
                 ArsenalAbilities.later(p, level, delay, () -> {
                     if (!e.isAlive()) return;
-                    ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 3f) + power * 0.25f);
+                    ArsenalHits.artHit(Signature.NIGHTGLASS_FAN, p, e, Balance.flatDamage(p, 3f) + power * 0.25f);
                     Statuses.apply(e, DamageElement.POISON, 45, p);
                     ArsenalAbilities.soundAt(level, e.position(), SoundEvents.GLASS_BREAK, 0.8f, 1.4f);
                 });
@@ -378,7 +378,7 @@ final class LegendaryArts {
             int delay = (int) Math.min(6, e.position().distanceTo(c) * 0.9);
             ArsenalAbilities.later(p, level, delay, () -> {
                 if (!e.isAlive()) return;
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 7f) + power * 0.6f);
+                ArsenalHits.artHit(Signature.REQUIEM_OF_THORNS, p, e, Balance.flatDamage(p, 7f) + power * 0.6f);
                 Statuses.apply(e, DamageElement.BLOOD, 50, p);
                 e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 1, false, true, true), p);
                 ArsenalAbilities.soundAt(level, e.position(), SoundEvents.PLAYER_ATTACK_CRIT, 0.9f, 0.5f);

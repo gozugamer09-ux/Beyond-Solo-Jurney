@@ -77,7 +77,7 @@ final class DivineArts {
         Vec3 look = ArsenalAbilities.flatLook(p);
         Vec3 origin = p.position();
         for (LivingEntity e : ArsenalAbilities.cone(p, origin, look, 6, 55)) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 7f) + power * 0.6f);
+            ArsenalHits.artHit(Signature.CATACLYSM_CLEAVE, p, e, Balance.flatDamage(p, 7f) + power * 0.6f);
             Statuses.apply(e, DamageElement.FIRE, 60, p);
             ArsenalAbilities.knock(e, look.x * 0.4, 0.4, look.z * 0.4);
         }
@@ -91,7 +91,7 @@ final class DivineArts {
         ArsenalAbilities.later(p, level, FISSURE_DELAY, () -> {
             List<Vec3> pts = new ArrayList<>(List.of(start, end));
             for (LivingEntity e : ArsenalAbilities.line(p, start.add(0, 0.5, 0), end.add(0, 0.5, 0), 1.8)) {
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 5f) + power * 0.45f);
+                ArsenalHits.artFinisher(Signature.CATACLYSM_CLEAVE, p, e, Balance.flatDamage(p, 5f) + power * 0.45f);
                 Statuses.apply(e, DamageElement.FIRE, 40, p);
                 ArsenalAbilities.knock(e, 0, 0.8, 0);
                 if (pts.size() < 24) pts.add(ArsenalAbilities.chest(e));
@@ -121,7 +121,7 @@ final class DivineArts {
         List<Vec3> points = new ArrayList<>(List.of(from, to));
         List<LivingEntity> cut = ArsenalAbilities.line(p, from.add(0, 1, 0), to.add(0, 1, 0), 1.4);
         for (LivingEntity e : cut) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f) + power * 0.4f);
+            ArsenalHits.artHit(Signature.DRAGONS_WRATH, p, e, Balance.flatDamage(p, 4f) + power * 0.4f);
             if (points.size() < 24) points.add(ArsenalAbilities.chest(e));
         }
         p.teleportTo(to.x, to.y, to.z);
@@ -135,7 +135,7 @@ final class DivineArts {
             wounds.add(p.position());
             for (LivingEntity e : cut) {
                 if (!e.isAlive()) continue;
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f) + power * 0.5f);
+                ArsenalHits.artFinisher(Signature.DRAGONS_WRATH, p, e, Balance.flatDamage(p, 6f) + power * 0.5f);
                 Statuses.apply(e, DamageElement.CRIMSON, 50, p);
                 if (wounds.size() < 24) wounds.add(ArsenalAbilities.chest(e));
             }
@@ -180,7 +180,7 @@ final class DivineArts {
         }
         ArsenalAbilities.later(p, level, FEED_TICKS, () -> {
             for (LivingEntity e : ArsenalHits.foesAround(p, at, 4.5)) {
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 12f) * spell);
+                ArsenalHits.artHit(Signature.DEVOURING_STAR, p, e, Balance.flatDamage(p, 12f) * spell);
                 Vec3 out = e.position().subtract(at).multiply(1, 0, 1);
                 if (out.lengthSqr() > 1.0e-4) out = out.normalize();
                 ArsenalAbilities.knock(e, out.x * 0.6, 0.45, out.z * 0.6);
@@ -210,7 +210,7 @@ final class DivineArts {
                 Vec3 away = e.position().subtract(p.position()).multiply(1, 0, 1);
                 away = away.lengthSqr() < 1.0e-4 ? ArsenalAbilities.flatLook(p) : away.normalize();
                 ArsenalAbilities.knock(e, away.x * 1.1, 0.35, away.z * 1.1);
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f) + power * 0.5f);
+                ArsenalHits.artHit(Signature.COLOSSUS_STANCE, p, e, Balance.flatDamage(p, 6f) + power * 0.5f);
                 if (knocked.size() < 24) knocked.add(e.position());
             }
         }
@@ -229,7 +229,7 @@ final class DivineArts {
         float amount = Balance.flatDamage(p, 4f) + Math.min(b.taken * 0.6f, Balance.flatDamage(p, 12f));
         List<Vec3> pts = new ArrayList<>(List.of(p.position()));
         for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 6)) {
-            ArsenalHits.magicHit(p, e, amount);
+            ArsenalHits.artHit(Signature.COLOSSUS_STANCE, p, e, amount);
             Vec3 away = e.position().subtract(p.position()).multiply(1, 0, 1);
             away = away.lengthSqr() < 1.0e-4 ? ArsenalAbilities.flatLook(p) : away.normalize();
             ArsenalAbilities.knock(e, away.x * 0.9, 0.3, away.z * 0.9);
@@ -289,7 +289,7 @@ final class DivineArts {
         List<Vec3> bound = new ArrayList<>();
         for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 8)) {
             e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 3, false, true, true), p);
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f));
+            ArsenalHits.artHit(Signature.VERDANT_BLESSING, p, e, Balance.flatDamage(p, 4f));
             if (bound.size() < 16) bound.add(e.position());
         }
         ArsenalAbilities.sound(level, p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.8f);
@@ -344,14 +344,14 @@ final class DivineArts {
         for (int i = 0; i < STARS; i++) {
             Vec3 at = stars.get(i + 1);
             ArsenalAbilities.later(p, level, STAR_FIRST + i * STAR_GAP, () -> {
-                for (LivingEntity e : ArsenalHits.foesAround(p, at, 2.2)) ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 4f));
+                for (LivingEntity e : ArsenalHits.foesAround(p, at, 2.2)) ArsenalHits.artHit(Signature.STARFALL, p, e, Balance.flatDamage(p, 4f));
                 ArsenalAbilities.soundAt(level, at, SoundEvents.AMETHYST_BLOCK_BREAK, 1.1f, 0.6f + level.random.nextFloat() * 0.4f);
                 ArsenalAbilities.soundAt(level, at, SoundEvents.FIREWORK_ROCKET_BLAST, 0.9f, 0.8f);
             });
         }
         ArsenalAbilities.later(p, level, GREAT_STAR, () -> {
             for (LivingEntity e : ArsenalHits.foesAround(p, centre, 4)) {
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 10f));
+                ArsenalHits.artHit(Signature.STARFALL, p, e, Balance.flatDamage(p, 10f));
                 Vec3 out = e.position().subtract(centre).multiply(1, 0, 1);
                 if (out.lengthSqr() > 1.0e-4) out = out.normalize();
                 ArsenalAbilities.knock(e, out.x * 0.7, 0.5, out.z * 0.7);

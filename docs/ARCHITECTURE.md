@@ -426,6 +426,16 @@ gear (rare and up; legendary and up shed sparks too). Legendary and up also get 
     art has its own screen tint, and the field of view pulls in on the wind-up and punches on the strike
     (`ViewportEvent.ComputeFov`, scaled by the player's FOV effects setting). A drawn art shows its gathering under
     the crosshair and how long until it is ready again.
+  - **How the blows land:** every art blow goes through `ArsenalHits.artHit` (or `artFinisher` for the blow an art
+    builds to: an uppercut, wounds opening, the last of three cuts), which deals the damage and hands the blow to the
+    class skills' feel (`skill/SkillFeel.struck` with a source, a stature and no ultimate flag): the creature flashes
+    white and hangs, the element's sparks and sounds fly (`ArsenalHits.artElement`), the view kicks and heavy blows
+    ripple the screen. A divine art's blows weigh in at the heaviest, a mythic's heavy, a legendary's solid; a
+    finisher is never counted as a flurry's repeat. The wielder's body hangs on the strike frame for a beat too
+    (`BodyAnimator.hold`, from the art's `IMPACT`: 0.13 s divine, 0.09 s mythic, 0.06 s legendary). The ultimate's
+    ink frame is left out on purpose: the art's own screen show answers its strike.
+  - `/solo heal` and `/solo reset cooldowns` make every art ready again (`ArsenalAbilities.resetCooldowns`: the
+    weapons' cooldowns, the drawn arts' own, and a `SignatureFxPayload.READY` so the wielder's screen knows).
   - Art direction (Yordan): no magic circles under weapon arts (keep those for spells and the strongest arts), every
     art its own look, and keep particle counts light.
 - **Divine weapons** are bound to one class each (`Arsenal.divineFor`). Anyone else, or a player without the System,
@@ -2518,7 +2528,7 @@ recovery, and the blood buildup pop. `test/CombatGameTests` covers: burn into de
 totems but the elixir cures it, venom stacking into heavy venom and which cures work, crimson brand damage, the
 blood pop through armor, the pop taking at most 5% from a boss or an elite (and no more than its share however hard it
 was pushed), buildup on players, weapon hits, resistances, armor set bonuses, stats feeding combat,
-exhaustion resistance, and that every weapon has a Better Combat file. `test/ArsenalGameTests` covers: a grade and a moveset on every weapon, weapon grades by gate rank and the top grades kept scarce wherever they drop, frostbite and its shatter, Knightsbane through armour, divines answering only to their class, every legendary, mythic and divine weapon carrying an art of its own grade, every right-click art going on cooldown at once and landing nothing before its strike frame (one generated test each, in a batch of its own), the Colossus bulwark counting the blows its shield kept off and throwing them back, and a bow art gathering only on a full draw with a cooldown apart from the bow's. `test/QuestGameTests` covers: quests after the
+exhaustion resistance, and that every weapon has a Better Combat file. `test/ArsenalGameTests` covers: a grade and a moveset on every weapon, weapon grades by gate rank and the top grades kept scarce wherever they drop, frostbite and its shatter, Knightsbane through armour, divines answering only to their class, every legendary, mythic and divine weapon carrying an art of its own grade, every right-click art going on cooldown at once and landing nothing before its strike frame (one generated test each, in a batch of its own), the Colossus bulwark counting the blows its shield kept off and throwing them back, a bow art gathering only on a full draw with a cooldown apart from the bow's (and a cooldown reset readying every art), and art blows landing with the skills' feel (divine heaviest, a flurry's repeats light, finishers in full). `test/QuestGameTests` covers: quests after the
 evaluation, kill progress and rewards, the quest line moving on, rank scaling, the spawner trigger, area objectives,
 timeouts and penalties, fleeing, offers, inventory and level objectives, the daily at dawn, death, saving, custom objectives.
 `test/DungeonGameTests` covers: every realm in every shape planning a whole dungeon over many seeds (same seed same

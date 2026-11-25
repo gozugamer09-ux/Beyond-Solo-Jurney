@@ -52,8 +52,8 @@ public final class GateLoot {
 
     /**
      * Chance (out of 10,000) of each grade, by gate rank E..S: common, rare, epic, legendary, mythic, divine. The top
-     * grades are kept scarce on purpose (Yordan, 2026-11-25: divines dropped "way too" often): a divine is 3 in 10,000
-     * of an S cache's weapons (it was 2 in 100), a mythic 27; A gates almost never give either. What else can drop
+     * grades are kept scarce on purpose (Yordan, 2026-11-25: divines dropped "way too" often): a divine is 3 in 1,000
+     * of an S cache's weapons (it was 2 in 100), a mythic 27 in 1,000; A gates almost never give either. What else can drop
      * a weapon is capped below them ({@link #weapon(int, ItemGrade, RandomSource)}): creatures never drop a mythic or a
      * divine, and an ascended boss's extra weapon is lifted a grade only up to legendary.
      */
@@ -68,7 +68,7 @@ public final class GateLoot {
 
     /**
      * The great threats' table (world bosses, monarchs, rulers, the isle's royals): S gear with the best odds in the
-     * game at the top grades, still rare (a divine is 8 in 10,000 of their weapons). The series' greatest weapons are
+     * game at the top grades, still rare (a divine is 8 in 1,000 of their weapons). The series' greatest weapons are
      * taken from its greatest foes.
      */
     static final int[] GREAT_THREAT_WEIGHTS = {0, 0, 5000, 4500, 420, 80};

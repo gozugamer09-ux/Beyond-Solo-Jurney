@@ -12,6 +12,8 @@ import com.beyondsolo.item.arsenal.Arsenal;
 import com.beyondsolo.item.arsenal.ArsenalWeapon;
 import com.beyondsolo.item.arsenal.Signature;
 import com.beyondsolo.registry.ModItems;
+import com.beyondsolo.skill.SkillFeel;
+import com.beyondsolo.skill.SkillFeelTestAccess;
 import com.beyondsolo.system.PlayerClass;
 import com.beyondsolo.system.PlayerRank;
 import com.beyondsolo.system.SystemAPI;
@@ -152,11 +154,11 @@ public final class ArsenalGameTests {
             helper.assertTrue(GateLoot.capped(GateLoot.rollGrade(PlayerRank.S.tier(), r), ItemGrade.LEGENDARY).tier() <= ItemGrade.LEGENDARY.tier(),
                     "capped rolls stay at or under legendary");
         }
-        // S caches: 3 in 10,000 (it was 2 in 100); A caches: 5 in 100,000; the great threats: 8 in 10,000
-        helper.assertTrue(cacheDivine > 10 && cacheDivine < 60, "an S cache's weapon is divine about 3 in 10,000: " + cacheDivine + " of " + n);
-        helper.assertTrue(aDivine < 20, "an A cache almost never holds a divine: " + aDivine + " of " + n);
-        helper.assertTrue(threatDivine > 40 && threatDivine < 130, "a great threat's weapon is divine about 8 in 10,000: " + threatDivine);
-        helper.assertTrue(threatMythic > 300 && threatMythic < 560, "a great threat's weapon is mythic about 4 in 100: " + threatMythic);
+        // S caches: 3 in 1,000 (it was 2 in 100); A caches: 5 in 10,000; the great threats: 8 in 1,000, mythic 42 in 1,000
+        helper.assertTrue(cacheDivine > 220 && cacheDivine < 380, "an S cache's weapon is divine about 3 in 1,000: " + cacheDivine + " of " + n);
+        helper.assertTrue(aDivine < 100, "an A cache almost never holds a divine: " + aDivine + " of " + n);
+        helper.assertTrue(threatDivine > 680 && threatDivine < 920, "a great threat's weapon is divine about 8 in 1,000: " + threatDivine + " of " + n);
+        helper.assertTrue(threatMythic > 3850 && threatMythic < 4550, "a great threat's weapon is mythic about 42 in 1,000: " + threatMythic + " of " + n);
         int ascendedTop = 0;
         for (int i = 0; i < 20_000; i++) {
             ItemGrade g = GateLoot.ascendedGrade(PlayerRank.S.tier(), r);
@@ -469,5 +471,41 @@ public final class ArsenalGameTests {
         helper.assertTrue(ArsenalAbilities.drawReady(p, sig), "a cooldown reset readies the drawn art");
         helper.assertFalse(p.getCooldowns().isOnCooldown(Arsenal.RUINBRINGER.get()), "a cooldown reset readies the weapons' arts");
         helper.succeed();
+    }
+
+    /**
+     * An art's blows land the way a class skill's do (SkillFeel): a divine art's at the heaviest weight, a legendary's
+     * solid; a flurry's next blow on the same creature only sparks, but the blow the art builds to lands in full.
+     */
+    @GameTest(template = ARENA)
+    public static void artBlowsLandWithTheSkillsFeel(GameTestHelper helper) {
+        ServerPlayer p = player(helper);
+        Zombie divine = sturdy(helper, new BlockPos(1, 2, 4));
+        Zombie flurry = sturdy(helper, new BlockPos(3, 2, 4));
+        Zombie barrage = sturdy(helper, new BlockPos(5, 2, 4));
+        ArsenalHits.artHit(Signature.CATACLYSM_CLEAVE, p, divine, 4f);
+        ArsenalHits.artHit(Signature.STORMBREAK, p, flurry, 4f);
+        ArsenalHits.artHit(Signature.TITANS_BARRAGE, p, barrage, 4f);
+        int big = SkillFeelTestAccess.pending(p, divine), solid = SkillFeelTestAccess.pending(p, flurry);
+        helper.assertTrue(divine.getHealth() < 2000, "the art's blow did its damage");
+        helper.assertTrue(big == SkillFeel.MASSIVE, "a divine art's blow weighs in at the heaviest: " + big);
+        helper.assertTrue(solid == SkillFeel.MEDIUM, "a legendary art's blow is solid: " + solid);
+        helper.runAfterDelay(1, () -> {
+            ArsenalHits.artHit(Signature.STORMBREAK, p, flurry, 4f);
+            ArsenalHits.artFinisher(Signature.TITANS_BARRAGE, p, barrage, 4f);
+            int again = SkillFeelTestAccess.pending(p, flurry), finish = SkillFeelTestAccess.pending(p, barrage);
+            helper.assertTrue((again & 0xFF) == SkillFeel.LIGHT && ((again >> 8) & SkillFeel.REPEAT) != 0,
+                    "a flurry's next blow on the same creature only sparks: " + again);
+            helper.assertTrue(finish == SkillFeel.MEDIUM, "the blow the art builds to lands in full: " + finish);
+            helper.succeed();
+        });
+    }
+
+    private static Zombie sturdy(GameTestHelper helper, BlockPos at) {
+        Zombie z = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, at);
+        z.getAttribute(Attributes.MAX_HEALTH).setBaseValue(2000);
+        z.setHealth(2000);
+        BalanceLab.steady(z);
+        return z;
     }
 }

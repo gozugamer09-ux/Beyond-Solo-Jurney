@@ -312,9 +312,9 @@ public final class ArsenalAbilities {
     }
 
     /** Heals the wielder by what a blow took from its target (life drawn back through the blade). */
-    static float hitAndMeasure(Player p, LivingEntity e, float amount) {
+    static float hitAndMeasure(Signature art, Player p, LivingEntity e, float amount) {
         float before = e.getHealth() + e.getAbsorptionAmount();
-        ArsenalHits.magicHit(p, e, amount);
+        ArsenalHits.artHit(art, p, e, amount);
         return Math.max(0, before - e.getHealth() - e.getAbsorptionAmount());
     }
 
