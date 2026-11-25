@@ -70,6 +70,8 @@ public final class SkillWorldFx {
         final Skins.Look look;
         /** Took the place of an older one of its kind: it is simply there, without fading in again. */
         boolean settled;
+        /** Seconds into it by which it is over (it was put out early), else none. */
+        float endBy = Float.MAX_VALUE;
 
         Fx(SkillFxPayload p, float start, Vec3 origin, float yaw, long seed) {
             this.p = p;
@@ -91,6 +93,10 @@ public final class SkillWorldFx {
 
         /** Seconds the effect lives. */
         float life() {
+            return Math.min(endBy, natural());
+        }
+
+        private float natural() {
             float lasting = p.duration() / 20f;
             return switch (p.kind()) {
                 case CAST -> 0.8f;
@@ -171,6 +177,15 @@ public final class SkillWorldFx {
             // one set of lights of a colour per creature: a new count replaces the old one, and none takes them away
             ACTIVE.removeIf(f -> f.p.kind() == SkillFxPayload.Kind.ORBIT && f.p.entityId() == p.entityId() && f.p.color() == p.color());
             if (p.size() < 0.5f) return;
+        }
+        if ((p.kind() == SkillFxPayload.Kind.HALO || p.kind() == SkillFxPayload.Kind.WINGS || p.kind() == SkillFxPayload.Kind.VORTEX)
+                && p.size() < 0.05f) {
+            // size 0 only puts out what this one has of it (a duel over: the challenger's halo, wings, maelstrom), fading
+            float t = now(0);
+            for (Fx f : ACTIVE) {
+                if (f.p.kind() == p.kind() && f.p.entityId() == p.entityId()) f.endBy = Math.min(f.endBy, (t - f.start) / 20f + 0.5f);
+            }
+            return;
         }
         if (p.kind() == SkillFxPayload.Kind.HALO || p.kind() == SkillFxPayload.Kind.WINGS || p.kind() == SkillFxPayload.Kind.BUBBLE) {
             // cast again before it ran out: the new one takes the old one's place instead of doubling it

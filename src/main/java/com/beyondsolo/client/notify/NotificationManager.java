@@ -171,7 +171,8 @@ public final class NotificationManager {
         // results board)
         if (held || com.beyondsolo.client.breaks.BreakClient.bannerPending() || com.beyondsolo.client.worldboss.WorldBossClient.bannerPending()
                 || com.beyondsolo.client.monarch.MonarchHud.bannerUp() || com.beyondsolo.client.isle.IsleClient.bannerPending()
-                || com.beyondsolo.client.tower.TowerClient.holdsScreen() || com.beyondsolo.client.raid.RaidClient.holdsScreen()) return;
+                || com.beyondsolo.client.tower.TowerClient.holdsScreen() || com.beyondsolo.client.raid.RaidClient.holdsScreen()
+                || com.beyondsolo.client.duel.DuelHud.holdsScreen()) return;
         // With "stay open" on, a full stack makes room by retiring its oldest pop-up.
         if (keep && !WAITING.isEmpty() && shown >= MAX_VISIBLE) {
             for (Popup p : ACTIVE) {

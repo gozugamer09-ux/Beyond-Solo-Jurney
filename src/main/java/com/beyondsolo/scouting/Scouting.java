@@ -223,7 +223,7 @@ public final class Scouting {
     }
 
     /** True while a scout can walk up to the hunter: out in the overworld, on their feet, not in a fight. */
-    static boolean canVisit(ServerPlayer p) {
+    public static boolean canVisit(ServerPlayer p) {
         if (p instanceof FakePlayer || !p.isAlive() || p.isSpectator() || p.isSleeping() || !SystemAPI.isAwakened(p)) return false;
         if (!p.level().dimension().equals(Level.OVERWORLD)) return false;
         // in a fight: a monster hurt them in the last 8 s. The time of that hit is kept with the player while their tick
@@ -252,7 +252,7 @@ public final class Scouting {
 
     /** Where a scout comes from: behind the hunter, 18 to 24 blocks off on open ground (nearer under a roof). */
     @Nullable
-    static Vec3 spot(ServerLevel level, ServerPlayer p, RandomSource r) {
+    public static Vec3 spot(ServerLevel level, ServerPlayer p, RandomSource r) {
         Vec3 look = Vec3.directionFromRotation(0, p.getYRot());
         double back = Math.atan2(-look.z, -look.x);
         for (int i = 0; i < 24; i++) {
@@ -501,7 +501,11 @@ public final class Scouting {
                 }
             }
             case BOUGHT_OUT -> Notifications.send(p, SystemNotification.of(SystemNotification.Kind.INFO, t("notify.title", guild), t("notify.bought_out", guild)));
-            case WALKED_OUT -> Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT, t("notify.title", guild), t("notify.walked_out", guild)));
+            case WALKED_OUT -> {
+                Notifications.send(p, SystemNotification.of(SystemNotification.Kind.ALERT, t("notify.title", guild), t("notify.walked_out", guild)));
+                // the guild's national-level hunter comes to settle it ({@code duel.Duels})
+                com.beyondsolo.duel.Duels.walkedOut(p, c.guild());
+            }
             default -> {
             }
         }

@@ -12,13 +12,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The client's side of the association: the office, the broker's and a great guild's scout's windows as the server
- * last sent them, and the answer to the last button pressed.
+ * The client's side of the association: the office, the broker's, a great guild's scout's and a national-level
+ * hunter's challenge windows as the server last sent them, and the answer to the last button pressed.
  */
 public final class AssociationClient {
     private static CompoundTag office = new CompoundTag();
     private static CompoundTag broker = new CompoundTag();
     private static CompoundTag scout = new CompoundTag();
+    private static CompoundTag duel = new CompoundTag();
     private static Component outcome = Component.empty();
     private static boolean outcomeOk;
     private static double outcomeAt = -100;
@@ -39,6 +40,14 @@ public final class AssociationClient {
         } else if (p.screen() == Association.SCOUT) {
             scout = t;
             if (!(mc.screen instanceof ScoutScreen)) mc.setScreen(new ScoutScreen());
+        } else if (p.screen() == Association.DUEL) {
+            if (t.getBoolean("close")) {
+                // the duel begins: every association window closes
+                if (mc.screen instanceof AssociationWindow) mc.setScreen(null);
+                return;
+            }
+            duel = t;
+            if (!(mc.screen instanceof DuelScreen)) mc.setScreen(new DuelScreen());
         } else {
             office = t;
             int tab = t.getInt("tab");
@@ -60,6 +69,15 @@ public final class AssociationClient {
 
     public static CompoundTag scout() {
         return scout;
+    }
+
+    public static CompoundTag duel() {
+        return duel;
+    }
+
+    /** True while a window's portrait is being drawn: a renderer leaves the name over the head off it. */
+    public static boolean drawingPortrait() {
+        return AssociationWindow.drawingPortrait();
     }
 
     public static Component outcome() {
@@ -100,6 +118,7 @@ public final class AssociationClient {
         office = new CompoundTag();
         broker = new CompoundTag();
         scout = new CompoundTag();
+        duel = new CompoundTag();
         outcome = Component.empty();
         outcomeAt = -100;
     }

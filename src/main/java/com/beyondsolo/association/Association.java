@@ -90,10 +90,10 @@ public final class Association {
     /** On a quest with a waypoint: what the waypoint's label calls the place ({@code npc.beyondsolo.waypoint.<kind>}). */
     public static final String WAYPOINT_KIND = "wpKind";
 
-    /** The windows: the office, the broker's, a great guild's scout's ({@code scouting.Scouting}). */
-    public static final int OFFICE = 0, BROKER = 1, SCOUT = 2;
+    /** The windows: the office, the broker's, a great guild's scout's ({@code scouting.Scouting}), a national-level hunter's challenge ({@code duel.Duels}). */
+    public static final int OFFICE = 0, BROKER = 1, SCOUT = 2, DUEL = 3;
     /** The office's tabs. */
-    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3, TAB_HIRE = 4, TAB_GUILDS = 5;
+    public static final int TAB_CONTRACTS = 0, TAB_PERMITS = 1, TAB_EXAM = 2, TAB_STANDING = 3, TAB_HIRE = 4, TAB_GUILDS = 5, TAB_DUELS = 6;
     /** Contract kinds: a gate holding, one coming apart, one that has broken. */
     public static final int CLEAR = 0, UNSTABLE = 1, BREAK = 2;
     /** How far a hunter may stray from the one they talk to before the window stops answering. */
@@ -205,11 +205,17 @@ public final class Association {
         return SESSIONS.get(p.getUUID());
     }
 
+    /** The hunter is at no desk now (their window closed for them). */
+    public static void forget(ServerPlayer p) {
+        SESSIONS.remove(p.getUUID());
+    }
+
     /** True while the hunter is still at the desk the session was opened at. */
     static boolean atDesk(ServerPlayer p, Session s) {
         if (s.entity() == 0) return true;
         Entity e = p.serverLevel().getEntity(s.entity());
-        boolean desk = s.screen() == SCOUT ? e instanceof com.beyondsolo.scouting.ScoutEntity : e instanceof AssociationNpc;
+        boolean desk = s.screen() == SCOUT ? e instanceof com.beyondsolo.scouting.ScoutEntity
+                : s.screen() == DUEL ? e instanceof com.beyondsolo.duel.DuelistEntity : e instanceof AssociationNpc;
         return desk && e.isAlive() && p.level().dimension().equals(s.dimension()) && e.distanceToSqr(p) <= TALK_RANGE * TALK_RANGE;
     }
 
@@ -230,10 +236,13 @@ public final class Association {
         UUID gate = args.hasUUID("gate") ? args.getUUID("gate") : null;
         UUID offer = args.hasUUID("offer") ? args.getUUID("offer") : null;
         UUID hire = args.hasUUID("hire") ? args.getUUID("hire") : null;
+        com.beyondsolo.duel.NationalHunter who = args.contains("who") ? com.beyondsolo.duel.NationalHunter.byIndex(args.getInt("who")) : null;
         // each desk does its own business: the officer's buttons at the office, the broker's at the broker, a scout's
         // with the scout (the offers on the table may be answered at the office too)
+        // (a challenger's window answers its challenge, and nothing else)
         boolean broker = s.screen() == BROKER;
-        boolean scout = s.screen() == SCOUT;
+        boolean scout = s.screen() == SCOUT || s.screen() == DUEL;
+        boolean duel = s.screen() == DUEL;
         Outcome o = switch (a.action()) {
             case AssociationActionPayload.ACCEPT -> broker || scout || gate == null ? null : accept(p, s, gate);
             case AssociationActionPayload.DROP -> broker || scout || gate == null ? null : drop(p, gate);
@@ -245,13 +254,21 @@ public final class Association {
             case AssociationActionPayload.HIRE -> broker || scout || offer == null ? null : com.beyondsolo.rival.Hires.hire(p, s.office(), offer);
             case AssociationActionPayload.DISMISS -> broker || scout || hire == null ? null : com.beyondsolo.rival.Hires.dismiss(p, hire);
             // the great guilds' offers ({@code scouting.Scouting})
-            case AssociationActionPayload.SIGN -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.sign(p, offer);
-            case AssociationActionPayload.HOLD_OUT -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.holdOut(p, offer);
-            case AssociationActionPayload.DECLINE -> broker || offer == null ? null : com.beyondsolo.scouting.Scouting.decline(p, offer);
+            case AssociationActionPayload.SIGN -> broker || duel || offer == null ? null : com.beyondsolo.scouting.Scouting.sign(p, offer);
+            case AssociationActionPayload.HOLD_OUT -> broker || duel || offer == null ? null : com.beyondsolo.scouting.Scouting.holdOut(p, offer);
+            case AssociationActionPayload.DECLINE -> broker || duel || offer == null ? null : com.beyondsolo.scouting.Scouting.decline(p, offer);
             case AssociationActionPayload.BREAK_CONTRACT -> broker || scout ? null : com.beyondsolo.scouting.Scouting.breakContract(p);
+            // the national-level hunters' challenges ({@code duel.Duels}): answered to the challenger or at the office
+            case AssociationActionPayload.DUEL_ACCEPT -> broker || (scout && !duel) ? null : com.beyondsolo.duel.Duels.accept(p);
+            case AssociationActionPayload.DUEL_LATER -> broker || (scout && !duel) ? null : com.beyondsolo.duel.Duels.later(p);
+            case AssociationActionPayload.DUEL_DECLINE -> broker || (scout && !duel) ? null : com.beyondsolo.duel.Duels.decline(p);
+            case AssociationActionPayload.DUEL_CHALLENGE -> broker || scout || who == null ? null : com.beyondsolo.duel.Duels.ask(p, who);
             default -> null;
         };
+        // the duel began: its windows are closed already
+        if (com.beyondsolo.duel.Duels.running(p.getUUID()) != null && a.action() == AssociationActionPayload.DUEL_ACCEPT && o != null && o.ok()) return;
         if (s.screen() == BROKER) Broker.open(p, s, o);
+        else if (duel) com.beyondsolo.duel.Duels.open(p, s, o);
         else if (scout) com.beyondsolo.scouting.Scouting.open(p, s, o);
         else open(p, s, -1, o);
     }
@@ -754,6 +771,8 @@ public final class Association {
         t.put("hire", com.beyondsolo.rival.Hires.officeTag(p, s.office()));
         // the great guilds' offers and the hunter's contract
         t.put("guilds", com.beyondsolo.scouting.Scouting.officeTag(p));
+        // the national-level hunters: the hunter's duels with them and the challenge standing
+        t.put("duels", com.beyondsolo.duel.Duels.officeTag(p));
         return t;
     }
 

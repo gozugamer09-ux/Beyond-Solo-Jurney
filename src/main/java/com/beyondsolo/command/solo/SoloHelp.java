@@ -203,6 +203,18 @@ final class SoloHelp {
                 new Line("news rankup [player]", "news.rankup"),
                 new Line("news list", "news.list"),
                 new Line("news clear", "news.clear")));
+        TOPICS.put("duels", List.of(
+                new Line("duel challenge <hunter> [test|passed|grudge|asked] [players]", "duel.challenge"),
+                new Line("duel send [players]", "duel.send"),
+                new Line("duel talk [player]", "duel.talk"),
+                new Line("duel lapse [players]", "duel.lapse"),
+                new Line("duel start <hunter> [players]", "duel.start"),
+                new Line("duel bell [players]", "duel.bell"),
+                new Line("duel move <move> [players]", "duel.move"),
+                new Line("duel unleash [players]", "duel.unleash"),
+                new Line("duel win|lose|draw|call [players]", "duel.end"),
+                new Line("duel info [player]", "duel.info"),
+                new Line("duel reset [players]", "duel.reset")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }
