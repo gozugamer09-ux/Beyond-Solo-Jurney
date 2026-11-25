@@ -34,10 +34,50 @@ public final class SkillFx {
     private static final Map<Integer, long[]> RECENT = new HashMap<>();
     private static final int RECENT_TICKS = 200;
 
+    // ---- a skill whose first blow comes later (a stance, a held breath): what it schedules carries the cast along ----
+
+    /** A cast that went off: its caster and skill, the tick, and whether its body still waits for its first blow. */
+    private static final class Cast {
+        final ServerPlayer player;
+        final Skill skill;
+        final long at;
+        boolean awaiting;
+
+        Cast(ServerPlayer player, Skill skill, long at) {
+            this.player = player;
+            this.skill = skill;
+            this.at = at;
+        }
+    }
+
+    /** The cast whose action runs now. */
+    private static Cast current;
+    /** The cast whose scheduled part runs now, or null. */
+    private static Cast late;
+
+    /**
+     * A task scheduled now ({@code ServerScheduler}) runs as part of the cast that scheduled it, so the first effect
+     * a skill shows after its cast is still known as that skill's (see {@link #note(String, int)}).
+     */
+    static Runnable carry(Runnable task) {
+        Cast c = casting ? current : late;
+        if (c == null) return task;
+        return () -> {
+            Cast was = late;
+            late = c;
+            try {
+                task.run();
+            } finally {
+                late = was;
+            }
+        };
+    }
+
     /** A skill's action is about to run (server thread). */
     static void beginCast(ServerPlayer player, Skill skill) {
         SkillSounds.enter();
         casting = true;
+        current = new Cast(player, skill, player.level().getGameTime());
         look = "";
         variant = 0;
         element = skill.element().ordinal();
@@ -74,14 +114,35 @@ public final class SkillFx {
 
     /** {@link #note(SkillFxPayload.Kind, int)} for the rune skills' effects ({@code rune:} and the kind's name). */
     public static void note(String name, int duration) {
-        if (!casting || !look.isEmpty()) return;
-        look = name;
-        variant = duration;
+        if (casting) {
+            if (!look.isEmpty()) return;
+            look = name;
+            variant = duration;
+            return;
+        }
+        // a cast that showed nothing shows its first blow now: the caster's body acts that out, now
+        Cast c = late;
+        if (c == null || !c.awaiting || c.player.isRemoved()) return;
+        c.awaiting = false;
+        int delay = (int) Math.max(1, c.player.level().getGameTime() - c.at);
+        Gestures.remember(c.skill, name, duration, delay);
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(c.player, new SkillCastPayload(c.player.getId(), c.skill.path(), name, duration));
     }
 
-    /** The cast went off: everyone who sees the caster sees them act it out. */
+    /**
+     * The cast went off: everyone who sees the caster sees them act it out. A cast that showed nothing yet waits for
+     * its first blow; when that one is known to come soon, the body is only told then.
+     */
     static void gesture(ServerPlayer player, Skill skill) {
+        Cast c = current;
+        current = null;
+        if (look.isEmpty() && c != null) {
+            c.awaiting = true;
+            int delay = Gestures.delay(skill);
+            if (delay > 0 && delay <= Gestures.MAX_DELAY) return;
+        }
         PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new SkillCastPayload(player.getId(), skill.path(), look, variant));
+        if (!look.isEmpty()) Gestures.remember(skill, look, variant, 0);
         look = "";
     }
 

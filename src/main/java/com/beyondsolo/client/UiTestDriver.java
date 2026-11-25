@@ -48,6 +48,8 @@ import java.util.Deque;
  * keep on|off                          "stay open" pop-ups
  * font on|off                          System typeface
  * hide                                 press the hide key
+ * moments clear                        drop every queued Skill Acquired / level up moment (they cover the shot)
+ * chat clear                           empty the chat (command errors, server lines)
  * cmd &lt;command&gt;                        run a server command as the player (no leading slash)
  * look &lt;yaw&gt; &lt;pitch&gt;                   turn the camera
  * timescale &lt;x&gt;                        slow down / speed up UI animations
@@ -349,6 +351,8 @@ public final class UiTestDriver {
             case "keep" -> ClientConfig.KEEP_POPUPS.set(arg.equals("on"));
             case "font" -> ClientConfig.SYSTEM_FONT.set(arg.equals("on"));
             case "hide" -> ClientEvents.hideKeyPressed();
+            case "moments" -> com.beyondsolo.client.skill.SkillOverlay.reset();
+            case "chat" -> mc.gui.getChat().clearMessages(false);
             case "cmd" -> mc.player.connection.sendCommand(arg);
             case "look" -> {
                 String[] a = arg.split(" ");

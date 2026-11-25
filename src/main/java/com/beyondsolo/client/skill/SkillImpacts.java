@@ -108,6 +108,8 @@ public final class SkillImpacts {
             Vec3 dir = direction(caster, e);
             Vec3 at = contact(e, dir);
             if (feedback) strike(e, w, kill, repeat, dir, now);
+            // what it leaves behind: a mark on the ground under a heavy blow, a last breath off what it felled
+            if (burst < 6 && (!repeat || w >= SkillFeel.HEAVY)) SkillAftermath.blow(level, e, element, element.color(), w, kill, p.ultimate() && !repeat);
             // a crowd struck at once: the first few get the whole burst, the rest a spark and a flash
             burst(level, element, at, dir, burst++ < 6 ? w : -1, kill, repeat, e);
             // the heaviest three are heard (a storm's ticks: the first)
@@ -347,20 +349,53 @@ public final class SkillImpacts {
     // ================================================================ a cast goes off
 
     /**
-     * A skill went off ({@code SkillGestures}): the sound of its element leaving the hunter, and for an ultimate its
-     * call and the screen's answer ({@link SkillScreen}, {@link SkillCutIn}).
+     * A hunter winds up for a skill ({@code SkillGestures}): a heavy skill's power is heard gathering; an ultimate
+     * calls out now, the screen darkens round the hunter with lines rushing in, and the cut-in names it, gone as the
+     * blow comes ({@link SkillScreen}, {@link SkillCutIn}).
      */
-    static void cast(AbstractClientPlayer player, Skill skill, String gesture) {
+    static void windup(AbstractClientPlayer player, Skill skill, String gesture, int ticks) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        boolean self = player == mc.player;
+        Vec3 at = player.position().add(0, player.getBbHeight() * 0.6, 0);
+        if (SkillFeel.ultimate(skill)) {
+            play(mc.level, at, SkillSounds.ULTIMATE.get(), 1f, 1f);
+            play(mc.level, at, SkillSounds.CHARGE.get(), 0.9f, Mth.clamp(1.3f / Math.max(0.4f, ticks / 20f + 0.2f), 0.9f, 1.6f));
+            SkillScreen.ultimate(player, skill, self);
+            if (self && !skill.sovereign()) SkillCutIn.show(skill, ticks / 20f);
+        } else if (SkillFeel.stature(skill) >= SkillFeel.HEAVY) {
+            play(mc.level, at, SkillSounds.CHARGE.get(), 0.55f, 1.5f);
+        }
+    }
+
+    /** A blade starts its swing after a wind-up: the air it cuts is heard just before the blow. */
+    static void swing(AbstractClientPlayer player, String gesture) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        boolean blade = switch (gesture) {
+            case "slash", "slash_back", "chop", "claw", "spin", "sweep", "lunge", "throw", "throw_side" -> true;
+            default -> false;
+        };
+        if (!blade) return;
+        Vec3 at = player.position().add(0, player.getBbHeight() * 0.6, 0);
+        play(mc.level, at, SkillSounds.SWING.get(), player == mc.player ? 0.45f : 0.35f, FxParticles.rf(1.05f, 1.2f));
+    }
+
+    /**
+     * A skill went off ({@code SkillGestures}): the sound of its element leaving the hunter. One cast without a
+     * wind-up ({@code wound} false: a command, a crown key) still makes an ultimate's call and the screen's answer here.
+     */
+    static void cast(AbstractClientPlayer player, Skill skill, String gesture, boolean wound) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         boolean self = player == mc.player;
         Vec3 at = player.position().add(0, player.getBbHeight() * 0.6, 0);
         play(mc.level, at, SkillSounds.cast(skill.element()), self ? 0.75f : 0.6f, FxParticles.rf(0.94f, 1.06f));
-        if (!SkillFeel.ultimate(skill)) return;
+        if (wound || !SkillFeel.ultimate(skill)) return;
         play(mc.level, at, SkillSounds.ULTIMATE.get(), 1f, 1f);
         SkillScreen.ultimate(player, skill, self);
         // a sovereign's power names itself already (the authority banner)
-        if (self && !skill.sovereign()) SkillCutIn.show(skill);
+        if (self && !skill.sovereign()) SkillCutIn.show(skill, 1.1f);
     }
 
     // ================================================================ the hunter's view

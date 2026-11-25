@@ -80,7 +80,7 @@ public final class ModNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (!(ctx.player() instanceof ServerPlayer player)) return;
                     switch (payload.action()) {
-                        case SkillActionPayload.CAST -> com.beyondsolo.skill.SkillAPI.castSlot(player, payload.slot());
+                        case SkillActionPayload.CAST -> com.beyondsolo.skill.SkillWindup.pressSlot(player, payload.slot());
                         case SkillActionPayload.ASSIGN -> com.beyondsolo.skill.SkillAPI.assign(player, payload.slot(), payload.skill());
                         default -> {}
                     }

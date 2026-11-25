@@ -20,24 +20,28 @@ import java.util.Locale;
  * the {@code combat.screenEffects} option.
  */
 public final class SkillCutIn {
-    private static final float LIFE = 1.35f;
+    /** Seconds it takes to slide away. */
+    private static final float OUT = 0.3f;
 
     private static double at = -10;
+    private static float life = 1.35f;
     private static Component name = Component.empty();
     private static int color = 0xFFFFFFFF;
 
-    static void show(Skill skill) {
+    /** Calls the skill across the screen; it starts sliding away as the blow comes, {@code release} seconds from now. */
+    static void show(Skill skill, float release) {
         at = Anim.now();
+        life = Math.max(0.9f, Math.min(1.6f, release + OUT - 0.05f));
         name = skill.displayName();
         color = 0xFF000000 | skill.color();
     }
 
     static void render(GuiGraphics g, DeltaTracker delta) {
         float t = Anim.since(at);
-        if (t < 0 || t >= LIFE || !ClientConfig.SCREEN_EFFECTS.get()) return;
+        if (t < 0 || t >= life || !ClientConfig.SCREEN_EFFECTS.get()) return;
         int w = g.guiWidth(), h = g.guiHeight();
         float in = Anim.outCubic(Anim.window(t, 0, 0.16f));
-        float out = Anim.window(t, LIFE - 0.3f, LIFE);
+        float out = Anim.window(t, life - OUT, life);
         float slide = -(1 - in) * w * 0.7f + Anim.inCubic(out) * w * 0.7f;
         float cy = h * 0.3f;
         float bh = 36;
