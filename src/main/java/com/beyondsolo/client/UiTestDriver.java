@@ -35,6 +35,7 @@ import java.util.Deque;
  * chronicle titles [id|category|all]   what the CHRONICLE page shows: a title, or the list filtered by category
  * chronicle rankings [hunters|citadel|rush|gates] [tier]   ... a leaderboard (tier: e..s or sovereign for the rush)
  * chronicle journal [creatures|bosses|realms|arsenal] [page]   ... a journal section and page (page id or bare name)
+ * chronicle news                       ... the hunter news
  * shop buy|sell &lt;category&gt; [entry] what the Shop tab shows (category: featured, supplies, remedies, weapons, armor, special)
  * storagebtn &lt;0-3&gt;                   press a storage window button (prev, next, stack in, sort)
  * license                              hold up the hunter license from the inventory

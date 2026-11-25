@@ -122,7 +122,7 @@ final class SoloHelp {
                 new Line("light power sanctum|judgement|seraph|authority [players]", "light.power"),
                 new Line("light reset [players]", "light.reset")));
         TOPICS.put("association", List.of(
-                new Line("association open [contracts|permits|exam|standing]", "association.open"),
+                new Line("association open [contracts|permits|exam|standing|hire|guilds]", "association.open"),
                 new Line("association broker", "association.broker"),
                 new Line("association post", "association.post"),
                 new Line("association merit add|set <merit> [players]", "association.merit"),
@@ -188,6 +188,21 @@ final class SoloHelp {
                 new Line("hire hunter [rank] [class] [players]", "hire.hunter"),
                 new Line("hire dismiss [players]", "hire.dismiss"),
                 new Line("hire list [player]", "hire.list")));
+        TOPICS.put("scouting", List.of(
+                new Line("scout offer <guild>|all [players]", "scout.offer"),
+                new Line("scout send [players]", "scout.send"),
+                new Line("scout talk [player]", "scout.talk"),
+                new Line("scout lapse [players]", "scout.lapse"),
+                new Line("scout list [player]", "scout.list"),
+                new Line("scout reset [players]", "scout.reset"),
+                new Line("contract sign <guild> [players]", "contract.sign"),
+                new Line("contract expire [players]", "contract.expire"),
+                new Line("contract end [players]", "contract.end"),
+                new Line("contract info [player]", "contract.info"),
+                new Line("news ambient [count]", "news.ambient"),
+                new Line("news rankup [player]", "news.rankup"),
+                new Line("news list", "news.list"),
+                new Line("news clear", "news.clear")));
         TOPICS.put("dev", List.of(
                 new Line("dev ...", "dev")));
     }

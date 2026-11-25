@@ -37,7 +37,7 @@ import java.util.UUID;
  * contract (the first contract on the board around the player), record, reset.
  */
 final class SoloAssociation {
-    static final List<String> TABS = List.of("contracts", "permits", "exam", "standing", "hire");
+    static final List<String> TABS = List.of("contracts", "permits", "exam", "standing", "hire", "guilds");
 
     static void register(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.literal("association")

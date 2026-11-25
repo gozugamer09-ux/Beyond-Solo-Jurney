@@ -79,6 +79,8 @@ public final class GoldHud {
     }
 
     private static float bottom;
+    /** Where the capsule sits: it eases down under the floating pop-ups while they show, and back up. */
+    private static float atY = Float.NaN;
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
@@ -96,8 +98,13 @@ public final class GoldHud {
         }
 
         float sw = g.guiWidth();
-        // on the right edge, below the corner that toasts and status-effect icons share
-        float y = Math.max(EffectsHud.bottom() + 9, g.guiHeight() * 0.3f);
+        // on the right edge, below the corner that toasts and status-effect icons share, and under the pop-ups that
+        // float at this side while they show (else a long one's text runs under the capsule)
+        float want = Math.max(EffectsHud.bottom() + 9, g.guiHeight() * 0.3f);
+        float side = com.beyondsolo.client.notify.NotificationRenderer.sideBottom();
+        if (side > 0) want = Math.max(want, side + 2);
+        atY = Float.isNaN(atY) || visible < 0.05f ? want : Anim.approach(atY, want, 10f);
+        float y = atY;
         float h = 18;
         String amount = EconomyClient.format(Math.round(shown));
         float tw = SysFont.width(amount, 8.5f, true);
