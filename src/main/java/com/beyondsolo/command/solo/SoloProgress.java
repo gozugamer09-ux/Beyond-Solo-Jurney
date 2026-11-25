@@ -2,6 +2,7 @@ package com.beyondsolo.command.solo;
 
 import com.beyondsolo.awakening.AwakeningData;
 import com.beyondsolo.awakening.AwakeningService;
+import com.beyondsolo.combat.ArsenalAbilities;
 import com.beyondsolo.combat.Buildups;
 import com.beyondsolo.depths.WeaknessLog;
 import com.beyondsolo.economy.Economy;
@@ -316,6 +317,7 @@ final class SoloProgress {
             SystemAPI.restoreMana(p, d.maxMana());
             SkillAPI.resetCooldowns(p);
         }
+        ArsenalAbilities.resetCooldowns(p);
         return Solo.t("heal.done", p.getDisplayName());
     }
 
@@ -330,7 +332,10 @@ final class SoloProgress {
                 if (JobAPI.subclass(p) != null) back += SkillAPI.grantAdvanced(p).size() + SkillAPI.grantSubclass(p).size();
                 return Solo.t("reset.skills", p.getDisplayName(), back);
             }
-            case "cooldowns" -> SkillAPI.resetCooldowns(p);
+            case "cooldowns" -> {
+                SkillAPI.resetCooldowns(p);
+                ArsenalAbilities.resetCooldowns(p);
+            }
             case "stats" -> {
                 Solo.needEvaluated(p);
                 int back = SystemAPI.refundStats(p);

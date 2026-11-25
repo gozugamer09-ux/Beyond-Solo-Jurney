@@ -1,40 +1,38 @@
 package com.beyondsolo.combat;
 
+import com.beyondsolo.item.arsenal.Arsenal;
 import com.beyondsolo.item.arsenal.ArsenalWeapon;
 import com.beyondsolo.item.arsenal.Signature;
 import com.beyondsolo.network.SignatureFxPayload;
-import com.beyondsolo.system.Balance;
 import com.beyondsolo.util.ServerScheduler;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
- * Signature arts of the mythic and divine weapons (right-click). Each art has two beats: the wind-up starts the
- * wielder's own body animation and gathering effects, and the impact lands on the animation's strike frame
- * ({@link Signature#impactTicks()}) with that art's own visuals, sounds and screen effect (drawn by the client's
- * SignatureFx). The cooldown starts at once, so an art can't be queued twice.
+ * Signature arts of the legendary, mythic and divine weapons. A right-click art ({@link #unleash}) has a wind-up that
+ * starts the wielder's own body animation and gathering effects, its first blow on the animation's strike frame
+ * ({@link Signature#impactTicks()}), and for the bigger arts later beats of its own. The cooldown starts at once, so an
+ * art can't be queued twice. The bows' arts are held draws: {@link #charged} when the string has been held long enough,
+ * {@link #loosing} as the arrow leaves. The arts themselves are in {@link LegendaryArts}, {@link MythicArts} and
+ * {@link DivineArts}; the client draws each one ({@code ArtFx}) from the payloads sent here.
+ *
+ * <p>Every art deals magic damage through {@link ArsenalHits#magicHit} sized with {@code Balance.flatDamage} plus a
+ * share of the wielder's attack, inside the final balance pass's ceilings: heals go through {@code Balance.healRaw},
+ * nothing makes anyone untouchable.</p>
  */
 public final class ArsenalAbilities {
     public static void unleash(Player player, ItemStack stack, ArsenalWeapon w) {
@@ -48,194 +46,276 @@ public final class ArsenalAbilities {
         player.getCooldowns().addCooldown(stack.getItem(), sig.cooldownSeconds() * 20);
         windup(level, player, sig);
         send(player, sig, SignatureFxPayload.WINDUP, List.of());
-        if (player instanceof ServerPlayer sp) {
-            sp.displayClientMessage(sig.displayName().copy().withStyle(s -> s.withColor(sig.color()).withBold(true)), true);
-        }
         ServerScheduler.schedule(sig.impactTicks(), () -> {
-            if (!player.isAlive() || player.isRemoved() || player.level() != level) return;
-            float power = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-            List<Vec3> points = switch (sig) {
-                case INFERNAL_REND -> infernalRend(level, player);
-                case ABSOLUTE_ZERO -> absoluteZero(level, player);
-                case HEAVENS_VERDICT -> heavensVerdict(level, player, power);
-                case CATACLYSM_CLEAVE -> cataclysmCleave(level, player, power);
-                case DRAGONS_WRATH -> dragonsWrath(level, player, power);
-                case DEVOURING_STAR -> devouringStar(level, player);
-                case COLOSSUS_STANCE -> colossusStance(level, player);
-                case VERDANT_BLESSING -> verdantBlessing(level, player);
-                case STARFALL -> List.of();
-            };
+            if (!alive(player, level)) return;
+            List<Vec3> points = impact(level, player, sig, power(player));
             send(player, sig, SignatureFxPayload.IMPACT, points);
         });
+    }
+
+    /** The art's first blow, on the strike frame. Returns the points its look needs. */
+    private static List<Vec3> impact(ServerLevel level, Player p, Signature sig, float power) {
+        return switch (sig) {
+            case INFERNAL_REND -> MythicArts.infernalRend(level, p, power);
+            case ABSOLUTE_ZERO -> MythicArts.absoluteZero(level, p, power);
+            case HEAVENS_VERDICT -> MythicArts.heavensVerdict(level, p, power);
+            case CATACLYSM_CLEAVE -> DivineArts.cataclysmCleave(level, p, power);
+            case DRAGONS_WRATH -> DivineArts.dragonsWrath(level, p, power);
+            case DEVOURING_STAR -> DivineArts.devouringStar(level, p);
+            case COLOSSUS_STANCE -> DivineArts.colossusStance(level, p, power);
+            case VERDANT_BLESSING -> DivineArts.verdantBlessing(level, p);
+            case STORMBREAK -> LegendaryArts.stormbreak(level, p, power);
+            case TITANS_BARRAGE -> LegendaryArts.titansBarrage(level, p, power);
+            case THREE_HEADED_MAW -> LegendaryArts.threeHeadedMaw(level, p, power);
+            case CONSTELLATION -> LegendaryArts.constellation(level, p);
+            case SAINTS_DAWN -> LegendaryArts.saintsDawn(level, p);
+            case VEILSTEP -> LegendaryArts.veilstep(level, p, power);
+            case BLOOD_PRICE -> LegendaryArts.bloodPrice(level, p, power);
+            case SUNDERING_VERDICT -> LegendaryArts.sunderingVerdict(level, p, power);
+            case PYRE_OF_OATHS -> LegendaryArts.pyreOfOaths(level, p, power);
+            case NIGHTGLASS_FAN -> LegendaryArts.nightglassFan(level, p, power);
+            case REQUIEM_OF_THORNS -> LegendaryArts.requiemOfThorns(level, p, power);
+            case STARFALL, GALE_LANCE -> List.of();
+        };
     }
 
     /** Sounds of the wind-up, while the body animation gathers itself. */
     private static void windup(ServerLevel level, Player p, Signature sig) {
         switch (sig) {
-            case INFERNAL_REND -> sound(level, p, SoundEvents.FIRECHARGE_USE, 0.8f, 0.5f);
-            case ABSOLUTE_ZERO -> sound(level, p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.2f, 0.6f);
+            case INFERNAL_REND -> {
+                sound(level, p, SoundEvents.FIRECHARGE_USE, 0.9f, 0.5f);
+                sound(level, p, SoundEvents.BLAZE_AMBIENT, 0.7f, 0.5f);
+            }
+            case ABSOLUTE_ZERO -> {
+                sound(level, p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.3f, 0.6f);
+                sound(level, p, SoundEvents.POWDER_SNOW_STEP, 1.2f, 0.5f);
+            }
             case HEAVENS_VERDICT -> {
                 sound(level, p, SoundEvents.BEACON_ACTIVATE, 1.2f, 1.6f);
-                sound(level, p, SoundEvents.LIGHTNING_BOLT_THUNDER, 0.5f, 1.8f);
+                sound(level, p, SoundEvents.LIGHTNING_BOLT_THUNDER, 0.6f, 1.8f);
             }
-            case CATACLYSM_CLEAVE -> sound(level, p, SoundEvents.BLAZE_AMBIENT, 1f, 0.5f);
-            case DRAGONS_WRATH -> sound(level, p, SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1f, 1.6f);
-            case DEVOURING_STAR -> sound(level, p, SoundEvents.BEACON_AMBIENT, 1.5f, 1.8f);
-            case COLOSSUS_STANCE -> sound(level, p, SoundEvents.IRON_GOLEM_ATTACK, 1f, 0.6f);
-            case VERDANT_BLESSING -> sound(level, p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.2f, 0.6f);
+            case CATACLYSM_CLEAVE -> {
+                sound(level, p, SoundEvents.BLAZE_AMBIENT, 1.2f, 0.45f);
+                sound(level, p, SoundEvents.FIRECHARGE_USE, 1f, 0.6f);
+                sound(level, p, SoundEvents.RESPAWN_ANCHOR_CHARGE, 1f, 0.6f);
+            }
+            case DRAGONS_WRATH -> {
+                sound(level, p, SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1f, 1.6f);
+                sound(level, p, SoundEvents.WARDEN_HEARTBEAT, 1.4f, 1.4f);
+            }
+            case DEVOURING_STAR -> {
+                sound(level, p, SoundEvents.BEACON_AMBIENT, 1.6f, 1.8f);
+                sound(level, p, SoundEvents.PORTAL_TRIGGER, 0.5f, 1.9f);
+            }
+            case COLOSSUS_STANCE -> {
+                sound(level, p, SoundEvents.IRON_GOLEM_ATTACK, 1.1f, 0.6f);
+                sound(level, p, SoundEvents.BEACON_POWER_SELECT, 1f, 0.6f);
+            }
+            case VERDANT_BLESSING -> {
+                sound(level, p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.3f, 0.6f);
+                sound(level, p, SoundEvents.ROOTED_DIRT_BREAK, 1.2f, 0.6f);
+            }
+            case STORMBREAK -> sound(level, p, SoundEvents.TRIDENT_RIPTIDE_1.value(), 1f, 1.3f);
+            case TITANS_BARRAGE -> sound(level, p, SoundEvents.ARMOR_EQUIP_IRON.value(), 1.2f, 0.7f);
+            case THREE_HEADED_MAW -> {
+                sound(level, p, SoundEvents.WOLF_GROWL, 1.2f, 0.5f);
+                sound(level, p, SoundEvents.FIRECHARGE_USE, 0.8f, 0.7f);
+            }
+            case CONSTELLATION -> sound(level, p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.2f, 1.5f);
+            case SAINTS_DAWN -> sound(level, p, SoundEvents.BEACON_ACTIVATE, 1f, 1.4f);
+            case VEILSTEP -> sound(level, p, SoundEvents.ENDERMAN_AMBIENT, 0.6f, 1.6f);
+            case BLOOD_PRICE -> sound(level, p, SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, 1f, 0.6f);
+            case SUNDERING_VERDICT -> sound(level, p, SoundEvents.BEACON_POWER_SELECT, 1.2f, 0.8f);
+            case PYRE_OF_OATHS -> sound(level, p, SoundEvents.BLAZE_AMBIENT, 1f, 0.7f);
+            case NIGHTGLASS_FAN -> sound(level, p, SoundEvents.AMETHYST_CLUSTER_PLACE, 1.2f, 0.8f);
+            case REQUIEM_OF_THORNS -> sound(level, p, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.5f);
             default -> {}
         }
     }
 
-    static void send(LivingEntity p, Signature sig, int phase, List<Vec3> points) {
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(p, new SignatureFxPayload(p.getId(), sig, phase, points));
+    // ---------------------------------------------------------------- the bows' drawn arts
+
+    private static final String DRAW_READY = "beyondsolo.art_ready.";
+    private static final String LOOSING = "beyondsolo.art_loosing";
+
+    /** Whether the wielder's drawn art is off its cooldown (kept apart from the bow's own: that would stop it shooting). */
+    public static boolean drawReady(Player p, Signature sig) {
+        return p.level().getGameTime() >= p.getPersistentData().getLong(DRAW_READY + sig.key());
     }
 
-    // ---------------------------------------------------------------- mythic
-
-    /** Hellsovereign's Fang: six seconds of hellfire on every strike. */
-    static List<Vec3> infernalRend(ServerLevel level, Player p) {
-        p.addEffect(new MobEffectInstance(ModEffects.INFERNAL_REND, 6 * 20, 0, false, true, true));
-        sound(level, p, SoundEvents.BLAZE_SHOOT, 1.2f, 0.6f);
-        sound(level, p, SoundEvents.GHAST_SHOOT, 0.7f, 0.5f);
-        return List.of();
+    /** Seconds until the drawn art can be loosed again (0 when it can). */
+    public static int drawCooldownLeft(Player p, Signature sig) {
+        long left = p.getPersistentData().getLong(DRAW_READY + sig.key()) - p.level().getGameTime();
+        return left <= 0 ? 0 : (int) ((left + 19) / 20);
     }
 
-    /** Winterborne Requiem: freeze everything nearby. Points: the frozen foes. */
-    static List<Vec3> absoluteZero(ServerLevel level, Player p) {
-        List<Vec3> frozen = new ArrayList<>();
-        for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 7)) {
-            ArsenalHits.freeze(e, p, 4 * 20);
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f));
-            if (frozen.size() < 16) frozen.add(e.position());
+    /**
+     * Every weapon art the player has used is ready again: the right-click arts' weapon cooldowns and the bows' drawn
+     * arts (/solo heal, /solo reset cooldowns).
+     */
+    public static void resetCooldowns(ServerPlayer p) {
+        for (var item : Arsenal.everything()) {
+            if (item.get() instanceof ArsenalWeapon w && w.signature() != null) p.getCooldowns().removeCooldown(item.get());
         }
-        sound(level, p, SoundEvents.GLASS_BREAK, 1.4f, 0.5f);
-        sound(level, p, SoundEvents.POWDER_SNOW_BREAK, 1.4f, 0.6f);
-        sound(level, p, SoundEvents.AMETHYST_CLUSTER_BREAK, 1.2f, 0.5f);
-        return frozen;
-    }
-
-    /** Stormcaller's Edict: lightning falls on up to five foes. Points: where it struck. */
-    static List<Vec3> heavensVerdict(ServerLevel level, Player p, float power) {
-        List<LivingEntity> foes = ArsenalHits.foesAround(p, p.position(), 10).stream()
-                .sorted(Comparator.comparingDouble(e -> e.distanceToSqr(p))).limit(5).toList();
-        List<Vec3> struck = new ArrayList<>();
-        for (LivingEntity e : foes) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 8f) + power * 0.6f);
-            struck.add(e.position());
+        for (Signature sig : Signature.values()) {
+            if (!sig.drawn() || !p.getPersistentData().contains(DRAW_READY + sig.key())) continue;
+            p.getPersistentData().remove(DRAW_READY + sig.key());
+            PacketDistributor.sendToPlayer(p, new SignatureFxPayload(p.getId(), sig, SignatureFxPayload.READY, List.of()));
         }
-        if (struck.isEmpty()) struck.add(p.position().add(p.getLookAngle().multiply(1, 0, 1).normalize().scale(4)));
-        sound(level, p, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.6f, 0.9f);
-        for (Vec3 at : struck) level.playSound(null, at.x, at.y, at.z, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.PLAYERS, 1.4f, 0.8f);
-        return struck;
     }
 
-    // ---------------------------------------------------------------- divine
-
-    /** Ruinbringer (warrior): a burning cleave that tears a wedge of ground in front of the wielder. Points: origin, tip. */
-    static List<Vec3> cataclysmCleave(ServerLevel level, Player p, float power) {
-        Vec3 look = p.getLookAngle().multiply(1, 0, 1).normalize();
-        Vec3 origin = p.position();
-        for (LivingEntity e : ArsenalHits.foesAround(p, origin, 7.5)) {
-            Vec3 to = e.position().subtract(origin).multiply(1, 0, 1);
-            if (to.lengthSqr() > 0.01 && to.normalize().dot(look) < Math.cos(Math.toRadians(40))) continue;
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 10f) + power);
-            Statuses.apply(e, DamageElement.FIRE, 60, p);
-            e.push(look.x * 0.6, 0.55, look.z * 0.6);
-            e.hurtMarked = true;
-        }
-        sound(level, p, SoundEvents.GENERIC_EXPLODE.value(), 1.2f, 0.7f);
-        sound(level, p, SoundEvents.PLAYER_ATTACK_SWEEP, 1.4f, 0.5f);
-        sound(level, p, SoundEvents.BLAZE_SHOOT, 1f, 0.5f);
-        return List.of(origin, origin.add(look.scale(7.5)));
+    /** What the Colossus Stance's bulwark has taken so far, or -1 when none stands. */
+    public static float bulwarkTaken(Player p) {
+        return DivineArts.bastionTaken(p);
     }
 
-    /** Calamity Fang (assassin): dash through everything in a line, leaving crimson wounds behind. Points: from, to, then the cut foes. */
-    static List<Vec3> dragonsWrath(ServerLevel level, Player p, float power) {
-        Vec3 from = p.position();
-        Vec3 look = p.getLookAngle().multiply(1, 0, 1).normalize();
-        Vec3 want = from.add(look.scale(9));
-        BlockHitResult wall = level.clip(new ClipContext(from.add(0, 0.6, 0), want.add(0, 0.6, 0),
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
-        Vec3 to = wall.getType() == HitResult.Type.MISS ? want : wall.getLocation().subtract(look.scale(0.6)).add(0, -0.6, 0);
-        List<Vec3> points = new ArrayList<>(List.of(from, to));
-        AABB path = new AABB(from, to).inflate(1.4, 1.2, 1.4);
-        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, path, e -> ArsenalHits.isFoe(p, e))) {
-            ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 8f) + power * 0.8f);
-            Statuses.apply(e, DamageElement.CRIMSON, 50, p);
-            if (points.size() < 16) points.add(e.position());
-        }
-        p.teleportTo(to.x, to.y, to.z);
-        p.resetFallDistance();
-        p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 10, 4, false, false, false));
-        sound(level, p, SoundEvents.ENDER_DRAGON_FLAP, 1.2f, 1.4f);
-        sound(level, p, SoundEvents.PLAYER_ATTACK_SWEEP, 1.2f, 1.3f);
-        level.playSound(null, from.x, from.y, from.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.8f, 1.6f);
-        return points;
-    }
-
-    /** Eye of the Insatiable (mage): a star that devours whatever it hits, up to 28 blocks away. Points: muzzle, impact. */
-    static List<Vec3> devouringStar(ServerLevel level, Player p) {
-        Vec3 eye = p.getEyePosition();
-        Vec3 end = eye.add(p.getLookAngle().scale(28));
-        BlockHitResult block = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
-        Vec3 stop = block.getType() == HitResult.Type.MISS ? end : block.getLocation();
-        EntityHitResult entity = ProjectileUtil.getEntityHitResult(level, p, eye, stop, new AABB(eye, stop).inflate(1),
-                e -> e instanceof LivingEntity l && ArsenalHits.isFoe(p, l), 0.3f);
-        Vec3 at = entity != null ? entity.getLocation() : stop;
-        float spell = 1f + (float) p.getAttributeValue(ModAttributes.SPELL_POWER);
-        for (LivingEntity e : ArsenalHits.foesAround(p, at, 4)) ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 12f) * spell);
-        level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.2f, 1.3f);
-        level.playSound(null, at.x, at.y, at.z, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 1.2f, 0.6f);
-        sound(level, p, SoundEvents.EVOKER_CAST_SPELL, 1.2f, 0.7f);
-        return List.of(eye.add(p.getLookAngle().scale(1.2)), at);
-    }
-
-    /** Colossus Aegis (guardian): plant the hammer, draw every foe's eye and shrug off their blows. Points: knocked-back foes. */
-    static List<Vec3> colossusStance(ServerLevel level, Player p) {
-        p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 8 * 20, 1, false, true, true));
-        p.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 8 * 20, 2, false, true, true));
-        List<Vec3> knocked = new ArrayList<>();
-        for (LivingEntity e : ArsenalHits.foesAround(p, p.position(), 14)) {
-            if (e instanceof Mob m) m.setTarget(p);
-            if (e.distanceTo(p) < 4.5) {
-                Vec3 away = e.position().subtract(p.position()).multiply(1, 0, 1).normalize();
-                e.push(away.x * 1.1, 0.35, away.z * 1.1);
-                e.hurtMarked = true;
-                ArsenalHits.magicHit(p, e, Balance.flatDamage(p, 6f));
-                if (knocked.size() < 16) knocked.add(e.position());
+    /** The string has been held long enough: the art gathers on the arrow, for the archer and everyone watching. */
+    public static void charged(Player p, Signature sig) {
+        if (!(p.level() instanceof ServerLevel level)) return;
+        send(p, sig, SignatureFxPayload.WINDUP, List.of());
+        switch (sig) {
+            case STARFALL -> {
+                sound(level, p, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.2f, 1.8f);
+                sound(level, p, SoundEvents.BEACON_POWER_SELECT, 0.8f, 1.9f);
             }
+            case GALE_LANCE -> {
+                sound(level, p, SoundEvents.BREEZE_CHARGE, 1.2f, 0.8f);
+                sound(level, p, SoundEvents.ELYTRA_FLYING, 0.4f, 1.6f);
+            }
+            default -> {}
         }
-        sound(level, p, SoundEvents.ANVIL_LAND, 1f, 0.5f);
-        sound(level, p, SoundEvents.GENERIC_EXPLODE.value(), 0.8f, 0.6f);
-        sound(level, p, SoundEvents.IRON_GOLEM_REPAIR, 1.2f, 0.6f);
-        return knocked;
     }
 
-    /** Branch of the World Tree (healer): a great heal for the whole party, and most ailments wash away. Points: the allies. */
-    static List<Vec3> verdantBlessing(ServerLevel level, Player p) {
-        List<Vec3> allies = new ArrayList<>();
-        for (Player ally : level.getEntitiesOfClass(Player.class, p.getBoundingBox().inflate(10), Player::isAlive)) {
-            com.beyondsolo.system.Balance.healRaw(ally, ally.getMaxHealth() * 0.4f);
-            ally.removeEffect(ModEffects.VENOM);
-            ally.removeEffect(ModEffects.CRIMSON_BRAND);
-            ally.removeEffect(ModEffects.FROSTBITE);
-            ally.removeEffect(ModEffects.FROZEN);
-            ally.removeEffect(MobEffects.POISON);
-            ally.removeEffect(MobEffects.WITHER);
-            ally.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 8 * 20, 1, false, true, true));
-            if (ally != p && allies.size() < 16) allies.add(ally.position());
-        }
-        sound(level, p, SoundEvents.AMETHYST_BLOCK_CHIME, 1.5f, 0.8f);
-        sound(level, p, SoundEvents.BEACON_POWER_SELECT, 1f, 1.4f);
-        sound(level, p, SoundEvents.CHERRY_LEAVES_BREAK, 1.2f, 0.7f);
-        return allies;
+    /** A charged draw is being loosed: the next arrow that leaves this archer this tick carries the art. */
+    public static void loosing(Player p, Signature sig) {
+        p.getPersistentData().putString(LOOSING, sig.key() + "@" + p.level().getGameTime());
     }
 
-    // ---------------------------------------------------------------- helpers
+    /** Called once the bow has loosed: the art goes on cooldown if an arrow carried it, and the mark is cleared. */
+    public static void loosed(Player p, Signature sig) {
+        p.getPersistentData().remove(LOOSING);
+    }
 
-    private static void sound(ServerLevel level, Player p, SoundEvent sound, float volume, float pitch) {
+    /** The arrow just loosed by {@code owner}, if it carries a charged art. */
+    static void arrowLoosed(LivingEntity owner, AbstractArrow arrow) {
+        if (!(owner instanceof Player p) || !(p.level() instanceof ServerLevel level)) return;
+        String mark = p.getPersistentData().getString(LOOSING);
+        if (mark.isEmpty()) return;
+        p.getPersistentData().remove(LOOSING);
+        int at = mark.indexOf('@');
+        if (at < 0 || !mark.substring(at + 1).equals(Long.toString(level.getGameTime()))) return;
+        Signature sig;
+        try {
+            sig = Signature.valueOf(mark.substring(0, at).toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        p.getPersistentData().putLong(DRAW_READY + sig.key(), level.getGameTime() + sig.cooldownSeconds() * 20L);
+        switch (sig) {
+            case STARFALL -> DivineArts.starArrow(level, p, arrow);
+            case GALE_LANCE -> LegendaryArts.galeLance(level, p, arrow);
+            default -> {}
+        }
+    }
+
+    // ---------------------------------------------------------------- helpers shared by the arts
+
+    static void send(LivingEntity p, Signature sig, int phase, List<Vec3> points) {
+        List<Vec3> pts = points.size() > 32 ? points.subList(0, 32) : points;
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(p, new SignatureFxPayload(p.getId(), sig, phase, pts));
+    }
+
+    static void sound(ServerLevel level, LivingEntity p, SoundEvent sound, float volume, float pitch) {
         level.playSound(null, p.getX(), p.getY(), p.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
+    }
+
+    static void soundAt(ServerLevel level, Vec3 at, SoundEvent sound, float volume, float pitch) {
+        level.playSound(null, at.x, at.y, at.z, sound, SoundSource.PLAYERS, volume, pitch);
+    }
+
+    static boolean alive(Player p, ServerLevel level) {
+        return p.isAlive() && !p.isRemoved() && p.level() == level;
+    }
+
+    /** Runs a later beat of an art, if the wielder is still there to see it. */
+    static void later(Player p, ServerLevel level, int ticks, Runnable beat) {
+        if (ticks <= 0) {
+            if (alive(p, level)) beat.run();
+            return;
+        }
+        ServerScheduler.schedule(ticks, () -> {
+            if (alive(p, level)) beat.run();
+        });
+    }
+
+    static float power(Player p) {
+        return (float) p.getAttributeValue(Attributes.ATTACK_DAMAGE);
+    }
+
+    /** Where the wielder faces, on the ground's plane. */
+    static Vec3 flatLook(LivingEntity p) {
+        Vec3 look = p.getLookAngle().multiply(1, 0, 1);
+        return look.lengthSqr() < 1.0e-6 ? Vec3.directionFromRotation(0, p.getYRot()) : look.normalize();
+    }
+
+    /** Foes within {@code range} of {@code origin} and within {@code halfAngle} degrees of {@code dir} (on the ground's plane). */
+    static List<LivingEntity> cone(LivingEntity p, Vec3 origin, Vec3 dir, double range, double halfAngle) {
+        double cos = Math.cos(Math.toRadians(halfAngle));
+        List<LivingEntity> out = new ArrayList<>();
+        for (LivingEntity e : ArsenalHits.foesAround(p, origin, range)) {
+            Vec3 to = e.position().subtract(origin).multiply(1, 0, 1);
+            if (to.lengthSqr() < 0.36 || to.normalize().dot(dir) >= cos) out.add(e);
+        }
+        return out;
+    }
+
+    /** Foes whose bodies come within {@code radius} of the segment from a to b. */
+    static List<LivingEntity> line(LivingEntity p, Vec3 a, Vec3 b, double radius) {
+        AABB box = new AABB(a, b).inflate(radius + 1.5);
+        Vec3 ab = b.subtract(a);
+        double len2 = Math.max(1.0e-6, ab.lengthSqr());
+        List<LivingEntity> out = new ArrayList<>();
+        for (LivingEntity e : p.level().getEntitiesOfClass(LivingEntity.class, box, e -> ArsenalHits.isFoe(p, e))) {
+            Vec3 c = e.position().add(0, e.getBbHeight() * 0.5, 0);
+            double k = Math.max(0, Math.min(1, c.subtract(a).dot(ab) / len2));
+            Vec3 near = a.add(ab.scale(k));
+            if (c.distanceTo(near) <= radius + e.getBbWidth() * 0.5 + e.getBbHeight() * 0.35) out.add(e);
+        }
+        return out;
+    }
+
+    /** A point at the middle of a body, for hit marks. */
+    static Vec3 chest(LivingEntity e) {
+        return e.position().add(0, e.getBbHeight() * 0.55, 0);
+    }
+
+    /** Pushes a foe, less the harder it is to move (bosses barely budge). */
+    static void knock(LivingEntity e, double x, double y, double z) {
+        double keep = 1 - net.minecraft.util.Mth.clamp(e.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE), 0, 1) * 0.8;
+        e.push(x * keep, y * keep, z * keep);
+        e.hurtMarked = true;
+    }
+
+    /** The ground under (or just over) a point, so a blow lands on it and not in the air. */
+    static Vec3 ground(ServerLevel level, Vec3 at) {
+        net.minecraft.world.phys.BlockHitResult down = level.clip(new net.minecraft.world.level.ClipContext(at.add(0, 2.5, 0), at.add(0, -4, 0),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return down.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? at : down.getLocation();
+    }
+
+    /** The point a straight line from a towards b stops at: the first wall, or b. */
+    static Vec3 reach(LivingEntity p, Vec3 a, Vec3 b) {
+        net.minecraft.world.phys.BlockHitResult hit = p.level().clip(new net.minecraft.world.level.ClipContext(a, b,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, p));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? b : hit.getLocation();
+    }
+
+    /** Heals the wielder by what a blow took from its target (life drawn back through the blade). */
+    static float hitAndMeasure(Player p, LivingEntity e, float amount) {
+        float before = e.getHealth() + e.getAbsorptionAmount();
+        ArsenalHits.magicHit(p, e, amount);
+        return Math.max(0, before - e.getHealth() - e.getAbsorptionAmount());
     }
 
     private ArsenalAbilities() {}

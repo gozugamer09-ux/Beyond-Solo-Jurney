@@ -236,6 +236,8 @@ public final class ArsenalHits {
         if (attacker.hasEffect(ModEffects.INFERNAL_REND) && hit.melee()) {
             Statuses.apply(target, DamageElement.FIRE, 40, attacker);
             proc(() -> CombatDamage.deal(target, DamageElement.FIRE, com.beyondsolo.system.Balance.flatDamage(attacker, 4f), attacker));
+            ArsenalAbilities.send(attacker, Signature.INFERNAL_REND, com.beyondsolo.network.SignatureFxPayload.PASSIVE,
+                    List.of(target.position().add(0, target.getBbHeight() * 0.55, 0)));
         }
         if (!refused && w.signature() == Signature.STARFALL && hit.arrow() != null && hit.arrow().isCritArrow()) {
             starfall(attacker, target);
@@ -302,7 +304,7 @@ public final class ArsenalHits {
         Vec3 at = target.position();
         level.playSound(null, at.x, at.y, at.z, SoundEvents.TRIDENT_THUNDER.value(), SoundSource.PLAYERS, 1.2f, 1.5f);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 1.4f, 0.7f);
-        ArsenalAbilities.send(attacker, Signature.STARFALL, com.beyondsolo.network.SignatureFxPayload.IMPACT, List.of(at));
+        ArsenalAbilities.send(attacker, Signature.STARFALL, com.beyondsolo.network.SignatureFxPayload.PASSIVE, List.of(at));
     }
 
     /** NOVA effect parameter: colour and radius in blocks. */
@@ -325,6 +327,8 @@ public final class ArsenalHits {
         arrow.getPersistentData().putString(BOW_TAG, BuiltInRegistries.ITEM.getKey(sb).toString());
         com.beyondsolo.gear.Infusions.tagArrow(arrow, bow);
         boolean refused = refuses(owner, sb);
+        // a charged draw: the arrow carries the bow's art (the volley's split arrows do not)
+        if (!refused && sb.signature() != null && sb.signature().drawn()) ArsenalAbilities.arrowLoosed(owner, arrow);
         arrow.setBaseDamage(arrow.getBaseDamage() * sb.damageMultiplier() * (refused ? REFUSED_DAMAGE : 1f));
         if (refused && owner instanceof Player p) warnRefused(p, sb);
 

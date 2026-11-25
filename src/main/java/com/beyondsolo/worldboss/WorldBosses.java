@@ -540,9 +540,9 @@ public final class WorldBosses {
         List<ItemStack> loot = new ArrayList<>();
         loot.add(new ItemStack(CraftingModule.GREATER_MANA_STONE.get(), (kind.monarch() ? 3 : 2) + r.nextInt(2) + (share >= 0.2f ? 1 : 0)));
         loot.add(new ItemStack(CraftingModule.SUPREME_HEALING_ELIXIR.get(), 1 + (top ? 1 : 0)));
-        if (r.nextFloat() < 0.5f + share) loot.add(GateLoot.weapon(5, r));
+        if (r.nextFloat() < 0.5f + share) loot.add(GateLoot.greatThreatWeapon(r));
         if (kind.monarch()) {
-            loot.add(GateLoot.weapon(5, r));
+            loot.add(GateLoot.greatThreatWeapon(r));
             loot.add(new ItemStack(CraftingModule.ELIXIR_OF_REBIRTH.get()));
         }
         WorldBossRecord record = p.getData(WorldBossModule.RECORD.get());
