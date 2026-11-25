@@ -12,12 +12,13 @@ import net.minecraft.sounds.SoundEvents;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The client's side of the association: the office and the broker's window as the server last sent them, and the
- * answer to the last button pressed.
+ * The client's side of the association: the office, the broker's and a great guild's scout's windows as the server
+ * last sent them, and the answer to the last button pressed.
  */
 public final class AssociationClient {
     private static CompoundTag office = new CompoundTag();
     private static CompoundTag broker = new CompoundTag();
+    private static CompoundTag scout = new CompoundTag();
     private static Component outcome = Component.empty();
     private static boolean outcomeOk;
     private static double outcomeAt = -100;
@@ -35,6 +36,9 @@ public final class AssociationClient {
         if (p.screen() == Association.BROKER) {
             broker = t;
             if (!(mc.screen instanceof BrokerScreen)) mc.setScreen(new BrokerScreen());
+        } else if (p.screen() == Association.SCOUT) {
+            scout = t;
+            if (!(mc.screen instanceof ScoutScreen)) mc.setScreen(new ScoutScreen());
         } else {
             office = t;
             int tab = t.getInt("tab");
@@ -52,6 +56,10 @@ public final class AssociationClient {
 
     public static CompoundTag broker() {
         return broker;
+    }
+
+    public static CompoundTag scout() {
+        return scout;
     }
 
     public static Component outcome() {
@@ -91,6 +99,7 @@ public final class AssociationClient {
     public static void reset() {
         office = new CompoundTag();
         broker = new CompoundTag();
+        scout = new CompoundTag();
         outcome = Component.empty();
         outcomeAt = -100;
     }

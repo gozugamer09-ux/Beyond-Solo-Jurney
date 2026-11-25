@@ -32,10 +32,13 @@ public final class NotificationRenderer {
     private static float lagYaw = Float.NaN;
     private static float lagPitch;
     private static float badge;
+    /** The column of pop-ups floating at the side this frame: its left edge, top and bottom (bottom 0 while none float there). */
+    private static float sideLeft, sideTop, sideBottom;
 
     public static void renderHud(GuiGraphics g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
+        sideBottom = 0;
         if (player == null || mc.options.hideGui) return;
         ClientConfig.NotificationMode mode = ClientConfig.NOTIFICATION_MODE.get();
         List<NotificationManager.Popup> active = NotificationManager.active();
@@ -74,6 +77,7 @@ public final class NotificationRenderer {
         float y = floating ? Math.max(26, guiH * 0.17f) : 12;
         // under the status effect icons when they would meet (always at the side, on narrow screens at the top)
         if (floating || baseX + PopupPanel.WIDTH > EffectsHud.left() - 4) y = Math.max(y, EffectsHud.bottom() + 6);
+        float top = y;
         String key = ClientEvents.DISMISS.getTranslatedKeyMessage().getString();
         if (key.length() > 6) key = null;
         boolean keep = ClientConfig.KEEP_POPUPS.get();
@@ -103,6 +107,29 @@ public final class NotificationRenderer {
             y += (panel.height() + GAP) * (1 - Anim.inOutCubic(p.exit()));
             index++;
         }
+        if (floating) {
+            sideLeft = baseX;
+            sideTop = top;
+            sideBottom = y;
+        }
+    }
+
+    /** The left edge of the pop-ups floating at the side (see {@link #sideBottom()}). */
+    public static float sideLeft() {
+        return sideLeft;
+    }
+
+    /** Where the pop-ups floating at the side start, from the top (see {@link #sideBottom()}). */
+    public static float sideTop() {
+        return sideTop;
+    }
+
+    /**
+     * Where the pop-ups floating at the side of the view end this frame, in GUI pixels from the top (0 while none
+     * float there): the gold capsule on that side goes under them.
+     */
+    public static float sideBottom() {
+        return sideBottom;
     }
 
     /**

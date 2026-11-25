@@ -23,13 +23,14 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The CHRONICLE page of the System window: the hunter's record in three sections. TITLES (every title, how far along
- * each one is, and the one worn), RANKINGS (the world's hunters, the Citadel, the boss rush and gates cleared) and the
- * JOURNAL (the creatures, bosses, realms and weapons met so far). The section open last is opened again.
+ * The CHRONICLE page of the System window: the hunter's record in four sections. TITLES (every title, how far along
+ * each one is, and the one worn), RANKINGS (the world's hunters, the Citadel, the boss rush and gates cleared), the
+ * JOURNAL (the creatures, bosses, realms and weapons met so far) and the NEWS (the hunter news, {@code news.HunterNews}).
+ * The section open last is opened again.
  */
 public class ChronicleTab implements SystemTab {
     public enum Section {
-        TITLES(Icons.CROWN), RANKINGS(ChronicleIcons.RANKINGS), JOURNAL(ChronicleIcons.JOURNAL);
+        TITLES(Icons.CROWN), RANKINGS(ChronicleIcons.RANKINGS), JOURNAL(ChronicleIcons.JOURNAL), NEWS(Icons.BELL);
 
         final ResourceLocation icon;
 
@@ -63,6 +64,7 @@ public class ChronicleTab implements SystemTab {
     private final TitlesPage titles = new TitlesPage();
     private final RankingsPage rankings = new RankingsPage();
     private final JournalPage journal = new JournalPage();
+    private final NewsPage news = new NewsPage();
     private final List<ChronicleUi.Hit> hits = new ArrayList<>();
 
     @Override
@@ -90,6 +92,7 @@ public class ChronicleTab implements SystemTab {
             case TITLES -> titles;
             case RANKINGS -> rankings;
             case JOURNAL -> journal;
+            case NEWS -> news;
         };
     }
 
@@ -151,6 +154,7 @@ public class ChronicleTab implements SystemTab {
 
     private static boolean fresh(Section s) {
         if (s == Section.RANKINGS) return false;
+        if (s == Section.NEWS) return section != Section.NEWS && com.beyondsolo.client.news.NewsClient.unread() > 0;
         for (String id : ChronicleClient.data().fresh()) {
             boolean title = id.startsWith(TitleDef.PREFIX);
             if ((s == Section.TITLES) == title && ChronicleClient.isFresh(id)) return true;
@@ -171,6 +175,7 @@ public class ChronicleTab implements SystemTab {
                         : Component.translatable("chronicle.beyondsolo.summary.rankings_none").getString();
             }
             case JOURNAL -> Component.translatable("chronicle.beyondsolo.summary.journal", ChronicleClient.data().pages(), Journal.size()).getString();
+            case NEWS -> Component.translatable("news.beyondsolo.page.summary", com.beyondsolo.client.news.NewsClient.headlines().size()).getString();
         };
     }
 
@@ -191,7 +196,7 @@ public class ChronicleTab implements SystemTab {
 
     /**
      * {@code chronicle titles [title id]}, {@code chronicle rankings [hunters|citadel|rush|gates] [tier]},
-     * {@code chronicle journal [creatures|bosses|realms|arsenal] [page id]}.
+     * {@code chronicle journal [creatures|bosses|realms|arsenal] [page id]}, {@code chronicle news}.
      */
     public static void show(String arg) {
         String[] a = arg.trim().split(" ");
@@ -208,6 +213,7 @@ public class ChronicleTab implements SystemTab {
                 open(Section.JOURNAL);
                 if (a.length > 1) JournalPage.show(a[1], a.length > 2 ? a[2] : "");
             }
+            case "news" -> open(Section.NEWS);
             default -> {}
         }
         switchedAt = -10;

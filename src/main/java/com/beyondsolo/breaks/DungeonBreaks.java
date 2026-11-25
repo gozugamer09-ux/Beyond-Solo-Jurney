@@ -299,6 +299,7 @@ public final class DungeonBreaks {
             if (d <= 96) giveQuest(p, g);
         }
         spill(world, data, g, now, waveSize(g), false);
+        com.beyondsolo.news.HunterNews.breakOpened(world.getServer(), g);
     }
 
     /** Monsters in one wave. */
@@ -555,6 +556,7 @@ public final class DungeonBreaks {
         for (ServerPlayer p : paid) reward(p, g, xp, title, sub);
         // merit with the association, and its contracts on the break done
         com.beyondsolo.association.Association.breakSuppressed(level, g, paid);
+        com.beyondsolo.news.HunterNews.breakSuppressed(level.getServer(), g, paid);
     }
 
     /** One hunter's share of a suppressed break. */

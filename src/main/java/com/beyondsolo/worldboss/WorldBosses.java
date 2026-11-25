@@ -486,6 +486,7 @@ public final class WorldBosses {
                     boss.blockPosition(), boss.phase(), -1, 0));
         }
         level.playSound(null, boss.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 3f, 0.8f);
+        com.beyondsolo.news.HunterNews.bossSlain(level.getServer(), kind, top == null ? null : level.getServer().getPlayerList().getPlayer(top));
         // a ruler at war with it has won: it blesses the hunters who fought at its side
         if (kind.monarch()) com.beyondsolo.ruler.Rulers.monarchFell(level, boss);
         // the System's story: a monarch it called on a hunter (or waited for) has fallen
