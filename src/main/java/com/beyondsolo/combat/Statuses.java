@@ -88,7 +88,7 @@ public final class Statuses {
     }
 
     static void crimsonBurst(LivingEntity target, @Nullable Entity source) {
-        CombatDamage.deal(target, DamageElement.CRIMSON, Math.max(2f, target.getMaxHealth() * 0.08f), source);
+        CombatDamage.deal(target, DamageElement.CRIMSON, Math.max(2f, target.getMaxHealth() * 0.08f * com.beyondsolo.system.Balance.dotShare(target)), source);
         target.addEffect(new MobEffectInstance(ModEffects.CRIMSON_BRAND, BRAND_TICKS, 0, false, true, true), source);
         target.level().playSound(null, target.blockPosition(), SoundEvents.WITHER_HURT, SoundSource.HOSTILE, 0.6f, 1.5f);
         CombatFx.play(target, CombatFxPayload.Kind.CRIMSON_BURST, 0);
@@ -102,6 +102,8 @@ public final class Statuses {
     /** Bosses (a gate's boss, the Arbiter, the boss tags) and elite or champion creatures: a pop takes less from them. */
     public static boolean tough(LivingEntity e) {
         return e instanceof com.beyondsolo.gate.DungeonBoss
+                || e instanceof com.beyondsolo.worldboss.ColossalBoss
+                || e instanceof com.beyondsolo.duel.DuelistEntity
                 || e.getType().is(net.neoforged.neoforge.common.Tags.EntityTypes.BOSSES)
                 || e.getType().is(com.beyondsolo.shadow.ShadowModule.BOSSES)
                 || com.beyondsolo.enemy.EnemyTraits.of(e).variant().special();
@@ -113,6 +115,9 @@ public final class Statuses {
      * ({@link ElementalHits} caps it at the end of the damage).
      */
     public static float popCap(LivingEntity target) {
+        // a great threat or a duelist: the share of a share (Balance.dotShare)
+        float share = com.beyondsolo.system.Balance.dotShare(target);
+        if (share < 1f) return target.getMaxHealth() * POP_SHARE * share;
         return target.getMaxHealth() * (tough(target) ? TOUGH_POP_SHARE : POP_SHARE);
     }
 

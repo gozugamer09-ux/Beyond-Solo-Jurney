@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -917,9 +918,10 @@ public final class WarriorPath {
      * A warrior subclass player is struck. Returns the damage to take, or a negative number when the blow is
      * turned aside entirely (Riposte).
      */
-    static float whenStruck(ServerPlayer p, SkillData data, LivingEntity attacker, boolean melee, float amount) {
+    static float whenStruck(ServerPlayer p, SkillData data, LivingEntity attacker, boolean melee, DamageSource source, float amount) {
         int riposte = data.level(RIPOSTE.path());
-        if (riposte > 0 && melee && attacker != null && attacker.isAlive() && p.getRandom().nextFloat() * 100 < riposteChance(riposte)) {
+        if (riposte > 0 && melee && attacker != null && attacker.isAlive()
+                && com.beyondsolo.system.BalanceHooks.avoids(p, source, riposteChance(riposte) / 100f)) {
             attacker.hurt(p.damageSources().playerAttack(p), com.beyondsolo.system.Balance.flatDamage(p, 3 + riposte));
             sound(p, SoundEvents.ANVIL_PLACE, 0.5f, 1.9f);
             fx(p, Kind.SLASH, RIPOSTE.color(), p.position(), 2.6f, 1);
@@ -938,7 +940,7 @@ public final class WarriorPath {
             for (Player ally : allies(p, 8)) ally.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 40, drums >= 6 ? 1 : 0, true, false, true));
         }
         int wind = data.level(SECOND_WIND.path());
-        if (wind > 0 && p.getHealth() < p.getMaxHealth() * 0.3f) p.heal(windRegen(wind));
+        if (wind > 0 && p.getHealth() < p.getMaxHealth() * 0.3f) com.beyondsolo.system.Balance.regenFlat(p, windRegen(wind));
     }
 
     static void onKill(ServerPlayer p, SkillData data, LivingEntity dead) {
@@ -950,9 +952,10 @@ public final class WarriorPath {
         }
     }
 
-    /** Last Stand: the Bloodrager cannot be killed while it lasts. */
+    /** Last Stand refuses one death a cast: the first blow that would kill leaves one point, and the stand is spent. */
     static boolean refusesDeath(ServerPlayer p, SkillData data) {
         if (!data.hasBuff(BUFF_LAST_STAND, p.level().getGameTime())) return false;
+        SkillAPI.clearBuff(p, BUFF_LAST_STAND);
         p.setHealth(1);
         sound(p, SoundEvents.TOTEM_USE, 0.4f, 1.6f);
         fx(p, Kind.ROAR, LAST_STAND.color(), p.position(), 3, 0);

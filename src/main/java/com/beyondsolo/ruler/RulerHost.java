@@ -45,8 +45,9 @@ public final class RulerHost {
             h.moveTo(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, ruler.getYRot() + (float) Math.toDegrees(a), 0f);
             h.finalizeSpawn(level, level.getCurrentDifficultyAt(p), MobSpawnType.EVENT, null);
             h.setPersistenceRequired();
-            // as strong as an S-rank gate's creatures
-            Enemies.strength(h, Enemies.rankHealth(PlayerRank.S), Enemies.rankDamage(PlayerRank.S));
+            // as strong as an S-rank gate's creatures, and keeping pace with its ruler as it is sized past S
+            double[] grow = ruler.hostScale();
+            Enemies.strength(h, Enemies.rankHealth(PlayerRank.S) * grow[0], Enemies.rankDamage(PlayerRank.S) * grow[1]);
             h.setHealth(h.getMaxHealth());
             h.setRuler(ruler);
             if (event != null) {

@@ -49,5 +49,24 @@ public final class CombatDamage {
         return hit;
     }
 
+    /**
+     * The System's fire element (a burn, a fire skill's blow), as against a flame in the world. Vanilla spares a
+     * fire-immune body every fire; the System's bosses carry that flag only to stand in fire and lava, so they ask
+     * {@link #spared} instead, and how much of the element lands is its {@code ElementalProfile}'s business.
+     */
+    public static boolean systemFire(DamageSource source) {
+        return source.is(FIRE);
+    }
+
+    /**
+     * What a boss made to stand in flames answers to {@code isInvulnerableTo}: the System's fire lands on it like any
+     * blow would ({@link #systemFire}), every other fire is shrugged off as before. {@code otherwise} is what it says
+     * for anything else (its own rules, then vanilla's).
+     */
+    public static boolean spared(Entity e, DamageSource source, boolean otherwise) {
+        if (!systemFire(source)) return otherwise;
+        return e.isRemoved() || e.isInvulnerable() && !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY) && !source.isCreativePlayer();
+    }
+
     private CombatDamage() {}
 }

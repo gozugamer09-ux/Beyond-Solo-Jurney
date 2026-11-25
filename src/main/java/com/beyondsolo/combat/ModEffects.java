@@ -1,6 +1,7 @@
 package com.beyondsolo.combat;
 
 import com.beyondsolo.BeyondSolo;
+import com.beyondsolo.system.Balance;
 import com.beyondsolo.combat.effect.CombatStatusEffect;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -32,18 +33,18 @@ public final class ModEffects {
     public static final DeferredHolder<MobEffect, MobEffect> DEEP_BURN = EFFECTS.register("deep_burn",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0xFF6A1A, Set.of(ElementCures.ELIXIR), 60, (e, amp) -> {
                 if (e.hasEffect(MobEffects.FIRE_RESISTANCE)) return;
-                CombatDamage.deal(e, DamageElement.FIRE, 1f + e.getMaxHealth() * 0.01f * (amp + 1), null);
+                CombatDamage.deal(e, DamageElement.FIRE, 1f + e.getMaxHealth() * 0.01f * (amp + 1) * Balance.dotShare(e), null);
             }));
 
     public static final DeferredHolder<MobEffect, MobEffect> VENOM = EFFECTS.register("venom",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0x7CCF3A,
                     Set.of(EffectCures.MILK, EffectCures.HONEY, ElementCures.ANTIDOTE, ElementCures.GREATER_ANTIDOTE), 30,
                     // half a point a stack on a vanilla body, and the same share of a bigger one
-                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, (amp + 1) * (0.25f + e.getMaxHealth() * 0.0125f), null)));
+                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, (amp + 1) * (0.25f + e.getMaxHealth() * 0.0125f * Balance.dotShare(e)), null)));
 
     public static final DeferredHolder<MobEffect, MobEffect> HEAVY_VENOM = EFFECTS.register("heavy_venom",
             () -> new CombatStatusEffect(MobEffectCategory.HARMFUL, 0x4E7A1E, Set.of(ElementCures.GREATER_ANTIDOTE), 20,
-                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, 1f + e.getMaxHealth() * 0.01f, null))
+                    (e, amp) -> CombatDamage.deal(e, DamageElement.POISON, 1f + e.getMaxHealth() * 0.01f * Balance.dotShare(e), null))
                     .addAttributeModifier(Attributes.MOVEMENT_SPEED, BeyondSolo.id("effect.heavy_venom"), -0.15,
                             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
 

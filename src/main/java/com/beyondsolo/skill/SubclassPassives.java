@@ -6,6 +6,7 @@ import com.beyondsolo.combat.DamageElement;
 import com.beyondsolo.combat.Statuses;
 import com.beyondsolo.network.SkillFxPayload;
 import com.beyondsolo.system.Balance;
+import com.beyondsolo.system.BalanceHooks;
 import com.beyondsolo.system.SystemAPI;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
@@ -151,10 +152,11 @@ public final class SubclassPassives {
         int blessed = data.level(SubclassSkills.BLESSED_AURA.path());
         if (blessed > 0) {
             for (Player ally : p.level().getEntitiesOfClass(Player.class, p.getBoundingBox().inflate(8), Player::isAlive)) {
-                if (ally.getHealth() < ally.getMaxHealth()) ally.heal(blessedRegen(blessed));
+                Balance.regenFlat(ally, blessedRegen(blessed));
             }
         }
-        if (heal > 0 && p.getHealth() < p.getMaxHealth()) p.heal(heal);
+        // every heal over time together stays inside the ceiling (Balance.REGEN_CAP)
+        if (heal > 0) Balance.regenFlat(p, heal);
         int charge = data.level(SubclassSkills.STATIC_CHARGE.path());
         if (charge > 0) SystemAPI.restoreMana(p, staticRegen(charge));
         int core = data.level(SubclassSkills.CELESTIAL_CORE.path());
@@ -267,7 +269,8 @@ public final class SubclassPassives {
         // ---- the player is struck
         if (target instanceof ServerPlayer p && attacker != p) {
             SkillData data = SkillAPI.get(p);
-            amount = WarriorPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, amount);
+            float struck = amount;
+            amount = WarriorPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount);
             if (amount >= 0) amount = AssassinPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount >= 0) amount = MagePath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
             if (amount >= 0) amount = GuardianPath.whenStruck(p, data, attacker instanceof LivingEntity foe ? foe : null, direct == attacker, event.getSource(), amount, now);
@@ -277,11 +280,13 @@ public final class SubclassPassives {
                 event.setCanceled(true);
                 return;
             }
+            // the class's guards together, inside the floor every guard over a blow shares (Balance.GUARD_FLOOR)
+            if (struck > 0 && amount < struck) amount = struck * BalanceHooks.keep(p, amount / struck);
             int dodge = data.level(SubclassSkills.EVASIVE_STEP.path());
             int foresight = data.level(SubclassSkills.FORESIGHT.path());
             float chance = (dodge > 0 ? evasion(dodge) : 0) + (foresight > 0 ? foresightDodge(foresight) : 0);
             if (chance > 0 && attacker instanceof LivingEntity && !event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY)
-                    && p.getRandom().nextFloat() * 100 < chance) {
+                    && BalanceHooks.avoids(p, event.getSource(), chance / 100f)) {
                 event.setCanceled(true);
                 p.level().playSound(null, p.blockPosition(), SoundEvents.BREEZE_JUMP, SoundSource.PLAYERS, 0.6f, 1.6f);
                 SkillFx.play(p, SkillFxPayload.Kind.DASH, SubclassSkills.EVASIVE_STEP.color(), p.position(), 0.8f, 6);
@@ -289,7 +294,7 @@ public final class SubclassPassives {
             }
             int ward = data.level(SubclassSkills.ARCANE_WARD.path());
             if (ward > 0 && (event.getSource().is(DamageTypeTags.WITCH_RESISTANT_TO) || event.getSource().is(DamageTypeTags.BYPASSES_ARMOR))) {
-                amount *= 1 - wardReduction(ward) / 100f;
+                amount *= BalanceHooks.keep(p, 1 - wardReduction(ward) / 100f);
             }
             if (data.hasBuff(SubclassActions.BUFF_MANA_BARRIER, now)) SystemAPI.restoreMana(p, amount * 0.5f);
             if (data.hasBuff(SubclassActions.BUFF_RETRIBUTION, now)) {
@@ -323,10 +328,10 @@ public final class SubclassPassives {
     @SubscribeEvent(priority = EventPriority.HIGH)
     static void onDeath(LivingDeathEvent event) {
         LivingEntity dead = event.getEntity();
-        // Undying / Eternal Grace: the player refuses to fall, now and then
+        // Last Stand and the Avatar of Dawn refuse one death a cast; Undying / Eternal Grace refuse one now and then
         if (dead instanceof ServerPlayer p) {
             SkillData data = SkillAPI.get(p);
-            if (!event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY) && WarriorPath.refusesDeath(p, data)) {
+            if (!event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY) && (WarriorPath.refusesDeath(p, data) || HealerPath.refusesDeath(p, data))) {
                 event.setCanceled(true);
                 return;
             }
@@ -334,7 +339,8 @@ public final class SubclassPassives {
             if (undying > 0 && !data.hasBuff(BUFF_SAVED, p.level().getGameTime()) && !event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
                 event.setCanceled(true);
                 p.setHealth(p.getMaxHealth() * 0.5f);
-                p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 100, 3));
+                // a breath to get clear, not a shield to stand in: 40% less for three seconds
+                p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 1));
                 p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 1));
                 SkillAPI.setBuff(p, BUFF_SAVED, Math.round(undyingCooldown(undying) * 20));
                 p.level().playSound(null, p.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.8f, 1.2f);

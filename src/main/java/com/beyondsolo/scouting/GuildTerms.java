@@ -12,8 +12,7 @@ import java.util.List;
  * table (a factor on the signing bonus), the share of the hunter's gate gold it takes while they are under contract,
  * what being one of theirs brings, and its patience with a hunter who holds out for more (the chance it walks away
  * the first time). Red Lantern scouts anyone hungry from rank C and pays the most up front, taking the most after;
- * Azure Tide, the guild of the nation's strongest hunter, only comes for an S-rank. First guesses for the balancing
- * pass.
+ * Azure Tide, the guild of the nation's strongest hunter, only comes for an S-rank.
  */
 public record GuildTerms(RivalGuild guild, PlayerRank from, double factor, float cut, Perk perk, double patience) {
     /** What a contract brings on top of the bonus. */

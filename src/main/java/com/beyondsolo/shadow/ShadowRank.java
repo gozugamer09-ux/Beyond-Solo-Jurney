@@ -7,23 +7,24 @@ import net.minecraft.network.chat.Component;
  * monarch's shadows only, a regent. A shadow levels up from 1 to {@link #LEVEL_CAP} inside its rank. Up to a knight,
  * filling the last level raises it to the next rank by itself; from a knight on the shadow waits at the top of its rank
  * until its master promotes it ({@link #byPromotion}, {@link ShadowPromotions}), up to the highest its master's shadows
- * can reach ({@link #top}). A new rank never makes a shadow weaker: it comes in at the level that keeps its strength
- * ({@link #entryLevel}).
+ * can reach ({@link #top}). Each rank is a real step up: about 30% stronger than the one below, more than all the
+ * levels inside a rank add (+18% at level 10), so a shadow comes into its new rank at level 1 and is stronger for it
+ * ({@link #entryLevel} keeps that true whatever the table says).
  */
 public enum ShadowRank {
     HUSK(0x8C86A8, 1.00f, 0, 0),
-    SOLDIER(0x9B8CE0, 1.25f, 0, 0),
-    VANGUARD(0x6FA0FF, 1.55f, 0, 0),
-    KNIGHT(0x5AD8FF, 1.90f, 0, 0),
-    CAPTAIN(0xC07CFF, 2.40f, 30, 150),
-    COMMANDER(0xFF6AD5, 3.00f, 45, 400),
-    MARSHAL(0xFFD06A, 3.80f, 60, 1000),
+    SOLDIER(0x9B8CE0, 1.30f, 0, 0),
+    VANGUARD(0x6FA0FF, 1.68f, 0, 0),
+    KNIGHT(0x5AD8FF, 2.18f, 0, 0),
+    CAPTAIN(0xC07CFF, 2.82f, 30, 150),
+    COMMANDER(0xFF6AD5, 3.65f, 45, 400),
+    MARSHAL(0xFFD06A, 4.73f, 60, 1000),
     /** Above the marshals: only a crowned monarch's shadows climb this far (a shadow keeps it if the crown is lost). */
-    REGENT(0xFF4D7A, 4.80f, 80, 2500);
+    REGENT(0xFF4D7A, 6.12f, 80, 2500);
 
     public static final int LEVEL_CAP = 10;
-    /** How much stronger each level inside a rank makes a shadow (+45% at level 10). First guess. */
-    public static final float LEVEL_GROWTH = 0.05f;
+    /** How much stronger each level inside a rank makes a shadow (+18% at level 10): less than a rank's step (~30%). */
+    public static final float LEVEL_GROWTH = 0.02f;
 
     private final int color;
     private final float power;
@@ -59,8 +60,7 @@ public enum ShadowRank {
 
     /**
      * The level a shadow at {@code level} of this rank comes into the next one at: the lowest that is at least as strong,
-     * so a rank never makes it weaker. (Growth inside a rank, +45%, outweighs a step between ranks, about +25%, so a
-     * shadow raised from the top of a rank comes in at level 4 or 5; the final balancing pass may widen the steps.)
+     * so a rank never makes it weaker. With a rank's step bigger than its levels' growth, that is always level 1.
      */
     public int entryLevel(int level) {
         ShadowRank to = next();

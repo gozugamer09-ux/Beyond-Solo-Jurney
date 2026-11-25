@@ -231,7 +231,7 @@ public class ArbiterEntity extends Monster implements GeoEntity, DungeonBoss {
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         if (!isAwake() || introTicks() > 0 || isVerdict()) return !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
-        return super.isInvulnerableTo(source);
+        return com.beyondsolo.combat.CombatDamage.spared(this, source, super.isInvulnerableTo(source));
     }
 
     @Override

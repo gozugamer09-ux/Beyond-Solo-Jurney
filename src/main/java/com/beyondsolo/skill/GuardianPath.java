@@ -994,10 +994,10 @@ public final class GuardianPath {
 
     static void tickSecond(ServerPlayer p, SkillData data) {
         int roots = data.level(DEEP_ROOTS.path());
-        if (roots > 0 && p.getHealth() < p.getMaxHealth()) p.heal(rootsRegen(roots));
+        if (roots > 0) com.beyondsolo.system.Balance.regenFlat(p, rootsRegen(roots));
         int resolve = data.level(AURA_OF_RESOLVE.path());
         if (resolve > 0) {
-            for (Player ally : allies(p, 8)) if (ally.getHealth() < ally.getMaxHealth()) ally.heal(resolveHeal(resolve));
+            for (Player ally : allies(p, 8)) com.beyondsolo.system.Balance.regenFlat(ally, resolveHeal(resolve));
         }
     }
 

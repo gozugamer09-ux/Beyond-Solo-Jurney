@@ -279,6 +279,27 @@ public final class WorldBosses {
         return ev;
     }
 
+    /** How far round where a great threat comes the hunters it is sized for are looked for ({@link #threatLevel}). */
+    static final double SIZE_RANGE = 256;
+
+    /**
+     * The level a great threat coming to {@code at} is sized for: the strongest awakened hunter near it (anywhere in the
+     * overworld when nobody is near), at least its kind's floor ({@link WorldBossKind#floorLevel}) and at most the level
+     * cap. Great threats grow with the hunters: a monarch is as much stronger than a level 100 hunter as it is than a
+     * level 74 one, and a world boss that rises for a C-rank hunter is a C-rank hunter's colossus.
+     */
+    public static int threatLevel(ServerLevel level, WorldBossKind kind, BlockPos at) {
+        int near = 0, any = 0;
+        double cx = at.getX() + 0.5, cz = at.getZ() + 0.5;
+        for (ServerPlayer p : hunters(level, 1)) {
+            int l = SystemAPI.get(p).level();
+            any = Math.max(any, l);
+            double dx = p.getX() - cx, dz = p.getZ() - cz;
+            if (dx * dx + dz * dz <= SIZE_RANGE * SIZE_RANGE) near = Math.max(near, l);
+        }
+        return Mth.clamp(near > 0 ? near : any, kind.floorLevel(), com.beyondsolo.system.Balance.MAX_LEVEL);
+    }
+
     /** Brings the event's boss into the world: a world boss climbing out of the earth, a monarch coming down from its gate. */
     @Nullable
     public static ColossalBoss spawnBoss(ServerLevel level, Event ev) {
@@ -286,6 +307,7 @@ public final class WorldBosses {
         if (boss == null) return null;
         Vec3 at = Vec3.atBottomCenterOf(ev.home);
         boss.moveTo(at.x, at.y, at.z, level.random.nextFloat() * 360f, 0);
+        boss.setThreatLevel(threatLevel(level, ev.kind, ev.home));
         boss.setupStats();
         boss.setEventId(ev.id);
         boss.setHome(ev.home);

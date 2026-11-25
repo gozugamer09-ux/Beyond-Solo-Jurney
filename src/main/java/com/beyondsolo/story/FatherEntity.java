@@ -48,7 +48,10 @@ public class FatherEntity extends GuildHunterEntity {
     static final double RISE = 0.035;
     /** The share of his health below which the light holds him up. */
     static final float FLOOR = 0.3f;
-    /** How much stronger than a hunter of the same level he is (a first guess for the balancing pass). */
+    /**
+     * How much stronger than a hunter of the same level he is. He can't fall, so his blows on the great threats are an
+     * ally's share ({@link com.beyondsolo.worldboss.ColossalBoss#ally}): he holds a monarch off, he doesn't fell it.
+     */
     static final double HEALTH_SCALE = 3.0, POWER_SCALE = 1.5;
 
     private static final EntityDataAccessor<Byte> STATE = SynchedEntityData.defineId(FatherEntity.class, EntityDataSerializers.BYTE);
@@ -197,7 +200,7 @@ public class FatherEntity extends GuildHunterEntity {
         super.tick();
         if (level().isClientSide || isRemoved()) return;
         // the light mends him while nothing is hurting him
-        if (++quiet > 60 && tickCount % 20 == 0 && getHealth() < getMaxHealth()) Balance.healRaw(this, getMaxHealth() * 0.03f);
+        if (++quiet > 60 && tickCount % 20 == 0) Balance.regen(this, getMaxHealth() * 0.03f);
         if (state() == STILL || state() == KNEELING) {
             ServerPlayer p = CAUSE.leader(this);
             if (p != null) face(p.getEyePosition());

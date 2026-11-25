@@ -52,7 +52,7 @@ import java.util.UUID;
  * ({@link GuildTerms}). Each guild's offer comes a little after the last one's ({@code scouting.firstScoutSeconds},
  * {@code scouting.scoutGapSeconds}): a scout walks up to the hunter wherever they are in the world, or, if they are in a
  * gate, word of it waits for them at the association. An offer is a signing bonus for a contract of
- * {@code scouting.contractDays} days, the guild taking a share of the hunter's gate gold meanwhile, with a perk of its
+ * {@code scouting.contractWorldDays} days, the guild taking a share of the hunter's gate gold meanwhile, with a perk of its
  * own. It stays on the table for {@code scouting.offerMinutes}.
  *
  * <p><b>The bidding war.</b> A hunter who holds out for more makes the guild think again: with a better offer from

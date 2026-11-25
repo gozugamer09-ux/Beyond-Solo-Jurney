@@ -313,7 +313,7 @@ public final class TitleService {
         }
         if (victim instanceof ServerPlayer p) {
             float guard = guard(p);
-            if (guard > 0) event.setAmount(event.getAmount() * (1 - guard));
+            if (guard > 0) event.setAmount(event.getAmount() * com.beyondsolo.system.BalanceHooks.keep(p, 1 - guard));
         }
     }
 

@@ -894,7 +894,7 @@ public final class AssassinPath {
             float dodge = 0;
             if (data.hasBuff(BUFF_MIRROR, now)) dodge = mirrorDodge(Math.max(1, data.level(MIRROR_IMAGE.path())));
             if (data.hasBuff(BUFF_MOONLESS, now)) dodge = Math.max(dodge, 50);
-            if (dodge > 0 && p.getRandom().nextFloat() * 100 < dodge) {
+            if (dodge > 0 && com.beyondsolo.system.BalanceHooks.avoids(p, source, dodge / 100f)) {
                 sound(p, SoundEvents.ILLUSIONER_MIRROR_MOVE, 0.7f, 1.6f);
                 fx(p, Kind.BLINK, MIRROR_IMAGE.color(), p.position().add(p.getRandom().nextDouble() - 0.5, 0, p.getRandom().nextDouble() - 0.5), 1, 0);
                 return -1;

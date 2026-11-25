@@ -80,6 +80,16 @@ public final class LightSanctum {
         boolean holds(Entity e) {
             return e.level() == level && e.position().distanceToSqr(owner.position()) <= (double) radius * radius;
         }
+
+        /**
+         * Whether it stands with {@code e}: its ruler, the hunters of their party, and their shadows. A foe who walks
+         * in (another hunter in a fight between hunters, their shadows) is held by it, never sheltered or made mightier.
+         */
+        boolean befriends(Entity e) {
+            UUID id = e instanceof ShadowEntity sh ? sh.getOwnerUUID() : e instanceof Player pl ? pl.getUUID() : null;
+            if (id == null) return false;
+            return id.equals(owner.getUUID()) || owner.getServer() != null && com.beyondsolo.party.Parties.together(owner.getServer(), owner.getUUID(), id);
+        }
     }
 
     /** A seraph form taken. */
@@ -142,10 +152,10 @@ public final class LightSanctum {
         return SERAPHS.containsKey(p.getUUID());
     }
 
-    /** Whether something stands sheltered in a ruler's sanctum: the ruler, another hunter or a shadow inside it. */
+    /** Whether something stands sheltered in a ruler's sanctum: the ruler, their party or their shadows inside it. */
     public static boolean shelters(LivingEntity e) {
         if (SANCTUMS.isEmpty() || !(e instanceof Player || e instanceof ShadowEntity)) return false;
-        for (Hold h : SANCTUMS.values()) if (h.holds(e)) return true;
+        for (Hold h : SANCTUMS.values()) if (h.holds(e) && h.befriends(e)) return true;
         return false;
     }
 
@@ -153,7 +163,7 @@ public final class LightSanctum {
     public static float might(ServerPlayer p) {
         float m = 1;
         for (Hold h : SANCTUMS.values()) {
-            if (h.holds(p)) m = Math.max(m, 1 + RulerPowers.sanctumMight(h.skillLevel) / 100f);
+            if (h.holds(p) && h.befriends(p)) m = Math.max(m, 1 + RulerPowers.sanctumMight(h.skillLevel) / 100f);
         }
         Form f = SERAPHS.get(p.getUUID());
         if (f != null) m *= 1 + RulerPowers.seraphMight(f.skillLevel) / 100f;
@@ -192,12 +202,12 @@ public final class LightSanctum {
         return f == null ? -1 : f.color;
     }
 
-    /** What a shadow's blows are worth inside a sanctum (1 = nothing): the light stands with every hunter's. */
+    /** What a shadow's blows are worth inside a sanctum (1 = nothing): the light stands with its ruler's and their party's. */
     public static float shadowBonus(ShadowEntity shadow) {
         if (SANCTUMS.isEmpty()) return 1;
         float b = 1;
         for (Hold h : SANCTUMS.values()) {
-            if (h.holds(shadow)) b = Math.max(b, 1 + RulerPowers.sanctumMight(h.skillLevel) / 200f);
+            if (h.holds(shadow) && h.befriends(shadow)) b = Math.max(b, 1 + RulerPowers.sanctumMight(h.skillLevel) / 200f);
         }
         return b;
     }
@@ -262,9 +272,9 @@ public final class LightSanctum {
             RulerPowers.sanctumPulse(p, h.mantle, h.skillLevel, e, s);
         }
         float mend = h.mantle == Mantle.DAWN ? RulerPowers.SANCTUM_MEND * 2 : RulerPowers.SANCTUM_MEND;
-        for (LivingEntity ally : h.level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && h.holds(e)
+        for (LivingEntity ally : h.level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && h.holds(e) && h.befriends(e)
                 && (e instanceof Player pl && !pl.isSpectator() || e instanceof ShadowEntity))) {
-            if (ally.getHealth() < ally.getMaxHealth()) Balance.healRaw(ally, ally.getMaxHealth() * mend);
+            Balance.regen(ally, ally.getMaxHealth() * mend);
             if (h.mantle == Mantle.WINGS && ally instanceof Player) {
                 ally.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 30, 0, false, false, true));
                 ally.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 30, 0, false, false, true));

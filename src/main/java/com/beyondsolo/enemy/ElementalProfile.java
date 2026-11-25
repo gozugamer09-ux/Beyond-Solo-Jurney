@@ -136,6 +136,8 @@ public final class ElementalProfile {
     /** The profile of a creature as it is now (its kind, its affinity, a boss's kind). Either side. */
     public static ElementalProfile of(LivingEntity e) {
         Affinity affinity = e.level().isClientSide ? clientAffinity.apply(e.getId()) : EnemyTraits.of(e).affinity();
+        // a great threat is steeped in its kind's element (a frost monarch fears fire, a flame giant shrugs some of it off)
+        if ((affinity == null || affinity == Affinity.NONE) && e instanceof com.beyondsolo.worldboss.ColossalBoss c) affinity = c.kind().affinity;
         BossKind boss = e instanceof GateBossEntity b ? b.kind() : null;
         return of(e.getType(), affinity == null ? Affinity.NONE : affinity, boss);
     }
@@ -179,6 +181,8 @@ public final class ElementalProfile {
     private static final int[] UNDEAD = row("light+1 fire+1 shadow-1 nature-1");
     private static final int[] ARTHROPOD = row("fire+1 nature-1");
     private static final int[] FIRE_IMMUNE = row("fire! water+1");
+    /** The rulers of light and their heralds: light is theirs, shadow is what they fear. */
+    private static final int[] LIGHT_HOST = row("light-1 shadow+1");
     private static final int[] AQUATIC = row("water-1 lightning+1");
     private static final int[] ILLAGER = row("arcane+1");
 
@@ -254,6 +258,11 @@ public final class ElementalProfile {
         TYPES.put(EnemyModule.type(MonsterKind.HIVE_REAVER), row("fire+1 air+1 nature-1"));
         TYPES.put(EnemyModule.type(MonsterKind.RUNE_COLOSSUS), row("arcane+2 earth-1 fire-1"));
         TYPES.put(EnemyModule.type(MonsterKind.THORN_SPITTER), row("fire+2 water-1 nature-2"));
+        // the light's own
+        TYPES.put(com.beyondsolo.ruler.RulerModule.VERDICT.get(), LIGHT_HOST);
+        TYPES.put(com.beyondsolo.ruler.RulerModule.WINGS.get(), LIGHT_HOST);
+        TYPES.put(com.beyondsolo.ruler.RulerModule.HAND.get(), LIGHT_HOST);
+        TYPES.put(com.beyondsolo.ruler.RulerModule.HERALD.get(), LIGHT_HOST);
     }
 
     /** What a kind of creature is, before any affinity: its own row, else what its tags say. */
@@ -267,7 +276,12 @@ public final class ElementalProfile {
         if (type.is(EntityTypeTags.ARTHROPOD)) add(sum, immune, ARTHROPOD);
         if (type.is(EntityTypeTags.AQUATIC)) add(sum, immune, AQUATIC);
         if (type.is(EntityTypeTags.ILLAGER)) add(sum, immune, ILLAGER);
-        if (type.fireImmune()) add(sum, immune, FIRE_IMMUNE);
+        // vanilla's flag means a body that stands in fire and lava; the System's own creatures and bosses carry it for
+        // that alone (a frost monarch walks through lava, but its element is frost): their rows and affinities say how
+        // the fire element lands on them
+        if (type.fireImmune() && !BuiltInRegistries.ENTITY_TYPE.getKey(type).getNamespace().equals(com.beyondsolo.BeyondSolo.MOD_ID)) {
+            add(sum, immune, FIRE_IMMUNE);
+        }
         int[] out = new int[N];
         for (int i = 0; i < N; i++) out[i] = immune[i] ? IMMUNE_STEP : sum[i];
         return out;

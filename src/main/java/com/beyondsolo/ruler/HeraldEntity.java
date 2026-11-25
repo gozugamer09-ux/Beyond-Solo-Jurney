@@ -120,6 +120,12 @@ public class HeraldEntity extends Monster implements GeoEntity {
         return foe(target) && super.canAttack(target);
     }
 
+    /** Fire and lava can't touch it, but the System's fire element does (light-made, it fears shadow, not flame). */
+    @Override
+    public boolean isInvulnerableTo(DamageSource source) {
+        return com.beyondsolo.combat.CombatDamage.spared(this, source, super.isInvulnerableTo(source));
+    }
+
     @Override
     public boolean doHurtTarget(Entity target) {
         if (!(target instanceof LivingEntity l) || !foe(l)) return false;

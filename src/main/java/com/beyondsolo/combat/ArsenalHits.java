@@ -159,7 +159,7 @@ public final class ArsenalHits {
         // bulwark: less damage while the weapon is in hand
         if (target.getMainHandItem().getItem() instanceof ArsenalWeapon guard && guard.has(Trait.Kind.BULWARK)
                 && !refuses(target, guard)) {
-            amount *= 1f - Math.min(0.6f, guard.trait(Trait.Kind.BULWARK));
+            amount *= com.beyondsolo.system.BalanceHooks.keep(target, 1f - Math.min(0.6f, guard.trait(Trait.Kind.BULWARK)));
         }
 
         Hit hit = inProc() || ElementalHits.isProc(source) ? null : hitOf(source);

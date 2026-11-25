@@ -308,7 +308,7 @@ public final class HealerPathGameTests {
         float second = HealerPath.whenStruck(o, SkillAPI.get(o), foe, true, bite, 10, now);
         helper.assertTrue(Math.abs(first - 6) < 0.01f && Math.abs(second - 10) < 0.01f, "Foretold takes 40% off the first blow only: " + first + ", " + second);
 
-        // Benison (15% less under the halo), the Gilded Soul (12% at level 5) and the Avatar that cannot be killed
+        // Benison (15% less under the halo), the Gilded Soul (12% at level 5) and the Avatar that turns aside one killing blow
         ServerPlayer d = healer(helper, Subclass.DAWN_SAINT);
         SkillAPI.learn(d, HealerPath.BENISON, 1, OTHER);
         SkillAPI.learn(d, HealerPath.AVATAR_OF_DAWN, 1, OTHER);
@@ -323,7 +323,12 @@ public final class HealerPathGameTests {
         helper.assertTrue(HealerPath.whenStruck(d, SkillAPI.get(d), foe, true, bite, 1000, now) >= d.getHealth(), "a mortal blow kills a mortal");
         refill(d);
         helper.assertTrue(SkillAPI.cast(d, HealerPath.AVATAR_OF_DAWN) && SkillAPI.hasBuff(d, HealerPath.BUFF_AVATAR), "the Avatar rises");
-        helper.assertTrue(HealerPath.whenStruck(d, SkillAPI.get(d), foe, true, bite, 1000, now) < d.getHealth(), "the Avatar cannot be killed");
+        helper.assertTrue(HealerPath.whenStruck(d, SkillAPI.get(d), foe, true, bite, 1000, now) >= d.getHealth(), "the Avatar is mighty, not deathless");
+        net.neoforged.neoforge.event.entity.living.LivingDeathEvent death = new net.neoforged.neoforge.event.entity.living.LivingDeathEvent(d, bite);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(death);
+        helper.assertTrue(death.isCanceled() && d.getHealth() == 1, "the Avatar turns aside the first killing blow, leaving one point");
+        helper.assertTrue(SkillAPI.hasBuff(d, HealerPath.BUFF_AVATAR) && SkillAPI.hasBuff(d, HealerPath.BUFF_AVATAR_SPENT),
+                "but only one a cast: the Avatar shines on, spent");
 
         // Last Light and the Motes of Mercy mend their owner right after a blow
         ServerPlayer l = healer(helper, Subclass.LIGHTBINDER);

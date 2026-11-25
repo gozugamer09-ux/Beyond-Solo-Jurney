@@ -101,8 +101,8 @@ public final class ShadowPromotionGameTests {
         float knight = ShadowService.maxHealth(r, 20);
         helper.assertTrue(ShadowPromotions.promote(p, r.id()), "promoted");
         int entry = ShadowRank.KNIGHT.entryLevel(ShadowRank.LEVEL_CAP);
-        helper.assertTrue(entry > 1 && ShadowRank.CAPTAIN.power(entry) >= ShadowRank.KNIGHT.power(ShadowRank.LEVEL_CAP)
-                && ShadowRank.CAPTAIN.power(entry - 1) < ShadowRank.KNIGHT.power(ShadowRank.LEVEL_CAP), "it comes in where its strength is kept");
+        helper.assertTrue(entry == 1 && ShadowRank.CAPTAIN.power(1) > ShadowRank.KNIGHT.power(ShadowRank.LEVEL_CAP) * 1.05f,
+                "a promotion is a real step: in at level 1, and stronger than the top of the old rank");
         helper.assertTrue(r.rank() == ShadowRank.CAPTAIN && r.level() == entry && r.xp() == 0, "a captain: " + r.rank() + " " + r.level());
         helper.assertTrue(ShadowService.army(p).essence() == 10, "the promotion took its essence: " + ShadowService.army(p).essence());
         helper.assertTrue(ShadowService.maxHealth(r, 20) > knight, "stronger than the knight it was");
