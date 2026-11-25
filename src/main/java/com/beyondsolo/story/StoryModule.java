@@ -88,7 +88,7 @@ public final class StoryModule {
     public static final DeferredItem<StoryItem> ELIXIR = ITEMS.register("elixir_of_waking",
             () -> new StoryItem(0xFFD98A, true, new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant()));
 
-    /** The share of max health Home Comfort adds (a first guess for the balancing pass). */
+    /** The share of max health Home Comfort adds. */
     public static final double COMFORT_HEALTH = 0.1;
     /** How long a bowl of her stew keeps the hunter warm. */
     public static final int COMFORT_TICKS = 20 * 60 * 20;
@@ -97,7 +97,7 @@ public final class StoryModule {
     public static final DeferredHolder<MobEffect, MobEffect> HOME_COMFORT = EFFECTS.register("home_comfort",
             () -> new CombatStatusEffect(MobEffectCategory.BENEFICIAL, 0xF2B46B, Set.of(), 100,
                     (e, amp) -> {
-                        if (e.getHealth() < e.getMaxHealth()) Balance.healRaw(e, e.getMaxHealth() * 0.01f);
+                        Balance.regen(e, e.getMaxHealth() * 0.01f);
                     })
                     .addAttributeModifier(Attributes.MAX_HEALTH, BeyondSolo.id("effect.home_comfort"), COMFORT_HEALTH,
                             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));

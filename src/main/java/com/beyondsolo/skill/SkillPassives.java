@@ -56,7 +56,7 @@ public final class SkillPassives {
         int flow = data.level(Skills.MANA_FLOW.path());
         if (flow > 0) SystemAPI.restoreMana(player, SkillActions.manaFlow(flow));
         int bloom = data.level(Skills.LIFE_BLOOM.path());
-        if (bloom > 0 && player.getHealth() < player.getMaxHealth() && player.isAlive()) player.heal(SkillActions.lifeBloom(bloom));
+        if (bloom > 0) com.beyondsolo.system.Balance.regenFlat(player, SkillActions.lifeBloom(bloom));
         SubclassPassives.tickSecond(player, data);
     }
 

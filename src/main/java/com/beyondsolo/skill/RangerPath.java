@@ -1421,7 +1421,7 @@ public final class RangerPath {
         }
         int heart = data.level(WILD_HEART.path());
         if (heart > 0) {
-            if (p.getHealth() < p.getMaxHealth()) p.heal(heartRegen(heart));
+            com.beyondsolo.system.Balance.regenFlat(p, heartRegen(heart));
             float beastHeal = heartBeasts(heart) * (float) com.beyondsolo.system.Balance.summonHealth(SystemAPI.get(p));
             for (TamableAnimal beast : beasts(p, 24)) if (beast.getHealth() < beast.getMaxHealth()) beast.heal(beastHeal);
         }

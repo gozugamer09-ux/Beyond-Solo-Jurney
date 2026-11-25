@@ -97,7 +97,7 @@ public final class MonarchHooks {
             amount *= MonarchDomain.might(p);
         }
         amount *= MonarchDomain.dreadBonus(target);
-        if (target instanceof Player || target instanceof com.beyondsolo.shadow.ShadowEntity) amount *= MonarchDomain.guard(target);
+        if (target instanceof Player || target instanceof com.beyondsolo.shadow.ShadowEntity) amount *= com.beyondsolo.system.BalanceHooks.keep(target, MonarchDomain.guard(target));
         if (amount != event.getAmount()) event.setAmount(amount);
     }
 

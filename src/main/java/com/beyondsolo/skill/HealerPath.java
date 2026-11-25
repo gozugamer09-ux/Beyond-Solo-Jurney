@@ -61,6 +61,9 @@ public final class HealerPath {
     public static final String BUFF_COAGULATE = "coagulate";
     public static final String BUFF_WINGS = "seraph_wings";
     public static final String BUFF_AVATAR = "avatar_of_dawn";
+    /** The Avatar has turned aside its killing blow this cast. */
+    public static final String BUFF_AVATAR_SPENT = "avatar_of_dawn_spent";
+    static final int AVATAR_TICKS = 300;
     /** Gifts a healer leaves on others (see {@link #gift}): the mist that makes blows miss, the halo's protection. */
     public static final String GIFT_MIST = "morning_mist";
     public static final String GIFT_BENISON = "benison";
@@ -1038,7 +1041,8 @@ public final class HealerPath {
 
     static boolean avatarOfDawn(ServerPlayer p, Skill s, int l) {
         ServerLevel level = p.serverLevel();
-        SkillAPI.setBuff(p, BUFF_AVATAR, 300);
+        SkillAPI.setBuff(p, BUFF_AVATAR, AVATAR_TICKS);
+        SkillAPI.clearBuff(p, BUFF_AVATAR_SPENT);
         p.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 300, 0, false, false, true));
         p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 300, 1, false, false, true));
         sound(p, SoundEvents.BEACON_ACTIVATE, 1f, 0.8f);
@@ -1108,6 +1112,19 @@ public final class HealerPath {
     }
 
     /**
+     * The Avatar of Dawn turns aside one killing blow a cast (it is mighty, not deathless): the first blow that would kill
+     * leaves one point of health, and the avatar is spent until it is cast again.
+     */
+    static boolean refusesDeath(ServerPlayer p, SkillData data) {
+        long now = p.level().getGameTime();
+        if (!data.hasBuff(BUFF_AVATAR, now) || data.hasBuff(BUFF_AVATAR_SPENT, now)) return false;
+        SkillAPI.setBuff(p, BUFF_AVATAR_SPENT, AVATAR_TICKS);
+        p.setHealth(1);
+        sound(p, SoundEvents.TOTEM_USE, 0.4f, 1.8f);
+        return true;
+    }
+
+    /**
      * A player is struck: a healer's own passives, and what healers have left on anyone. Returns the damage to take,
      * below zero if the blow misses. Public for the game tests: test players cannot be hurt, so they ask directly.
      */
@@ -1132,7 +1149,7 @@ public final class HealerPath {
                 }
             }
             double mist = gift(p, GIFT_MIST, now);
-            if (mist > 0 && p.getRandom().nextFloat() * 100 < mist) {
+            if (mist > 0 && com.beyondsolo.system.BalanceHooks.avoids(p, source, (float) mist / 100f)) {
                 sound(p, SoundEvents.FIRE_EXTINGUISH, 0.3f, 1.8f);
                 return -1;
             }
@@ -1167,8 +1184,6 @@ public final class HealerPath {
                 if (left < 1) MOTES.remove(id);
             }
         }
-        // the avatar cannot be killed
-        if (data.hasBuff(BUFF_AVATAR, now) && amount >= p.getHealth()) amount = Math.max(0, p.getHealth() - 1);
         int last = data.level(LAST_LIGHT.path());
         if (last > 0 && !data.hasBuff(BUFF_LAST_LIGHT, now) && amount < p.getHealth() && p.getHealth() - amount < p.getMaxHealth() * 0.3f) {
             data.setBuff(BUFF_LAST_LIGHT, now + 1200);

@@ -234,13 +234,14 @@ public class GuildHunterEntity extends PathfinderMob {
                 }
             }
         }
-        Item weapon = weapon(cls, rank);
+        Item weapon = classWeapon(cls, rank);
         if (weapon != null) setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(weapon));
         setDropChance(EquipmentSlot.MAINHAND, 0f);
     }
 
+    /** The weapon a hunter of the class carries at the rank (the balance bench arms its hunters the same way). */
     @Nullable
-    private static Item weapon(PlayerClass cls, PlayerRank rank) {
+    public static Item classWeapon(PlayerClass cls, PlayerRank rank) {
         int t = rank.tier();
         int i = t <= 0 ? 0 : t <= 2 ? 1 : t <= 3 ? 2 : 3;
         var list = switch (cls) {

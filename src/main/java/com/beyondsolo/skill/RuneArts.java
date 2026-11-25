@@ -453,7 +453,7 @@ public final class RuneArts {
                 if (from != null && inFront(p, from)) {
                     int l = Math.max(1, data.level(ASHEN_BULWARK.path()));
                     float original = amount;
-                    amount *= 1 - bulwarkBlock(l) / 100f;
+                    amount *= com.beyondsolo.system.BalanceHooks.keep(p, 1 - bulwarkBlock(l) / 100f);
                     if (attacker instanceof LivingEntity foe && foe != p && direct == attacker && !event.getSource().is(DamageTypeTags.IS_PROJECTILE)) {
                         foe.hurt(p.damageSources().thorns(p), original * bulwarkReturn(l) / 100f);
                     }
@@ -464,7 +464,7 @@ public final class RuneArts {
 
             // Iron Resolve: holds when the end is near
             int resolve = data.level(IRON_RESOLVE.path());
-            if (resolve > 0 && p.getHealth() < p.getMaxHealth() * RESOLVE_BELOW) amount *= 1 - resolveBlock(resolve) / 100f;
+            if (resolve > 0 && p.getHealth() < p.getMaxHealth() * RESOLVE_BELOW) amount *= com.beyondsolo.system.BalanceHooks.keep(p, 1 - resolveBlock(resolve) / 100f);
 
             // Crystal Carapace: a shard back at whoever struck in melee
             int carapace = data.level(CRYSTAL_CARAPACE.path());

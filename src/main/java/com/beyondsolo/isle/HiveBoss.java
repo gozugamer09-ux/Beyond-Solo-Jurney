@@ -8,7 +8,6 @@ import com.beyondsolo.worldboss.ColossalBoss;
 import com.beyondsolo.worldboss.WorldBosses;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -56,17 +55,14 @@ public abstract class HiveBoss extends ColossalBoss {
      * hunters' own work (and their share of it, which every blow of another thins).
      */
     @Override
-    public boolean hurt(DamageSource source, float amount) {
-        if (!level().isClientSide && source.getEntity() instanceof GuildHunterEntity) amount *= IsleConfig.allyRoyalDamage();
-        return super.hurt(source, amount);
+    protected float allyShare() {
+        return IsleConfig.allyRoyalDamage();
     }
 
-    /**
-     * Whether a buildup takes hold on it: never venom (the swarm's poison is its own), and nothing an ally's blow
-     * carries (a burn or a brand would bring it down in a few minutes on its own, with no hunter's hand in it).
-     */
+    /** Whether a buildup takes hold on it: never venom (the swarm's poison is its own), nor what an ally's blow carries. */
+    @Override
     public boolean takesBuildup(BuildupType type, @Nullable Entity source) {
-        return type != Statuses.VENOM && !(source instanceof GuildHunterEntity);
+        return type != Statuses.VENOM && super.takesBuildup(type, source);
     }
 
     /** The swarm's venom is its own: no poison takes hold on it, its own kind's or a potion's. */

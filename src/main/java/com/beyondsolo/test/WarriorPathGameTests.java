@@ -174,7 +174,7 @@ public final class WarriorPathGameTests {
         SkillAPI.learn(p, WarriorPath.THICK_BLOOD, 5, SkillEvent.Source.OTHER);
         helper.assertTrue(Math.abs(p.getMaxHealth() - health * 1.125f) < 0.01, "Thick Blood 5 adds 12.5% max health: " + (p.getMaxHealth() - health));
 
-        // Last Stand refuses death
+        // Last Stand refuses one death a cast
         SkillAPI.learn(p, WarriorPath.LAST_STAND, 1, SkillEvent.Source.OTHER);
         refill(p);
         helper.assertTrue(SkillAPI.cast(p, WarriorPath.LAST_STAND), "Last Stand casts");
@@ -182,6 +182,8 @@ public final class WarriorPathGameTests {
         LivingDeathEvent death = new LivingDeathEvent(p, p.damageSources().generic());
         NeoForge.EVENT_BUS.post(death);
         helper.assertTrue(death.isCanceled() && p.getHealth() == 1, "Last Stand keeps the Bloodrager alive at 1 health");
+        helper.assertTrue(!SkillAPI.hasBuff(p, WarriorPath.BUFF_LAST_STAND), "but only once a cast: the stand is spent");
+        p.setHealth(p.getMaxHealth());
 
         // Execution Order: everyone's hits on the marked creature are stronger
         ServerPlayer w = warrior(helper, Subclass.WARLORD);

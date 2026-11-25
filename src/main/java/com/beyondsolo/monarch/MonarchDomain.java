@@ -80,6 +80,16 @@ public final class MonarchDomain {
         boolean holds(Entity e) {
             return e.level() == level && e.position().distanceToSqr(owner.position()) <= (double) radius * radius;
         }
+
+        /**
+         * Whether it stands with {@code e}: its monarch, the hunters of their party, and their shadows. A foe who walks
+         * in (another hunter in a fight between hunters, their shadows) is held by it, never sheltered or made mightier.
+         */
+        boolean befriends(Entity e) {
+            UUID id = e instanceof ShadowEntity sh ? sh.getOwnerUUID() : e instanceof Player pl ? pl.getUUID() : null;
+            if (id == null) return false;
+            return id.equals(owner.getUUID()) || owner.getServer() != null && com.beyondsolo.party.Parties.together(owner.getServer(), owner.getUUID(), id);
+        }
     }
 
     /** A crown form taken. */
@@ -147,10 +157,10 @@ public final class MonarchDomain {
         return FORMS.containsKey(p.getUUID());
     }
 
-    /** Whether something stands sheltered in a monarch's domain: the monarch, another hunter or a shadow inside it. */
+    /** Whether something stands sheltered in a monarch's domain: the monarch, their party or their shadows inside it. */
     public static boolean shelters(LivingEntity e) {
         if (DOMAINS.isEmpty() || !(e instanceof Player || e instanceof ShadowEntity)) return false;
-        for (Reign r : DOMAINS.values()) if (r.holds(e)) return true;
+        for (Reign r : DOMAINS.values()) if (r.holds(e) && r.befriends(e)) return true;
         return false;
     }
 
@@ -158,7 +168,7 @@ public final class MonarchDomain {
     public static float might(ServerPlayer p) {
         float m = 1;
         for (Reign r : DOMAINS.values()) {
-            if (r.holds(p)) m = Math.max(m, 1 + MonarchPowers.domainMight(r.skillLevel) / 100f);
+            if (r.holds(p) && r.befriends(p)) m = Math.max(m, 1 + MonarchPowers.domainMight(r.skillLevel) / 100f);
         }
         Form f = FORMS.get(p.getUUID());
         if (f != null) m *= 1 + MonarchPowers.crownMight(f.skillLevel) / 100f;
@@ -263,7 +273,7 @@ public final class MonarchDomain {
         if (r.dominion == Dominion.NIGHT) {
             for (ShadowEntity sh : r.level.getEntitiesOfClass(ShadowEntity.class, box, sh -> sh.isAlive() && r.holds(sh)
                     && p.getUUID().equals(sh.getOwnerUUID()) && sh.getHealth() < sh.getMaxHealth())) {
-                Balance.healRaw(sh, sh.getMaxHealth() * SHADOW_MEND);
+                Balance.regen(sh, sh.getMaxHealth() * SHADOW_MEND);
             }
         }
         // the monarchs from beyond the gates whose domains reach into this one

@@ -6,6 +6,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /**
  * The power curve of the whole game, in one place.
  *
@@ -32,7 +35,7 @@ import org.jetbrains.annotations.Nullable;
  * 6-damage blow on a 20-health one. All of it lives in {@link BalanceHooks}.</p>
  *
  * <p>The numbers come from a model of a hunter who spends their points the way their class leans (3.5 points a level
- * counting rewards) and wears their rank's armour. This is the interim pass; the final balancing pass tunes it.</p>
+ * counting rewards) and wears their rank's armour. The final balancing pass (2026-11) set the ceilings below on top of it.</p>
  */
 public final class Balance {
     public static final int MAX_LEVEL = 100;
@@ -276,6 +279,83 @@ public final class Balance {
      */
     public static float armorScale(LivingEntity e) {
         return Math.max(1f, e.getMaxHealth() / 20f);
+    }
+
+    // ------------------------------------------------------------------ ceilings
+
+    /**
+     * However many guards stand over one blow (skills, sets, titles, runes, a domain, a sanctum, a crown), at least this
+     * share of it still lands ({@link BalanceHooks#keep}): stacked guards make a body hard to hurt, never untouchable.
+     */
+    public static final float GUARD_FLOOR = 0.25f;
+    /**
+     * Every chance to let a blow pass by (dodge from AGI and gear, mirror images, the mist, a set's veil, a riposte), all
+     * together, at most this ({@link BalanceHooks#avoids}): half the blows still land, however lucky the build.
+     */
+    public static final float MAX_AVOID = 0.5f;
+    /**
+     * Healing over time ({@link #regen}: passives, mending in a domain or a sanctum, regenerating allies), all of it
+     * together, at most this share of max health a second.
+     */
+    public static final float REGEN_CAP = 0.02f;
+    /**
+     * ...but never less than this much a second (vanilla's own regeneration on a well-fed body): the ceiling is for the
+     * big pools of the high ranks, where shares of max health and stacked passives add up, not for a fresh hunter.
+     */
+    public static final float REGEN_FLOOR = 2f;
+    /** VIT's bonus to healing received stops at +100%. */
+    public static final double VIT_HEALING_CAP = 1.0;
+    /**
+     * Burns, poisons and bursts that take a share of max health ({@link #dotShare}) take only this much of their share
+     * from a great threat (a world boss, a monarch, a ruler, the hive's royalty): a share of a hundred thousand health is
+     * not a burn, it is the whole fight. A national-level hunter in a duel takes {@link #DUEL_DOT_SHARE} of it.
+     */
+    public static final float GREAT_DOT_SHARE = 0.05f;
+    public static final float DUEL_DOT_SHARE = 0.25f;
+    /**
+     * The hunters the guilds and the rankings send along (hired hunters, guests, the story's own) land this share of
+     * their blows on a great threat: they hold the small fry and the hunters' backs, but a great threat is the hunters'
+     * to bring down.
+     */
+    public static final float ALLY_GREAT_SHARE = 0.25f;
+
+    /** What share of a max-health burn or burst a creature takes: 1 for most, far less for a great threat or a duelist. */
+    public static float dotShare(LivingEntity e) {
+        if (e instanceof com.beyondsolo.worldboss.ColossalBoss) return GREAT_DOT_SHARE;
+        if (e instanceof com.beyondsolo.duel.DuelistEntity) return DUEL_DOT_SHARE;
+        return 1f;
+    }
+
+    private static final Map<LivingEntity, long[]> REGEN = new WeakHashMap<>();
+
+    /**
+     * Heals over time by an amount already sized like {@link #healRaw}'s, inside the ceiling: everything healed this way
+     * in a second comes to at most {@link #REGEN_CAP} of max health (after healing received; {@link #REGEN_FLOOR} for small
+     * bodies). Returns what it healed.
+     */
+    public static float regen(LivingEntity e, float amount) {
+        if (amount <= 0 || e.level().isClientSide || !e.isAlive() || e.getHealth() >= e.getMaxHealth()) return 0;
+        long second = e.level().getGameTime() / 20;
+        // {second, healed this second (thousandths of a point)}
+        long[] spent = REGEN.computeIfAbsent(e, k -> new long[]{second, 0});
+        if (spent[0] != second) {
+            spent[0] = second;
+            spent[1] = 0;
+        }
+        float room = Math.max(REGEN_CAP * e.getMaxHealth(), REGEN_FLOOR) - spent[1] / 1000f;
+        if (room <= 0) return 0;
+        var received = e.getAttribute(dev.shadowsoffire.apothic_attributes.api.ALObjects.Attributes.HEALING_RECEIVED);
+        double grow = received == null ? 1 : Math.max(0.05, received.getValue());
+        float before = e.getHealth();
+        healRaw(e, (float) Math.min(amount, room / grow));
+        float healed = Math.max(0, e.getHealth() - before);
+        spent[1] += Math.round(healed * 1000);
+        return healed;
+    }
+
+    /** {@link #regen} for a flat heal sized for vanilla health (a passive's few points a second): grown first like any flat heal. */
+    public static float regenFlat(LivingEntity e, float amount) {
+        return regen(e, (float) (amount * legacyScale(e)));
     }
 
     // ------------------------------------------------------------------ heals

@@ -305,14 +305,21 @@ public final class MonarchGameTests {
         List<LivingEntity> court = court(helper, p);
         ServerPlayer ally = FakePlayerFactory.get(p.serverLevel(), new GameProfile(UUID.randomUUID(), "herald"));
         ally.moveTo(p.getX() + 3, p.getY(), p.getZ());
+        com.beyondsolo.party.Parties.invite(p, ally);
+        com.beyondsolo.party.Parties.accept(ally, p.getUUID());
+        ServerPlayer stranger = FakePlayerFactory.get(p.serverLevel(), new GameProfile(UUID.randomUUID(), "trespasser"));
+        stranger.moveTo(p.getX() - 3, p.getY(), p.getZ());
 
         refill(p);
         helper.assertTrue(MonarchPowers.castCrown(p, 0), "the domain is laid down");
         helper.assertTrue(MonarchDomain.hasDomain(p) && MonarchDomain.domainLeft(p) > 0, "it holds");
-        helper.assertTrue(MonarchDomain.shelters(p) && MonarchDomain.shelters(ally), "the monarch and an ally inside are sheltered");
+        helper.assertTrue(MonarchDomain.shelters(p) && MonarchDomain.shelters(ally), "the monarch and a party ally inside are sheltered");
         float might = 1 + MonarchPowers.domainMight(1) / 100f;
         helper.assertTrue(near(MonarchDomain.might(p), might) && near(MonarchDomain.might(ally), might), "both hit harder");
         helper.assertTrue(near(MonarchDomain.guard(ally), 1 - MonarchPowers.DOMAIN_GUARD / 100f), "and take less");
+        helper.assertTrue(!MonarchDomain.shelters(stranger) && near(MonarchDomain.might(stranger), 1) && near(MonarchDomain.guard(stranger), 1),
+                "a hunter outside the party who walks in is held, never helped");
+        com.beyondsolo.party.Parties.disband(p);
         ally.moveTo(p.getX() + MonarchPowers.radius() + 6, p.getY(), p.getZ());
         helper.assertTrue(!MonarchDomain.shelters(ally) && near(MonarchDomain.might(ally), 1), "outside it, nothing");
 

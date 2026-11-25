@@ -115,7 +115,7 @@ public final class LightHooks {
             amount *= LightSanctum.might(p);
         }
         amount *= LightSanctum.judgedBonus(target);
-        if (target instanceof Player || target instanceof com.beyondsolo.shadow.ShadowEntity) amount *= LightSanctum.guard(target);
+        if (target instanceof Player || target instanceof com.beyondsolo.shadow.ShadowEntity) amount *= com.beyondsolo.system.BalanceHooks.keep(target, LightSanctum.guard(target));
         if (amount != event.getAmount()) event.setAmount(amount);
     }
 

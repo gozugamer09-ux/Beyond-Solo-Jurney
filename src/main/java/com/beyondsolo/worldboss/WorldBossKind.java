@@ -71,8 +71,8 @@ public enum WorldBossKind {
     /** Its light: the beacon, the bar's frame, its warnings on the ground. */
     public final int color;
     /**
-     * Health and damage as multiples of an S-rank gate boss's ({@link Balance#bossHealth}, {@link Balance#bossDamage}),
-     * so they move with the power curve. First guesses for the balancing pass.
+     * Health and damage as multiples of a gate boss's at the level it is sized for ({@link #health(double)}): an S-rank
+     * gate boss's at S's home level, so they move with the power curve.
      */
     public final float healthScale;
     public final float damageScale;
@@ -93,14 +93,51 @@ public enum WorldBossKind {
         this.phase3 = phase3;
     }
 
-    /** Its max health (about 85,000 to 105,000 on today's curve). */
-    public float health() {
-        return Balance.bossHealth(PlayerRank.S) * healthScale;
+    /** S's home level: what a monarch, a ruler or the hive's royalty is sized for at the least. */
+    public static final int S_LEVEL = Balance.homeLevel(PlayerRank.S);
+    /**
+     * How much more a monarch or a ruler grows than the curve, by the level cap: its health and its blows grow with the
+     * hunters it is sized for ({@link #health(double)}), and on top of that by up to these from S's home level to the
+     * cap, so the strongest hunters, crowned or invested, still meet something stronger than they are.
+     */
+    public static final float SOVEREIGN_HEALTH_GROWTH = 2.0f;
+    public static final float SOVEREIGN_DAMAGE_GROWTH = 1.6f;
+
+    /**
+     * The level of the hunters it is sized for when nobody stronger comes for it ({@link WorldBosses#threatLevel}): a
+     * world boss from the level world bosses first come at, anything else never less than an S-rank threat.
+     */
+    public int floorLevel() {
+        return tier == Tier.WORLD ? Math.min(S_LEVEL, WorldBossConfig.minLevel()) : S_LEVEL;
     }
 
-    /** The damage of its plain blow (about 560 to 680 on today's curve); each move is a multiple of it. */
+    /** Its max health sized for hunters of S's home level (about 85,000 to 105,000 on today's curve). */
+    public float health() {
+        return health(S_LEVEL);
+    }
+
+    /** The damage of its plain blow at S's home level (about 560 to 680 on today's curve); each move is a multiple of it. */
     public float damage() {
-        return Balance.bossDamage(PlayerRank.S) * damageScale;
+        return damage(S_LEVEL);
+    }
+
+    /**
+     * Its max health sized for hunters of {@code level}: {@link #healthScale} gate bosses of that level, and for a monarch
+     * or a ruler past S's home level, its growth on top ({@link #SOVEREIGN_HEALTH_GROWTH}).
+     */
+    public float health(double level) {
+        return (float) (Balance.BOSS_HEALTH * Balance.healthAt(level) * healthScale * growth(level, SOVEREIGN_HEALTH_GROWTH));
+    }
+
+    /** The damage of its plain blow sized for hunters of {@code level}. */
+    public float damage(double level) {
+        return (float) (Balance.BOSS_DAMAGE * Balance.damageAt(level) * damageScale * growth(level, SOVEREIGN_DAMAGE_GROWTH));
+    }
+
+    private float growth(double level, float top) {
+        if (!sovereign() || level <= S_LEVEL) return 1f;
+        double t = Math.min(1, (level - S_LEVEL) / (double) (Balance.MAX_LEVEL - S_LEVEL));
+        return (float) (1 + (top - 1) * t);
     }
 
     public boolean monarch() {

@@ -57,6 +57,12 @@ public final class MonarchArmy {
             EnemyTraits traits = new EnemyTraits(affinity, v, Affix.mask(Affix.roll(v.affixes, r)));
             Mob mob = Enemies.spawn(level, PlayerRank.S, type, p, traits, -1);
             if (mob == null) continue;
+            // the army keeps pace with its monarch as it is sized past S
+            double[] grow = monarch.hostScale();
+            if (grow[0] > 1 || grow[1] > 1) {
+                Enemies.strength(mob, Enemies.rankHealth(PlayerRank.S) * grow[0], Enemies.rankDamage(PlayerRank.S) * grow[1]);
+                mob.setHealth(mob.getMaxHealth());
+            }
             if (event != null) {
                 mob.getPersistentData().putUUID(WorldBosses.ARMY_TAG, event);
                 SOLDIERS.computeIfAbsent(event, k -> new ArrayList<>()).add(mob.getUUID());

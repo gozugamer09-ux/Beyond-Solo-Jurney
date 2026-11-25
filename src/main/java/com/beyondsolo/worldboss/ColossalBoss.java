@@ -145,6 +145,8 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     private float takingFrom;
     /** Where it rose or landed: the land it roams and keeps to. */
     @Nullable private BlockPos home;
+    /** The level of the hunters it was sized for ({@link WorldBosses#threatLevel}); 0: its kind's floor. */
+    private int threatLevel;
     /** Its entrance: from where to where it moves while it plays (rising out of the earth, coming down from the sky). */
     @Nullable private Vec3 enterFrom;
     @Nullable private Vec3 enterTo;
@@ -241,14 +243,40 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, false));
     }
 
-    /** Sets its health and damage from its kind (call before adding it to the world). */
+    /**
+     * Sets its health and damage from its kind, sized for hunters of its {@link #threatLevel} (call before adding it to
+     * the world).
+     */
     public void setupStats() {
         WorldBossKind k = kind();
-        getAttribute(Attributes.MAX_HEALTH).setBaseValue(k.health());
-        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(k.damage());
+        int level = threatLevel();
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(k.health(level));
+        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(k.damage(level));
         setHealth(getMaxHealth());
         setCustomName(k.fullName());
         setCustomNameVisible(false);
+    }
+
+    /** The level of the hunters it is sized for: what it was called for, at least its kind's floor. */
+    public int threatLevel() {
+        return Math.max(kind().floorLevel(), Math.min(com.beyondsolo.system.Balance.MAX_LEVEL, threatLevel));
+    }
+
+    /** Sizes it for hunters of {@code level} ({@link WorldBosses#threatLevel}); {@link #setupStats} reads it. */
+    public void setThreatLevel(int level) {
+        this.threatLevel = level;
+    }
+
+    /**
+     * How much stronger than an S-rank gate's creatures its own host is ({health, damage}): its army or its heralds keep
+     * pace with it as it is sized past S's home level.
+     */
+    public double[] hostScale() {
+        int level = threatLevel();
+        double s = com.beyondsolo.system.Balance.homeLevel(com.beyondsolo.system.PlayerRank.S);
+        return new double[]{
+                Math.max(1, com.beyondsolo.system.Balance.healthAt(level) / com.beyondsolo.system.Balance.healthAt(s)),
+                Math.max(1, com.beyondsolo.system.Balance.damageAt(level) / com.beyondsolo.system.Balance.damageAt(s))};
     }
 
     public boolean isAwake() {
@@ -415,12 +443,34 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         if (!isAwake() || introTicks() > 0 || leaving()) return !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
-        return super.isInvulnerableTo(source);
+        return com.beyondsolo.combat.CombatDamage.spared(this, source, super.isInvulnerableTo(source));
+    }
+
+    /**
+     * The share of their blows the hunters the guilds and the rankings send along land on it ({@link #ally}): they keep
+     * its host off the hunters, and bringing it down is the hunters' own work.
+     */
+    protected float allyShare() {
+        return com.beyondsolo.system.Balance.ALLY_GREAT_SHARE;
+    }
+
+    /** The hunters who fight beside the players without being one (hired, guests of a raid, the story's own). */
+    public static boolean ally(@Nullable Entity e) {
+        return e instanceof com.beyondsolo.guild.GuildHunterEntity;
+    }
+
+    /**
+     * Whether a buildup takes hold on it: nothing an ally's blow carries (a burn or a brand would bring it down on its
+     * own, with no hunter's hand in it).
+     */
+    public boolean takesBuildup(com.beyondsolo.combat.BuildupType type, @Nullable Entity source) {
+        return !ally(source);
     }
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (level().isClientSide) return super.hurt(source, amount);
+        if (ally(source.getEntity())) amount *= allyShare();
         DamageSource outer = taking;
         float outerFrom = takingFrom;
         taking = source;
@@ -1029,6 +1079,7 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         if (eventId != null) tag.putUUID("Event", eventId);
         tag.putLong("Engaged", lastEngaged);
         if (home != null) tag.putLong("Home", home.asLong());
+        if (threatLevel > 0) tag.putInt("ThreatLevel", threatLevel);
         ListTag list = new ListTag();
         for (Map.Entry<UUID, Float> e : dealt.entrySet()) {
             CompoundTag c = new CompoundTag();
@@ -1048,6 +1099,7 @@ public abstract class ColossalBoss extends Monster implements GeoEntity {
         eventId = tag.hasUUID("Event") ? tag.getUUID("Event") : null;
         lastEngaged = tag.getLong("Engaged");
         home = tag.contains("Home") ? BlockPos.of(tag.getLong("Home")) : null;
+        threatLevel = tag.getInt("ThreatLevel");
         noPhysics = walksThrough();
         foreign = tag.getFloat("Foreign");
         dealt.clear();

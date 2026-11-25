@@ -279,7 +279,7 @@ public class GateBossEntity extends Monster implements GeoEntity, DungeonBoss {
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
         if (!isAwake() || introTicks() > 0) return !source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY);
-        return super.isInvulnerableTo(source);
+        return com.beyondsolo.combat.CombatDamage.spared(this, source, super.isInvulnerableTo(source));
     }
 
     @Override

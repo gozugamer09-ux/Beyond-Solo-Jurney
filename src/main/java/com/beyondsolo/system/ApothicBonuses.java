@@ -23,7 +23,7 @@ final class ApothicBonuses {
                 d -> Math.min(0.4, StatEffects.above(d, Stat.INT) * 0.005));
         // VIT: more healing received
         StatEffects.register("vit_healing", ALObjects.Attributes.HEALING_RECEIVED, Operation.ADD_VALUE,
-                d -> StatEffects.above(d, Stat.VIT) * 0.01);
+                d -> Math.min(Balance.VIT_HEALING_CAP, StatEffects.above(d, Stat.VIT) * 0.01));
     }
 
     private ApothicBonuses() {}

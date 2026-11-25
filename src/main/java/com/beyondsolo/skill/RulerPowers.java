@@ -495,7 +495,7 @@ public final class RulerPowers {
                     SubclassKit.fxAt(level, Kind.BEAM, c, e.position().add(0, e.getBbHeight() * 0.5, 0), 0.4f, 8);
                 }
                 for (Player ally : allies(p, at, DAYBREAK_RADIUS)) {
-                    if (ally.getHealth() < ally.getMaxHealth()) Balance.healRaw(ally, ally.getMaxHealth() * DAYBREAK_MEND);
+                    Balance.regen(ally, ally.getMaxHealth() * DAYBREAK_MEND);
                     SkillParticles.send(level, ParticleTypes.HAPPY_VILLAGER, ally.getX(), ally.getY() + 1, ally.getZ(), 3, 0.3, 0.5, 0.3, 0);
                 }
                 SkillParticles.send(level, ParticleTypes.END_ROD, sun.x, sun.y, sun.z, 12, 1.2, 1.2, 1.2, 0.12);

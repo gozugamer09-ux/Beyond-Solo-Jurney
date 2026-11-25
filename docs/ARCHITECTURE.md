@@ -227,7 +227,8 @@ Rules that came out of building it, worth keeping for gates and bosses:
 ## The power curve (`system/Balance`)
 
 All of the game's growth lives in `system/Balance`, and what keeps old flat numbers fair next to it in
-`system/BalanceHooks`. It is the interim pass; the final balancing pass tunes the same constants.
+`system/BalanceHooks`. The interim pass (PR #57) set the curve; the final balancing pass (2026-11) added the ceilings
+and the great threats' sizing below, measured on a bench of hunters of every class and level (`test/BalanceLab`).
 
 - **The hunter**: levels 1 to 100 (`Balance.MAX_LEVEL`). Each level adds 4 max health and 3% to every blow, arrow,
   skill and summon (`levelHealth`, `levelDamage`). Stat points are big steps: a VIT point is +5% max health (of the
@@ -268,8 +269,41 @@ All of the game's growth lives in `system/Balance`, and what keeps old flat numb
   level (`POINTS_PER_LEVEL`: a level is its three points and about as much again in health and damage), never below
   E's home level. The rival hunters on the rankings stand near their ranks' home levels and climb at most 30% past
   their start (`Rival.GROWTH_CAP`), so the best ends just under the cap and a hunter at level 100 can take first place.
+- **Ceilings** (the final pass; the rule: a monarch feels overpowered, but another monarch can beat it, and nothing is
+  untouchable or deathless):
+  - *Guards*: every "take less" over one blow (class passives and skills, set perks, titles, runes, a domain, a
+    sanctum, a crown form) goes through `BalanceHooks.keep`, which tracks the blow (`freshBlow` on its
+    `LivingIncomingDamageEvent`): together they keep at least `GUARD_FLOOR` (25%) of it.
+  - *Dodges*: every chance to let a blow pass by (Evasive Step, Foresight, mirror images, the mist, a riposte, a set's
+    veil) is rolled by `BalanceHooks.avoids` inside `MAX_AVOID` (50%) for the blow, Apothic's dodge counted first.
+  - *Healing over time*: passives, a domain's or sanctum's mending, Daybreak, the father, Home Comfort and the like go
+    through `Balance.regen` (raw amounts) or `regenFlat` (vanilla-sized ones): all together at most `REGEN_CAP` (2%) of
+    max health a second, never less than `REGEN_FLOOR` (2 health). VIT's healing received stops at +100%
+    (`VIT_HEALING_CAP`).
+  - *Death refused*: Last Stand and the Avatar of Dawn turn aside the first killing blow of a cast (one health left,
+    at the death itself, so no guard math can undo it), then are spent; Undying / Eternal Grace give Resistance II
+    for 3 s, not IV.
+  - *A domain or a sanctum* shelters, mends and empowers only its owner, their party and their shadows; a hunter who
+    walks into someone else's is held by it, never helped.
+  - *Fire*: our bosses (gate bosses, the Arbiter, the Citadel's lord, the great threats, heralds) keep vanilla's fire
+    immunity against lava and burning but take the System's fire element (`CombatDamage.spared`); their elemental rows
+    come from their kind's affinity (`ElementalProfile`), heralds and rulers take more from shadow and less from light.
+- **Great threats** (`worldboss/ColossalBoss`: world bosses, monarchs, rulers, the hive's royalty):
+  - sized for the strongest awakened hunter within 256 blocks of where they rise, else anywhere in the world
+    (`WorldBosses.threatLevel`), never below their floor (`WorldBossKind.floorLevel`: world bosses `worldbosses.minLevel`,
+    C's home level; the rest S's home level) and never past 100. Monarchs and rulers grow past S's home level up to x2
+    health and x1.6 damage at 100 (`SOVEREIGN_*_GROWTH`), and their army or heralds keep pace (`hostScale`). A level 100
+    crowned hunter fells one in about 45 to 100 s of steady blows and falls to about 16 of its blows; one met at S's
+    home level is unchanged.
+  - burns, venom, crimson bursts and blood pops take `GREAT_DOT_SHARE` (5%) of their share of max health from them
+    (`Balance.dotShare`; a duelist `DUEL_DOT_SHARE`, 25%), so a status is a nick, not the fight.
+  - the hunters who fight beside players without being one (hired hands, guild hunters, guests, the father) land
+    `ALLY_GREAT_SHARE` (25%) of their blows on them (`ColossalBoss.ally`, `allyShare`; the hive's royalty its own
+    `isle.allyRoyalDamage`).
+- **Shadow ranks** are a real step each: every rank's power is about 30% over the last (`ShadowRank`), a shadow grows
+  2% a level inside its rank (+18% at the cap), so a rank-up enters at level 1 and still beats the rank it left.
 - **AttributeFix** is a required dependency: it lifts vanilla's attribute caps (1024 max health, 2048 damage).
-- Tests: `BalanceGameTests`.
+- Tests: `BalanceGameTests`, `FairFightGameTests`.
 
 ## Hooks per planned module
 
@@ -293,7 +327,7 @@ buffs) and its key binding (blocked during a collapse), all behind `ModList` che
 
 | Element | Buildup (`Statuses` / `Buildups`) | When full | Cure |
 | --- | --- | --- | --- |
-| Fire | `BURN`, 100, -8/s | Deep Burn (infinite, 1 + 1% max HP every 3 s, half healing) | Quenching Elixir only |
+| Fire | `BURN`, 100, -8/s | Deep Burn (infinite, 1 + 1% max HP every 3 s, half healing; a great threat takes 5% of the share, a duelist 25%: `Balance.dotShare`) | Quenching Elixir only |
 | Poison | `VENOM`, 35, -5/s | +1 Venom stack (I-IV), the 5th turns into Heavy Venom | Venom: milk, honey, Antidote. Heavy: Greater Antidote |
 | Crimson | `CRIMSON`, 100, -6/s | 8% max HP burst + Crimson Brand (10 s: +25% damage taken, half healing, attackers heal 10%) | milk, Clotting Tonic |
 | Blood | `BLOOD`, 100, -4/s | Blood pop: 10% max HP (5% for bosses, elites and champions, `Statuses.popCap`), ignores armor, enchantments and Resistance, and never more than that share whatever bonuses the hit carried (`ElementalHits.capPop`) | (buildup) Clotting Tonic |
@@ -882,10 +916,11 @@ own attachment (`shadow_army`, kept through death), entity type (`beyondsolo:sha
   `ShadowLookPayload`).
 - **Growing.** A shadow gets XP for its kills (the creature's max health) and a quarter of that for its master's kills
   nearby; filling level 10 climbs a rank by itself up to Knight (`ShadowService.addXp`, rank-up moment and pop-up).
-  A new rank never makes a shadow weaker: it comes in at the lowest level as strong as it was (`ShadowRank.entryLevel`;
-  from the top of a rank that is level 4 or 5, as growth inside a rank, +45%, outweighs a rank step, about +25%).
+  Each rank is a real step up: about 30% stronger than the one below, more than the levels inside a rank add (+18%
+  at level 10), so a shadow comes into its new rank at level 1 and is stronger for it (`ShadowRank.entryLevel` keeps
+  a new rank from ever making it weaker, whatever the table says).
   From Knight on, a shadow at level 10 waits (`ShadowRecord.ready`, takes no XP) for its master to promote it. The
-  master gets half the usual System XP for their shadows' kills. Stats: base x rank power x (1 + 5%/level) x
+  master gets half the usual System XP for their shadows' kills. Stats: base x rank power x (1 + 2%/level) x
   (1 + 1%/INT over base) x 1.10 if its master named it.
 - **Promotions** (`ShadowPromotions`; series: the named shadows promoted to knights, commanders, a marshal). Captain,
   Commander, Marshal and Regent come only by promotion (`ShadowRank.byPromotion`): the Shadows page's *Promote* (or
@@ -1678,7 +1713,7 @@ and how many have been slain.
   Ghorrath, the Walking Mountain (`TitanBoss`, flame) and Thurvok, the Horned Calamity (`BehemothBoss`, blood). Three
   monarchs (`MonarchBoss`: they walk, leap and blink): Veyrith of Stillness (`StillnessMonarch`, frost), Khorvane of
   Hunger (`HungerMonarch`, blood) and Thyrax of Storms (`StormMonarch`, storm). Each kind has its health and damage (multiples of an S-rank gate
-  boss's, `Balance.bossHealth`/`bossDamage`, so they move with the power curve: about 85,000 to 105,000 health), colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
+  boss's, `Balance.bossHealth`/`bossDamage`, so they move with the power curve: about 85,000 to 105,000 health when sized for S's home level; each is sized for the strongest hunter near where it rises, see "The power curve"), colour and two phase lines (world bosses 66% and 33%, monarchs 60% and 25%). Each class comment lists its moves
   phase by phase.
 - **When they come** (`WorldBosses`): once an awakened hunter in the overworld reaches `minLevel` (26, a C-rank gate's home level), the first
   world boss rises `firstMinutes` (30) later, about 80 to 130 blocks from a hunter (`minDistance`, `maxDistance`),
@@ -2179,7 +2214,7 @@ news for everyone on the server. Code in `scouting/` and `news/` (server), `clie
 | Piece | What it does |
 |---|---|
 | `GuildTerms` | Each great guild's terms (first guesses): **Red Lantern** comes from rank C, the richest bonus (x1.35) and the biggest cut (20% of gate gold), no perk, impatient (walks away 30% of the time a hunter holds out with nothing better on the table); **Iron Bastion** from B, x1.0, 15%, hired hands 30% cheaper (`Hires`), patient (10%); **Sunfall** from A, x1.1, 12%, +15% Association merit, 18%; **Azure Tide** from S only, x1.2, the smallest cut (10%), +5% System XP, 20% |
-| `Scouting` | **The offers:** `onRankChanged` (up) and `onAwakened` (C and up) call `scout`: each guild that wants the rank and hasn't come for it yet (`cameFor`), isn't the hunter's guild and has no offer pending puts one on its way, the first after `firstScoutSeconds` (45), the next `scoutGapSeconds` (40) apart. A bonus is `bonusGates` (10) gate golds of the rank (`EconomyHooks.GATE_GOLD`) x the guild's rate x 0.9-1.1, to the hundred; its ceiling is 1.3x (C) to 2x (S) of it. Once open an offer stands `offerMinutes` (20), then lapses. **The scout:** every second (`tick`) a newly open offer sends its scout (`ScoutEntity`) from 18-24 blocks behind the hunter if they can be visited (in the overworld, on their feet, not hurt by a creature in 8 s: a hit from before they last joined doesn't count, as the game keeps its time while the tick count starts over), else word of it (answer at the office); one that couldn't come comes later. Each guild sends its own people (its share of the scouts' names). The second guild of a rank-up's round on the table makes the news (a bidding war). **Answers** (`sign`, `holdOut`, `decline`, from the scout's window or the office): holding out against a better offer on the table beats it by 5-10% (up to the ceiling, then final; "can't match" if the ceiling is below it); with nothing better the guild raises 10-20% (`raiseMin/Max`) or walks away (its patience + 12% for each raise already given, `walkAwayStep`; counted apart from offers turned down). Turning one down raises the others' open offers 5% (`declineRaise`); turning down all four in a round gives **Not for Sale** (breaking news). Signing pays the bonus (`Economy.Reason.CONTRACT`), withdraws the open offers and those of the same rank still on the way, buys out a contract the hunter is under (no repayment), and an S-rank signing (not a renewal) gives **Franchise Hunter**. **The contract** (`contractDays` 7, the world's days): the guild takes its cut of gate gold (`gold`, from `Economy.add`; `paid` keeps the tally), its perk applies (`hireFee`, `merit` from `Association.addMerit`, `onXp`), and its parties are allies (below). When it runs out the guild sends a renewal (x1.1, `renewal`) 20 s later; walking out at the office repays what is left of the bonus (`owed`: bonus x days left / days, to the hundred) and makes the news |
+| `Scouting` | **The offers:** `onRankChanged` (up) and `onAwakened` (C and up) call `scout`: each guild that wants the rank and hasn't come for it yet (`cameFor`), isn't the hunter's guild and has no offer pending puts one on its way, the first after `firstScoutSeconds` (45), the next `scoutGapSeconds` (40) apart. A bonus is `signingBonusGates` (6) gate golds of the rank (`EconomyHooks.GATE_GOLD`) x the guild's rate x 0.9-1.1, to the hundred; its ceiling is 1.3x (C) to 2x (S) of it. Once open an offer stands `offerMinutes` (20), then lapses. **The scout:** every second (`tick`) a newly open offer sends its scout (`ScoutEntity`) from 18-24 blocks behind the hunter if they can be visited (in the overworld, on their feet, not hurt by a creature in 8 s: a hit from before they last joined doesn't count, as the game keeps its time while the tick count starts over), else word of it (answer at the office); one that couldn't come comes later. Each guild sends its own people (its share of the scouts' names). The second guild of a rank-up's round on the table makes the news (a bidding war). **Answers** (`sign`, `holdOut`, `decline`, from the scout's window or the office): holding out against a better offer on the table beats it by 5-10% (up to the ceiling, then final; "can't match" if the ceiling is below it); with nothing better the guild raises 10-20% (`raiseMin/Max`) or walks away (its patience + 12% for each raise already given, `walkAwayStep`; counted apart from offers turned down). Turning one down raises the others' open offers 5% (`declineRaise`); turning down all four in a round gives **Not for Sale** (breaking news). Signing pays the bonus (`Economy.Reason.CONTRACT`), withdraws the open offers and those of the same rank still on the way, buys out a contract the hunter is under (no repayment), and an S-rank signing (not a renewal) gives **Franchise Hunter**. **The contract** (`contractWorldDays` 14, the world's days: about 4.7 hours of play, so a hunter who runs gates hard pays most of the bonus back in the cut, and one who runs few comes out ahead): the guild takes its cut of gate gold (`gold`, from `Economy.add`; `paid` keeps the tally), its perk applies (`hireFee`, `merit` from `Association.addMerit`, `onXp`), and its parties are allies (below). When it runs out the guild sends a renewal (x1.1, `renewal`) 20 s later; walking out at the office repays what is left of the bonus (`owed`: bonus x days left / days, to the hundred) and makes the news |
 | Allies | A contracted guild's rival parties (`RivalParties`) are on its hunter's side: on its way to a gate the hunter got into first it stands down (`stood_down.ally`), never follows; one holding a gate lets the hunter in (`refusal` is null, no trespass); there is no race with them inside, and the boss falling with the hunter in there is a clear together (`notify.joint`: the party's clear counts, the cache is the hunter's). Their HUD chip reads YOUR GUILD with a handshake, their notices are titled YOUR GUILD and say so (`dispatched.ally`, `went_in.ally`; no race warnings), and they greet the hunter as one of theirs (`talk.ally`) |
 | `ScoutRecord` | `beyondsolo:scouting` attachment (kept through death, cleared by `/solo wipe`, which also sends the scouts home): the offers (on the table or on their way: bonus, first bonus, ceiling, cut, days, raises, final, opens/lapses, the scout's name and look), the contract (guild, rank, bonus, cut, from/until day), gate gold paid under it, contracts signed, offers turned down, raised and lapsed, guilds that walked away, the best bonus, the rank each guild last came for and the current round (its rank, the guilds that came, those turned down) |
 | `ScoutEntity` | `beyondsolo:guild_scout`: a person in a sharp suit (three looks, `tools/gen_scout_assets.py`) with their guild's band in its colour, their name over their head in it. Walks up to their hunter (faster from far off), says hello in their guild's manner (`scout.hello.<guild>` / `scout.renewal.<guild>`, an action-bar hint to right-click), waits `scoutWaitSeconds` (150) while the window isn't open, then leaves the offer with the association and walks off. Never saved with the world, can't be hurt or pushed; right-clicking one that came for someone else gets "I'm here for another hunter" |

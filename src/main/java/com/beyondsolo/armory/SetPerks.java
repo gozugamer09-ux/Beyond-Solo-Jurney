@@ -48,8 +48,9 @@ import java.util.WeakHashMap;
 
 /**
  * The four-piece perks of the armory's sets ({@link ArmorCatalog}), divine sets included. A perk only works for a
- * wearer of all four pieces who draws the set out ({@link ArmorSets#fullSet}). Numbers are first guesses: the
- * balancing pass tunes them. Effects stay light: a spark, a ring, a sound.
+ * wearer of all four pieces who draws the set out ({@link ArmorSets#fullSet}). Its guards over a blow go through
+ * {@link com.beyondsolo.system.BalanceHooks#keep} and its dodges through {@code avoids}, inside the ceilings every guard
+ * and dodge shares. Effects stay light: a spark, a ring, a sound.
  */
 @EventBusSubscriber(modid = BeyondSolo.MOD_ID)
 public final class SetPerks {
@@ -205,6 +206,8 @@ public final class SetPerks {
         LivingEntity target = event.getEntity();
         if (target.level().isClientSide) return;
         DamageSource source = event.getSource();
+        // what guards the wearer (inside the floor every guard over a blow shares) and what the attacker adds
+        float guard = 1f;
         float mult = 1f;
 
         // the wearer is hit
@@ -212,16 +215,16 @@ public final class SetPerks {
         if (worn != null && worn.perk != null && source.getEntity() != null && source.getEntity() != target) {
             switch (worn.perk) {
                 case "tower_guard" -> {
-                    if (fromFront(target, source)) mult -= TOWER_GUARD;
+                    if (fromFront(target, source)) guard -= TOWER_GUARD;
                 }
                 case "ashen_bulwark" -> {
-                    if (fromFront(target, source)) mult -= ASHEN_BULWARK;
+                    if (fromFront(target, source)) guard -= ASHEN_BULWARK;
                 }
                 case "oath_of_iron" -> {
-                    if (target.isShiftKeyDown() || target.isBlocking()) mult -= OATH_BRACED;
+                    if (target.isShiftKeyDown() || target.isBlocking()) guard -= OATH_BRACED;
                 }
                 case "shadow_veil" -> {
-                    if (target.getRandom().nextFloat() < VEIL_DODGE) {
+                    if (com.beyondsolo.system.BalanceHooks.avoids(target, source, VEIL_DODGE)) {
                         event.setCanceled(true);
                         prime(target, "veil", 3 * 20);
                         burst(target, ParticleTypes.SQUID_INK, 12, 0.4);
@@ -235,16 +238,16 @@ public final class SetPerks {
         // guardians watching over the players around them
         if (target instanceof Player && source.getEntity() != null && source.getEntity() != target) {
             boolean oath = false, sanctuary = false;
-            for (Player guard : allies(target, 8)) {
-                ArmorSets.Set g = ArmorSets.fullSet(guard);
+            for (Player ally : allies(target, 8)) {
+                ArmorSets.Set g = ArmorSets.fullSet(ally);
                 if (g == null || g.perk == null) continue;
                 if (!sanctuary && g.perk.equals("sanctuary")) {
                     sanctuary = true;
-                    mult -= SANCTUARY;
+                    guard -= SANCTUARY;
                 }
-                if (!oath && guard != target && g.perk.equals("oath_of_iron") && guard.distanceToSqr(target) <= 36) {
+                if (!oath && ally != target && g.perk.equals("oath_of_iron") && ally.distanceToSqr(target) <= 36) {
                     oath = true;
-                    mult -= OATH_ALLIES;
+                    guard -= OATH_ALLIES;
                 }
             }
         }
@@ -304,6 +307,7 @@ public final class SetPerks {
                 }
             }
         }
+        if (guard < 1f) mult *= com.beyondsolo.system.BalanceHooks.keep(target, Math.max(0.05f, guard));
         if (mult != 1f) event.setAmount(event.getAmount() * Math.max(0.05f, mult));
     }
 
