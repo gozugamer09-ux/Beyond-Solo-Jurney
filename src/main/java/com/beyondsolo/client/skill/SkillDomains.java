@@ -368,6 +368,19 @@ public final class SkillDomains {
         event.setCanceled(true);
     }
 
+    /**
+     * The clouds under a domain take its colour, between its sky and its fog. Sodium draws the clouds with a fog of its
+     * own, so without this they hung white and bright over a starlit domain; vanilla's clouds just fit in better.
+     */
+    public static Vec3 clouds(Vec3 base, float partial) {
+        Domain d = dominant();
+        if (d == null) return base;
+        float k = smooth(d.k(partial)) * 0.9f;
+        int c = lerpColor(d.look.sky, d.look.fog, 0.35f);
+        return new Vec3(Mth.lerp(k, base.x, ((c >> 16) & 255) / 255.0), Mth.lerp(k, base.y, ((c >> 8) & 255) / 255.0),
+            Mth.lerp(k, base.z, (c & 255) / 255.0));
+    }
+
     // ================================================================ the sky
 
     private static final ResourceLocation GLOW = BeyondSolo.id("textures/effect/glow.png");

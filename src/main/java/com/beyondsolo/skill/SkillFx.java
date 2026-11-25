@@ -23,11 +23,27 @@ public final class SkillFx {
         play(entity, kind, color, entity.position(), size, 0);
     }
 
+    /**
+     * Shows a passive's effect (a proc: a spark, a dodge, a pact paid). It can go off in the middle of a cast, on a
+     * blow the cast dealt, but it is not that cast's own look: the caster acts out the skill, not the proc (a random
+     * spark first made Flash Step's look a heal now and then).
+     */
+    public static void aside(Runnable show) {
+        aside++;
+        try {
+            show.run();
+        } finally {
+            aside--;
+        }
+    }
+
     // ---- the caster's body: while a skill's action runs, the first effect it shows is what the caster acts out ----
 
     private static boolean casting;
     private static String look = "";
     private static int variant;
+    /** How deep in a passive's own effect ({@link #aside}) the server is: those are never a cast's look. */
+    private static int aside;
     /** The running cast's element ({@link SkillElement} ordinal), which picks the skin of everything it shows. */
     private static int element = -1;
     /** What each caster cast last, and when: effects that come after the cast (a landing, a burst) take its element. */
@@ -114,6 +130,7 @@ public final class SkillFx {
 
     /** {@link #note(SkillFxPayload.Kind, int)} for the rune skills' effects ({@code rune:} and the kind's name). */
     public static void note(String name, int duration) {
+        if (aside > 0) return;
         if (casting) {
             if (!look.isEmpty()) return;
             look = name;

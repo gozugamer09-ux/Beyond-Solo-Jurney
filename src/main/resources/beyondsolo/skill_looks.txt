@@ -267,7 +267,7 @@ deadfall QUAKE 16 10
 no_way_out TRAP 200
 tempest_volley BOLT 0
 lightning_rod ARROW 124
-flash_step HEAL 0
+flash_step BOLT 0
 wandering_spark BALL 19
 live_wire STATIC 200
 thunderhead ARROW 0

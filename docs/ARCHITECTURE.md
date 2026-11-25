@@ -857,7 +857,9 @@ for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools
   stance, a step, `later`/`ServerScheduler` work) has a delay column: what its scheduled tasks show is tied to the cast
   through `SkillFx.carry`, the body winds up, holds the stance and strikes with the real blow (up to
   `Gestures.MAX_DELAY` ticks). `SkillWindupGameTests.theLooksTableIsTrueToTheSkills` casts every class active and
-  prints the table as it should read when one changes its first effect: paste it in.
+  prints the table as it should read when one changes its first effect: paste it in. A passive's own effect (a
+  proc on a blow the cast dealt: a spark, a dodge, a pact paid) is never a cast's look: show it through
+  `SkillFx.aside`.
 - *Where it lands*: a skill that deals damage shows the blow on what it struck (a burst on each creature, a crack or a
   ring where it landed, a beam that hangs a breath after a shot), not only on the caster. Add such effects after the
   skill's first one, or its line in the looks table changes too.
@@ -868,7 +870,8 @@ for a new look), three lang lines (name, `.flavour`, `.desc`), an icon in `tools
   reach, a body hung where the caster faced (an eclipse, a moon, a sun, a void), stars, storm flashes, ash, embers,
   petals or spores in the air. It dims during the wind-up, takes the world on the blow, holds and lifts slowly.
   Everyone within 72 blocks sees it. Keep a bright domain's zenith deep (a dawn is indigo over an orange horizon):
-  white skies and white suns wash the fight out.
+  white skies and white suns wash the fight out. The clouds take the domain's colour too (`SkillDomains.clouds`
+  through `ClientLevelMixin`): Sodium draws clouds with a fog of its own, so without it they hung white over a night.
 - `/solo skill feel <light|medium|heavy|massive|kill|ultimate> [element]` shows a blow of that weight on the creature
   you look at, dealing nothing.
 
